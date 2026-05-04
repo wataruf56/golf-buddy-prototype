@@ -251,6 +251,12 @@ const state = {
   selectedRound: null,
   chatOpen: null,
   messageInput: '',
+  createStep: 'select',
+  createType: null,
+  createDateType: 'fixed',
+  createSpots: 3,
+  filterCourse: 'all',
+  filterScale: 'all',
 };
 
 const roundUsers = [
@@ -260,9 +266,10 @@ const roundUsers = [
 ];
 
 const rounds = [
-  { id: 'r1', host: roundUsers[2], title: '初心者歓迎！のんびりラウンド', date: '5/10（土）', time: '8:30 スタート', area: '神奈川県西部', spots: '残り2枠', level: '初心者OK', price: '¥8,000〜', applicants: [roundUsers[0]] },
-  { id: 'r2', host: roundUsers[0], title: '平日ゆるラウンド', date: '5/14（水）', time: '9:00 スタート', area: '千葉県', spots: '残り3枠', level: 'スコア不問', price: '¥6,500〜', applicants: [] },
-  { id: 'r3', host: roundUsers[1], title: '女性歓迎☀️ エンジョイゴルフ', date: '5/17（土）', time: '7:30 スタート', area: '埼玉県', spots: '残り1枠', level: '120以下', price: '¥9,000〜', applicants: [roundUsers[2]] },
+  { id: 'r1', host: roundUsers[2], title: '初心者歓迎！のんびりラウンド', type: 'confirmed', courseName: '湘南カントリークラブ', dateType: 'fixed', date: '5/10（土）', time: '8:30 スタート', area: '神奈川県西部', maxSpots: 4, currentApplicants: 2, level: '初心者OK', price: '¥8,000〜', applicants: [roundUsers[0]] },
+  { id: 'r2', host: roundUsers[0], title: '平日ゆるラウンド（コース未定）', type: 'flexible', dateType: 'range', dateRange: '5月の平日どこか', date: '5月の平日', time: '9:00 スタート', area: '千葉県', maxSpots: 4, currentApplicants: 1, level: 'スコア不問', price: '¥6,500〜', applicants: [] },
+  { id: 'r3', host: roundUsers[1], title: '女性歓迎☀️ エンジョイゴルフ', type: 'confirmed', courseName: '埼玉国際ゴルフ倶楽部', dateType: 'fixed', date: '5/17（土）', time: '7:30 スタート', area: '埼玉県', maxSpots: 4, currentApplicants: 3, level: '120以下', price: '¥9,000〜', applicants: [roundUsers[2]] },
+  { id: 'r4', host: roundUsers[2], title: '🏆 春のメンバーコンペ2026', type: 'confirmed', courseName: '富士見高原ゴルフコース', dateType: 'fixed', date: '5/24（土）', time: '7:00 スタート', area: '山梨県', maxSpots: 20, currentApplicants: 12, level: 'スコア不問', price: '¥12,000〜（コンペフィー込）', applicants: [roundUsers[0], roundUsers[1]] },
 ];
 
 const buddies = [roundUsers[2]];
@@ -379,17 +386,41 @@ function renderHome() {
 }
 
 function renderRoundCard(r) {
+  const isComp = r.maxSpots >= 5;
+  const remaining = r.maxSpots - r.currentApplicants;
+  const progressPct = Math.round((r.currentApplicants / r.maxSpots) * 100);
+  const typeBadge = r.type === 'confirmed'
+    ? `<span class="badge" style="background:var(--green-light);color:var(--green)">✅ コース確定</span>`
+    : `<span class="badge" style="background:#EFEFEC;color:var(--sub)">📍 コース未定</span>`;
+  const dateLabel = r.dateType === 'range' ? r.dateRange : r.date;
+  const placeLabel = r.type === 'confirmed' ? r.courseName : r.area;
+  const placeIcon = r.type === 'confirmed' ? '⛳' : '📍';
+  const cardBorder = isComp ? 'border-left:4px solid var(--orange);' : '';
+
   return `
-    <div data-round="${r.id}" style="background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:10px;box-shadow:var(--shadow);cursor:pointer">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+    <div data-round="${r.id}" style="background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:10px;box-shadow:var(--shadow);cursor:pointer;${cardBorder}">
+      ${isComp ? `<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px"><span class="badge" style="background:var(--orange);color:#fff">🏆 コンペ・イベント</span></div>` : ''}
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:8px">
         <div style="font-size:15px;font-weight:700;flex:1">${r.title}</div>
-        <span class="badge" style="background:var(--green-light);color:var(--green);flex-shrink:0">${r.spots}</span>
+        ${!isComp ? `<span class="badge" style="background:var(--green-light);color:var(--green);flex-shrink:0">残り${remaining}枠</span>` : ''}
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
-        <span class="badge" style="background:var(--bg);color:var(--sub)">📅 ${r.date}</span>
-        <span class="badge" style="background:var(--bg);color:var(--sub)">⏰ ${r.time}</span>
-        <span class="badge" style="background:var(--bg);color:var(--sub)">📍 ${r.area}</span>
+        ${typeBadge}
+        <span class="badge" style="background:var(--bg);color:var(--sub)">📅 ${dateLabel}</span>
+        ${r.dateType === 'fixed' ? `<span class="badge" style="background:var(--bg);color:var(--sub)">⏰ ${r.time}</span>` : ''}
+        <span class="badge" style="background:var(--bg);color:var(--sub)">${placeIcon} ${placeLabel}</span>
       </div>
+      ${isComp ? `
+        <div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+            <span style="font-size:11px;color:var(--sub);font-weight:600">参加状況</span>
+            <span style="font-size:14px;font-weight:900;color:var(--orange)">${r.currentApplicants}/${r.maxSpots}人 参加中</span>
+          </div>
+          <div style="width:100%;height:8px;background:var(--bg);border-radius:4px;overflow:hidden">
+            <div style="width:${progressPct}%;height:100%;background:var(--orange);border-radius:4px"></div>
+          </div>
+        </div>
+      ` : ''}
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
         <span class="badge" style="background:var(--blue-light);color:var(--blue)">${r.level}</span>
         <span class="badge" style="background:var(--yellow-light);color:var(--orange)">${r.price}</span>
@@ -455,6 +486,23 @@ function renderRoundDetail() {
 
 /* ===== SEARCH ===== */
 function renderSearch() {
+  const courseOpts = [
+    { id: 'all', label: '全て' },
+    { id: 'confirmed', label: '✅ コース確定' },
+    { id: 'flexible', label: '📍 コース未定' },
+  ];
+  const scaleOpts = [
+    { id: 'all', label: '全て' },
+    { id: 'normal', label: '通常（1〜4人）' },
+    { id: 'comp', label: '🏆 コンペ（5人〜）' },
+  ];
+  const filtered = rounds.filter(r => {
+    if (state.filterCourse !== 'all' && r.type !== state.filterCourse) return false;
+    if (state.filterScale === 'normal' && r.maxSpots >= 5) return false;
+    if (state.filterScale === 'comp' && r.maxSpots < 5) return false;
+    return true;
+  });
+
   return `
     <div class="page-header">さがす</div>
     <div style="padding:0 20px 16px">
@@ -462,59 +510,179 @@ function renderSearch() {
         <input placeholder="エリア・キーワード" style="flex:1;padding:12px 16px;border:1.5px solid var(--border);border-radius:12px;font-size:14px;background:var(--card);outline:none;font-family:inherit"/>
         <button style="padding:12px 16px;background:var(--green);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer">検索</button>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
-        <span class="badge" style="background:var(--green-light);color:var(--green);cursor:pointer;padding:6px 14px">初心者歓迎</span>
+
+      <div style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--sub);margin-bottom:6px">コース状況</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${courseOpts.map(o => `<span data-filter-course="${o.id}" class="badge" style="padding:7px 14px;cursor:pointer;${state.filterCourse===o.id?'background:var(--green-light);color:var(--green);border:1.5px solid var(--green)':'background:var(--bg);color:var(--sub);border:1.5px solid var(--border)'}">${o.label}</span>`).join('')}
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--sub);margin-bottom:6px">募集タイプ</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${scaleOpts.map(o => `<span data-filter-scale="${o.id}" class="badge" style="padding:7px 14px;cursor:pointer;${state.filterScale===o.id?'background:var(--orange-light);color:var(--orange);border:1.5px solid var(--orange)':'background:var(--bg);color:var(--sub);border:1.5px solid var(--border)'}">${o.label}</span>`).join('')}
+        </div>
+      </div>
+
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+        <span class="badge" style="background:var(--bg);color:var(--sub);cursor:pointer;border:1px solid var(--border);padding:6px 14px">初心者歓迎</span>
         <span class="badge" style="background:var(--bg);color:var(--sub);cursor:pointer;border:1px solid var(--border);padding:6px 14px">今週末</span>
         <span class="badge" style="background:var(--bg);color:var(--sub);cursor:pointer;border:1px solid var(--border);padding:6px 14px">神奈川</span>
         <span class="badge" style="background:var(--bg);color:var(--sub);cursor:pointer;border:1px solid var(--border);padding:6px 14px">平日</span>
-        <span class="badge" style="background:var(--bg);color:var(--sub);cursor:pointer;border:1px solid var(--border);padding:6px 14px">¥10,000以下</span>
       </div>
     </div>
+    <div style="padding:0 20px 8px;font-size:12px;color:var(--sub)">${filtered.length}件の募集</div>
     <div style="padding:0 20px">
-      ${rounds.map(r => renderRoundCard(r)).join('')}
+      ${filtered.length === 0 ? `<div style="text-align:center;padding:40px 20px;color:var(--muted);font-size:13px">条件に合う募集がありません</div>` : filtered.map(r => renderRoundCard(r)).join('')}
     </div>
     <div style="height:20px"></div>`;
 }
 
 /* ===== CREATE ===== */
 function renderCreate() {
+  if (state.createStep === 'select') return renderCreateSelect();
+  return renderCreateForm();
+}
+
+function renderCreateSelect() {
   return `
     <div class="page-header">ラウンドを募集する</div>
     <div style="padding:0 20px">
+      <div style="font-size:13px;color:var(--sub);margin-bottom:16px">募集タイプを選んでください</div>
+
+      <div data-create-type="confirmed" style="background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);cursor:pointer;margin-bottom:12px;border:2px solid var(--green-light);transition:all 0.2s">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px">
+          <div style="width:56px;height:56px;border-radius:14px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:28px;position:relative">
+            ⛳<span style="position:absolute;bottom:-2px;right:-2px;width:22px;height:22px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900">✓</span>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:16px;font-weight:900">コース予約済み</div>
+            <div style="font-size:12px;color:var(--sub);margin-top:4px">予約済みのコースで仲間を募集</div>
+          </div>
+          <div style="font-size:20px;color:var(--muted)">›</div>
+        </div>
+      </div>
+
+      <div data-create-type="flexible" style="background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);cursor:pointer;margin-bottom:12px;border:2px solid #EFEFEC;transition:all 0.2s">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px">
+          <div style="width:56px;height:56px;border-radius:14px;background:#EFEFEC;display:flex;align-items:center;justify-content:center;font-size:28px;position:relative">
+            🗺️<span style="position:absolute;bottom:-2px;right:-2px;width:22px;height:22px;border-radius:50%;background:var(--sub);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900">?</span>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:16px;font-weight:900">コース未定（これから決める）</div>
+            <div style="font-size:12px;color:var(--sub);margin-top:4px">エリア・日程の希望で募集</div>
+          </div>
+          <div style="font-size:20px;color:var(--muted)">›</div>
+        </div>
+      </div>
+
+      <div style="background:var(--yellow-light);border-radius:12px;padding:14px;margin-top:8px">
+        <div style="font-size:12px;font-weight:700;color:var(--orange);margin-bottom:4px">💡 5人以上の募集について</div>
+        <div style="font-size:11px;color:var(--sub);line-height:1.5">5〜50人の募集はコンペ・イベント扱いとなり、専用デザインで表示されます</div>
+      </div>
+    </div>
+    <div style="height:20px"></div>`;
+}
+
+function renderCreateForm() {
+  const isConfirmed = state.createType === 'confirmed';
+  const spots = state.createSpots;
+  const isComp = spots >= 5;
+  const presetSpots = [2,3,4,8,12,20];
+
+  return `
+    <div style="padding:12px 20px 0">
+      <div data-action="back-to-select" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--blue);cursor:pointer;font-weight:600">← タイプ選択へ</div>
+    </div>
+    <div class="page-header" style="padding-top:8px">
+      ${isConfirmed ? '⛳ コース予約済みで募集' : '🗺️ コース未定で募集'}
+    </div>
+    <div style="padding:0 20px">
       <div style="background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)">
-        ${[
-          { label: 'タイトル', placeholder: '例: 初心者歓迎！のんびりラウンド', type: 'text' },
-          { label: '日時', placeholder: '2026/05/10  8:30', type: 'text' },
-          { label: 'エリア', placeholder: '例: 神奈川県西部', type: 'text' },
-          { label: '費用目安', placeholder: '例: ¥8,000〜', type: 'text' },
-        ].map(f => `
-          <div style="margin-bottom:16px">
-            <label style="font-size:12px;font-weight:700;color:var(--sub);display:block;margin-bottom:6px">${f.label}</label>
-            <input placeholder="${f.placeholder}" style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;background:var(--bg);outline:none;font-family:inherit"/>
-          </div>`).join('')}
 
         <div style="margin-bottom:16px">
-          <label style="font-size:12px;font-weight:700;color:var(--sub);display:block;margin-bottom:6px">募集人数</label>
-          <div style="display:flex;gap:8px">
-            ${[2,3,4].map(n => `<div style="flex:1;padding:12px;text-align:center;border:1.5px solid ${n===3?'var(--green)':'var(--border)'};border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;background:${n===3?'var(--green-light)':'var(--card)'};color:${n===3?'var(--green)':'var(--text)'}">${n}人</div>`).join('')}
+          <label style="font-size:12px;font-weight:700;color:var(--sub);display:block;margin-bottom:6px">タイトル</label>
+          <input placeholder="例: 初心者歓迎！のんびりラウンド" style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;background:var(--bg);outline:none;font-family:inherit"/>
+        </div>
+
+        ${isConfirmed ? `
+          <div style="margin-bottom:16px">
+            <label style="font-size:12px;font-weight:700;color:var(--sub);display:block;margin-bottom:6px">ゴルフ場名 <span style="color:var(--red)">*</span></label>
+            <input placeholder="例: 湘南カントリークラブ" style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;background:var(--bg);outline:none;font-family:inherit"/>
+          </div>
+
+          <div style="margin-bottom:16px">
+            <label style="font-size:12px;font-weight:700;color:var(--sub);display:block;margin-bottom:6px">プレー日 <span style="color:var(--red)">*</span></label>
+            <input type="date" style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;background:var(--bg);outline:none;font-family:inherit"/>
+          </div>
+
+          <div style="margin-bottom:16px">
+            <label style="font-size:12px;font-weight:700;color:var(--sub);display:block;margin-bottom:6px">スタート時間 <span style="color:var(--red)">*</span></label>
+            <select style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;background:var(--bg);outline:none;font-family:inherit">
+              ${(()=>{ let opts = ''; for(let h=6;h<=14;h++){ for(let m of [0,30]){ const t = `${h}:${m===0?'00':'30'}`; opts += `<option>${t}</option>`; } } return opts; })()}
+            </select>
+          </div>
+
+          <div style="margin-bottom:16px">
+            <label style="font-size:12px;font-weight:700;color:var(--sub);display:block;margin-bottom:6px">プレー費の目安</label>
+            <input placeholder="例: ¥8,000〜" style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;background:var(--bg);outline:none;font-family:inherit"/>
+          </div>
+        ` : `
+          <div style="margin-bottom:16px">
+            <label style="font-size:12px;font-weight:700;color:var(--sub);display:block;margin-bottom:6px">エリア <span style="color:var(--red)">*</span></label>
+            <select style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;background:var(--bg);outline:none;font-family:inherit">
+              <option value="">選択してください</option>
+              ${['東京都','神奈川県','千葉県','埼玉県','茨城県','栃木県','群馬県','静岡県','山梨県','その他'].map(p => `<option>${p}</option>`).join('')}
+            </select>
+          </div>
+
+          <div style="margin-bottom:16px">
+            <label style="font-size:12px;font-weight:700;color:var(--sub);display:block;margin-bottom:6px">日程指定方法 <span style="color:var(--red)">*</span></label>
+            <div style="display:flex;gap:8px;margin-bottom:10px">
+              <div data-date-toggle="fixed" style="flex:1;padding:10px;text-align:center;border:1.5px solid ${state.createDateType==='fixed'?'var(--green)':'var(--border)'};border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:${state.createDateType==='fixed'?'var(--green-light)':'var(--card)'};color:${state.createDateType==='fixed'?'var(--green)':'var(--text)'}">📅 日付指定</div>
+              <div data-date-toggle="range" style="flex:1;padding:10px;text-align:center;border:1.5px solid ${state.createDateType==='range'?'var(--green)':'var(--border)'};border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:${state.createDateType==='range'?'var(--green-light)':'var(--card)'};color:${state.createDateType==='range'?'var(--green)':'var(--text)'}">📆 期間で希望</div>
+            </div>
+            ${state.createDateType==='fixed'
+              ? `<input type="date" style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;background:var(--bg);outline:none;font-family:inherit"/>`
+              : `<input placeholder="例: 5月の土日 / 5/10〜5/25のどこか" style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;background:var(--bg);outline:none;font-family:inherit"/>`}
+          </div>
+
+          <div style="margin-bottom:16px">
+            <label style="font-size:12px;font-weight:700;color:var(--sub);display:block;margin-bottom:6px">予算の目安</label>
+            <input placeholder="例: ¥6,000〜8,000" style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;background:var(--bg);outline:none;font-family:inherit"/>
+          </div>
+        `}
+
+        <div style="margin-bottom:16px">
+          <label style="font-size:12px;font-weight:700;color:var(--sub);display:block;margin-bottom:6px">募集人数 <span style="color:var(--red)">*</span> <span style="color:var(--muted);font-weight:500">（1〜50人）</span></label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+            ${presetSpots.map(n => `<div data-spots="${n}" style="flex:1;min-width:54px;padding:10px;text-align:center;border:1.5px solid ${n===spots?'var(--green)':'var(--border)'};border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:${n===spots?'var(--green-light)':'var(--card)'};color:${n===spots?'var(--green)':'var(--text)'}">${n}人</div>`).join('')}
+          </div>
+          <input id="spotsInput" type="number" min="1" max="50" value="${spots}" style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;background:var(--bg);outline:none;font-family:inherit"/>
+          ${isComp ? `<div style="margin-top:8px;padding:10px 12px;background:var(--orange-light);border-radius:8px;font-size:12px;color:var(--orange);font-weight:700">🏆 5人以上はコンペ・イベント扱いになります</div>` : ''}
+        </div>
+
+        <div style="margin-bottom:16px">
+          <label style="font-size:12px;font-weight:700;color:var(--sub);display:block;margin-bottom:6px">レベル条件</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${['スコア不問','初心者OK','120以下','100以下'].map((l,i) => `<span class="badge" style="padding:8px 14px;cursor:pointer;${i===0?'background:var(--green-light);color:var(--green);border:1.5px solid var(--green)':'background:var(--bg);color:var(--sub);border:1.5px solid var(--border)'}">${l}</span>`).join('')}
           </div>
         </div>
 
         <div style="margin-bottom:16px">
-          <label style="font-size:12px;font-weight:700;color:var(--sub);display:block;margin-bottom:6px">レベル</label>
+          <label style="font-size:12px;font-weight:700;color:var(--sub);display:block;margin-bottom:6px">参加条件（レビュー）</label>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            ${['初心者OK','スコア不問','120以下','100以下'].map((l,i) => `<span class="badge" style="padding:8px 14px;cursor:pointer;${i===0?'background:var(--green-light);color:var(--green);border:1.5px solid var(--green)':'background:var(--bg);color:var(--sub);border:1.5px solid var(--border)'}">${l}</span>`).join('')}
+            ${['制限なし','★3.0以上','★3.5以上','★4.0以上'].map((l,i) => `<span class="badge" style="padding:8px 14px;cursor:pointer;${i===0?'background:var(--green-light);color:var(--green);border:1.5px solid var(--green)':'background:var(--bg);color:var(--sub);border:1.5px solid var(--border)'}">${l}</span>`).join('')}
           </div>
         </div>
 
         <div style="margin-bottom:20px">
-          <label style="font-size:12px;font-weight:700;color:var(--sub);display:block;margin-bottom:6px">参加条件（レビュー）</label>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            ${['制限なし','★3.0以上','★3.5以上','★4.0以上'].map((l,i) => `<span class="badge" style="padding:8px 14px;cursor:pointer;${i===1?'background:var(--yellow-light);color:var(--orange);border:1.5px solid var(--orange)':'background:var(--bg);color:var(--sub);border:1.5px solid var(--border)'}">${l}</span>`).join('')}
-          </div>
+          <label style="font-size:12px;font-weight:700;color:var(--sub);display:block;margin-bottom:6px">ひとこと</label>
+          <textarea maxlength="200" placeholder="募集の趣旨や雰囲気を伝えましょう（200文字以内）" style="width:100%;height:80px;padding:12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;background:var(--bg);outline:none;font-family:inherit;resize:none"></textarea>
         </div>
 
-        <button style="width:100%;padding:15px;background:var(--green);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer" onclick="alert('募集を公開しました！')">募集を公開する</button>
+        <button style="width:100%;padding:15px;background:${isComp?'var(--orange)':'var(--green)'};color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer" onclick="alert('${isComp?'コンペ・イベント':'ラウンド'}募集を公開しました！')">${isComp?'🏆 コンペ募集を公開する':'募集を公開する'}</button>
       </div>
     </div>
     <div style="height:20px"></div>`;
@@ -793,6 +961,10 @@ function bindEvents() {
       state.tab = tab;
       state.screen = tab;
       state.blockerVisible = false;
+      if (tab === 'create') {
+        state.createStep = 'select';
+        state.createType = null;
+      }
       render();
     });
   });
@@ -808,6 +980,63 @@ function bindEvents() {
   document.querySelectorAll('[data-action="back"]').forEach(el => {
     el.addEventListener('click', () => {
       state.screen = state.tab;
+      render();
+    });
+  });
+
+  document.querySelectorAll('[data-action="back-to-select"]').forEach(el => {
+    el.addEventListener('click', () => {
+      state.createStep = 'select';
+      state.createType = null;
+      render();
+    });
+  });
+
+  document.querySelectorAll('[data-create-type]').forEach(el => {
+    el.addEventListener('click', () => {
+      state.createType = el.dataset.createType;
+      state.createStep = 'form';
+      state.createSpots = 3;
+      state.createDateType = 'fixed';
+      render();
+    });
+  });
+
+  document.querySelectorAll('[data-date-toggle]').forEach(el => {
+    el.addEventListener('click', () => {
+      state.createDateType = el.dataset.dateToggle;
+      render();
+    });
+  });
+
+  document.querySelectorAll('[data-spots]').forEach(el => {
+    el.addEventListener('click', () => {
+      state.createSpots = parseInt(el.dataset.spots);
+      render();
+    });
+  });
+
+  const spotsInput = document.getElementById('spotsInput');
+  if (spotsInput) {
+    spotsInput.addEventListener('change', () => {
+      let v = parseInt(spotsInput.value) || 1;
+      if (v < 1) v = 1;
+      if (v > 50) v = 50;
+      state.createSpots = v;
+      render();
+    });
+  }
+
+  document.querySelectorAll('[data-filter-course]').forEach(el => {
+    el.addEventListener('click', () => {
+      state.filterCourse = el.dataset.filterCourse;
+      render();
+    });
+  });
+
+  document.querySelectorAll('[data-filter-scale]').forEach(el => {
+    el.addEventListener('click', () => {
+      state.filterScale = el.dataset.filterScale;
       render();
     });
   });
