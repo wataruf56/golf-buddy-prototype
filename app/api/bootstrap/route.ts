@@ -20,7 +20,7 @@ export async function GET() {
   }
 
   const [roundsRes, pendingReviewsRes, chatsRes, byMeRes, ofMeRes] = await Promise.allSettled([
-    db.listRounds({ status: 'open' }),
+    db.listRounds(),
     db.listPendingReviews(meId),
     db.listChatsForUser(meId),
     db.listReviewsByUser(meId),
