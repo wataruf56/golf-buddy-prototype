@@ -27,10 +27,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'firestore not initialized' }, { status: 500, headers: noStore });
   }
   try {
-    let q = db.collection('_logs') as any;
-    if (userId) q = q.where('userId', '==', userId);
-    const snap = await q.orderBy('ts', 'desc').limit(limit).get();
-    const logs = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+    // Avoid composite index: order only by ts, then filter in app code.
+    const snap = await db.collection('_logs')
+      .orderBy('ts', 'desc')
+      .limit(userId ? Math.max(limit * 4, 200) : limit)
+      .get();
+    let logs = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+    if (userId) logs = logs.filter((l: any) => l.userId === userId).slice(0, limit);
     return NextResponse.json({
       count: logs.length,
       logs,
