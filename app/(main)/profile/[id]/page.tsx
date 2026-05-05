@@ -59,10 +59,25 @@ export default function ProfilePage() {
       <div className="bg-card rounded-card p-4 shadow-card mb-3">
         <div className="text-[13px] font-bold mb-2.5">プロフィール</div>
         <div className="flex flex-wrap gap-1.5">
-          <span className="px-3 py-1.5 bg-bg text-sub text-[11px] font-bold rounded-full">🏌️ {user.playStyle}</span>
-          <span className="px-3 py-1.5 bg-bg text-sub text-[11px] font-bold rounded-full">📅 {user.frequency}</span>
-          <span className="px-3 py-1.5 bg-bg text-sub text-[11px] font-bold rounded-full">📍 {user.area}</span>
+          {user.gender && (
+            <span className="px-3 py-1.5 bg-bg text-sub text-[11px] font-bold rounded-full">
+              {user.gender === 'male' ? '👨 男性' : user.gender === 'female' ? '👩 女性' : '🧑 その他'}
+            </span>
+          )}
+          {user.car && (
+            <span className="px-3 py-1.5 bg-bg text-sub text-[11px] font-bold rounded-full">
+              {user.car === 'have' ? '🚗 車あり' : '🚶 車なし'}
+            </span>
+          )}
+          {user.playStyle && <span className="px-3 py-1.5 bg-bg text-sub text-[11px] font-bold rounded-full">🏌️ {user.playStyle}</span>}
+          {user.frequency && <span className="px-3 py-1.5 bg-bg text-sub text-[11px] font-bold rounded-full">📅 {user.frequency}</span>}
+          {user.area && <span className="px-3 py-1.5 bg-bg text-sub text-[11px] font-bold rounded-full">📍 {user.area}</span>}
         </div>
+        {user.bio && (
+          <div className="mt-3 p-3 bg-bg rounded-xl text-[13px] text-text leading-relaxed whitespace-pre-wrap">
+            {user.bio}
+          </div>
+        )}
       </div>
 
       <div className="bg-card rounded-card p-4 shadow-card mb-4">

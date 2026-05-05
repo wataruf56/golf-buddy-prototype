@@ -1,8 +1,13 @@
+export type Gender = 'male' | 'female' | 'other';
+export type CarStatus = 'have' | 'none';
+
 export type User = {
   id: string;
   displayName: string;
   age: number;
-  gender?: 'male' | 'female' | 'other';
+  gender?: Gender;
+  car?: CarStatus;
+  bio?: string;
   area: string;
   scoreRange: string;
   playStyle: string;

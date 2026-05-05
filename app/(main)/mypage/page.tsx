@@ -107,7 +107,7 @@ export default function MyPage() {
           <div className="flex gap-2">
             <Stat value={`★${me.reviewAvg}`} label="平均レビュー" color="text-green" />
             <Stat value={`${me.roundCount}回`} label="ラウンド" />
-            <Stat value="0回" label="ドタキャン" />
+            <Stat value={`${myHostedRounds.length}回`} label="募集" />
           </div>
         </div>
 

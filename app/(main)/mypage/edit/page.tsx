@@ -7,11 +7,21 @@ import { toast } from '@/components/Toast';
 import { Avatar } from '@/components/Avatar';
 import { track } from '@/lib/telemetry';
 import { allAreas } from '@/lib/mockData';
+import type { Gender, CarStatus } from '@/lib/types';
 
 const playStyles = ['のんびり派', 'エンジョイ派', 'サクサク派', '研究派', 'ガチ派'];
 const frequencies = ['月1回', '月2回', '月3回', '月4回以上'];
 const avatars = ['⛳', '🧑', '👩', '👨', '🧔', '👱', '🧓', '🤠'];
 const scoreRanges = ['90以下', '90〜100', '100〜110', '105〜115', '110〜120', '120以上'];
+const genderOptions: { id: Gender; label: string }[] = [
+  { id: 'male', label: '男性' },
+  { id: 'female', label: '女性' },
+  { id: 'other', label: 'その他' },
+];
+const carOptions: { id: CarStatus; label: string }[] = [
+  { id: 'have', label: '🚗 あり' },
+  { id: 'none', label: 'なし' },
+];
 
 export default function ProfileEditPage() {
   const router = useRouter();
@@ -25,6 +35,9 @@ export default function ProfileEditPage() {
 
   const [displayName, setDisplayName] = useState('');
   const [age, setAge] = useState<string>('');
+  const [gender, setGender] = useState<Gender | ''>('');
+  const [car, setCar] = useState<CarStatus | ''>('');
+  const [bio, setBio] = useState('');
   const [area, setArea] = useState('');
   const [scoreRange, setScoreRange] = useState('');
   const [playStyle, setPlayStyle] = useState('');
@@ -40,6 +53,9 @@ export default function ProfileEditPage() {
     if (!meLoaded || initialized) return;
     setDisplayName(me.displayName || '');
     setAge(me.age ? String(me.age) : '');
+    setGender(me.gender || '');
+    setCar(me.car || '');
+    setBio(me.bio || '');
     setArea(me.area || '');
     setScoreRange(me.scoreRange || '');
     setPlayStyle(me.playStyle || '');
@@ -93,7 +109,11 @@ export default function ProfileEditPage() {
     try {
       const ageNum = age ? parseInt(age, 10) : 0;
       await store.updateMe({
-        displayName, age: ageNum, area, scoreRange, playStyle, frequency, avatar,
+        displayName, age: ageNum,
+        gender: (gender || undefined) as Gender | undefined,
+        car: (car || undefined) as CarStatus | undefined,
+        bio,
+        area, scoreRange, playStyle, frequency, avatar,
         avatarUrl: avatarUrl || '',
       });
       track('profile_save_success', { displayName });
@@ -198,6 +218,22 @@ export default function ProfileEditPage() {
           />
         </Field>
 
+        <Field label="性別" hint="（任意）">
+          <div className="flex gap-1.5 flex-wrap">
+            {genderOptions.map((g) => (
+              <button key={g.id} type="button" onClick={() => setGender(gender === g.id ? '' : g.id)} className={`px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px] ${gender === g.id ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub'}`}>{g.label}</button>
+            ))}
+          </div>
+        </Field>
+
+        <Field label="車" hint="（任意・送迎可否の参考に）">
+          <div className="flex gap-1.5 flex-wrap">
+            {carOptions.map((c) => (
+              <button key={c.id} type="button" onClick={() => setCar(car === c.id ? '' : c.id)} className={`px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px] ${car === c.id ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub'}`}>{c.label}</button>
+            ))}
+          </div>
+        </Field>
+
         <Field label="エリア" hint="（任意）">
           <select value={area} onChange={(e) => setArea(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none">
             <option value="">未設定</option>
@@ -226,6 +262,16 @@ export default function ProfileEditPage() {
               <button key={f} onClick={() => setFrequency(frequency === f ? '' : f)} className={`px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px] ${frequency === f ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub'}`}>{f}</button>
             ))}
           </div>
+        </Field>
+
+        <Field label="自己紹介" hint="（任意・最大300文字）">
+          <textarea
+            value={bio}
+            onChange={(e) => setBio(e.target.value.slice(0, 300))}
+            placeholder="例: ゴルフ歴3年、ホームコースは○○。マナー重視で楽しく回りたいです！"
+            className="w-full h-28 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-none font-[inherit]"
+          />
+          <div className="text-[10px] text-muted text-right mt-0.5">{bio.length}/300</div>
         </Field>
 
         <button onClick={save} className="w-full py-4 bg-green text-white rounded-xl text-[15px] font-bold mt-4">
