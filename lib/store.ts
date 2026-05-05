@@ -54,6 +54,7 @@ export const store = {
   subscribe: (fn: () => void) => { listeners.add(fn); return () => { listeners.delete(fn); }; },
 
   hydrate: async () => {
+    const startedAt = Date.now();
     try {
       const data = await api<{
         meId: string; me: User; users: User[]; rounds: Round[];
@@ -67,9 +68,29 @@ export const store = {
         pendingReviews: data.pendingReviews,
         chats: data.chats,
       });
+      // Fire-and-forget telemetry
+      if (typeof window !== 'undefined') {
+        import('./telemetry').then(({ track }) => {
+          const me = data.users.find((u) => u.id === data.meId) || data.me;
+          track('hydrate_success', {
+            ms: Date.now() - startedAt,
+            meId: data.meId,
+            usersCount: data.users.length,
+            meInUsers: !!data.users.find((u) => u.id === data.meId),
+            meDisplayName: me?.displayName,
+            meHasAvatarUrl: !!me?.avatarUrl,
+          });
+        });
+      }
     } catch (e) {
+      const msg = (e as Error).message;
       console.error('[store.hydrate] failed:', e);
       setState({ hydrated: true });
+      if (typeof window !== 'undefined') {
+        import('./telemetry').then(({ track }) => {
+          track('hydrate_error', { ms: Date.now() - startedAt, message: msg });
+        });
+      }
     }
   },
 

@@ -18,8 +18,10 @@ export default function ProfileEditPage() {
   const hydrated = useStore((s) => s.hydrated);
   const me = useStore(getMe);
   const meId = useStore((s) => s.meId);
-  // True only once we've actually loaded the user's record from the server.
-  const meLoaded = hydrated && !!meId && me.id === meId;
+  // Once hydration completes we can populate the form. If meId is missing
+  // (e.g. transient session loading) we still allow the form so the user
+  // isn't blocked — saves are gated separately by the API auth check.
+  const meLoaded = hydrated;
 
   const [displayName, setDisplayName] = useState('');
   const [age, setAge] = useState<string>('');
@@ -46,6 +48,7 @@ export default function ProfileEditPage() {
     setAvatarUrl(me.avatarUrl || undefined);
     setInitialized(true);
     track('profile_edit_initialized', {
+      hydrated, meId, meIdInStore: me.id,
       displayName: me.displayName, age: me.age, area: me.area,
       hasAvatarUrl: !!me.avatarUrl,
     });
