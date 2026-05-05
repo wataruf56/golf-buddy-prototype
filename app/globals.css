@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { box-sizing: border-box; }
+
+html, body {
+  font-family: 'Noto Sans JP', 'DM Sans', sans-serif;
+  color: #1A1A1A;
+  background: #F0EFEB;
+}
+
+@media (max-width: 500px) {
+  body { background: #FAFAF8; }
+  .sm-phone-full {
+    width: 100% !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  .sm-phone-full .notch { display: none; }
+  .sm-phone-full .status-bar { display: none; }
+}
+
+.screen { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+.screen::-webkit-scrollbar { display: none; }
+
+input, textarea, select { font-family: inherit; }
+button { font-family: inherit; cursor: pointer; }
