@@ -59,6 +59,9 @@ export async function GET() {
     serverTime: new Date().toISOString(),
     buildId: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'local',
   }, {
-    headers: { 'Cache-Control': 'no-store, must-revalidate' },
+    headers: {
+      'Cache-Control': 'no-store, must-revalidate',
+      'Content-Type': 'application/json; charset=utf-8',
+    },
   });
 }
