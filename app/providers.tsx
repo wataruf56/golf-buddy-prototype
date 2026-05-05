@@ -9,9 +9,16 @@ const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 function StoreHydrator({ children }: { children: ReactNode }) {
   const { status } = useSession();
   useEffect(() => {
-    if (isDemo || status === 'authenticated') {
-      store.hydrate();
-    }
+    if (!(isDemo || status === 'authenticated')) return;
+    store.hydrate();
+    function onFocus() { store.hydrate(); }
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') store.hydrate();
+    });
+    return () => {
+      window.removeEventListener('focus', onFocus);
+    };
   }, [status]);
   return <>{children}</>;
 }

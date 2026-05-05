@@ -192,14 +192,29 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 }
 
 async function resizeToDataUrl(file: File, maxSize: number, quality: number): Promise<string> {
-  const bitmap = await createImageBitmap(file);
-  const ratio = Math.min(1, maxSize / Math.max(bitmap.width, bitmap.height));
-  const w = Math.round(bitmap.width * ratio);
-  const h = Math.round(bitmap.height * ratio);
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(bitmap, 0, 0, w, h);
-  return canvas.toDataURL('image/jpeg', quality);
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await loadImage(objectUrl);
+    const ratio = Math.min(1, maxSize / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.max(1, Math.round(img.naturalWidth * ratio));
+    const h = Math.max(1, Math.round(img.naturalHeight * ratio));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('canvas 2d unsupported');
+    ctx.drawImage(img, 0, 0, w, h);
+    return canvas.toDataURL('image/jpeg', quality);
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('image load failed'));
+    img.src = src;
+  });
 }

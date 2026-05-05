@@ -37,10 +37,14 @@ async function api<T = any>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
     headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+    cache: 'no-store',
   });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API ${path} failed: ${res.status} ${text}`);
+    let detail = '';
+    try { detail = await res.text(); } catch {}
+    const err = new Error(`${res.status} ${detail.slice(0, 200) || res.statusText}`);
+    console.error('[api]', path, err.message);
+    throw err;
   }
   return res.json();
 }
@@ -156,7 +160,15 @@ export const store = {
 
   updateMe: async (patch: Partial<User>) => {
     const { me } = await api<{ me: User }>('/api/me', { method: 'PATCH', body: JSON.stringify(patch) });
-    if (me) setState({ users: state.users.map((u) => (u.id === me.id ? me : u)) });
+    if (me) {
+      const exists = state.users.some((u) => u.id === me.id);
+      const users = exists
+        ? state.users.map((u) => (u.id === me.id ? me : u))
+        : [...state.users, me];
+      setState({ users });
+    }
+    // Re-hydrate to ensure all derived data (rounds with hostId=me etc.) refreshes too.
+    await store.hydrate();
   },
 
   loadChat: async (chatId: string) => {
