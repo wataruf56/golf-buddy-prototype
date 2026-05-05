@@ -167,8 +167,6 @@ export const store = {
         : [...state.users, me];
       setState({ users });
     }
-    // Re-hydrate to ensure all derived data (rounds with hostId=me etc.) refreshes too.
-    await store.hydrate();
   },
 
   loadChat: async (chatId: string) => {

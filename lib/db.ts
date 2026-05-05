@@ -399,12 +399,17 @@ class FirestoreDB implements DB {
   }
 }
 
-/* ===== Singleton ===== */
-let _instance: DB | null = null;
+/* ===== Singleton =====
+ * In demo mode each Next.js API route is bundled separately, which would
+ * give each route its own MemoryDB. We pin the instance on globalThis so
+ * writes from /api/me are visible to reads from /api/bootstrap.
+ */
+const GLOBAL_KEY = '__golfbuddy_db__';
 function getDb(): DB {
-  if (_instance) return _instance;
-  _instance = isDemoMode ? new MemoryDB() : new FirestoreDB();
-  return _instance;
+  const g = globalThis as unknown as Record<string, DB | undefined>;
+  if (g[GLOBAL_KEY]) return g[GLOBAL_KEY] as DB;
+  g[GLOBAL_KEY] = isDemoMode ? new MemoryDB() : new FirestoreDB();
+  return g[GLOBAL_KEY] as DB;
 }
 
 export const db: DB = new Proxy({} as DB, {

@@ -11,14 +11,6 @@ function StoreHydrator({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!(isDemo || status === 'authenticated')) return;
     store.hydrate();
-    function onFocus() { store.hydrate(); }
-    window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') store.hydrate();
-    });
-    return () => {
-      window.removeEventListener('focus', onFocus);
-    };
   }, [status]);
   return <>{children}</>;
 }
