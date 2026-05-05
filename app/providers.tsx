@@ -3,6 +3,7 @@
 import { SessionProvider, useSession } from 'next-auth/react';
 import { ReactNode, useEffect } from 'react';
 import { store } from '@/lib/store';
+import { SwGuard } from '@/components/SwGuard';
 
 const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
@@ -18,6 +19,7 @@ function StoreHydrator({ children }: { children: ReactNode }) {
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <SessionProvider>
+      <SwGuard />
       <StoreHydrator>{children}</StoreHydrator>
     </SessionProvider>
   );

@@ -20,11 +20,26 @@ export async function GET() {
   let firestoreOk = false;
   let firestoreError: string | null = null;
   let userExists: boolean | null = null;
+  let userDoc: Record<string, unknown> | null = null;
   if (!isDemoMode && db && meId) {
     try {
       const snap = await db.collection('users').doc(meId).get();
       userExists = snap.exists;
-      // Round-trip write+read on a diag doc
+      if (snap.exists) {
+        const data = snap.data() || {};
+        // Show only safe fields
+        userDoc = {
+          displayName: data.displayName,
+          age: data.age,
+          area: data.area,
+          scoreRange: data.scoreRange,
+          playStyle: data.playStyle,
+          frequency: data.frequency,
+          avatar: data.avatar,
+          hasAvatarUrl: !!data.avatarUrl,
+          updatedAt: data.updatedAt,
+        };
+      }
       const diagRef = db.collection('_diag').doc('ping');
       await diagRef.set({ at: Date.now(), by: meId }, { merge: true });
       const r = await diagRef.get();
@@ -40,5 +55,10 @@ export async function GET() {
     firestoreOk,
     firestoreError,
     userExists,
+    userDoc,
+    serverTime: new Date().toISOString(),
+    buildId: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'local',
+  }, {
+    headers: { 'Cache-Control': 'no-store, must-revalidate' },
   });
 }
