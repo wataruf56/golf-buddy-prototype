@@ -8,6 +8,7 @@ import { BlockerPopup } from '@/components/BlockerPopup';
 import { useStore } from '@/lib/store';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
+  const hydrated = useStore((s) => s.hydrated);
   const pendingCount = useStore((s) =>
     s.pendingReviews.filter((p) => p.reviewerId === s.meId && p.status === 'pending').length
   );
@@ -33,7 +34,16 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <PhoneFrame>
-      <div className="screen">{children}</div>
+      <div className="screen">
+        {!hydrated ? (
+          <div className="flex flex-col items-center justify-center h-full pt-32">
+            <div className="w-12 h-12 rounded-full bg-green-light flex items-center justify-center text-2xl mb-3 animate-pulse">⛳</div>
+            <div className="text-xs text-muted">読み込み中...</div>
+          </div>
+        ) : (
+          children
+        )}
+      </div>
       {blockerOpen && pendingCount > 0 && (
         <BlockerPopup onOpen={() => { setBlockerOpen(false); setOverlayOpen(true); }} />
       )}

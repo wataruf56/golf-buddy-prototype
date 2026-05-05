@@ -1,7 +1,10 @@
 'use client';
 
+import Link from 'next/link';
 import { getMe, store, useStore } from '@/lib/store';
 import { RoundCard } from '@/components/RoundCard';
+
+const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
 export default function HomePage() {
   const me = useStore(getMe);
@@ -31,23 +34,36 @@ export default function HomePage() {
 
       <div className="px-5">
         <div className="text-base font-black mb-3">📋 新着ラウンド募集</div>
-        {rounds.map((r) => (
-          <RoundCard key={r.id} round={r} host={users.find((u) => u.id === r.hostId)} />
-        ))}
+        {rounds.length === 0 ? (
+          <div className="bg-card rounded-card p-8 text-center shadow-card">
+            <div className="text-4xl mb-3">⛳</div>
+            <div className="text-sm font-bold mb-2">まだ募集がありません</div>
+            <div className="text-xs text-sub mb-4">あなたが最初の募集を立ててみませんか？</div>
+            <Link href="/create" className="inline-block px-5 py-2.5 bg-green text-white rounded-xl text-sm font-bold">
+              募集を作成する
+            </Link>
+          </div>
+        ) : (
+          rounds.map((r) => (
+            <RoundCard key={r.id} round={r} host={users.find((u) => u.id === r.hostId)} />
+          ))
+        )}
       </div>
 
-      <div className="p-5">
-        <div className="text-base font-black mb-3">⭐ レビューをシミュレーション</div>
-        <button
-          onClick={() => store.triggerDemoReview()}
-          className="w-full py-3.5 bg-orange text-white rounded-xl text-sm font-bold"
-        >
-          レビュー強制ポップアップを体験する
-        </button>
-        <div className="text-[11px] text-muted mt-1.5 text-center">
-          ※ラウンド日時経過後に表示されるレビュー画面のデモ
+      {isDemo && (
+        <div className="p-5">
+          <div className="text-base font-black mb-3">⭐ レビューをシミュレーション</div>
+          <button
+            onClick={() => store.triggerDemoReview()}
+            className="w-full py-3.5 bg-orange text-white rounded-xl text-sm font-bold"
+          >
+            レビュー強制ポップアップを体験する
+          </button>
+          <div className="text-[11px] text-muted mt-1.5 text-center">
+            ※ラウンド日時経過後に表示されるレビュー画面のデモ
+          </div>
         </div>
-      </div>
+      )}
       <div className="h-5" />
     </>
   );

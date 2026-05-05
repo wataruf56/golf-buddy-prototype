@@ -75,7 +75,7 @@ export default function MyPage() {
           ) : myReviews.map((rv) => (
             <div key={rv.id} className="p-2.5 bg-bg rounded-[10px] mb-2">
               <div className="flex justify-between items-center mb-1">
-                <span className="text-[11px] text-muted">30代 ・ {me.scoreRange}</span>
+                <span className="text-[11px] text-muted">匿名レビュー</span>
                 <span className="text-[13px] text-yellow">{'★'.repeat(rv.stars)}{'☆'.repeat(5 - rv.stars)}</span>
               </div>
               {rv.comment && <div className="text-[13px]">{rv.comment}</div>}
