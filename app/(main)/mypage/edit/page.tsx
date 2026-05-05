@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
@@ -15,18 +15,41 @@ const scoreRanges = ['90以下', '90〜100', '100〜110', '105〜115', '110〜12
 
 export default function ProfileEditPage() {
   const router = useRouter();
+  const hydrated = useStore((s) => s.hydrated);
   const me = useStore(getMe);
+  const meId = useStore((s) => s.meId);
+  // True only once we've actually loaded the user's record from the server.
+  const meLoaded = hydrated && !!meId && me.id === meId;
 
-  const [displayName, setDisplayName] = useState(me.displayName);
-  const [age, setAge] = useState<string>(me.age ? String(me.age) : '');
-  const [area, setArea] = useState(me.area || '');
-  const [scoreRange, setScoreRange] = useState(me.scoreRange || '');
-  const [playStyle, setPlayStyle] = useState(me.playStyle || '');
-  const [frequency, setFrequency] = useState(me.frequency || '');
-  const [avatar, setAvatar] = useState(me.avatar || '⛳');
-  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(me.avatarUrl);
+  const [displayName, setDisplayName] = useState('');
+  const [age, setAge] = useState<string>('');
+  const [area, setArea] = useState('');
+  const [scoreRange, setScoreRange] = useState('');
+  const [playStyle, setPlayStyle] = useState('');
+  const [frequency, setFrequency] = useState('');
+  const [avatar, setAvatar] = useState('⛳');
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
+  const [initialized, setInitialized] = useState(false);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Hydrate form state from store EXACTLY ONCE, after the real user record arrives.
+  useEffect(() => {
+    if (!meLoaded || initialized) return;
+    setDisplayName(me.displayName || '');
+    setAge(me.age ? String(me.age) : '');
+    setArea(me.area || '');
+    setScoreRange(me.scoreRange || '');
+    setPlayStyle(me.playStyle || '');
+    setFrequency(me.frequency || '');
+    setAvatar(me.avatar || '⛳');
+    setAvatarUrl(me.avatarUrl || undefined);
+    setInitialized(true);
+    track('profile_edit_initialized', {
+      displayName: me.displayName, age: me.age, area: me.area,
+      hasAvatarUrl: !!me.avatarUrl,
+    });
+  }, [meLoaded, initialized, me.id, me.displayName, me.age, me.area, me.scoreRange, me.playStyle, me.frequency, me.avatar, me.avatarUrl]);
 
   async function handleFile(file: File) {
     track('photo_pick', { name: file.name, size: file.size, type: file.type });
@@ -55,6 +78,11 @@ export default function ProfileEditPage() {
   }
 
   async function save() {
+    if (!initialized) {
+      track('profile_save_blocked_uninitialized');
+      toast('読み込み中です。少し待ってください', 'error');
+      return;
+    }
     track('profile_save_click', {
       displayName, age, area, scoreRange, playStyle, frequency, avatar,
       hasAvatarUrl: !!avatarUrl, avatarUrlLength: avatarUrl?.length || 0,
@@ -74,6 +102,19 @@ export default function ProfileEditPage() {
       track('profile_save_error', { message: (e as Error).message });
       toast('保存失敗: ' + (e as Error).message, 'error');
     }
+  }
+
+  if (!initialized) {
+    return (
+      <div className="px-5 py-3">
+        <button onClick={() => router.back()} className="text-sm text-blue font-semibold mb-4">← 戻る</button>
+        <div className="text-2xl font-black mb-5">プロフィール編集</div>
+        <div className="bg-card rounded-card p-12 shadow-card text-center">
+          <div className="text-3xl mb-3 animate-pulse">⛳</div>
+          <div className="text-sm text-muted">読み込み中...</div>
+        </div>
+      </div>
+    );
   }
 
   return (
