@@ -14,7 +14,7 @@ const tabs = [
   { id: 'mypage', label: 'マイページ', href: '/mypage', icon: User },
 ];
 
-export function TabBar({ onBlock }: { onBlock?: () => boolean }) {
+export function TabBar({ onBlock }: { onBlock?: (href: string) => boolean }) {
   const pathname = usePathname();
   const { totalUnread, buddiesUnread } = useUnreadCounts();
   const tabBadges: Record<string, number> = {
@@ -32,7 +32,7 @@ export function TabBar({ onBlock }: { onBlock?: () => boolean }) {
             key={t.id}
             href={t.href}
             onClick={(e) => {
-              if (onBlock && onBlock()) e.preventDefault();
+              if (onBlock && onBlock(t.href)) e.preventDefault();
             }}
             className={cn(
               'flex-1 flex flex-col items-center gap-0.5 py-1 -webkit-tap-highlight-color-transparent relative',

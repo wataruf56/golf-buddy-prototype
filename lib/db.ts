@@ -456,14 +456,17 @@ class FirestoreDB implements DB {
     });
   }
   async createReview(rv: Omit<Review, 'id'>) {
-    const ref = await this.fs.collection('reviews').add(rv);
+    // Firestore rejects undefined; strip them.
+    const clean: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(rv)) if (v !== undefined) clean[k] = v;
+    const ref = await this.fs.collection('reviews').add(clean);
     // Recompute reviewAvg/reviewCount lazily
     const all = await this.listReviewsForUser(rv.revieweeId);
     const avg = +(all.reduce((s, r) => s + r.stars, 0) / Math.max(all.length, 1)).toFixed(2);
     await this.fs.collection('users').doc(rv.revieweeId).set({
       reviewCount: all.length, reviewAvg: avg, updatedAt: Date.now(),
     }, { merge: true });
-    return { ...rv, id: ref.id };
+    return { ...(clean as Omit<Review, 'id'>), id: ref.id };
   }
 
   async listPendingReviews(reviewerId: string) {

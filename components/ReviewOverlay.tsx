@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { reviewTags } from '@/lib/mockData';
 import { store, useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
+import { toast } from '@/components/Toast';
+import { track } from '@/lib/telemetry';
 import type { User } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -28,10 +30,22 @@ export function ReviewOverlay() {
     setTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
   }
 
+  const [busy, setBusy] = useState(false);
   async function submit() {
-    if (stars === 0) return;
-    await store.submitReview(current.id, stars, tags, comment || undefined);
-    setStars(0); setTags([]); setComment('');
+    if (stars === 0 || busy) return;
+    setBusy(true);
+    track('review_submit_click', { pendingId: current.id, revieweeId: current.revieweeId, stars, tagCount: tags.length });
+    try {
+      await store.submitReview(current.id, stars, tags, comment || undefined);
+      track('review_submit_success', { pendingId: current.id });
+      toast('レビューを送信しました');
+      setStars(0); setTags([]); setComment('');
+    } catch (e) {
+      track('review_submit_error', { message: (e as Error).message });
+      toast('送信失敗: ' + (e as Error).message, 'error');
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -96,13 +110,13 @@ export function ReviewOverlay() {
 
         <button
           onClick={submit}
-          disabled={stars === 0}
+          disabled={stars === 0 || busy}
           className={cn(
             'w-full py-3.5 rounded-xl text-[15px] font-bold',
-            stars > 0 ? 'bg-green text-white hover:bg-green-dark' : 'bg-border text-muted cursor-not-allowed'
+            stars > 0 && !busy ? 'bg-green text-white hover:bg-green-dark' : 'bg-border text-muted cursor-not-allowed'
           )}
         >
-          {stars > 0 ? 'レビューを送信する' : '★をタップして評価してください'}
+          {busy ? '送信中...' : stars > 0 ? 'レビューを送信する' : '★をタップして評価してください'}
         </button>
       </div>
     </div>

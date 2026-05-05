@@ -15,13 +15,24 @@ export async function POST(req: NextRequest) {
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const body = await req.json();
   const { pendingId, revieweeId, roundId, stars, tags, comment } = body || {};
-  if (!revieweeId || !roundId || !stars) return NextResponse.json({ error: 'invalid' }, { status: 400 });
-  const review = await db.createReview({
-    roundId, reviewerId: meId, revieweeId,
-    stars: Number(stars), tags: Array.isArray(tags) ? tags : [],
-    comment: comment || undefined,
-    createdAt: Date.now(), isAnonymous: true,
-  });
-  if (pendingId) await db.completePendingReview(pendingId);
-  return NextResponse.json({ review });
+  if (!revieweeId || !roundId || !stars) {
+    return NextResponse.json({ error: 'invalid: revieweeId/roundId/stars required' }, { status: 400 });
+  }
+  try {
+    const review = await db.createReview({
+      roundId, reviewerId: meId, revieweeId,
+      stars: Number(stars), tags: Array.isArray(tags) ? tags : [],
+      comment: comment ? String(comment) : '',
+      createdAt: Date.now(), isAnonymous: true,
+    });
+    if (pendingId) {
+      try { await db.completePendingReview(pendingId); }
+      catch (e) { console.error('[completePendingReview] failed (non-fatal)', e); }
+    }
+    return NextResponse.json({ review });
+  } catch (e) {
+    const msg = (e as Error).message;
+    console.error('[/api/reviews POST] failed', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }

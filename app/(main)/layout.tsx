@@ -24,8 +24,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     }
   }, [pendingCount, blockerOpen]);
 
-  function onTabBlock() {
-    if (pendingCount > 0) {
+  function onTabBlock(href?: string) {
+    // Allow マイページ even with pending reviews so the user can edit profile
+    // or sign out. All other tabs prompt the review popup.
+    if (pendingCount > 0 && href !== '/mypage') {
       setBlockerOpen(true);
       setOverlayOpen(false);
       return true;
