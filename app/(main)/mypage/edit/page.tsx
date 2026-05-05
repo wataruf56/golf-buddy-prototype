@@ -67,7 +67,9 @@ export default function ProfileEditPage() {
       });
       track('profile_save_success', { displayName });
       toast('保存しました');
+      track('profile_save_navigate_attempt');
       router.push('/mypage');
+      track('profile_save_navigate_called');
     } catch (e) {
       track('profile_save_error', { message: (e as Error).message });
       toast('保存失敗: ' + (e as Error).message, 'error');
