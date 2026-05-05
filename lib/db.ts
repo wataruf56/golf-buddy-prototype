@@ -17,7 +17,14 @@ export interface DB {
   joinRound(id: string, userId: string): Promise<Round>;
   approveApplicant(id: string, userId: string): Promise<Round>;
   rejectApplicant(id: string, userId: string): Promise<Round>;
+  kickApplicant(id: string, userId: string): Promise<Round>;
+  leaveRound(id: string, userId: string): Promise<Round>;
+  confirmCourse(id: string, info: { courseName: string; date: string; startTime: string; price?: string }): Promise<Round>;
   completeRound(id: string): Promise<{ round: Round; pendingForUser: (userId: string) => PendingReview[] }>;
+
+  // Round group chat
+  listRoundMessages(roundId: string): Promise<Message[]>;
+  addRoundMessage(roundId: string, senderId: string, text: string): Promise<Message>;
 
   listReviewsForUser(revieweeId: string): Promise<Review[]>;
   createReview(review: Omit<Review, 'id'>): Promise<Review>;
@@ -39,6 +46,7 @@ class MemoryDB implements DB {
   private reviews: Review[] = [...mockReviews];
   private pending: PendingReview[] = [];
   private chats: Chat[] = JSON.parse(JSON.stringify(mockChats)) as Chat[];
+  private roundChats: Map<string, Message[]> = new Map();
 
   async getUser(id: string) { return this.users.find((u) => u.id === id) || null; }
   async upsertUser(u: Partial<User> & { id: string }) {
@@ -101,6 +109,31 @@ class MemoryDB implements DB {
     const r = this.rounds.find((x) => x.id === id);
     if (!r) throw new Error('round not found');
     r.pendingApplicantIds = (r.pendingApplicantIds || []).filter((x) => x !== userId);
+    return r;
+  }
+  async kickApplicant(id: string, userId: string) {
+    const r = this.rounds.find((x) => x.id === id);
+    if (!r) throw new Error('round not found');
+    if (r.applicantIds.includes(userId)) {
+      r.applicantIds = r.applicantIds.filter((x) => x !== userId);
+      r.currentCount = Math.max(1, r.currentCount - 1);
+    }
+    r.pendingApplicantIds = (r.pendingApplicantIds || []).filter((x) => x !== userId);
+    return r;
+  }
+  async leaveRound(id: string, userId: string) {
+    return this.kickApplicant(id, userId);
+  }
+  async confirmCourse(id: string, info: { courseName: string; date: string; startTime: string; price?: string }) {
+    const r = this.rounds.find((x) => x.id === id);
+    if (!r) throw new Error('round not found');
+    r.type = 'confirmed';
+    r.dateType = 'fixed';
+    r.courseName = info.courseName;
+    r.date = info.date;
+    r.startTime = info.startTime;
+    r.dateRange = undefined;
+    if (info.price) r.price = info.price;
     return r;
   }
   async completeRound(id: string) {
@@ -171,6 +204,16 @@ class MemoryDB implements DB {
   async markChatRead(chatId: string, userId: string) {
     const chat = this.chats.find((c) => c.id === chatId);
     if (chat) chat.unreadCount[userId] = 0;
+  }
+  async listRoundMessages(roundId: string) {
+    return [...(this.roundChats.get(roundId) || [])];
+  }
+  async addRoundMessage(roundId: string, senderId: string, text: string) {
+    const msg: Message = { id: `rm_${Date.now()}_${Math.random().toString(36).slice(2,8)}`, senderId, text, createdAt: Date.now(), read: false };
+    const arr = this.roundChats.get(roundId) || [];
+    arr.push(msg);
+    this.roundChats.set(roundId, arr);
+    return msg;
   }
 }
 
@@ -305,6 +348,35 @@ class FirestoreDB implements DB {
       return { ...data, id: snap.id, pendingApplicantIds: pending } as Round;
     });
   }
+  async kickApplicant(id: string, userId: string) {
+    const ref = this.fs.collection('rounds').doc(id);
+    return await this.fs.runTransaction(async (tx: any) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('round not found');
+      const data = snap.data() as Omit<Round, 'id'>;
+      const wasApproved = (data.applicantIds || []).includes(userId);
+      const applicantIds = (data.applicantIds || []).filter((x) => x !== userId);
+      const pending = (data.pendingApplicantIds || []).filter((x) => x !== userId);
+      const currentCount = wasApproved ? Math.max(1, (data.currentCount || 1) - 1) : (data.currentCount || 1);
+      tx.set(ref, { applicantIds, pendingApplicantIds: pending, currentCount }, { merge: true });
+      return { ...data, id: snap.id, applicantIds, pendingApplicantIds: pending, currentCount } as Round;
+    });
+  }
+  async leaveRound(id: string, userId: string) {
+    return this.kickApplicant(id, userId);
+  }
+  async confirmCourse(id: string, info: { courseName: string; date: string; startTime: string; price?: string }) {
+    const ref = this.fs.collection('rounds').doc(id);
+    const patch: Record<string, unknown> = {
+      type: 'confirmed', dateType: 'fixed',
+      courseName: info.courseName, date: info.date, startTime: info.startTime,
+      dateRange: null,
+    };
+    if (info.price) patch.price = info.price;
+    await ref.set(patch, { merge: true });
+    const snap = await ref.get();
+    return { id: snap.id, ...snap.data() } as Round;
+  }
   async completeRound(id: string) {
     const ref = this.fs.collection('rounds').doc(id);
     const snap = await ref.get();
@@ -422,6 +494,22 @@ class FirestoreDB implements DB {
     const unread = { ...(data.unreadCount || {}) };
     unread[userId] = 0;
     await ref.set({ unreadCount: unread }, { merge: true });
+  }
+  async listRoundMessages(roundId: string) {
+    try {
+      const snap = await this.fs.collection('rounds').doc(roundId).collection('chat').limit(200).get();
+      const list = snap.docs.map((d: any) => ({ id: d.id, ...d.data() })) as Message[];
+      list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+      return list;
+    } catch (e) {
+      console.error('[listRoundMessages] failed', e);
+      return [];
+    }
+  }
+  async addRoundMessage(roundId: string, senderId: string, text: string) {
+    const now = Date.now();
+    const ref = await this.fs.collection('rounds').doc(roundId).collection('chat').add({ senderId, text, createdAt: now, read: false });
+    return { id: ref.id, senderId, text, createdAt: now, read: false };
   }
 }
 

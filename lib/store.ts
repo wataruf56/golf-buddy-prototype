@@ -136,6 +136,25 @@ export const store = {
     setState({ rounds: state.rounds.map((r) => (r.id === roundId ? round : r)) });
   },
 
+  kickApplicant: async (roundId: string, userId: string) => {
+    const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/kick`, {
+      method: 'POST', body: JSON.stringify({ userId }),
+    });
+    setState({ rounds: state.rounds.map((r) => (r.id === roundId ? round : r)) });
+  },
+
+  leaveRound: async (roundId: string) => {
+    const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/leave`, { method: 'POST' });
+    setState({ rounds: state.rounds.map((r) => (r.id === roundId ? round : r)) });
+  },
+
+  confirmCourse: async (roundId: string, info: { courseName: string; date: string; startTime: string; price?: string }) => {
+    const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/confirm-course`, {
+      method: 'POST', body: JSON.stringify(info),
+    });
+    setState({ rounds: state.rounds.map((r) => (r.id === roundId ? round : r)) });
+  },
+
   closeRound: async (roundId: string) => {
     await api(`/api/rounds/${roundId}/close`, { method: 'POST' });
     setState({ rounds: state.rounds.map((r) => (r.id === roundId ? { ...r, status: 'closed' } : r)) });
