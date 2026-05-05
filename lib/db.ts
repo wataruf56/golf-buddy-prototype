@@ -33,7 +33,7 @@ export interface DB {
   reportUser(reporterId: string, reportedId: string, reason: string): Promise<void>;
 
   listPendingReviews(reviewerId: string): Promise<PendingReview[]>;
-  completePendingReview(id: string): Promise<void>;
+  completePendingReview(id: string, ctx?: { roundId?: string; reviewerId?: string; revieweeId?: string }): Promise<void>;
   createPendingReviews(items: Omit<PendingReview, 'id'>[]): Promise<PendingReview[]>;
 
   listChatsForUser(userId: string): Promise<Chat[]>;
@@ -190,9 +190,13 @@ class MemoryDB implements DB {
   async listPendingReviews(reviewerId: string) {
     return this.pending.filter((p) => p.reviewerId === reviewerId && p.status === 'pending');
   }
-  async completePendingReview(id: string) {
-    const p = this.pending.find((x) => x.id === id);
-    if (p) { p.status = 'completed'; p.completedAt = Date.now(); }
+  async completePendingReview(id: string, ctx?: { roundId?: string; reviewerId?: string; revieweeId?: string }) {
+    for (const p of this.pending) {
+      const matchById = p.id === id;
+      const matchByCtx = ctx && ctx.roundId && ctx.reviewerId && ctx.revieweeId &&
+        p.roundId === ctx.roundId && p.reviewerId === ctx.reviewerId && p.revieweeId === ctx.revieweeId;
+      if (matchById || matchByCtx) { p.status = 'completed'; p.completedAt = Date.now(); }
+    }
   }
   async createPendingReviews(items: Omit<PendingReview, 'id'>[]) {
     const created = items.map((it) => ({ ...it, id: `p_${Date.now()}_${Math.random().toString(36).slice(2, 8)}` }));
@@ -484,10 +488,28 @@ class FirestoreDB implements DB {
       return [];
     }
   }
-  async completePendingReview(id: string) {
-    await this.fs.collection('pendingReviews').doc(id).set({
-      status: 'completed', completedAt: Date.now(),
-    }, { merge: true });
+  async completePendingReview(id: string, ctx?: { roundId?: string; reviewerId?: string; revieweeId?: string }) {
+    const patch = { status: 'completed', completedAt: Date.now() };
+    const coll = this.fs.collection('pendingReviews');
+    // 1) Try direct doc(id) — works for new docs created with deterministic id.
+    if (id) {
+      try { await coll.doc(id).update(patch); }
+      catch { /* doc may not exist with that id; fall through */ }
+    }
+    // 2) Defensive: query by triple and complete every matching pending doc.
+    //    Handles legacy docs that were created with auto-id but data.id = deterministic.
+    if (ctx?.roundId && ctx?.reviewerId && ctx?.revieweeId) {
+      try {
+        const snap = await coll
+          .where('roundId', '==', ctx.roundId)
+          .where('reviewerId', '==', ctx.reviewerId)
+          .where('revieweeId', '==', ctx.revieweeId)
+          .get();
+        const batch = this.fs.batch();
+        snap.docs.forEach((d: any) => batch.set(d.ref, patch, { merge: true }));
+        if (!snap.empty) await batch.commit();
+      } catch (e) { console.error('[completePendingReview triple-update] failed', e); }
+    }
   }
   async createPendingReviews(items: Omit<PendingReview, 'id'>[] | PendingReview[]) {
     // Use the deterministic id (p_${roundId}_${reviewer}_${reviewee}) as the

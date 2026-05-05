@@ -19,13 +19,19 @@ export async function GET(req: NextRequest) {
   if (isDemoMode) return NextResponse.json({ docs: [], note: 'demo mode' }, { headers: noStore });
   const db = getAdminDb() as any;
   if (!db) return NextResponse.json({ error: 'firestore not initialized' }, { status: 500, headers: noStore });
+  const completeDocId = url.searchParams.get('complete') || '';
   try {
+    if (completeDocId) {
+      await db.collection('pendingReviews').doc(completeDocId).set({
+        status: 'completed', completedAt: Date.now(),
+      }, { merge: true });
+    }
     const snap = await db.collection('pendingReviews').where('reviewerId', '==', userId).limit(100).get();
     const docs = snap.docs.map((d: any) => ({
       docId: d.id,
       data: d.data(),
     }));
-    return NextResponse.json({ count: docs.length, docs }, { headers: noStore });
+    return NextResponse.json({ count: docs.length, docs, completed: completeDocId || null }, { headers: noStore });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
   }

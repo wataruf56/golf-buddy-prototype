@@ -26,8 +26,12 @@ export async function POST(req: NextRequest) {
       createdAt: Date.now(), isAnonymous: true,
     });
     if (pendingId) {
-      try { await db.completePendingReview(pendingId); }
+      try { await db.completePendingReview(pendingId, { roundId, reviewerId: meId, revieweeId }); }
       catch (e) { console.error('[completePendingReview] failed (non-fatal)', e); }
+    } else {
+      // No pendingId? Still try to mark any matching pending doc as completed.
+      try { await db.completePendingReview('', { roundId, reviewerId: meId, revieweeId }); }
+      catch (e) { console.error('[completePendingReview triple] failed (non-fatal)', e); }
     }
     return NextResponse.json({ review });
   } catch (e) {
