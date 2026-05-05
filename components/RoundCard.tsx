@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import type { Round, User } from '@/lib/types';
+import { Avatar } from '@/components/Avatar';
 import { formatDate } from '@/lib/utils';
 
 export function RoundCard({ round, host }: { round: Round; host?: User }) {
@@ -64,9 +65,7 @@ export function RoundCard({ round, host }: { round: Round; host?: User }) {
       </div>
       {host && (
         <div className="flex items-center gap-2 pt-2.5 border-t border-border">
-          <div className="w-7 h-7 rounded-full flex items-center justify-center text-sm" style={{ background: `${host.color}22` }}>
-            {host.avatar}
-          </div>
+          <Avatar user={host} size={28} />
           <div className="text-xs font-semibold">{host.displayName}</div>
           <div className="text-[11px] text-muted">★{host.reviewAvg}（{host.reviewCount}件）</div>
         </div>

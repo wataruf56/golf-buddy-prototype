@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { getMe, useStore } from '@/lib/store';
+import { Avatar } from '@/components/Avatar';
 import type { Review } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
 
@@ -43,7 +44,7 @@ export default function MyPage() {
       <div className="px-5">
         <div className="bg-card rounded-card p-5 shadow-card mb-4">
           <div className="flex items-center gap-3.5 mb-4">
-            <div className="w-16 h-16 rounded-full bg-green-light flex items-center justify-center text-3xl">{me.avatar}</div>
+            <Avatar user={me} size={64} />
             <div>
               <div className="text-lg font-black">{me.displayName}</div>
               <div className="text-xs text-sub">

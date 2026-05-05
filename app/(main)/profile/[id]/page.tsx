@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
+import { Avatar } from '@/components/Avatar';
 import type { Review, User } from '@/lib/types';
 import { chatIdFor } from '@/lib/utils';
 
@@ -33,8 +34,8 @@ export default function ProfilePage() {
       <button onClick={() => router.back()} className="text-sm text-blue font-semibold mb-4">← 戻る</button>
 
       <div className="text-center mb-5">
-        <div className="w-[72px] h-[72px] rounded-full mx-auto mb-3 flex items-center justify-center text-4xl" style={{ background: `${user.color}22` }}>
-          {user.avatar}
+        <div className="mx-auto mb-3 inline-block">
+          <Avatar user={user} size={72} emojiSize={36} />
         </div>
         <div className="text-xl font-black">{user.displayName}</div>
         <div className="text-[13px] text-sub mt-1">{user.age}歳 ・ {user.area}</div>

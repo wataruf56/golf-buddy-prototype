@@ -8,6 +8,7 @@ export type User = {
   playStyle: string;
   frequency: string;
   avatar: string;
+  avatarUrl?: string;
   color: string;
   lineId?: string;
   reviewAvg: number;

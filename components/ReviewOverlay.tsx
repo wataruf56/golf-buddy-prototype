@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { reviewTags } from '@/lib/mockData';
 import { store, useStore } from '@/lib/store';
+import { Avatar } from '@/components/Avatar';
 import type { User } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -40,9 +41,7 @@ export function ReviewOverlay() {
         <div className="text-[13px] text-sub mb-5">直近のラウンドはいかがでしたか？</div>
 
         <div className="flex items-center gap-3 p-3 bg-bg rounded-xl mb-3">
-          <div className="w-11 h-11 rounded-full flex items-center justify-center text-xl" style={{ background: `${target.color}22` }}>
-            {target.avatar}
-          </div>
+          <Avatar user={target} size={44} emojiSize={22} />
           <div>
             <div className="text-sm font-bold">{target.displayName}</div>
             <div className="text-[11px] text-sub">{target.age}歳 ・ {target.scoreRange}</div>

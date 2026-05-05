@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { getMe, store, useStore } from '@/lib/store';
 import { RoundCard } from '@/components/RoundCard';
+import { Avatar } from '@/components/Avatar';
 
 const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
@@ -18,7 +19,7 @@ export default function HomePage() {
       <div className="px-5 pb-3">
         <div className="bg-card rounded-card p-5 shadow-card">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-[52px] h-[52px] rounded-full bg-green-light flex items-center justify-center text-2xl">{me.avatar}</div>
+            <Avatar user={me} size={52} />
             <div>
               <div className="text-[17px] font-black">{me.displayName}</div>
               <div className="text-xs text-sub">

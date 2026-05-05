@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
+import { Avatar } from '@/components/Avatar';
 
 export default function BuddiesPage() {
   const meId = useStore((s) => s.meId);
@@ -39,9 +40,7 @@ export default function BuddiesPage() {
                 className="block bg-card rounded-card p-4 shadow-card mb-2.5"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl" style={{ background: `${other.color}22` }}>
-                    {other.avatar}
-                  </div>
+                  <Avatar user={other} size={48} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[15px] font-bold">{other.displayName}</span>

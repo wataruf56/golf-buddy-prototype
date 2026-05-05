@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { store, useStore } from '@/lib/store';
+import { Avatar } from '@/components/Avatar';
 
 export default function ChatPage() {
   const params = useParams<{ chatId: string }>();
@@ -48,7 +49,7 @@ export default function ChatPage() {
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-3 px-5 py-3 border-b border-border bg-card flex-shrink-0">
         <button onClick={() => router.push('/buddies')} className="text-xl text-blue">←</button>
-        <div className="w-9 h-9 rounded-full flex items-center justify-center text-lg" style={{ background: `${other.color}22` }}>{other.avatar}</div>
+        <Avatar user={other} size={36} />
         <div className="flex-1">
           <div className="text-[15px] font-bold">{other.displayName}</div>
           <div className="text-[11px] text-sub">★{other.reviewAvg} ・ {other.scoreRange}</div>

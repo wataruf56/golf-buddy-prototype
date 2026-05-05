@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
+import { Avatar } from '@/components/Avatar';
 import { formatDate } from '@/lib/utils';
 
 export default function RoundDetailPage() {
@@ -99,7 +100,7 @@ export default function RoundDetailPage() {
           <div className="mb-4">
             <div className="text-[13px] font-bold mb-2">主催者</div>
             <Link href={`/profile/${host.id}`} className="flex items-center gap-2.5 p-3 bg-bg rounded-xl">
-              <div className="w-11 h-11 rounded-full flex items-center justify-center text-2xl" style={{ background: `${host.color}22` }}>{host.avatar}</div>
+              <Avatar user={host} size={44} />
               <div className="flex-1">
                 <div className="text-sm font-bold">{host.displayName}</div>
                 <div className="text-[11px] text-sub">{host.age}歳 ・ {host.scoreRange} ・ {host.playStyle}</div>
@@ -117,7 +118,7 @@ export default function RoundDetailPage() {
             <div className="text-[13px] font-bold mb-2">参加確定（{applicants.length}名）</div>
             {applicants.map((u) => u && (
               <Link href={`/profile/${u.id}`} key={u.id} className="flex items-center gap-2.5 p-2.5 bg-bg rounded-[10px] mb-1.5">
-                <div className="w-9 h-9 rounded-full flex items-center justify-center text-lg" style={{ background: `${u.color}22` }}>{u.avatar}</div>
+                <Avatar user={u} size={36} />
                 <div className="flex-1 text-[13px] font-semibold">{u.displayName}</div>
                 <div className="text-xs text-green font-bold">★{u.reviewAvg}</div>
               </Link>
@@ -131,7 +132,7 @@ export default function RoundDetailPage() {
             {pendingApplicants.map((u) => u && (
               <div key={u.id} className="flex items-center gap-2 p-2.5 bg-yellow-light rounded-[10px] mb-1.5">
                 <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-lg flex-shrink-0" style={{ background: `${u.color}22` }}>{u.avatar}</div>
+                  <Avatar user={u} size={36} />
                   <div className="flex-1 min-w-0">
                     <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
                     <div className="text-[10px] text-sub">★{u.reviewAvg}（{u.reviewCount}件）</div>
