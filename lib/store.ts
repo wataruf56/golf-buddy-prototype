@@ -153,7 +153,8 @@ export const store = {
 };
 
 export function useStore<T>(selector: (s: Store) => T): T {
-  return useSyncExternalStore(store.subscribe, () => selector(store.get()), () => selector(initial));
+  const snapshot = useSyncExternalStore(store.subscribe, store.get, () => initial);
+  return selector(snapshot);
 }
 
 export function getMe(s: Store): User {
