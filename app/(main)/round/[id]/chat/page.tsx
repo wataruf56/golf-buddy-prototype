@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
@@ -71,12 +72,13 @@ export default function RoundChatPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-3 px-5 py-3 border-b border-border bg-card flex-shrink-0">
+      <div className="flex items-center gap-3 px-5 py-3 border-b border-border bg-card flex-shrink-0 sticky top-0 z-10">
         <button onClick={() => router.push(`/round/${params.id}`)} className="text-xl text-blue">←</button>
-        <div className="flex-1">
+        <Link href={`/round/${params.id}`} className="flex-1 min-w-0">
           <div className="text-[15px] font-bold truncate">💬 {round.title}</div>
-          <div className="text-[11px] text-sub">参加者全員のグループチャット</div>
-        </div>
+          <div className="text-[11px] text-sub truncate">タップで募集詳細 ・ 参加者全員のグループチャット</div>
+        </Link>
+        <span className="text-muted text-sm">›</span>
       </div>
 
       <div ref={scrollRef} className="flex-1 px-5 py-4 flex flex-col gap-2.5 overflow-y-auto">
@@ -91,10 +93,14 @@ export default function RoundChatPage() {
           const sender = users.find((u) => u.id === m.senderId);
           return (
             <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'} gap-2`}>
-              {!mine && sender && <Avatar user={sender} size={28} emojiSize={14} />}
+              {!mine && sender && (
+                <Link href={`/profile/${sender.id}`}>
+                  <Avatar user={sender} size={28} emojiSize={14} />
+                </Link>
+              )}
               <div className="flex flex-col max-w-[75%]">
                 {!mine && sender && (
-                  <div className="text-[10px] text-muted mb-0.5 ml-1">{sender.displayName}</div>
+                  <Link href={`/profile/${sender.id}`} className="text-[10px] text-muted mb-0.5 ml-1">{sender.displayName}</Link>
                 )}
                 <div
                   className={`px-3.5 py-2.5 text-sm leading-relaxed ${mine ? 'bg-green text-white' : 'bg-card text-text shadow-card'}`}

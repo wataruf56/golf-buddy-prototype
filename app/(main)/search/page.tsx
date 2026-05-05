@@ -13,6 +13,17 @@ type ScaleFilter = 'all' | 'normal' | 'comp';
 type StatusFilter = 'all' | 'open' | 'closed' | 'completed';
 type SortBy = 'date' | 'createdAt';
 
+type Filters = {
+  course: CourseFilter; scale: ScaleFilter; level: string; area: string;
+  period: Period; status: StatusFilter; hasSpots: boolean; priceMax: string;
+  keyword: string; sortBy: SortBy;
+};
+const defaultFilters: Filters = {
+  course: 'all', scale: 'all', level: 'all', area: 'all',
+  period: 'all', status: 'all', hasSpots: false, priceMax: '',
+  keyword: '', sortBy: 'createdAt',
+};
+
 function todayStr(): string {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -29,17 +40,27 @@ export default function SearchPage() {
   const rounds = useStore((s) => s.rounds);
   const users = useStore((s) => s.users);
 
-  const [filterCourse, setFilterCourse] = useState<CourseFilter>('all');
-  const [filterScale, setFilterScale] = useState<ScaleFilter>('all');
-  const [filterLevel, setFilterLevel] = useState<string>('all');
-  const [filterArea, setFilterArea] = useState<string>('all');
-  const [filterPeriod, setFilterPeriod] = useState<Period>('upcoming');
-  const [filterStatus, setFilterStatus] = useState<StatusFilter>('open');
-  const [filterHasSpots, setFilterHasSpots] = useState(false);
-  const [filterPriceMax, setFilterPriceMax] = useState<string>('');
-  const [keyword, setKeyword] = useState('');
-  const [sortBy, setSortBy] = useState<SortBy>('date');
+  // Draft = what's in the form. Applied = what actually filters the list.
+  const [draft, setDraft] = useState<Filters>(defaultFilters);
+  const [applied, setApplied] = useState<Filters>(defaultFilters);
   const [open, setOpen] = useState(true);
+
+  // Convenience getters for applied filters (used by matches/sort below)
+  const filterCourse = applied.course;
+  const filterScale = applied.scale;
+  const filterLevel = applied.level;
+  const filterArea = applied.area;
+  const filterPeriod = applied.period;
+  const filterStatus = applied.status;
+  const filterHasSpots = applied.hasSpots;
+  const filterPriceMax = applied.priceMax;
+  const keyword = applied.keyword;
+  const sortBy = applied.sortBy;
+
+  const dirty = JSON.stringify(draft) !== JSON.stringify(applied);
+  function applyDraft() { setApplied(draft); }
+  function resetAll() { setDraft(defaultFilters); setApplied(defaultFilters); }
+  function patch<K extends keyof Filters>(key: K, value: Filters[K]) { setDraft({ ...draft, [key]: value }); }
 
   const today = todayStr();
   const todayMs = new Date(today).getTime();
@@ -130,13 +151,14 @@ export default function SearchPage() {
       <div className="px-5 pb-3">
         <div className="flex gap-2 mb-3">
           <input
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
+            value={draft.keyword}
+            onChange={(e) => patch('keyword', e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') applyDraft(); }}
             placeholder="タイトル・コース名・エリアで検索"
             className="flex-1 px-4 py-3 border-[1.5px] border-border rounded-xl text-sm bg-card outline-none"
           />
-          {keyword && (
-            <button onClick={() => setKeyword('')} className="px-3 py-3 bg-bg text-sub rounded-xl text-sm">×</button>
+          {draft.keyword && (
+            <button onClick={() => patch('keyword', '')} className="px-3 py-3 bg-bg text-sub rounded-xl text-sm">×</button>
           )}
         </div>
 
@@ -153,14 +175,14 @@ export default function SearchPage() {
             <FilterGroup label="期間">
               <Chips
                 options={[
+                  { id: 'all', label: '全期間' },
                   { id: 'upcoming', label: '今日以降' },
                   { id: 'thisWeek', label: '今週' },
                   { id: 'thisMonth', label: '今月' },
                   { id: 'past', label: '過去' },
-                  { id: 'all', label: '全期間' },
                 ]}
-                value={filterPeriod}
-                onChange={(v) => setFilterPeriod(v as Period)}
+                value={draft.period}
+                onChange={(v) => patch('period', v as Period)}
                 color="green"
               />
             </FilterGroup>
@@ -168,11 +190,11 @@ export default function SearchPage() {
             <FilterGroup label="ソート">
               <Chips
                 options={[
-                  { id: 'date', label: '開催日順' },
                   { id: 'createdAt', label: '新着順' },
+                  { id: 'date', label: '開催日順' },
                 ]}
-                value={sortBy}
-                onChange={(v) => setSortBy(v as SortBy)}
+                value={draft.sortBy}
+                onChange={(v) => patch('sortBy', v as SortBy)}
                 color="blue"
               />
             </FilterGroup>
@@ -180,21 +202,21 @@ export default function SearchPage() {
             <FilterGroup label="募集状況">
               <Chips
                 options={[
+                  { id: 'all', label: '全て' },
                   { id: 'open', label: '募集中' },
                   { id: 'closed', label: '締切' },
                   { id: 'completed', label: '完了' },
-                  { id: 'all', label: '全て' },
                 ]}
-                value={filterStatus}
-                onChange={(v) => setFilterStatus(v as StatusFilter)}
+                value={draft.status}
+                onChange={(v) => patch('status', v as StatusFilter)}
                 color="green"
               />
             </FilterGroup>
 
             <FilterGroup label="エリア">
               <select
-                value={filterArea}
-                onChange={(e) => setFilterArea(e.target.value)}
+                value={draft.area}
+                onChange={(e) => patch('area', e.target.value)}
                 className="w-full p-2.5 border-[1.5px] border-border rounded-[10px] text-sm bg-bg"
               >
                 <option value="all">全エリア</option>
@@ -209,8 +231,8 @@ export default function SearchPage() {
                   { id: 'confirmed', label: '✅ 確定' },
                   { id: 'flexible', label: '📍 未定' },
                 ]}
-                value={filterCourse}
-                onChange={(v) => setFilterCourse(v as CourseFilter)}
+                value={draft.course}
+                onChange={(v) => patch('course', v as CourseFilter)}
                 color="green"
               />
             </FilterGroup>
@@ -222,8 +244,8 @@ export default function SearchPage() {
                   { id: 'normal', label: '通常 1〜4人' },
                   { id: 'comp', label: '🏆 コンペ 5人〜' },
                 ]}
-                value={filterScale}
-                onChange={(v) => setFilterScale(v as ScaleFilter)}
+                value={draft.scale}
+                onChange={(v) => patch('scale', v as ScaleFilter)}
                 color="orange"
               />
             </FilterGroup>
@@ -231,8 +253,8 @@ export default function SearchPage() {
             <FilterGroup label="レベル">
               <Chips
                 options={[{ id: 'all', label: '全て' }, ...levelOptions.map((l) => ({ id: l, label: l }))]}
-                value={filterLevel}
-                onChange={setFilterLevel}
+                value={draft.level}
+                onChange={(v) => patch('level', v)}
                 color="blue"
               />
             </FilterGroup>
@@ -240,9 +262,9 @@ export default function SearchPage() {
             <FilterGroup label="その他">
               <div className="flex gap-1.5 flex-wrap">
                 <button
-                  onClick={() => setFilterHasSpots(!filterHasSpots)}
+                  onClick={() => patch('hasSpots', !draft.hasSpots)}
                   className={cn('px-3.5 py-1.5 rounded-full text-xs font-bold border-[1.5px]',
-                    filterHasSpots ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub')}
+                    draft.hasSpots ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub')}
                 >
                   ✓ 空きありのみ
                 </button>
@@ -252,23 +274,25 @@ export default function SearchPage() {
             <FilterGroup label="予算上限（任意）">
               <input
                 inputMode="numeric"
-                value={filterPriceMax}
-                onChange={(e) => setFilterPriceMax(e.target.value.replace(/[^0-9]/g, ''))}
+                value={draft.priceMax}
+                onChange={(e) => patch('priceMax', e.target.value.replace(/[^0-9]/g, ''))}
                 placeholder="例: 10000（円）"
                 className="w-full p-2.5 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
               />
             </FilterGroup>
 
-            <button
-              onClick={() => {
-                setFilterCourse('all'); setFilterScale('all'); setFilterLevel('all');
-                setFilterArea('all'); setFilterPeriod('upcoming'); setFilterStatus('open');
-                setFilterHasSpots(false); setFilterPriceMax(''); setKeyword(''); setSortBy('date');
-              }}
-              className="w-full py-2 bg-bg text-sub rounded-lg text-xs font-bold"
-            >
-              フィルタをリセット
-            </button>
+            <div className="flex gap-2 mt-2">
+              <button onClick={resetAll} className="flex-1 py-3 bg-bg text-sub rounded-xl text-sm font-bold">
+                リセット
+              </button>
+              <button
+                onClick={applyDraft}
+                className={cn('flex-[2] py-3 rounded-xl text-sm font-bold text-white',
+                  dirty ? 'bg-green' : 'bg-green/70')}
+              >
+                🔍 この条件で検索{dirty ? '' : ' （適用済み）'}
+              </button>
+            </div>
           </div>
         )}
       </div>

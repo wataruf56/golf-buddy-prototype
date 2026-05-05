@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { store, useStore } from '@/lib/store';
@@ -52,13 +53,16 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-3 px-5 py-3 border-b border-border bg-card flex-shrink-0">
+      <div className="flex items-center gap-3 px-5 py-3 border-b border-border bg-card flex-shrink-0 sticky top-0 z-10">
         <button onClick={() => router.back()} className="text-xl text-blue">←</button>
-        <Avatar user={other} size={36} />
-        <div className="flex-1">
-          <div className="text-[15px] font-bold">{other.displayName}</div>
-          <div className="text-[11px] text-sub">★{other.reviewAvg} ・ {other.scoreRange}</div>
-        </div>
+        <Link href={`/profile/${other.id}`} className="flex items-center gap-3 flex-1 min-w-0">
+          <Avatar user={other} size={36} />
+          <div className="flex-1 min-w-0">
+            <div className="text-[15px] font-bold truncate">{other.displayName}</div>
+            <div className="text-[11px] text-sub truncate">タップでプロフィール ・ ★{other.reviewAvg}{other.scoreRange ? ' ・ ' + other.scoreRange : ''}</div>
+          </div>
+          <span className="text-muted text-sm">›</span>
+        </Link>
       </div>
 
       <div ref={scrollRef} className="flex-1 px-5 py-4 flex flex-col gap-2.5 overflow-y-auto">
