@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useStore } from '@/lib/store';
+import { useStore, getMe } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
+import { toast } from '@/components/Toast';
 import type { Review, User } from '@/lib/types';
 import { chatIdFor } from '@/lib/utils';
 
@@ -13,11 +14,17 @@ export default function ProfilePage() {
   const router = useRouter();
   const cachedUser = useStore((s) => s.users.find((u) => u.id === params.id));
   const meId = useStore((s) => s.meId);
-  const chats = useStore((s) => s.chats);
-  const isBuddy = chats.some((c) => c.participants.includes(meId) && c.participants.includes(params.id || ''));
+  const me = useStore(getMe);
+  const buddyIds = useStore((s) => s.buddyIds);
+  const isBuddy = buddyIds.includes(params.id || '');
+  const isBlocked = (me.blockedUserIds || []).includes(params.id || '');
+  const isMe = meId === params.id;
 
   const [user, setUser] = useState<User | undefined>(cachedUser);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
 
   useEffect(() => {
     if (!params.id) return;
@@ -27,11 +34,74 @@ export default function ProfilePage() {
       .catch(() => {});
   }, [params.id]);
 
+  async function toggleBlock() {
+    setMenuOpen(false);
+    const action = isBlocked ? 'unblock' : 'block';
+    if (action === 'block' && !confirm(`${user?.displayName ?? 'このユーザー'}をブロックしますか？\nお互いにメッセージできなくなります。`)) return;
+    try {
+      const res = await fetch('/api/block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: params.id, action }),
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      toast(action === 'block' ? 'ブロックしました' : 'ブロック解除しました');
+      // Refresh me in store
+      const { store } = await import('@/lib/store');
+      await store.refreshMe();
+    } catch (e) {
+      toast('失敗: ' + (e as Error).message, 'error');
+    }
+  }
+
+  async function submitReport() {
+    if (!reportReason.trim()) {
+      toast('通報理由を入力してください', 'error');
+      return;
+    }
+    try {
+      const res = await fetch('/api/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: params.id, reason: reportReason }),
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      toast('通報を受け付けました');
+      setReportOpen(false);
+      setReportReason('');
+    } catch (e) {
+      toast('失敗: ' + (e as Error).message, 'error');
+    }
+  }
+
   if (!user) return <div className="p-5 text-sub">読み込み中...</div>;
 
   return (
     <div className="px-5 py-3">
-      <button onClick={() => router.back()} className="text-sm text-blue font-semibold mb-4">← 戻る</button>
+      <div className="flex items-center justify-between mb-4">
+        <button onClick={() => router.back()} className="text-sm text-blue font-semibold">← 戻る</button>
+        {!isMe && (
+          <div className="relative">
+            <button onClick={() => setMenuOpen((v) => !v)} className="text-2xl text-muted px-2">⋯</button>
+            {menuOpen && (
+              <div className="absolute right-0 top-full mt-1 bg-card rounded-xl shadow-lg border border-border min-w-[180px] z-20">
+                <button onClick={toggleBlock} className="w-full text-left px-4 py-3 text-sm font-bold text-text border-b border-border">
+                  {isBlocked ? '🔓 ブロック解除' : '🚫 ブロックする'}
+                </button>
+                <button onClick={() => { setMenuOpen(false); setReportOpen(true); }} className="w-full text-left px-4 py-3 text-sm font-bold text-red">
+                  🚩 通報する
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {isBlocked && (
+        <div className="bg-red-light text-red text-xs font-bold rounded-xl px-3 py-2 mb-4 text-center">
+          🚫 このユーザーをブロックしています
+        </div>
+      )}
 
       <div className="text-center mb-5">
         <div className="mx-auto mb-3 inline-block">
@@ -95,16 +165,40 @@ export default function ProfilePage() {
         ))}
       </div>
 
-      {user.id === meId ? null : isBuddy ? (
-        <Link href={`/chat/${chatIdFor(meId, user.id)}`} className="block w-full py-4 bg-green text-white rounded-xl text-[15px] font-bold text-center">
+      {isMe ? null : isBlocked ? (
+        <div className="text-center py-3 bg-bg rounded-xl text-[13px] text-sub">
+          このユーザーをブロック中
+        </div>
+      ) : isBuddy ? (
+        <Link href={`/chat/${chatIdFor(meId, user.id)}?other=${user.id}`} className="block w-full py-4 bg-green text-white rounded-xl text-[15px] font-bold text-center">
           メッセージを送る
         </Link>
       ) : (
         <div className="text-center py-3 bg-bg rounded-xl text-[13px] text-sub">
-          ラウンド後の相互レビュー完了でメッセージが開放されます
+          相互レビュー完了でゴル友になります（ラウンド経由でのメッセージは可能）
         </div>
       )}
       <div className="h-5" />
+
+      {reportOpen && (
+        <div className="absolute inset-0 bg-black/50 z-[150] flex items-center justify-center p-5 backdrop-blur-sm">
+          <div className="bg-card rounded-card p-5 w-full max-w-[350px] shadow-lg">
+            <div className="text-lg font-black mb-1">通報</div>
+            <div className="text-[12px] text-sub mb-4">{user.displayName} さんを通報します。理由を教えてください。</div>
+            <textarea
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value.slice(0, 500))}
+              placeholder="例: 不適切なメッセージを送ってきた"
+              className="w-full h-28 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-none"
+            />
+            <div className="text-[10px] text-muted text-right mt-0.5">{reportReason.length}/500</div>
+            <div className="flex gap-2 mt-3">
+              <button onClick={() => { setReportOpen(false); setReportReason(''); }} className="flex-1 py-3 bg-bg text-sub rounded-xl text-sm font-bold">キャンセル</button>
+              <button onClick={submitReport} className="flex-1 py-3 bg-red text-white rounded-xl text-sm font-bold">通報する</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

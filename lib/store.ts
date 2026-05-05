@@ -10,6 +10,8 @@ type Store = {
   rounds: Round[];
   pendingReviews: PendingReview[];
   chats: Chat[];
+  buddyIds: string[];
+  roundChatActivity: Record<string, number>;
 };
 
 const initial: Store = {
@@ -19,6 +21,8 @@ const initial: Store = {
   rounds: [],
   pendingReviews: [],
   chats: [],
+  buddyIds: [],
+  roundChatActivity: {},
 };
 
 let state: Store = initial;
@@ -59,6 +63,7 @@ export const store = {
       const data = await api<{
         meId: string; me: User; users: User[]; rounds: Round[];
         pendingReviews: PendingReview[]; chats: Chat[];
+        buddyIds?: string[]; roundChatActivity?: Record<string, number>;
       }>('/api/bootstrap');
       setState({
         hydrated: true,
@@ -67,6 +72,8 @@ export const store = {
         rounds: data.rounds,
         pendingReviews: data.pendingReviews,
         chats: data.chats,
+        buddyIds: data.buddyIds || [],
+        roundChatActivity: data.roundChatActivity || {},
       });
       // Fire-and-forget telemetry
       if (typeof window !== 'undefined') {

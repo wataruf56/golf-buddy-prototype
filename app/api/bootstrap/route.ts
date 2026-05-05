@@ -19,14 +19,24 @@ export async function GET() {
     });
   }
 
-  const [roundsRes, pendingReviewsRes, chatsRes] = await Promise.allSettled([
+  const [roundsRes, pendingReviewsRes, chatsRes, byMeRes, ofMeRes] = await Promise.allSettled([
     db.listRounds({ status: 'open' }),
     db.listPendingReviews(meId),
     db.listChatsForUser(meId),
+    db.listReviewsByUser(meId),
+    db.listReviewsForUser(meId),
   ]);
   const rounds = roundsRes.status === 'fulfilled' ? roundsRes.value : [];
   const pendingReviews = pendingReviewsRes.status === 'fulfilled' ? pendingReviewsRes.value : [];
   const chats = chatsRes.status === 'fulfilled' ? chatsRes.value : [];
+  const reviewsByMe = byMeRes.status === 'fulfilled' ? byMeRes.value : [];
+  const reviewsOfMe = ofMeRes.status === 'fulfilled' ? ofMeRes.value : [];
+
+  // Buddies = mutual review (I reviewed them AND they reviewed me).
+  const reviewedByMe = new Set(reviewsByMe.map((r) => r.revieweeId));
+  const reviewedMe = new Set(reviewsOfMe.map((r) => r.reviewerId));
+  const buddyIds = Array.from(reviewedByMe).filter((id) => reviewedMe.has(id));
+
   if (roundsRes.status === 'rejected') console.error('[bootstrap] rounds failed:', roundsRes.reason);
   if (pendingReviewsRes.status === 'rejected') console.error('[bootstrap] pendingReviews failed:', pendingReviewsRes.reason);
   if (chatsRes.status === 'rejected') console.error('[bootstrap] chats failed:', chatsRes.reason);
@@ -40,10 +50,25 @@ export async function GET() {
   }
   for (const c of chats) for (const p of c.participants) userIds.add(p);
   for (const p of pendingReviews) userIds.add(p.revieweeId);
+  for (const id of buddyIds) userIds.add(id);
 
   const users = await db.listUsers(Array.from(userIds));
   // Ensure me is included even if Firestore user missing
   if (!users.find((u) => u.id === meId) && me) users.push(me);
 
-  return NextResponse.json({ ok: true, meId, me, users, rounds, pendingReviews, chats });
+  // For each round I'm a participant in, find the latest message timestamp in
+  // its group chat so the client can compare against per-user lastSeen
+  // (stored in localStorage) for unread badges.
+  const myRounds = rounds.filter((r) => r.hostId === meId || (r.applicantIds || []).includes(meId));
+  const roundChatActivity: Record<string, number> = {};
+  await Promise.all(myRounds.map(async (r) => {
+    try {
+      const msgs = await db.listRoundMessages(r.id);
+      if (msgs.length) roundChatActivity[r.id] = Math.max(...msgs.map((m) => m.createdAt));
+    } catch {}
+  }));
+
+  return NextResponse.json({
+    ok: true, meId, me, users, rounds, pendingReviews, chats, buddyIds, roundChatActivity,
+  });
 }

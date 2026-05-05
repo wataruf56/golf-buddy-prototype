@@ -20,6 +20,7 @@ export type User = {
   reviewCount: number;
   roundCount: number;
   buddyCount: number;
+  blockedUserIds?: string[];
 };
 
 export type RoundType = 'confirmed' | 'flexible';

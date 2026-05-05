@@ -3,9 +3,12 @@
 import Link from 'next/link';
 import type { Round, User } from '@/lib/types';
 import { Avatar } from '@/components/Avatar';
+import { useUnreadCounts } from '@/lib/useUnread';
 import { formatDate } from '@/lib/utils';
 
 export function RoundCard({ round, host }: { round: Round; host?: User }) {
+  const { unreadRoundIds } = useUnreadCounts();
+  const hasUnread = unreadRoundIds.has(round.id);
   const isComp = round.maxSpots >= 5;
   const remaining = round.maxSpots - round.currentCount;
   const pct = Math.round((round.currentCount / round.maxSpots) * 100);
@@ -19,7 +22,7 @@ export function RoundCard({ round, host }: { round: Round; host?: User }) {
       className="block bg-card rounded-card p-4 mb-2.5 shadow-card cursor-pointer"
       style={isComp ? { borderLeft: '4px solid #E67E22' } : undefined}
     >
-      {(isComp || (round.pendingApplicantIds || []).length > 0) && (
+      {(isComp || (round.pendingApplicantIds || []).length > 0 || hasUnread) && (
         <div className="flex items-center gap-1.5 mb-2.5 flex-wrap">
           {isComp && (
             <span className="badge inline-flex items-center gap-1 px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-orange text-white">
@@ -29,6 +32,11 @@ export function RoundCard({ round, host }: { round: Round; host?: User }) {
           {(round.pendingApplicantIds || []).length > 0 && (
             <span className="badge inline-flex items-center gap-1 px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-orange-light text-orange border border-orange">
               📥 申請 {(round.pendingApplicantIds || []).length}件
+            </span>
+          )}
+          {hasUnread && (
+            <span className="badge inline-flex items-center gap-1 px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-red text-white">
+              💬 新着メッセージ
             </span>
           )}
         </div>

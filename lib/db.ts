@@ -27,7 +27,10 @@ export interface DB {
   addRoundMessage(roundId: string, senderId: string, text: string): Promise<Message>;
 
   listReviewsForUser(revieweeId: string): Promise<Review[]>;
+  listReviewsByUser(reviewerId: string): Promise<Review[]>;
   createReview(review: Omit<Review, 'id'>): Promise<Review>;
+  blockUser(userId: string, blockedId: string, action: 'block' | 'unblock'): Promise<string[]>;
+  reportUser(reporterId: string, reportedId: string, reason: string): Promise<void>;
 
   listPendingReviews(reviewerId: string): Promise<PendingReview[]>;
   completePendingReview(id: string): Promise<void>;
@@ -156,6 +159,21 @@ class MemoryDB implements DB {
 
   async listReviewsForUser(revieweeId: string) {
     return this.reviews.filter((r) => r.revieweeId === revieweeId).sort((a, b) => b.createdAt - a.createdAt);
+  }
+  async listReviewsByUser(reviewerId: string) {
+    return this.reviews.filter((r) => r.reviewerId === reviewerId);
+  }
+  async blockUser(userId: string, blockedId: string, action: 'block' | 'unblock') {
+    const u = this.users.find((x) => x.id === userId);
+    if (!u) throw new Error('user not found');
+    const cur = new Set(u.blockedUserIds || []);
+    if (action === 'block') cur.add(blockedId); else cur.delete(blockedId);
+    u.blockedUserIds = Array.from(cur);
+    return u.blockedUserIds;
+  }
+  async reportUser(reporterId: string, reportedId: string, reason: string) {
+    // Memory backend: just log
+    console.log('[report]', { reporterId, reportedId, reason, ts: Date.now() });
   }
   async createReview(rv: Omit<Review, 'id'>) {
     const created: Review = { ...rv, id: `rv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}` };
@@ -409,6 +427,33 @@ class FirestoreDB implements DB {
       console.error('[listReviewsForUser] failed', e);
       return [];
     }
+  }
+  async listReviewsByUser(reviewerId: string) {
+    try {
+      const snap = await this.fs.collection('reviews')
+        .where('reviewerId', '==', reviewerId).limit(200).get();
+      return snap.docs.map((d: any) => ({ id: d.id, ...d.data() })) as Review[];
+    } catch (e) {
+      console.error('[listReviewsByUser] failed', e);
+      return [];
+    }
+  }
+  async blockUser(userId: string, blockedId: string, action: 'block' | 'unblock') {
+    const ref = this.fs.collection('users').doc(userId);
+    return await this.fs.runTransaction(async (tx: any) => {
+      const snap = await tx.get(ref);
+      const data = snap.exists ? snap.data() : {};
+      const cur = new Set<string>(data.blockedUserIds || []);
+      if (action === 'block') cur.add(blockedId); else cur.delete(blockedId);
+      const arr = Array.from(cur);
+      tx.set(ref, { blockedUserIds: arr, updatedAt: Date.now() }, { merge: true });
+      return arr;
+    });
+  }
+  async reportUser(reporterId: string, reportedId: string, reason: string) {
+    await this.fs.collection('_reports').add({
+      reporterId, reportedId, reason: String(reason).slice(0, 1000), ts: Date.now(),
+    });
   }
   async createReview(rv: Omit<Review, 'id'>) {
     const ref = await this.fs.collection('reviews').add(rv);

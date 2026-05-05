@@ -1,22 +1,28 @@
 'use client';
 
 import Link from 'next/link';
-import { useStore } from '@/lib/store';
+import { useStore, getMe } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
+import { chatIdFor } from '@/lib/utils';
 
 export default function BuddiesPage() {
   const meId = useStore((s) => s.meId);
+  const me = useStore(getMe);
   const chats = useStore((s) => s.chats);
   const users = useStore((s) => s.users);
+  const buddyIds = useStore((s) => s.buddyIds);
+  const blocked = new Set(me.blockedUserIds || []);
 
-  const buddies = chats
-    .filter((c) => c.participants.includes(meId))
-    .map((c) => {
-      const otherId = c.participants.find((p) => p !== meId)!;
-      const other = users.find((u) => u.id === otherId);
-      return { chat: c, other };
+  // Only mutual-review buddies. Pre-buddy 1on1 chats live in /round/[id] only.
+  const buddies = buddyIds
+    .filter((id) => !blocked.has(id))
+    .map((id) => {
+      const other = users.find((u) => u.id === id);
+      const chat = chats.find((c) => c.id === chatIdFor(meId, id));
+      return { other, chat };
     })
-    .filter((b) => b.other);
+    .filter((b) => b.other)
+    .sort((a, b) => (b.chat?.lastMessageAt || 0) - (a.chat?.lastMessageAt || 0));
 
   return (
     <>
@@ -32,11 +38,12 @@ export default function BuddiesPage() {
         ) : (
           buddies.map(({ chat, other }) => {
             if (!other) return null;
-            const unread = chat.unreadCount[meId] || 0;
+            const cid = chatIdFor(meId, other.id);
+            const unread = chat?.unreadCount[meId] || 0;
             return (
               <Link
-                key={chat.id}
-                href={`/chat/${chat.id}`}
+                key={other.id}
+                href={`/chat/${cid}?other=${other.id}`}
                 className="block bg-card rounded-card p-4 shadow-card mb-2.5"
               >
                 <div className="flex items-center gap-3">
@@ -46,10 +53,12 @@ export default function BuddiesPage() {
                       <span className="text-[15px] font-bold">{other.displayName}</span>
                       <span className="text-[11px] text-green font-bold">★{other.reviewAvg}</span>
                     </div>
-                    <div className="text-xs text-sub mt-0.5 truncate">{chat.lastMessage}</div>
+                    <div className="text-xs text-sub mt-0.5 truncate">{chat?.lastMessage || 'メッセージを送ってみましょう'}</div>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <div className="text-[10px] text-muted">{new Date(chat.lastMessageAt).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}</div>
+                    {chat?.lastMessageAt ? (
+                      <div className="text-[10px] text-muted">{new Date(chat.lastMessageAt).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}</div>
+                    ) : null}
                     {unread > 0 && (
                       <div className="inline-block mt-1 px-1.5 py-0.5 bg-orange text-white text-[10px] font-bold rounded-full min-w-[18px] text-center">{unread}</div>
                     )}

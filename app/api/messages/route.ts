@@ -23,6 +23,12 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { chatId, text, otherUserId } = body || {};
   if (!chatId || !text || !otherUserId) return NextResponse.json({ error: 'invalid' }, { status: 400 });
+  // Block enforcement: either side blocking the other prevents new messages.
+  const [me, other] = await Promise.all([db.getUser(meId), db.getUser(otherUserId)]);
+  const meBlocksOther = (me?.blockedUserIds || []).includes(otherUserId);
+  const otherBlocksMe = (other?.blockedUserIds || []).includes(meId);
+  if (meBlocksOther) return NextResponse.json({ error: 'blocked_by_self' }, { status: 403 });
+  if (otherBlocksMe) return NextResponse.json({ error: 'blocked_by_other' }, { status: 403 });
   const participants: [string, string] = [meId, otherUserId].sort() as [string, string];
   const message = await db.sendMessage(chatId, participants, meId, text);
   return NextResponse.json({ message });

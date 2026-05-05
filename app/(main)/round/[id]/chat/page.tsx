@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { toast } from '@/components/Toast';
+import { markRoundChatSeen } from '@/lib/useUnread';
 import type { Message } from '@/lib/types';
 
 export default function RoundChatPage() {
@@ -32,7 +33,8 @@ export default function RoundChatPage() {
   useEffect(() => {
     if (!params.id) return;
     load();
-    const interval = setInterval(load, 3000);
+    markRoundChatSeen(params.id);
+    const interval = setInterval(() => { load(); markRoundChatSeen(params.id); }, 3000);
     return () => clearInterval(interval);
   }, [params.id]);
 
