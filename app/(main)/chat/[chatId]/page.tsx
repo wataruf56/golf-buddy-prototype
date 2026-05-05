@@ -14,7 +14,10 @@ export default function ChatPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (params.chatId) store.loadChat(params.chatId);
+    if (!params.chatId) return;
+    store.loadChat(params.chatId);
+    const interval = setInterval(() => store.loadChat(params.chatId), 3000);
+    return () => clearInterval(interval);
   }, [params.chatId]);
 
   useEffect(() => {

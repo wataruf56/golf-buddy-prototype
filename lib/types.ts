@@ -34,6 +34,7 @@ export type Round = {
   maxSpots: number;
   currentCount: number;
   applicantIds: string[];
+  pendingApplicantIds?: string[];
   price?: string;
   levelCondition: string;
   description?: string;

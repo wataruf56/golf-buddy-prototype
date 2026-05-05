@@ -20,8 +20,10 @@ export default function RoundDetailPage() {
 
   const host = users.find((u) => u.id === round.hostId);
   const applicants = round.applicantIds.map((id) => users.find((u) => u.id === id)).filter(Boolean);
+  const pendingApplicants = (round.pendingApplicantIds || []).map((id) => users.find((u) => u.id === id)).filter(Boolean);
   const isHost = round.hostId === meId;
-  const hasJoined = round.applicantIds.includes(meId);
+  const isApproved = round.applicantIds.includes(meId);
+  const isPending = (round.pendingApplicantIds || []).includes(meId);
   const isFull = round.currentCount >= round.maxSpots;
   const remaining = round.maxSpots - round.currentCount;
   const isComp = round.maxSpots >= 5;
@@ -46,6 +48,15 @@ export default function RoundDetailPage() {
       await store.completeRound(round!.id);
       router.push('/home');
     } catch (e) { alert('失敗しました: ' + (e as Error).message); }
+  }
+  async function approve(userId: string) {
+    try { await store.approveApplicant(round!.id, userId); }
+    catch (e) { alert('失敗しました: ' + (e as Error).message); }
+  }
+  async function reject(userId: string) {
+    if (!confirm('この申請を断りますか？')) return;
+    try { await store.rejectApplicant(round!.id, userId); }
+    catch (e) { alert('失敗しました: ' + (e as Error).message); }
   }
 
   return (
@@ -100,7 +111,7 @@ export default function RoundDetailPage() {
 
         {applicants.length > 0 && (
           <div className="mb-4">
-            <div className="text-[13px] font-bold mb-2">参加予定（{applicants.length}名）</div>
+            <div className="text-[13px] font-bold mb-2">参加確定（{applicants.length}名）</div>
             {applicants.map((u) => u && (
               <Link href={`/profile/${u.id}`} key={u.id} className="flex items-center gap-2.5 p-2.5 bg-bg rounded-[10px] mb-1.5">
                 <div className="w-9 h-9 rounded-full flex items-center justify-center text-lg" style={{ background: `${u.color}22` }}>{u.avatar}</div>
@@ -111,13 +122,34 @@ export default function RoundDetailPage() {
           </div>
         )}
 
+        {isHost && pendingApplicants.length > 0 && (
+          <div className="mb-4">
+            <div className="text-[13px] font-bold mb-2">申請中（{pendingApplicants.length}名）— 承認/却下を選んでください</div>
+            {pendingApplicants.map((u) => u && (
+              <div key={u.id} className="flex items-center gap-2 p-2.5 bg-yellow-light rounded-[10px] mb-1.5">
+                <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-lg flex-shrink-0" style={{ background: `${u.color}22` }}>{u.avatar}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
+                    <div className="text-[10px] text-sub">★{u.reviewAvg}（{u.reviewCount}件）</div>
+                  </div>
+                </Link>
+                <button onClick={() => approve(u.id)} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold flex-shrink-0">承認</button>
+                <button onClick={() => reject(u.id)} className="px-3 py-1.5 bg-card text-sub border border-border rounded-lg text-xs font-bold flex-shrink-0">却下</button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {isHost ? (
           <div className="space-y-2 mt-4">
             <button onClick={complete} className="w-full py-4 bg-green text-white rounded-xl text-[15px] font-bold">ラウンド完了</button>
             <button onClick={close} className="w-full py-3 bg-bg text-sub rounded-xl text-sm font-bold">募集を閉じる</button>
           </div>
-        ) : hasJoined ? (
-          <div className="text-center py-3 bg-green-light text-green rounded-xl text-sm font-bold mt-2">✅ 参加申請済み</div>
+        ) : isApproved ? (
+          <div className="text-center py-3 bg-green-light text-green rounded-xl text-sm font-bold mt-2">✅ 参加確定</div>
+        ) : isPending ? (
+          <div className="text-center py-3 bg-yellow-light text-orange rounded-xl text-sm font-bold mt-2">⏳ 承認待ち</div>
         ) : isFull ? (
           <div className="text-center py-3 bg-bg text-muted rounded-xl text-sm font-bold mt-2">満員のため受付終了</div>
         ) : (

@@ -15,6 +15,8 @@ export interface DB {
   createRound(round: Omit<Round, 'id'>): Promise<Round>;
   updateRound(id: string, patch: Partial<Round>): Promise<void>;
   joinRound(id: string, userId: string): Promise<Round>;
+  approveApplicant(id: string, userId: string): Promise<Round>;
+  rejectApplicant(id: string, userId: string): Promise<Round>;
   completeRound(id: string): Promise<{ round: Round; pendingForUser: (userId: string) => PendingReview[] }>;
 
   listReviewsForUser(revieweeId: string): Promise<Review[]>;
@@ -79,10 +81,26 @@ class MemoryDB implements DB {
   async joinRound(id: string, userId: string) {
     const r = this.rounds.find((x) => x.id === id);
     if (!r) throw new Error('round not found');
-    if (!r.applicantIds.includes(userId) && r.hostId !== userId) {
+    if (r.hostId === userId) return r;
+    if (r.applicantIds.includes(userId)) return r;
+    r.pendingApplicantIds = r.pendingApplicantIds || [];
+    if (!r.pendingApplicantIds.includes(userId)) r.pendingApplicantIds.push(userId);
+    return r;
+  }
+  async approveApplicant(id: string, userId: string) {
+    const r = this.rounds.find((x) => x.id === id);
+    if (!r) throw new Error('round not found');
+    r.pendingApplicantIds = (r.pendingApplicantIds || []).filter((x) => x !== userId);
+    if (!r.applicantIds.includes(userId)) {
       r.applicantIds.push(userId);
       r.currentCount += 1;
     }
+    return r;
+  }
+  async rejectApplicant(id: string, userId: string) {
+    const r = this.rounds.find((x) => x.id === id);
+    if (!r) throw new Error('round not found');
+    r.pendingApplicantIds = (r.pendingApplicantIds || []).filter((x) => x !== userId);
     return r;
   }
   async completeRound(id: string) {
@@ -234,13 +252,41 @@ class FirestoreDB implements DB {
       const snap = await tx.get(ref);
       if (!snap.exists) throw new Error('round not found');
       const data = snap.data() as Omit<Round, 'id'>;
-      if (data.applicantIds?.includes(userId) || data.hostId === userId) {
+      if (data.hostId === userId || data.applicantIds?.includes(userId)) {
         return { ...data, id: snap.id } as Round;
       }
-      const applicantIds = [...(data.applicantIds || []), userId];
-      const currentCount = (data.currentCount || 1) + 1;
-      tx.set(ref, { applicantIds, currentCount }, { merge: true });
-      return { ...data, id: snap.id, applicantIds, currentCount } as Round;
+      const pending = data.pendingApplicantIds || [];
+      if (pending.includes(userId)) return { ...data, id: snap.id } as Round;
+      const pendingApplicantIds = [...pending, userId];
+      tx.set(ref, { pendingApplicantIds }, { merge: true });
+      return { ...data, id: snap.id, pendingApplicantIds } as Round;
+    });
+  }
+  async approveApplicant(id: string, userId: string) {
+    const ref = this.fs.collection('rounds').doc(id);
+    return await this.fs.runTransaction(async (tx: any) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('round not found');
+      const data = snap.data() as Omit<Round, 'id'>;
+      const pending = (data.pendingApplicantIds || []).filter((x) => x !== userId);
+      const applicants = data.applicantIds || [];
+      const applicantIds = applicants.includes(userId) ? applicants : [...applicants, userId];
+      const currentCount = applicants.includes(userId)
+        ? (data.currentCount || 1)
+        : (data.currentCount || 1) + 1;
+      tx.set(ref, { pendingApplicantIds: pending, applicantIds, currentCount }, { merge: true });
+      return { ...data, id: snap.id, pendingApplicantIds: pending, applicantIds, currentCount } as Round;
+    });
+  }
+  async rejectApplicant(id: string, userId: string) {
+    const ref = this.fs.collection('rounds').doc(id);
+    return await this.fs.runTransaction(async (tx: any) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('round not found');
+      const data = snap.data() as Omit<Round, 'id'>;
+      const pending = (data.pendingApplicantIds || []).filter((x) => x !== userId);
+      tx.set(ref, { pendingApplicantIds: pending }, { merge: true });
+      return { ...data, id: snap.id, pendingApplicantIds: pending } as Round;
     });
   }
   async completeRound(id: string) {

@@ -30,6 +30,7 @@ export async function GET() {
   for (const r of rounds) {
     userIds.add(r.hostId);
     for (const a of r.applicantIds || []) userIds.add(a);
+    for (const a of r.pendingApplicantIds || []) userIds.add(a);
   }
   for (const c of chats) for (const p of c.participants) userIds.add(p);
   for (const p of pendingReviews) userIds.add(p.revieweeId);
