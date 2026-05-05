@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { getMe, useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
+import { track } from '@/lib/telemetry';
 import type { Review } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
 
@@ -26,11 +27,19 @@ export default function MyPage() {
 
   useEffect(() => {
     if (!meId) return;
+    track('mypage_render', {
+      meId,
+      displayName: me.displayName,
+      age: me.age,
+      area: me.area,
+      hasAvatarUrl: !!me.avatarUrl,
+      avatarUrlLength: me.avatarUrl?.length || 0,
+    });
     fetch(`/api/reviews?userId=${encodeURIComponent(meId)}`)
       .then((r) => r.json())
       .then((d) => setMyReviews(d.reviews || []))
       .catch(() => {});
-  }, [meId]);
+  }, [meId, me.displayName, me.avatarUrl]);
 
   function logout() {
     if (isDemo) router.push('/login');

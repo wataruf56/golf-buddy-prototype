@@ -34,9 +34,26 @@ export async function GET(req: NextRequest) {
       .get();
     let logs = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
     if (userId) logs = logs.filter((l: any) => l.userId === userId).slice(0, limit);
+    // Also fetch the current Firestore user doc for context
+    let userDoc: any = null;
+    if (userId) {
+      const u = await db.collection('users').doc(userId).get();
+      if (u.exists) {
+        const data = u.data();
+        userDoc = {
+          displayName: data.displayName,
+          age: data.age,
+          area: data.area,
+          hasAvatarUrl: !!data.avatarUrl,
+          avatarUrlLength: data.avatarUrl?.length || 0,
+          updatedAt: data.updatedAt,
+        };
+      }
+    }
     return NextResponse.json({
       count: logs.length,
       logs,
+      userDoc,
       serverTime: new Date().toISOString(),
     }, { headers: noStore });
   } catch (e) {
