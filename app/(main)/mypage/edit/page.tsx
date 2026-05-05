@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { Avatar } from '@/components/Avatar';
+import { track } from '@/lib/telemetry';
 import { allAreas } from '@/lib/mockData';
 
 const playStyles = ['のんびり派', 'エンジョイ派', 'サクサク派', '研究派', 'ガチ派'];
@@ -28,7 +29,9 @@ export default function ProfileEditPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function handleFile(file: File) {
+    track('photo_pick', { name: file.name, size: file.size, type: file.type });
     if (!file.type.startsWith('image/')) {
+      track('photo_pick_invalid_type');
       toast('画像ファイルを選んでください', 'error');
       return;
     }
@@ -36,8 +39,10 @@ export default function ProfileEditPage() {
     try {
       const dataUrl = await resizeToDataUrl(file, 320, 0.7);
       setAvatarUrl(dataUrl);
+      track('photo_resize_success', { dataUrlLength: dataUrl.length });
       toast('写真を取り込みました（保存ボタンで確定）');
     } catch (e) {
+      track('photo_resize_error', { message: (e as Error).message });
       toast('読み込み失敗: ' + (e as Error).message, 'error');
     } finally {
       setBusy(false);
@@ -50,15 +55,21 @@ export default function ProfileEditPage() {
   }
 
   async function save() {
+    track('profile_save_click', {
+      displayName, age, area, scoreRange, playStyle, frequency, avatar,
+      hasAvatarUrl: !!avatarUrl, avatarUrlLength: avatarUrl?.length || 0,
+    });
     try {
       const ageNum = age ? parseInt(age, 10) : 0;
       await store.updateMe({
         displayName, age: ageNum, area, scoreRange, playStyle, frequency, avatar,
         avatarUrl: avatarUrl || '',
       });
+      track('profile_save_success', { displayName });
       toast('保存しました');
       router.push('/mypage');
     } catch (e) {
+      track('profile_save_error', { message: (e as Error).message });
       toast('保存失敗: ' + (e as Error).message, 'error');
     }
   }

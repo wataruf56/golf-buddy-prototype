@@ -11,6 +11,10 @@ function StoreHydrator({ children }: { children: ReactNode }) {
   const { status } = useSession();
   useEffect(() => {
     if (!(isDemo || status === 'authenticated')) return;
+    import('@/lib/telemetry').then(({ track }) => track('app_open', {
+      ua: navigator.userAgent.slice(0, 120),
+      standalone: (window.matchMedia?.('(display-mode: standalone)').matches) || false,
+    }));
     store.hydrate();
   }, [status]);
   return <>{children}</>;
