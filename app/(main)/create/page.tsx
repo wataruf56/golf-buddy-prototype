@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { allAreas, levelOptions } from '@/lib/mockData';
 import { store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
+import { track } from '@/lib/telemetry';
 import type { Round, RoundType, DateType } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -40,25 +41,30 @@ export default function CreatePage() {
   }
 
   async function publish() {
+    const payload = {
+      title: title || (type === 'confirmed' ? 'ラウンド募集' : 'コース未定の募集'),
+      type,
+      courseName: type === 'confirmed' ? courseName : undefined,
+      area: type === 'flexible' ? area : undefined,
+      dateType: (type === 'confirmed' ? 'fixed' : dateType) as 'fixed' | 'range',
+      date: type === 'confirmed' ? date : (dateType === 'fixed' ? date : undefined),
+      dateRange: type === 'flexible' && dateType === 'range' ? dateRange : undefined,
+      startTime: type === 'confirmed' ? startTime : undefined,
+      maxSpots,
+      price: price || undefined,
+      levelCondition,
+      description: description || undefined,
+    };
+    track('round_create_click', { ...payload, isComp });
     try {
-      await store.addRound({
-        title: title || (type === 'confirmed' ? 'ラウンド募集' : 'コース未定の募集'),
-        type,
-        courseName: type === 'confirmed' ? courseName : undefined,
-        area: type === 'flexible' ? area : undefined,
-        dateType: type === 'confirmed' ? 'fixed' : dateType,
-        date: type === 'confirmed' ? date : (dateType === 'fixed' ? date : undefined),
-        dateRange: type === 'flexible' && dateType === 'range' ? dateRange : undefined,
-        startTime: type === 'confirmed' ? startTime : undefined,
-        maxSpots,
-        price: price || undefined,
-        levelCondition,
-        description: description || undefined,
-      } as Partial<Round>);
+      await store.addRound(payload as Partial<Round>);
+      track('round_create_success', { title: payload.title });
       toast(isComp ? 'コンペ募集を公開しました' : '募集を公開しました');
       router.push('/home');
     } catch (e) {
-      toast('失敗: ' + (e as Error).message, 'error');
+      const msg = (e as Error).message;
+      track('round_create_error', { message: msg, payload });
+      toast('失敗: ' + msg, 'error');
     }
   }
 

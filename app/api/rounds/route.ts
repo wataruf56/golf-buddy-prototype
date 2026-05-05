@@ -32,6 +32,12 @@ export async function POST(req: NextRequest) {
     isCompetition: (Number(body.maxSpots) || 1) >= 5,
     createdAt: Date.now(),
   };
-  const created = await db.createRound(round);
-  return NextResponse.json({ round: created });
+  try {
+    const created = await db.createRound(round);
+    return NextResponse.json({ round: created });
+  } catch (e) {
+    const msg = (e as Error).message;
+    console.error('[/api/rounds POST] failed', msg, round);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }

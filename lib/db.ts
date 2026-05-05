@@ -213,7 +213,9 @@ class FirestoreDB implements DB {
     }
   }
   async updateUser(id: string, patch: Partial<User>) {
-    await this.fs.collection('users').doc(id).set({ ...patch, updatedAt: Date.now() }, { merge: true });
+    const clean: Record<string, unknown> = { updatedAt: Date.now() };
+    for (const [k, v] of Object.entries(patch)) if (v !== undefined) clean[k] = v;
+    await this.fs.collection('users').doc(id).set(clean, { merge: true });
   }
   async listUsers(ids: string[]) {
     if (!ids.length) return [];
@@ -247,11 +249,18 @@ class FirestoreDB implements DB {
     return this.snapToObj<Round>(snap);
   }
   async createRound(round: Omit<Round, 'id'>) {
-    const ref = await this.fs.collection('rounds').add(round);
-    return { ...round, id: ref.id };
+    // Firestore rejects objects containing undefined values; strip them out.
+    const clean: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(round)) {
+      if (v !== undefined) clean[k] = v;
+    }
+    const ref = await this.fs.collection('rounds').add(clean);
+    return { ...(clean as Omit<Round, 'id'>), id: ref.id };
   }
   async updateRound(id: string, patch: Partial<Round>) {
-    await this.fs.collection('rounds').doc(id).set(patch, { merge: true });
+    const clean: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(patch)) if (v !== undefined) clean[k] = v;
+    await this.fs.collection('rounds').doc(id).set(clean, { merge: true });
   }
   async joinRound(id: string, userId: string) {
     const ref = this.fs.collection('rounds').doc(id);
