@@ -38,31 +38,27 @@ export default function CreatePage() {
     setStep('form');
   }
 
-  function publish() {
-    const round: Round = {
-      id: `r_${Date.now()}`,
-      hostId: meId,
-      title: title || (type === 'confirmed' ? 'ラウンド募集' : 'コース未定の募集'),
-      type,
-      courseName: type === 'confirmed' ? courseName : undefined,
-      area: type === 'flexible' ? area : undefined,
-      dateType: type === 'confirmed' ? 'fixed' : dateType,
-      date: type === 'confirmed' ? date : (dateType === 'fixed' ? date : undefined),
-      dateRange: type === 'flexible' && dateType === 'range' ? dateRange : undefined,
-      startTime: type === 'confirmed' ? startTime : undefined,
-      maxSpots,
-      currentCount: 1,
-      applicantIds: [],
-      price: price || undefined,
-      levelCondition,
-      description: description || undefined,
-      status: 'open',
-      isCompetition: isComp,
-      createdAt: Date.now(),
-    };
-    store.addRound(round);
-    alert(isComp ? 'コンペ・イベント募集を公開しました！' : '募集を公開しました！');
-    router.push('/home');
+  async function publish() {
+    try {
+      await store.addRound({
+        title: title || (type === 'confirmed' ? 'ラウンド募集' : 'コース未定の募集'),
+        type,
+        courseName: type === 'confirmed' ? courseName : undefined,
+        area: type === 'flexible' ? area : undefined,
+        dateType: type === 'confirmed' ? 'fixed' : dateType,
+        date: type === 'confirmed' ? date : (dateType === 'fixed' ? date : undefined),
+        dateRange: type === 'flexible' && dateType === 'range' ? dateRange : undefined,
+        startTime: type === 'confirmed' ? startTime : undefined,
+        maxSpots,
+        price: price || undefined,
+        levelCondition,
+        description: description || undefined,
+      } as Partial<Round>);
+      alert(isComp ? 'コンペ・イベント募集を公開しました！' : '募集を公開しました！');
+      router.push('/home');
+    } catch (e) {
+      alert('失敗しました: ' + (e as Error).message);
+    }
   }
 
   if (step === 'select') {

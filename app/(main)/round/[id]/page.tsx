@@ -27,21 +27,25 @@ export default function RoundDetailPage() {
   const isComp = round.maxSpots >= 5;
   const dateLabel = round.dateType === 'range' ? round.dateRange : formatDate(round.date);
 
-  function join() {
-    store.joinRound(round!.id, meId);
-    alert('参加申請を送信しました！\n主催者が承認するとメッセージが開きます。');
+  async function join() {
+    try {
+      await store.joinRound(round!.id);
+      alert('参加申請を送信しました！');
+    } catch (e) { alert('失敗しました: ' + (e as Error).message); }
   }
-  function close() {
-    if (confirm('この募集を閉じますか？')) {
-      store.closeRound(round!.id);
+  async function close() {
+    if (!confirm('この募集を閉じますか？')) return;
+    try {
+      await store.closeRound(round!.id);
       router.push('/home');
-    }
+    } catch (e) { alert('失敗しました: ' + (e as Error).message); }
   }
-  function complete() {
-    if (confirm('ラウンドを完了しますか？\n参加者全員にレビュー依頼が送られます。')) {
-      store.completeRound(round!.id);
+  async function complete() {
+    if (!confirm('ラウンドを完了しますか？\n参加者全員にレビュー依頼が送られます。')) return;
+    try {
+      await store.completeRound(round!.id);
       router.push('/home');
-    }
+    } catch (e) { alert('失敗しました: ' + (e as Error).message); }
   }
 
   return (

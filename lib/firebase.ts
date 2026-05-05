@@ -1,26 +1,29 @@
-import { isDemoMode } from './auth';
+import 'server-only';
+import { isDemoMode } from './demoMode';
 
-let adminDb: unknown = null;
+let _adminApp: any = null;
+let _adminDb: any = null;
 
-export function getAdminDb() {
+export function getAdminDb(): any | null {
   if (isDemoMode) return null;
-  if (adminDb) return adminDb;
-  if (typeof window !== 'undefined') return null;
+  if (_adminDb) return _adminDb;
   try {
     const admin = require('firebase-admin');
     if (!admin.apps.length) {
-      admin.initializeApp({
+      _adminApp = admin.initializeApp({
         credential: admin.credential.cert({
           projectId: process.env.FIREBASE_PROJECT_ID,
           clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
           privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
         }),
       });
+    } else {
+      _adminApp = admin.apps[0];
     }
-    adminDb = admin.firestore();
-    return adminDb;
+    _adminDb = admin.firestore();
+    return _adminDb;
   } catch (e) {
-    console.warn('[firebase] admin not initialized:', e);
+    console.error('[firebase] admin init failed:', e);
     return null;
   }
 }

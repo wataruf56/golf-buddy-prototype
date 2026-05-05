@@ -14,6 +14,10 @@ export default function ChatPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (params.chatId) store.loadChat(params.chatId);
+  }, [params.chatId]);
+
+  useEffect(() => {
     if (chat) store.markChatRead(chat.id);
   }, [chat?.id]);
 
@@ -21,15 +25,17 @@ export default function ChatPage() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [chat?.messages.length]);
 
-  if (!chat) return <div className="p-5 text-sub">チャットが見つかりません</div>;
+  if (!chat) return <div className="p-5 text-sub">読み込み中...</div>;
   const otherId = chat.participants.find((p) => p !== meId)!;
   const other = users.find((u) => u.id === otherId);
   if (!other) return null;
 
-  function send() {
-    if (!text.trim() || !chat) return;
-    store.sendMessage(chat.id, text.trim());
+  async function send() {
+    if (!text.trim() || !chat || !other) return;
+    const t = text.trim();
     setText('');
+    try { await store.sendMessage(chat.id, other.id, t); }
+    catch (e) { alert('送信失敗: ' + (e as Error).message); }
   }
 
   return (

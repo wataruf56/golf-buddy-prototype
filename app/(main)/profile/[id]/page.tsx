@@ -1,20 +1,32 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
+import type { Review, User } from '@/lib/types';
 import { chatIdFor } from '@/lib/utils';
 
 export default function ProfilePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const user = useStore((s) => s.users.find((u) => u.id === params.id));
+  const cachedUser = useStore((s) => s.users.find((u) => u.id === params.id));
   const meId = useStore((s) => s.meId);
-  const reviews = useStore((s) => s.reviews.filter((r) => r.revieweeId === params.id));
   const chats = useStore((s) => s.chats);
   const isBuddy = chats.some((c) => c.participants.includes(meId) && c.participants.includes(params.id || ''));
 
-  if (!user) return <div className="p-5 text-sub">ユーザーが見つかりません</div>;
+  const [user, setUser] = useState<User | undefined>(cachedUser);
+  const [reviews, setReviews] = useState<Review[]>([]);
+
+  useEffect(() => {
+    if (!params.id) return;
+    fetch(`/api/users/${encodeURIComponent(params.id)}`)
+      .then((r) => r.json())
+      .then((d) => { if (d.user) setUser(d.user); if (d.reviews) setReviews(d.reviews); })
+      .catch(() => {});
+  }, [params.id]);
+
+  if (!user) return <div className="p-5 text-sub">読み込み中...</div>;
 
   return (
     <div className="px-5 py-3">

@@ -1,8 +1,25 @@
 'use client';
 
-import { SessionProvider } from 'next-auth/react';
-import { ReactNode } from 'react';
+import { SessionProvider, useSession } from 'next-auth/react';
+import { ReactNode, useEffect } from 'react';
+import { store } from '@/lib/store';
+
+const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
+function StoreHydrator({ children }: { children: ReactNode }) {
+  const { status } = useSession();
+  useEffect(() => {
+    if (isDemo || status === 'authenticated') {
+      store.hydrate();
+    }
+  }, [status]);
+  return <>{children}</>;
+}
 
 export function Providers({ children }: { children: ReactNode }) {
-  return <SessionProvider>{children}</SessionProvider>;
+  return (
+    <SessionProvider>
+      <StoreHydrator>{children}</StoreHydrator>
+    </SessionProvider>
+  );
 }

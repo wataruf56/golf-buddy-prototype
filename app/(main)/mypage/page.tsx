@@ -1,9 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { getMe, useStore } from '@/lib/store';
+import type { Review } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
 
 const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
@@ -11,8 +13,17 @@ const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 export default function MyPage() {
   const router = useRouter();
   const me = useStore(getMe);
-  const myReviews = useStore((s) => s.reviews.filter((r) => r.revieweeId === s.meId));
+  const meId = useStore((s) => s.meId);
   const myRounds = useStore((s) => s.rounds.filter((r) => r.hostId === s.meId || r.applicantIds.includes(s.meId)));
+  const [myReviews, setMyReviews] = useState<Review[]>([]);
+
+  useEffect(() => {
+    if (!meId) return;
+    fetch(`/api/reviews?userId=${encodeURIComponent(meId)}`)
+      .then((r) => r.json())
+      .then((d) => setMyReviews(d.reviews || []))
+      .catch(() => {});
+  }, [meId]);
 
   function logout() {
     if (isDemo) router.push('/login');

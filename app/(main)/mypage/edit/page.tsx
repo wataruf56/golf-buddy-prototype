@@ -21,9 +21,13 @@ export default function ProfileEditPage() {
   const [frequency, setFrequency] = useState(me.frequency);
   const [avatar, setAvatar] = useState(me.avatar);
 
-  function save() {
-    store.updateMe({ displayName, age, area, scoreRange, playStyle, frequency, avatar });
-    router.push('/mypage');
+  async function save() {
+    try {
+      await store.updateMe({ displayName, age, area, scoreRange, playStyle, frequency, avatar });
+      router.push('/mypage');
+    } catch (e) {
+      alert('保存に失敗しました: ' + (e as Error).message);
+    }
   }
 
   return (

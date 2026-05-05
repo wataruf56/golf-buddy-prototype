@@ -27,9 +27,9 @@ export function ReviewOverlay() {
     setTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
   }
 
-  function submit() {
+  async function submit() {
     if (stars === 0) return;
-    store.submitReview(current.id, stars, tags, comment || undefined);
+    await store.submitReview(current.id, stars, tags, comment || undefined);
     setStars(0); setTags([]); setComment('');
   }
 

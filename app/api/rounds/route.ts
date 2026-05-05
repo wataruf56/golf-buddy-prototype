@@ -1,25 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isDemoMode } from '@/lib/auth';
-import { mockRounds } from '@/lib/mockData';
-import { getAdminDb } from '@/lib/firebase';
+import { db } from '@/lib/db';
+import { getMeId } from '@/lib/session';
+import type { Round } from '@/lib/types';
 
 export async function GET() {
-  if (isDemoMode) {
-    return NextResponse.json({ rounds: mockRounds });
-  }
-  const db = getAdminDb() as any;
-  if (!db) return NextResponse.json({ rounds: [] });
-  const snap = await db.collection('rounds').where('status', '==', 'open').orderBy('createdAt', 'desc').get();
-  return NextResponse.json({ rounds: snap.docs.map((d: any) => ({ id: d.id, ...d.data() })) });
+  const rounds = await db.listRounds({ status: 'open' });
+  return NextResponse.json({ rounds });
 }
 
 export async function POST(req: NextRequest) {
+  const meId = await getMeId();
+  if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const body = await req.json();
-  if (isDemoMode) {
-    return NextResponse.json({ ok: true, round: { id: `r_${Date.now()}`, ...body } });
-  }
-  const db = getAdminDb() as any;
-  if (!db) return NextResponse.json({ ok: false, error: 'no-db' }, { status: 500 });
-  const ref = await db.collection('rounds').add({ ...body, createdAt: Date.now() });
-  return NextResponse.json({ ok: true, id: ref.id });
+  const round: Omit<Round, 'id'> = {
+    hostId: meId,
+    title: body.title,
+    type: body.type,
+    courseName: body.courseName,
+    area: body.area,
+    dateType: body.dateType,
+    date: body.date,
+    dateRange: body.dateRange,
+    startTime: body.startTime,
+    maxSpots: Math.max(1, Math.min(50, Number(body.maxSpots) || 1)),
+    currentCount: 1,
+    applicantIds: [],
+    price: body.price,
+    levelCondition: body.levelCondition || 'スコア不問',
+    description: body.description,
+    status: 'open',
+    isCompetition: (Number(body.maxSpots) || 1) >= 5,
+    createdAt: Date.now(),
+  };
+  const created = await db.createRound(round);
+  return NextResponse.json({ round: created });
 }
