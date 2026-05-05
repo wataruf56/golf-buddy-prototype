@@ -32,7 +32,7 @@ export default function CreatePage() {
   const presetSpots = [2, 3, 4, 8, 12, 20];
   const timeSlots: string[] = [];
   for (let h = 6; h <= 14; h++) {
-    for (const m of [0, 30]) timeSlots.push(`${h}:${m === 0 ? '00' : '30'}`);
+    for (let m = 0; m < 60; m += 5) timeSlots.push(`${h}:${String(m).padStart(2, '0')}`);
   }
 
   function chooseType(t: RoundType) {

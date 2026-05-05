@@ -259,7 +259,7 @@ function ConfirmCourseModal({ roundId, initialPrice, onClose }: { roundId: strin
   const [price, setPrice] = useState(initialPrice || '');
   const [busy, setBusy] = useState(false);
   const timeSlots: string[] = [];
-  for (let h = 6; h <= 14; h++) for (const m of [0, 30]) timeSlots.push(`${h}:${m === 0 ? '00' : '30'}`);
+  for (let h = 6; h <= 14; h++) for (let m = 0; m < 60; m += 5) timeSlots.push(`${h}:${String(m).padStart(2, '0')}`);
 
   async function submit() {
     if (!courseName || !date || !startTime) {
