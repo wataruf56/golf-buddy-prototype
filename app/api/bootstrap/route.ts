@@ -19,11 +19,17 @@ export async function GET() {
     });
   }
 
-  const [rounds, pendingReviews, chats] = await Promise.all([
+  const [roundsRes, pendingReviewsRes, chatsRes] = await Promise.allSettled([
     db.listRounds({ status: 'open' }),
     db.listPendingReviews(meId),
     db.listChatsForUser(meId),
   ]);
+  const rounds = roundsRes.status === 'fulfilled' ? roundsRes.value : [];
+  const pendingReviews = pendingReviewsRes.status === 'fulfilled' ? pendingReviewsRes.value : [];
+  const chats = chatsRes.status === 'fulfilled' ? chatsRes.value : [];
+  if (roundsRes.status === 'rejected') console.error('[bootstrap] rounds failed:', roundsRes.reason);
+  if (pendingReviewsRes.status === 'rejected') console.error('[bootstrap] pendingReviews failed:', pendingReviewsRes.reason);
+  if (chatsRes.status === 'rejected') console.error('[bootstrap] chats failed:', chatsRes.reason);
 
   // Collect user IDs we need: hosts of rounds, applicants, chat participants, pending review targets
   const userIds = new Set<string>([meId]);

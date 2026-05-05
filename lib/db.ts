@@ -229,11 +229,18 @@ class FirestoreDB implements DB {
   }
 
   async listRounds(opts?: { status?: 'open' | 'closed' | 'completed' }) {
-    let q: any = this.fs.collection('rounds');
-    if (opts?.status) q = q.where('status', '==', opts.status);
-    q = q.orderBy('createdAt', 'desc').limit(100);
-    const snap = await q.get();
-    return snap.docs.map((d: any) => ({ id: d.id, ...d.data() })) as Round[];
+    try {
+      let q: any = this.fs.collection('rounds');
+      if (opts?.status) q = q.where('status', '==', opts.status);
+      // sort in code to avoid composite index requirement
+      const snap = await q.limit(100).get();
+      const rounds = snap.docs.map((d: any) => ({ id: d.id, ...d.data() })) as Round[];
+      rounds.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      return rounds;
+    } catch (e) {
+      console.error('[listRounds] failed', e);
+      return [];
+    }
   }
   async getRound(id: string) {
     const snap = await this.fs.collection('rounds').doc(id).get();
@@ -311,9 +318,16 @@ class FirestoreDB implements DB {
   }
 
   async listReviewsForUser(revieweeId: string) {
-    const snap = await this.fs.collection('reviews')
-      .where('revieweeId', '==', revieweeId).orderBy('createdAt', 'desc').limit(50).get();
-    return snap.docs.map((d: any) => ({ id: d.id, ...d.data() })) as Review[];
+    try {
+      const snap = await this.fs.collection('reviews')
+        .where('revieweeId', '==', revieweeId).limit(50).get();
+      const list = snap.docs.map((d: any) => ({ id: d.id, ...d.data() })) as Review[];
+      list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      return list;
+    } catch (e) {
+      console.error('[listReviewsForUser] failed', e);
+      return [];
+    }
   }
   async createReview(rv: Omit<Review, 'id'>) {
     const ref = await this.fs.collection('reviews').add(rv);
@@ -349,14 +363,17 @@ class FirestoreDB implements DB {
   }
 
   async listChatsForUser(userId: string) {
-    const snap = await this.fs.collection('chats')
-      .where('participants', 'array-contains', userId).orderBy('lastMessageAt', 'desc').limit(50).get();
-    const chats: Chat[] = [];
-    for (const d of snap.docs) {
-      const data = d.data();
-      chats.push({ id: d.id, ...data, messages: [] } as Chat);
+    // Avoid composite-index requirement: filter only, sort in app code.
+    try {
+      const snap = await this.fs.collection('chats')
+        .where('participants', 'array-contains', userId).limit(50).get();
+      const chats: Chat[] = snap.docs.map((d: any) => ({ id: d.id, ...d.data(), messages: [] } as Chat));
+      chats.sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
+      return chats;
+    } catch (e) {
+      console.error('[listChatsForUser] failed', e);
+      return [];
     }
-    return chats;
   }
   async getChat(chatId: string) {
     const ref = this.fs.collection('chats').doc(chatId);
