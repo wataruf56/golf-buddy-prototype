@@ -19,11 +19,18 @@ export function RoundCard({ round, host }: { round: Round; host?: User }) {
       className="block bg-card rounded-card p-4 mb-2.5 shadow-card cursor-pointer"
       style={isComp ? { borderLeft: '4px solid #E67E22' } : undefined}
     >
-      {isComp && (
-        <div className="flex items-center gap-1.5 mb-2.5">
-          <span className="badge inline-flex items-center gap-1 px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-orange text-white">
-            🏆 コンペ・イベント
-          </span>
+      {(isComp || (round.pendingApplicantIds || []).length > 0) && (
+        <div className="flex items-center gap-1.5 mb-2.5 flex-wrap">
+          {isComp && (
+            <span className="badge inline-flex items-center gap-1 px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-orange text-white">
+              🏆 コンペ・イベント
+            </span>
+          )}
+          {(round.pendingApplicantIds || []).length > 0 && (
+            <span className="badge inline-flex items-center gap-1 px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-orange-light text-orange border border-orange">
+              📥 申請 {(round.pendingApplicantIds || []).length}件
+            </span>
+          )}
         </div>
       )}
       <div className="flex justify-between items-start mb-2.5 gap-2">

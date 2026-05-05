@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { Avatar } from '@/components/Avatar';
+import { track } from '@/lib/telemetry';
 import { formatDate } from '@/lib/utils';
 
 export default function RoundDetailPage() {
@@ -32,10 +33,19 @@ export default function RoundDetailPage() {
   const dateLabel = round.dateType === 'range' ? round.dateRange : formatDate(round.date);
 
   async function join() {
+    track('join_round_click', { roundId: round!.id, hostId: round!.hostId, title: round!.title });
     try {
       await store.joinRound(round!.id);
+      track('join_round_success', { roundId: round!.id });
       toast('参加申請を送信しました');
-    } catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
+    } catch (e) {
+      track('join_round_error', { roundId: round!.id, message: (e as Error).message });
+      toast('失敗: ' + (e as Error).message, 'error');
+    }
+  }
+  async function approveAndTrack(userId: string) {
+    track('approve_click', { roundId: round!.id, applicantId: userId });
+    return approve(userId);
   }
   async function close() {
     if (!confirm('この募集を閉じますか？')) return;

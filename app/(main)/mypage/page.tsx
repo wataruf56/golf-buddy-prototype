@@ -23,7 +23,13 @@ export default function MyPage() {
       (r.pendingApplicantIds || []).includes(s.meId)
     )
   );
+  // Pending applications waiting for ME to approve (across rounds I host)
+  const myHostedRounds = useStore((s) => s.rounds.filter((r) => r.hostId === s.meId));
+  const pendingForMeAsHost = myHostedRounds.flatMap((r) =>
+    (r.pendingApplicantIds || []).map((uid) => ({ round: r, applicantId: uid }))
+  );
   const [myReviews, setMyReviews] = useState<Review[]>([]);
+  const users = useStore((s) => s.users);
 
   useEffect(() => {
     if (!meId) return;
@@ -51,6 +57,40 @@ export default function MyPage() {
       <div className="px-5 pt-2 pb-4 text-2xl font-black tracking-tight">マイページ</div>
 
       <div className="px-5">
+        {pendingForMeAsHost.length > 0 && (
+          <div className="bg-orange-light border-2 border-orange rounded-card p-4 mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xl">📥</span>
+              <div className="text-sm font-black text-orange">
+                参加申請が {pendingForMeAsHost.length} 件届いています
+              </div>
+            </div>
+            <div className="space-y-2 mt-3">
+              {pendingForMeAsHost.slice(0, 5).map(({ round, applicantId }) => {
+                const u = users.find((x) => x.id === applicantId);
+                return (
+                  <Link
+                    key={`${round.id}_${applicantId}`}
+                    href={`/round/${round.id}`}
+                    className="flex items-center gap-2 bg-card rounded-lg p-2.5"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-bg flex items-center justify-center text-base flex-shrink-0">
+                      {u?.avatar || '👤'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-bold truncate">
+                        {u?.displayName || '申請者'} さん
+                      </div>
+                      <div className="text-[11px] text-sub truncate">{round.title}</div>
+                    </div>
+                    <span className="text-xs text-orange font-bold flex-shrink-0">承認 →</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div className="bg-card rounded-card p-5 shadow-card mb-4">
           <div className="flex items-center gap-3.5 mb-4">
             <Avatar user={me} size={64} />

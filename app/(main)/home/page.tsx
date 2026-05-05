@@ -11,10 +11,32 @@ export default function HomePage() {
   const me = useStore(getMe);
   const rounds = useStore((s) => s.rounds.filter((r) => r.status === 'open'));
   const users = useStore((s) => s.users);
+  const myHostedPending = useStore((s) =>
+    s.rounds.filter((r) => r.hostId === s.meId).flatMap((r) =>
+      (r.pendingApplicantIds || []).map((uid) => ({ round: r, applicantId: uid }))
+    )
+  );
 
   return (
     <>
       <div className="px-5 pt-2 pb-4 text-2xl font-black tracking-tight">ホーム</div>
+
+      {myHostedPending.length > 0 && (
+        <div className="px-5 pb-3">
+          <Link href="/mypage" className="block bg-orange-light border-2 border-orange rounded-card p-4">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📥</span>
+              <div className="flex-1">
+                <div className="text-sm font-black text-orange">
+                  参加申請が {myHostedPending.length} 件届いています
+                </div>
+                <div className="text-[11px] text-sub mt-0.5">タップして承認/却下</div>
+              </div>
+              <span className="text-orange">›</span>
+            </div>
+          </Link>
+        </div>
+      )}
 
       <div className="px-5 pb-3">
         <div className="bg-card rounded-card p-5 shadow-card">
