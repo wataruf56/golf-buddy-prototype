@@ -470,22 +470,40 @@ class FirestoreDB implements DB {
   }
 
   async listPendingReviews(reviewerId: string) {
-    const snap = await this.fs.collection('pendingReviews')
-      .where('reviewerId', '==', reviewerId).where('status', '==', 'pending').get();
-    return snap.docs.map((d: any) => ({ id: d.id, ...d.data() })) as PendingReview[];
+    try {
+      const snap = await this.fs.collection('pendingReviews')
+        .where('reviewerId', '==', reviewerId).where('status', '==', 'pending').get();
+      // CRITICAL: doc id wins over any stale `id` field in data — we changed
+      // the convention so that completePendingReview can target the right doc.
+      return snap.docs.map((d: any) => {
+        const { id: _ignored, ...rest } = d.data();
+        return { id: d.id, ...rest } as PendingReview;
+      });
+    } catch (e) {
+      console.error('[listPendingReviews] failed', e);
+      return [];
+    }
   }
   async completePendingReview(id: string) {
     await this.fs.collection('pendingReviews').doc(id).set({
       status: 'completed', completedAt: Date.now(),
     }, { merge: true });
   }
-  async createPendingReviews(items: Omit<PendingReview, 'id'>[]) {
+  async createPendingReviews(items: Omit<PendingReview, 'id'>[] | PendingReview[]) {
+    // Use the deterministic id (p_${roundId}_${reviewer}_${reviewee}) as the
+    // Firestore doc id when present so completePendingReview can find and
+    // mutate the same doc later. Skips dupes via merge:true.
     const batch = this.fs.batch();
     const created: PendingReview[] = [];
     for (const it of items) {
-      const ref = this.fs.collection('pendingReviews').doc();
-      batch.set(ref, it);
-      created.push({ ...it, id: ref.id });
+      const data = { ...(it as any) };
+      const requestedId = data.id;
+      delete data.id; // never store the id field inside the doc payload
+      const ref = requestedId
+        ? this.fs.collection('pendingReviews').doc(requestedId)
+        : this.fs.collection('pendingReviews').doc();
+      batch.set(ref, data, { merge: true });
+      created.push({ ...data, id: ref.id });
     }
     await batch.commit();
     return created;
