@@ -133,6 +133,13 @@ export const store = {
     };
     emit();
   },
+  updateMe: (patch: Partial<User>) => {
+    state = {
+      ...state,
+      users: state.users.map((u) => (u.id === state.meId ? { ...u, ...patch } : u)),
+    };
+    emit();
+  },
   markChatRead: (chatId: string) => {
     const meId = state.meId;
     state = {

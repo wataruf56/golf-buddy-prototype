@@ -13,6 +13,7 @@ export default function SearchPage() {
   const [filterScale, setFilterScale] = useState<'all' | 'normal' | 'comp'>('all');
   const [filterLevel, setFilterLevel] = useState<string>('all');
   const [filterArea, setFilterArea] = useState<string>('all');
+  const [keyword, setKeyword] = useState('');
   const [open, setOpen] = useState(true);
 
   const filtered = useMemo(() => rounds.filter((r) => {
@@ -22,8 +23,13 @@ export default function SearchPage() {
     if (filterScale === 'comp' && r.maxSpots < 5) return false;
     if (filterLevel !== 'all' && r.levelCondition !== filterLevel) return false;
     if (filterArea !== 'all' && r.area !== filterArea && r.courseName?.indexOf(filterArea) === -1) return false;
+    if (keyword.trim()) {
+      const k = keyword.trim().toLowerCase();
+      const hay = [r.title, r.area, r.courseName, r.description, r.dateRange].filter(Boolean).join(' ').toLowerCase();
+      if (!hay.includes(k)) return false;
+    }
     return true;
-  }), [rounds, filterCourse, filterScale, filterLevel, filterArea]);
+  }), [rounds, filterCourse, filterScale, filterLevel, filterArea, keyword]);
 
   return (
     <>
@@ -31,8 +37,15 @@ export default function SearchPage() {
 
       <div className="px-5 pb-3">
         <div className="flex gap-2 mb-3">
-          <input placeholder="エリア・キーワード" className="flex-1 px-4 py-3 border-[1.5px] border-border rounded-xl text-sm bg-card outline-none" />
-          <button className="px-4 py-3 bg-green text-white rounded-xl font-bold text-sm">検索</button>
+          <input
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            placeholder="タイトル・コース名・エリアで検索"
+            className="flex-1 px-4 py-3 border-[1.5px] border-border rounded-xl text-sm bg-card outline-none"
+          />
+          {keyword && (
+            <button onClick={() => setKeyword('')} className="px-3 py-3 bg-bg text-sub rounded-xl text-sm">×</button>
+          )}
         </div>
 
         <button

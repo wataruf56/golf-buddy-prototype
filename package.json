@@ -9,27 +9,27 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "14.2.5",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
+    "firebase": "^10.12.4",
+    "firebase-admin": "^12.2.0",
+    "lucide-react": "^0.408.0",
+    "next": "^14.2.34",
     "next-auth": "^4.24.7",
     "next-pwa": "^5.6.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "firebase-admin": "^12.2.0",
-    "firebase": "^10.12.4",
-    "clsx": "^2.1.1",
-    "class-variance-authority": "^0.7.0",
-    "tailwind-merge": "^2.4.0",
-    "lucide-react": "^0.408.0"
+    "tailwind-merge": "^2.4.0"
   },
   "devDependencies": {
-    "typescript": "^5.5.3",
     "@types/node": "^20.14.10",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
-    "tailwindcss": "^3.4.6",
     "autoprefixer": "^10.4.19",
-    "postcss": "^8.4.39",
     "eslint": "^8.57.0",
-    "eslint-config-next": "14.2.5"
+    "eslint-config-next": "^14.2.34",
+    "postcss": "^8.4.39",
+    "tailwindcss": "^3.4.6",
+    "typescript": "^5.5.3"
   }
 }

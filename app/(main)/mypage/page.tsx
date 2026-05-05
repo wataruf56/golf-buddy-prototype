@@ -72,7 +72,11 @@ export default function MyPage() {
           ))}
         </div>
 
-        {['プロフィール編集', '通知設定', '利用規約'].map((item) => (
+        <Link href="/mypage/edit" className="bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card">
+          <span className="text-sm font-medium">プロフィール編集</span>
+          <span className="text-muted">›</span>
+        </Link>
+        {['通知設定', '利用規約'].map((item) => (
           <div key={item} className="bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card cursor-pointer">
             <span className="text-sm font-medium">{item}</span>
             <span className="text-muted">›</span>
