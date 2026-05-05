@@ -14,7 +14,13 @@ export default function MyPage() {
   const router = useRouter();
   const me = useStore(getMe);
   const meId = useStore((s) => s.meId);
-  const myRounds = useStore((s) => s.rounds.filter((r) => r.hostId === s.meId || r.applicantIds.includes(s.meId)));
+  const myRounds = useStore((s) =>
+    s.rounds.filter((r) =>
+      r.hostId === s.meId ||
+      r.applicantIds.includes(s.meId) ||
+      (r.pendingApplicantIds || []).includes(s.meId)
+    )
+  );
   const [myReviews, setMyReviews] = useState<Review[]>([]);
 
   useEffect(() => {
@@ -40,8 +46,12 @@ export default function MyPage() {
             <div className="w-16 h-16 rounded-full bg-green-light flex items-center justify-center text-3xl">{me.avatar}</div>
             <div>
               <div className="text-lg font-black">{me.displayName}</div>
-              <div className="text-xs text-sub">{me.age}歳 ・ スコア {me.scoreRange}</div>
-              <div className="text-xs text-sub">{me.area} ・ {me.playStyle} ・ {me.frequency}</div>
+              <div className="text-xs text-sub">
+                {[me.age ? `${me.age}歳` : null, me.scoreRange ? `スコア ${me.scoreRange}` : null].filter(Boolean).join(' ・ ') || '—'}
+              </div>
+              <div className="text-xs text-sub">
+                {[me.area || null, me.playStyle || null, me.frequency || null].filter(Boolean).join(' ・ ') || 'プロフィールを編集してください'}
+              </div>
             </div>
           </div>
           <div className="flex gap-2">
@@ -55,17 +65,24 @@ export default function MyPage() {
           <div className="text-[13px] font-bold mb-2.5">ラウンド履歴 / 参加中</div>
           {myRounds.length === 0 ? (
             <div className="text-xs text-muted py-3 text-center">まだラウンドがありません</div>
-          ) : myRounds.map((r) => (
-            <Link href={`/round/${r.id}`} key={r.id} className="flex justify-between items-center p-2.5 bg-bg rounded-[10px] mb-1.5">
-              <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-bold truncate">{r.title}</div>
-                <div className="text-[11px] text-muted">{formatDate(r.date) || r.dateRange} ・ {r.hostId === me.id ? '主催' : '参加'}</div>
-              </div>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${r.status === 'open' ? 'bg-green-light text-green' : r.status === 'completed' ? 'bg-blue-light text-blue' : 'bg-bg text-sub'}`}>
-                {r.status === 'open' ? '募集中' : r.status === 'completed' ? '完了' : '終了'}
-              </span>
-            </Link>
-          ))}
+          ) : myRounds.map((r) => {
+            const role = r.hostId === me.id
+              ? '主催'
+              : r.applicantIds.includes(me.id) ? '参加確定'
+              : (r.pendingApplicantIds || []).includes(me.id) ? '承認待ち'
+              : '参加';
+            return (
+              <Link href={`/round/${r.id}`} key={r.id} className="flex justify-between items-center p-2.5 bg-bg rounded-[10px] mb-1.5">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-bold truncate">{r.title}</div>
+                  <div className="text-[11px] text-muted">{formatDate(r.date) || r.dateRange} ・ {role}</div>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${r.status === 'open' ? 'bg-green-light text-green' : r.status === 'completed' ? 'bg-blue-light text-blue' : 'bg-bg text-sub'}`}>
+                  {r.status === 'open' ? '募集中' : r.status === 'completed' ? '完了' : '終了'}
+                </span>
+              </Link>
+            );
+          })}
         </div>
 
         <div className="bg-card rounded-card p-4 shadow-card mb-4">

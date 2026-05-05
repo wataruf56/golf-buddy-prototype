@@ -38,7 +38,10 @@ export default function ChatPage() {
     const t = text.trim();
     setText('');
     try { await store.sendMessage(chat.id, other.id, t); }
-    catch (e) { alert('送信失敗: ' + (e as Error).message); }
+    catch (e) {
+      const { toast } = await import('@/components/Toast');
+      toast('送信失敗: ' + (e as Error).message, 'error');
+    }
   }
 
   return (

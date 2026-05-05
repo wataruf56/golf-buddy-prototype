@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { allAreas, levelOptions } from '@/lib/mockData';
 import { store, useStore } from '@/lib/store';
+import { toast } from '@/components/Toast';
 import type { Round, RoundType, DateType } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -54,10 +55,10 @@ export default function CreatePage() {
         levelCondition,
         description: description || undefined,
       } as Partial<Round>);
-      alert(isComp ? 'コンペ・イベント募集を公開しました！' : '募集を公開しました！');
+      toast(isComp ? 'コンペ募集を公開しました' : '募集を公開しました');
       router.push('/home');
     } catch (e) {
-      alert('失敗しました: ' + (e as Error).message);
+      toast('失敗: ' + (e as Error).message, 'error');
     }
   }
 

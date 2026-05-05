@@ -5,6 +5,7 @@ import { PhoneFrame } from '@/components/PhoneFrame';
 import { TabBar } from '@/components/TabBar';
 import { ReviewOverlay } from '@/components/ReviewOverlay';
 import { BlockerPopup } from '@/components/BlockerPopup';
+import { ToastHost } from '@/components/Toast';
 import { useStore } from '@/lib/store';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
@@ -48,6 +49,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         <BlockerPopup onOpen={() => { setBlockerOpen(false); setOverlayOpen(true); }} />
       )}
       {overlayOpen && pendingCount > 0 && <ReviewOverlay />}
+      <ToastHost />
       <TabBar onBlock={onTabBlock} />
     </PhoneFrame>
   );

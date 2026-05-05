@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { store, useStore } from '@/lib/store';
+import { toast } from '@/components/Toast';
 import { formatDate } from '@/lib/utils';
 
 export default function RoundDetailPage() {
@@ -32,31 +33,33 @@ export default function RoundDetailPage() {
   async function join() {
     try {
       await store.joinRound(round!.id);
-      alert('参加申請を送信しました！');
-    } catch (e) { alert('失敗しました: ' + (e as Error).message); }
+      toast('参加申請を送信しました');
+    } catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }
   async function close() {
     if (!confirm('この募集を閉じますか？')) return;
     try {
       await store.closeRound(round!.id);
+      toast('募集を閉じました');
       router.push('/home');
-    } catch (e) { alert('失敗しました: ' + (e as Error).message); }
+    } catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }
   async function complete() {
     if (!confirm('ラウンドを完了しますか？\n参加者全員にレビュー依頼が送られます。')) return;
     try {
       await store.completeRound(round!.id);
+      toast('ラウンド完了');
       router.push('/home');
-    } catch (e) { alert('失敗しました: ' + (e as Error).message); }
+    } catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }
   async function approve(userId: string) {
-    try { await store.approveApplicant(round!.id, userId); }
-    catch (e) { alert('失敗しました: ' + (e as Error).message); }
+    try { await store.approveApplicant(round!.id, userId); toast('承認しました'); }
+    catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }
   async function reject(userId: string) {
     if (!confirm('この申請を断りますか？')) return;
-    try { await store.rejectApplicant(round!.id, userId); }
-    catch (e) { alert('失敗しました: ' + (e as Error).message); }
+    try { await store.rejectApplicant(round!.id, userId); toast('却下しました'); }
+    catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }
 
   return (

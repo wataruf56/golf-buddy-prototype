@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getMe, store, useStore } from '@/lib/store';
+import { toast } from '@/components/Toast';
 import { allAreas, levelOptions } from '@/lib/mockData';
 
 const playStyles = ['のんびり派', 'エンジョイ派', 'サクサク派', '研究派', 'ガチ派'];
@@ -24,9 +25,10 @@ export default function ProfileEditPage() {
   async function save() {
     try {
       await store.updateMe({ displayName, age, area, scoreRange, playStyle, frequency, avatar });
+      toast('保存しました');
       router.push('/mypage');
     } catch (e) {
-      alert('保存に失敗しました: ' + (e as Error).message);
+      toast('保存失敗: ' + (e as Error).message, 'error');
     }
   }
 

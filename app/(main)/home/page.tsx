@@ -21,7 +21,9 @@ export default function HomePage() {
             <div className="w-[52px] h-[52px] rounded-full bg-green-light flex items-center justify-center text-2xl">{me.avatar}</div>
             <div>
               <div className="text-[17px] font-black">{me.displayName}</div>
-              <div className="text-xs text-sub">{me.age}代 ・ スコア {me.scoreRange} ・ {me.area}</div>
+              <div className="text-xs text-sub">
+                {[me.age ? `${me.age}歳` : null, me.scoreRange ? `スコア ${me.scoreRange}` : null, me.area || null].filter(Boolean).join(' ・ ') || 'プロフィールを設定しましょう'}
+              </div>
             </div>
           </div>
           <div className="flex gap-2">
