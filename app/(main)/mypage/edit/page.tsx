@@ -17,13 +17,9 @@ const scoreRanges = [
   'ラウンド数回',
   '70台',
   '80台',
-  '80〜90',
   '90台',
-  '90〜100',
   '100台',
-  '100〜110',
   '110台',
-  '110〜120',
   '120台',
   '130台',
   '140以上',
@@ -115,6 +111,17 @@ export default function ProfileEditPage() {
     if (!initialized) {
       track('profile_save_blocked_uninitialized');
       toast('読み込み中です。少し待ってください', 'error');
+      return;
+    }
+    const missing: string[] = [];
+    if (!displayName.trim()) missing.push('表示名');
+    if (!age || parseInt(age, 10) <= 0) missing.push('年齢');
+    if (!gender) missing.push('性別');
+    if (!car) missing.push('車');
+    if (!area) missing.push('エリア');
+    if (!scoreRange) missing.push('スコア帯');
+    if (missing.length) {
+      toast(`必須項目を入力してください: ${missing.join('・')}`, 'error');
       return;
     }
     track('profile_save_click', {
@@ -220,7 +227,7 @@ export default function ProfileEditPage() {
           <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
         </Field>
 
-        <Field label="年齢" hint="（任意）">
+        <Field label="年齢" required>
           <input
             type="number"
             inputMode="numeric"
@@ -233,7 +240,7 @@ export default function ProfileEditPage() {
           />
         </Field>
 
-        <Field label="性別" hint="（任意）">
+        <Field label="性別" required>
           <div className="flex gap-1.5 flex-wrap">
             {genderOptions.map((g) => (
               <button key={g.id} type="button" onClick={() => setGender(gender === g.id ? '' : g.id)} className={`px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px] ${gender === g.id ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub'}`}>{g.label}</button>
@@ -241,7 +248,7 @@ export default function ProfileEditPage() {
           </div>
         </Field>
 
-        <Field label="車" hint="（任意・送迎可否の参考に）">
+        <Field label="車" required hint="（送迎可否の参考に）">
           <div className="flex gap-1.5 flex-wrap">
             {carOptions.map((c) => (
               <button key={c.id} type="button" onClick={() => setCar(car === c.id ? '' : c.id)} className={`px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px] ${car === c.id ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub'}`}>{c.label}</button>
@@ -249,14 +256,14 @@ export default function ProfileEditPage() {
           </div>
         </Field>
 
-        <Field label="エリア" hint="（任意）">
+        <Field label="エリア" required>
           <select value={area} onChange={(e) => setArea(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none">
             <option value="">未設定</option>
             {allAreas.map((a) => <option key={a}>{a}</option>)}
           </select>
         </Field>
 
-        <Field label="スコア帯" hint="（任意）">
+        <Field label="スコア帯" required>
           <select value={scoreRange} onChange={(e) => setScoreRange(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none">
             <option value="">未設定</option>
             {scoreRanges.map((s) => <option key={s}>{s}</option>)}
