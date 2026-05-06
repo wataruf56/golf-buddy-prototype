@@ -1,11 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 // LIFF entry: initialize SDK → ensure logged in → exchange idToken for our cookie → redirect.
 // Default redirect target is /home, override with ?to=/round/xxx etc.
 export default function LiffEntryPage() {
+  return (
+    <Suspense fallback={<LiffLoading status="LIFFを起動中..." />}>
+      <LiffEntryInner />
+    </Suspense>
+  );
+}
+
+function LiffEntryInner() {
   const router = useRouter();
   const search = useSearchParams();
   const to = search?.get('to') || '/home';
@@ -54,6 +62,10 @@ export default function LiffEntryPage() {
     return () => { cancelled = true; };
   }, [router, to]);
 
+  return <LiffLoading status={status} errorMsg={errorMsg} />;
+}
+
+function LiffLoading({ status, errorMsg }: { status: string; errorMsg?: string }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-bg">
       <div className="text-4xl mb-4 animate-pulse">⛳</div>
