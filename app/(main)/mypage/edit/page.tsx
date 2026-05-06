@@ -12,7 +12,22 @@ import type { Gender, CarStatus } from '@/lib/types';
 const playStyles = ['のんびり派', 'エンジョイ派', 'サクサク派', '研究派', 'ガチ派'];
 const frequencies = ['月1回', '月2回', '月3回', '月4回以上'];
 const avatars = ['⛳', '🧑', '👩', '👨', '🧔', '👱', '🧓', '🤠'];
-const scoreRanges = ['90以下', '90〜100', '100〜110', '105〜115', '110〜120', '120以上'];
+const scoreRanges = [
+  'ラウンド未経験',
+  'ラウンド数回',
+  '70台',
+  '80台',
+  '80〜90',
+  '90台',
+  '90〜100',
+  '100台',
+  '100〜110',
+  '110台',
+  '110〜120',
+  '120台',
+  '130台',
+  '140以上',
+];
 const genderOptions: { id: Gender; label: string }[] = [
   { id: 'male', label: '男性' },
   { id: 'female', label: '女性' },
