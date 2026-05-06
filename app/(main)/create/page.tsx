@@ -23,13 +23,13 @@ export default function CreatePage() {
   const [area, setArea] = useState('');
   const [dateType, setDateType] = useState<DateType>('fixed');
   const [dateRange, setDateRange] = useState('');
-  const [maxSpots, setMaxSpots] = useState(3);
+  const [maxSpots, setMaxSpots] = useState(4);
   const [price, setPrice] = useState('');
   const [levelCondition, setLevelCondition] = useState(levelOptions[0]);
   const [description, setDescription] = useState('');
 
   const isComp = maxSpots >= 5;
-  const presetSpots = [2, 3, 4, 8, 12, 20];
+  const spotsRange = Array.from({ length: 49 }, (_, i) => i + 2); // 2..50
   const timeSlots: string[] = [];
   for (let h = 6; h <= 14; h++) {
     for (let m = 0; m < 60; m += 5) timeSlots.push(`${h}:${String(m).padStart(2, '0')}`);
@@ -178,21 +178,16 @@ export default function CreatePage() {
             </>
           )}
 
-          <Field label="募集人数" required hint="（1〜50人）">
-            <div className="flex gap-1.5 flex-wrap mb-2.5">
-              {presetSpots.map((n) => (
-                <button key={n} onClick={() => setMaxSpots(n)} className={cn('flex-1 min-w-[54px] py-2.5 text-[13px] font-bold rounded-[10px] border-[1.5px]', n === maxSpots ? 'border-green bg-green-light text-green' : 'border-border bg-card text-text')}>{n}人</button>
-              ))}
-            </div>
-            <input
-              type="number" min={1} max={50} value={maxSpots}
-              onChange={(e) => {
-                let v = parseInt(e.target.value) || 1;
-                if (v < 1) v = 1; if (v > 50) v = 50;
-                setMaxSpots(v);
-              }}
+          <Field label="募集人数" required hint="（2〜50人）">
+            <select
+              value={maxSpots}
+              onChange={(e) => setMaxSpots(parseInt(e.target.value) || 2)}
               className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
-            />
+            >
+              {spotsRange.map((n) => (
+                <option key={n} value={n}>{n}人</option>
+              ))}
+            </select>
             {isComp && (
               <div className="mt-2 px-3 py-2.5 bg-orange-light rounded-lg text-xs text-orange font-bold">
                 🏆 5人以上はコンペ・イベント扱いになります
