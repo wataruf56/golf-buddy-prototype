@@ -111,6 +111,25 @@ export default function MyPage() {
           </div>
         </div>
 
+        {Array.isArray(me.recentScores) && me.recentScores.length > 0 && (
+          <div className="bg-card rounded-card p-4 shadow-card mb-4">
+            <div className="text-[13px] font-bold mb-2.5">直近のスコア</div>
+            <div className="flex flex-col gap-1.5">
+              {[...me.recentScores]
+                .sort((a, b) => (a.date < b.date ? 1 : -1))
+                .slice(0, 10)
+                .map((s, i) => (
+                  <div key={i} className="flex justify-between items-center px-3 py-2 bg-bg rounded-[10px]">
+                    <span className="text-[12px] text-sub">
+                      {new Date(s.date).toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' })}
+                    </span>
+                    <span className="text-[15px] font-black text-green">{s.score}</span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
         <div className="bg-card rounded-card p-4 shadow-card mb-4">
           <div className="text-[13px] font-bold mb-2.5">ラウンド履歴 / 参加中</div>
           {myRounds.length === 0 ? (

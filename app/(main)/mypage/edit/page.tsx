@@ -7,7 +7,7 @@ import { toast } from '@/components/Toast';
 import { Avatar } from '@/components/Avatar';
 import { track } from '@/lib/telemetry';
 import { allAreas } from '@/lib/mockData';
-import type { Gender, CarStatus } from '@/lib/types';
+import type { Gender, CarStatus, ScoreEntry } from '@/lib/types';
 
 const playStyles = ['のんびり派', 'エンジョイ派', 'サクサク派', '研究派', 'ガチ派'];
 const frequencies = ['月1回', '月2回', '月3回', '月4回以上'];
@@ -53,6 +53,7 @@ export default function ProfileEditPage() {
   const [scoreRange, setScoreRange] = useState('');
   const [playStyle, setPlayStyle] = useState('');
   const [frequency, setFrequency] = useState('');
+  const [recentScores, setRecentScores] = useState<ScoreEntry[]>([]);
   const [avatar, setAvatar] = useState('⛳');
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
   const [initialized, setInitialized] = useState(false);
@@ -71,6 +72,7 @@ export default function ProfileEditPage() {
     setScoreRange(me.scoreRange || '');
     setPlayStyle(me.playStyle || '');
     setFrequency(me.frequency || '');
+    setRecentScores(Array.isArray(me.recentScores) ? me.recentScores : []);
     setAvatar(me.avatar || '⛳');
     setAvatarUrl(me.avatarUrl || undefined);
     setInitialized(true);
@@ -130,6 +132,10 @@ export default function ProfileEditPage() {
     });
     try {
       const ageNum = age ? parseInt(age, 10) : 0;
+      const cleanedScores = recentScores
+        .filter((s) => s.score > 0 && s.date)
+        .sort((a, b) => (a.date < b.date ? 1 : -1))
+        .slice(0, 10);
       await store.updateMe({
         displayName, age: ageNum,
         gender: (gender || undefined) as Gender | undefined,
@@ -137,6 +143,7 @@ export default function ProfileEditPage() {
         bio,
         area, scoreRange, playStyle, frequency, avatar,
         avatarUrl: avatarUrl || '',
+        recentScores: cleanedScores,
       });
       track('profile_save_success', { displayName });
       toast('保存しました');
@@ -296,6 +303,42 @@ export default function ProfileEditPage() {
           <div className="text-[10px] text-muted text-right mt-0.5">{bio.length}/300</div>
         </Field>
 
+        <Field label="直近のスコア" hint="（任意・最大10件・日付の新しい順に自動表示）">
+          <div className="flex flex-col gap-2">
+            {recentScores.map((s, i) => (
+              <div key={i} className="flex gap-2 items-center">
+                <input
+                  type="date"
+                  value={s.date}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setRecentScores((prev) => prev.map((x, j) => j === i ? { ...x, date: e.target.value } : x))}
+                  className="flex-1 p-2.5 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
+                />
+                <select
+                  value={s.score || ''}
+                  onChange={(e) => setRecentScores((prev) => prev.map((x, j) => j === i ? { ...x, score: parseInt(e.target.value) || 0 } : x))}
+                  className="w-24 p-2.5 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
+                >
+                  <option value="">スコア</option>
+                  {Array.from({ length: 91 }, (_, k) => 60 + k).map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setRecentScores((prev) => prev.filter((_, j) => j !== i))}
+                  className="px-2.5 py-2 text-xs text-muted border-[1.5px] border-border rounded-[10px]"
+                >削除</button>
+              </div>
+            ))}
+            {recentScores.length < 10 && (
+              <button
+                type="button"
+                onClick={() => setRecentScores((prev) => [...prev, { score: 0, date: new Date().toISOString().slice(0, 10) }])}
+                className="py-2.5 border-[1.5px] border-dashed border-border rounded-[10px] text-sm text-sub font-bold"
+              >＋ スコアを追加（{recentScores.length}/10）</button>
+            )}
+          </div>
+        </Field>
+
         <button onClick={save} className="w-full py-4 bg-green text-white rounded-xl text-[15px] font-bold mt-4">
           保存する
         </button>
@@ -305,11 +348,13 @@ export default function ProfileEditPage() {
   );
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Field({ label, hint, required, children }: { label: string; hint?: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div className="mb-4">
       <label className="block text-xs font-bold text-sub mb-1.5">
-        {label}{hint && <span className="text-muted font-medium ml-1">{hint}</span>}
+        {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
+        {hint && <span className="text-muted font-medium ml-1">{hint}</span>}
       </label>
       {children}
     </div>

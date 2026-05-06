@@ -21,7 +21,10 @@ export type User = {
   roundCount: number;
   buddyCount: number;
   blockedUserIds?: string[];
+  recentScores?: ScoreEntry[];
 };
+
+export type ScoreEntry = { score: number; date: string };
 
 export type RoundType = 'confirmed' | 'flexible';
 export type DateType = 'fixed' | 'range';
