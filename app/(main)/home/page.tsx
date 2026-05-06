@@ -1,14 +1,23 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { getMe, store, useStore } from '@/lib/store';
 import { RoundCard } from '@/components/RoundCard';
 import { Avatar } from '@/components/Avatar';
 
 const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+const BOT_BASIC_ID = process.env.NEXT_PUBLIC_LINE_BOT_BASIC_ID || '';
 
 export default function HomePage() {
   const me = useStore(getMe);
+  const [showAddBot, setShowAddBot] = useState(false);
+  useEffect(() => {
+    if (!BOT_BASIC_ID || me.notifyOff) return;
+    if (typeof window === 'undefined') return;
+    if (localStorage.getItem('gb_add_bot_dismissed') === '1') return;
+    setShowAddBot(true);
+  }, [me.notifyOff]);
   const rounds = useStore((s) => s.rounds.filter((r) => r.status === 'open'));
   const users = useStore((s) => s.users);
   const myHostedPending = useStore((s) =>
@@ -20,6 +29,29 @@ export default function HomePage() {
   return (
     <>
       <div className="px-5 pt-2 pb-4 text-2xl font-black tracking-tight">ホーム</div>
+
+      {showAddBot && (
+        <div className="px-5 pb-3">
+          <div className="bg-green-light border-2 border-green rounded-card p-3.5 flex items-center gap-3">
+            <span className="text-xl">🔔</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-black text-green">通知を受け取るには公式アカウントを友だち追加</div>
+              <div className="text-[11px] text-sub mt-0.5">メッセージや申請を LINE で受信できます</div>
+            </div>
+            <a
+              href={`https://line.me/R/ti/p/${encodeURIComponent(BOT_BASIC_ID)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 bg-green text-white text-xs font-bold rounded-full whitespace-nowrap"
+            >追加</a>
+            <button
+              onClick={() => { localStorage.setItem('gb_add_bot_dismissed', '1'); setShowAddBot(false); }}
+              className="text-muted text-lg leading-none px-1"
+              aria-label="閉じる"
+            >×</button>
+          </div>
+        </div>
+      )}
 
       {myHostedPending.length > 0 && (
         <div className="px-5 pb-3">

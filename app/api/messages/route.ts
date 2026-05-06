@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
+import { pushTo, liffUrl } from '@/lib/linePush';
 
 export async function GET(req: NextRequest) {
   const meId = await getMeId();
@@ -31,5 +32,11 @@ export async function POST(req: NextRequest) {
   if (otherBlocksMe) return NextResponse.json({ error: 'blocked_by_other' }, { status: 403 });
   const participants: [string, string] = [meId, otherUserId].sort() as [string, string];
   const message = await db.sendMessage(chatId, participants, meId, text);
+  // Fire-and-forget LINE push (only if recipient hasn't disabled notifications).
+  if (!(other as any)?.notifyOff) {
+    const senderName = me?.displayName || 'ゴル友';
+    const preview = text.length > 60 ? text.slice(0, 60) + '…' : text;
+    pushTo(otherUserId, `💬 ${senderName} さんからメッセージ\n${preview}`, liffUrl(`/chat/${chatId}?other=${meId}`)).catch(() => {});
+  }
   return NextResponse.json({ message });
 }

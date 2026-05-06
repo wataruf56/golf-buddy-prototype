@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { getMe, useStore } from '@/lib/store';
+import { getMe, store, useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { track } from '@/lib/telemetry';
 import type { Review } from '@/lib/types';
@@ -173,12 +173,22 @@ export default function MyPage() {
           <span className="text-sm font-medium">プロフィール編集</span>
           <span className="text-muted">›</span>
         </Link>
-        {['通知設定', '利用規約'].map((item) => (
-          <div key={item} className="bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card cursor-pointer">
-            <span className="text-sm font-medium">{item}</span>
-            <span className="text-muted">›</span>
-          </div>
-        ))}
+        <button
+          onClick={async () => {
+            const next = !me.notifyOff;
+            await store.updateMe({ notifyOff: next } as any);
+          }}
+          className="w-full bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card text-left"
+        >
+          <span className="text-sm font-medium">LINE通知</span>
+          <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${me.notifyOff ? 'bg-bg text-muted' : 'bg-green-light text-green'}`}>
+            {me.notifyOff ? 'OFF' : 'ON'}
+          </span>
+        </button>
+        <div className="bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card cursor-pointer">
+          <span className="text-sm font-medium">利用規約</span>
+          <span className="text-muted">›</span>
+        </div>
         <button onClick={logout} className="w-full bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card text-left">
           <span className="text-sm font-medium text-red">ログアウト</span>
           <span className="text-muted">›</span>

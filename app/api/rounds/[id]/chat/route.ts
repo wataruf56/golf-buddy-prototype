@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
+import { pushToMany, liffUrl } from '@/lib/linePush';
 
 const noStore = {
   'Cache-Control': 'no-store, must-revalidate',
@@ -28,6 +29,19 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!allowed) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
   const { text } = await req.json();
   if (!text || !String(text).trim()) return NextResponse.json({ error: 'empty' }, { status: 400, headers: noStore });
-  const message = await db.addRoundMessage(params.id, meId, String(text).trim());
+  const trimmed = String(text).trim();
+  const message = await db.addRoundMessage(params.id, meId, trimmed);
+  // Notify all OTHER participants (host + approved) on LINE.
+  const recipients = [round.hostId, ...(round.applicantIds || [])].filter((id) => id && id !== meId);
+  if (recipients.length) {
+    const me = await db.getUser(meId);
+    const others = await Promise.all(recipients.map((id) => db.getUser(id)));
+    const targets = others.filter((u) => u && !(u as any).notifyOff).map((u) => u!.id);
+    if (targets.length) {
+      const senderName = me?.displayName || '参加者';
+      const preview = trimmed.length > 60 ? trimmed.slice(0, 60) + '…' : trimmed;
+      pushToMany(targets, `🏌️ ${round.title}\n${senderName}: ${preview}`, liffUrl(`/round/${params.id}/chat`)).catch(() => {});
+    }
+  }
   return NextResponse.json({ message }, { headers: noStore });
 }

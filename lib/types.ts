@@ -22,6 +22,7 @@ export type User = {
   buddyCount: number;
   blockedUserIds?: string[];
   recentScores?: ScoreEntry[];
+  notifyOff?: boolean;
 };
 
 export type ScoreEntry = { score: number; date: string };
