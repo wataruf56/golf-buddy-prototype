@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMeId } from '@/lib/session';
 import { generateUploadUrl, buildObjectName, gcsUriFor } from '@/lib/swingGcs';
+import { isSwingAllowed } from '@/lib/swingAccess';
 import type { SwingUploadRole } from '@/types/swing';
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
@@ -11,6 +12,7 @@ const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 export async function POST(req: NextRequest) {
   const meId = await getMeId();
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: noStore });
+  if (!isSwingAllowed(meId)) return NextResponse.json({ error: 'beta_only' }, { status: 403, headers: noStore });
 
   let body: any;
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'bad json' }, { status: 400, headers: noStore }); }
