@@ -3,6 +3,7 @@ import { listQueuedSwings, updateSwing, getSwing } from '@/lib/swingFirestore';
 import { analyzeSwing, AnalyzerError } from '@/lib/swingAnalyzer';
 import { buildPromptForMode } from '@/lib/swingPrompts';
 import { splitReviewByDivider } from '@/lib/swingSplitter';
+import { pushTo, liffUrl } from '@/lib/linePush';
 import type { SwingDoc } from '@/types/swing';
 
 // Increase timeout for Vercel — we may run analyzeSwing inline (60〜120s).
@@ -111,6 +112,20 @@ async function processOne(swing: SwingDoc): Promise<{ status: string }> {
     completedAt: Date.now(),
     errorMessage: '',
   });
+
+  // Notify on LINE — completion only (no push during analyzing/failed).
+  // Skipped if user has notifyOff = true (set via mypage toggle).
+  try {
+    const { db } = await import('@/lib/db');
+    const u = await db.getUser(userId);
+    if (!u || !(u as any).notifyOff) {
+      await pushTo(
+        userId,
+        '⛳ スイング分析が完了しました\n結果ページで動画と一緒にチェックしてみてください👇',
+        liffUrl(`/swing/${swingId}`),
+      );
+    }
+  } catch (e) { /* push failure is non-fatal */ }
 
   // Keep videos in GCS so the result page can play them back.
   return { status: 'done' };
