@@ -24,16 +24,17 @@ export function getBucketName(): string {
   return process.env.GCS_BUCKET || 'golf-ai-line-videos';
 }
 
-export function buildObjectName(userId: string, swingId: string, suffix = ''): string {
+export function buildObjectName(userId: string, swingId: string, suffix = '', ext = 'mp4'): string {
   const tag = suffix ? `-${suffix}` : '';
-  return `liff/${userId}/${swingId}${tag}.mp4`;
+  const safeExt = ext.replace(/[^a-z0-9]/gi, '').toLowerCase() || 'mp4';
+  return `liff/${userId}/${swingId}${tag}.${safeExt}`;
 }
 
 export function gcsUriFor(objectName: string): string {
   return `gs://${getBucketName()}/${objectName}`;
 }
 
-export async function generateUploadUrl(objectName: string): Promise<string> {
+export async function generateUploadUrl(objectName: string, contentType = 'video/mp4'): Promise<string> {
   const [url] = await getStorage()
     .bucket(getBucketName())
     .file(objectName)
@@ -41,7 +42,7 @@ export async function generateUploadUrl(objectName: string): Promise<string> {
       version: 'v4',
       action: 'write',
       expires: Date.now() + 10 * 60 * 1000,
-      contentType: 'video/mp4',
+      contentType,
     });
   return url as string;
 }

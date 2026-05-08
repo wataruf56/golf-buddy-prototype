@@ -28,20 +28,22 @@ export function VideoUploader({ swingId, role, label, onUploaded }: Props) {
 
     setBusy(true);
     try {
-      // 1) Get signed URL
+      // 1) Get signed URL — send the file's actual mime type
+      // (iOS records as video/quicktime / .mov)
+      const fileType = file.type || 'video/mp4';
       const r = await fetch('/api/swing/upload-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ swingId, role }),
+        body: JSON.stringify({ swingId, role, contentType: fileType }),
       });
       if (!r.ok) throw new Error(`upload-url ${r.status}`);
-      const { uploadUrl, gcsUri } = await r.json();
+      const { uploadUrl, gcsUri, contentType: signedType } = await r.json();
 
       // 2) PUT directly to GCS with progress
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('PUT', uploadUrl);
-        xhr.setRequestHeader('Content-Type', 'video/mp4');
+        xhr.setRequestHeader('Content-Type', signedType || fileType);
         xhr.upload.onprogress = (ev) => {
           if (ev.lengthComputable) setProgress(Math.round((ev.loaded / ev.total) * 100));
         };
