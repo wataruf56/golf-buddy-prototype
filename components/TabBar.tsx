@@ -2,16 +2,17 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Search, Plus, Users, User } from 'lucide-react';
+import { Home, Search, Activity, Plus, Users, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUnreadCounts } from '@/lib/useUnread';
 
 const tabs = [
   { id: 'home', label: 'ホーム', href: '/home', icon: Home },
   { id: 'search', label: 'さがす', href: '/search', icon: Search },
-  { id: 'create', label: '募集する', href: '/create', icon: Plus },
+  { id: 'swing', label: 'スイング', href: '/swing', icon: Activity },
+  { id: 'create', label: '募集', href: '/create', icon: Plus },
   { id: 'buddies', label: 'ゴル友', href: '/buddies', icon: Users },
-  { id: 'mypage', label: 'マイページ', href: '/mypage', icon: User },
+  { id: 'mypage', label: 'マイ', href: '/mypage', icon: User },
 ];
 
 export function TabBar({ onBlock }: { onBlock?: (href: string) => boolean }) {
