@@ -4,6 +4,34 @@
 
 import type { SwingMode } from '@/types/swing';
 
+export type SwingUserContext = {
+  gender?: 'male' | 'female' | 'other';
+  age?: number;
+  scoreRange?: string;     // e.g. '90台'
+  golfHistory?: string;    // e.g. '3〜5年'
+};
+
+const GENDER_LABEL: Record<string, string> = { male: '男性', female: '女性', other: 'その他' };
+
+/** Build a short profile section to prepend to every prompt. */
+export function buildUserContextBlock(ctx: SwingUserContext | undefined): string {
+  if (!ctx) return '';
+  const parts: string[] = [];
+  if (ctx.gender) parts.push(`・性別: ${GENDER_LABEL[ctx.gender] || ctx.gender}`);
+  if (ctx.age && ctx.age > 0) parts.push(`・年齢: ${ctx.age}歳`);
+  if (ctx.scoreRange) parts.push(`・平均スコア: ${ctx.scoreRange}`);
+  if (ctx.golfHistory) parts.push(`・ゴルフ歴: ${ctx.golfHistory}`);
+  if (!parts.length) return '';
+  return [
+    '【このゴルファーのプロフィール】',
+    ...parts,
+    '',
+    '上記のレベル・経験を踏まえ、その人に合った言葉選びとアドバイスをしてください。',
+    '（例: 初心者には基礎的な動作の説明から、上級者には細かなニュアンスまで）',
+    '',
+  ].join('\n');
+}
+
 const COACH_INTRO = [
   'あなたはPGAツアープロを指導するトップレベルのゴルフコーチだ。',
   '温かく褒めるところはしっかり褒めつつ、直すべきところは具体的に的確に伝える。',
@@ -706,20 +734,21 @@ export function buildQuestionPrompt(userPrompt: string): string {
   ].join('\n');
 }
 
-/** Mode dispatch — used by the worker */
+/** Mode dispatch — used by the worker. Profile context is prepended above the prompt. */
 export function buildPromptForMode(args: {
   mode: SwingMode;
   userMessage?: string;
+  userContext?: SwingUserContext;
 }): string {
-  const { mode, userMessage } = args;
+  const { mode, userMessage, userContext } = args;
+  let body: string;
   switch (mode) {
-    case 'self':
-      return buildSelfPrompt(userMessage);
-    case 'compare':
-      return buildComparePrompt(userMessage);
-    case 'past':
-      return buildPastPrompt(userMessage);
-    case 'question':
-      return buildQuestionPrompt(userMessage || '');
+    case 'self':     body = buildSelfPrompt(userMessage); break;
+    case 'compare':  body = buildComparePrompt(userMessage); break;
+    case 'past':     body = buildPastPrompt(userMessage); break;
+    case 'question': body = buildQuestionPrompt(userMessage || ''); break;
   }
+  const ctxBlock = buildUserContextBlock(userContext);
+  if (!ctxBlock) return body;
+  return ctxBlock + '\n' + body;
 }

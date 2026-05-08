@@ -33,6 +33,7 @@ const carOptions: { id: CarStatus; label: string }[] = [
   { id: 'have', label: '🚗 あり' },
   { id: 'none', label: 'なし' },
 ];
+const golfHistoryOptions = ['1年未満', '1〜3年', '3〜5年', '5〜10年', '10年以上'];
 
 export default function ProfileEditPage() {
   const router = useRouter();
@@ -54,6 +55,7 @@ export default function ProfileEditPage() {
   const [playStyle, setPlayStyle] = useState('');
   const [frequency, setFrequency] = useState('');
   const [recentScores, setRecentScores] = useState<ScoreEntry[]>([]);
+  const [golfHistory, setGolfHistory] = useState('');
   const [avatar, setAvatar] = useState('⛳');
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
   const [initialized, setInitialized] = useState(false);
@@ -73,6 +75,7 @@ export default function ProfileEditPage() {
     setPlayStyle(me.playStyle || '');
     setFrequency(me.frequency || '');
     setRecentScores(Array.isArray(me.recentScores) ? me.recentScores : []);
+    setGolfHistory(me.golfHistory || '');
     setAvatar(me.avatar || '⛳');
     setAvatarUrl(me.avatarUrl || undefined);
     setInitialized(true);
@@ -122,6 +125,7 @@ export default function ProfileEditPage() {
     if (!car) missing.push('車');
     if (!area) missing.push('エリア');
     if (!scoreRange) missing.push('スコア帯');
+    if (!golfHistory) missing.push('ゴルフ歴');
     if (missing.length) {
       toast(`必須項目を入力してください: ${missing.join('・')}`, 'error');
       return;
@@ -144,6 +148,7 @@ export default function ProfileEditPage() {
         area, scoreRange, playStyle, frequency, avatar,
         avatarUrl: avatarUrl || '',
         recentScores: cleanedScores,
+        golfHistory,
       });
       track('profile_save_success', { displayName });
       toast('保存しました');
@@ -275,6 +280,19 @@ export default function ProfileEditPage() {
             <option value="">未設定</option>
             {scoreRanges.map((s) => <option key={s}>{s}</option>)}
           </select>
+        </Field>
+
+        <Field label="ゴルフ歴" required>
+          <div className="flex gap-1.5 flex-wrap">
+            {golfHistoryOptions.map((g) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => setGolfHistory(golfHistory === g ? '' : g)}
+                className={`px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px] ${golfHistory === g ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub'}`}
+              >{g}</button>
+            ))}
+          </div>
         </Field>
 
         <Field label="プレースタイル" hint="（任意）">

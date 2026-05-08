@@ -1,10 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ModeSelector } from '@/components/swing/ModeSelector';
 import { VideoUploader } from '@/components/swing/VideoUploader';
 import { toast } from '@/components/Toast';
+import { getMe, useStore } from '@/lib/store';
 import type { SwingMode } from '@/types/swing';
 
 function genId(): string {
@@ -17,6 +19,18 @@ function genId(): string {
 export default function NewSwingPage() {
   const router = useRouter();
   const swingId = useMemo(genId, []);
+  const me = useStore(getMe);
+  const hydrated = useStore((s) => s.hydrated);
+
+  // Profile completeness — must have these 4 before AI analysis.
+  // We use them as user context when invoking the analyzer.
+  const profileMissing: string[] = [];
+  if (!me.gender) profileMissing.push('性別');
+  if (!me.age || me.age <= 0) profileMissing.push('年齢');
+  if (!me.scoreRange) profileMissing.push('平均スコア');
+  if (!me.golfHistory) profileMissing.push('ゴルフ歴');
+  const profileReady = hydrated && profileMissing.length === 0;
+
   const [mode, setMode] = useState<SwingMode | ''>('');
   const [videoUri, setVideoUri] = useState('');
   const [proUri, setProUri] = useState('');
@@ -57,6 +71,37 @@ export default function NewSwingPage() {
       toast(`送信失敗: ${(e as Error).message}`, 'error');
       setSubmitting(false);
     }
+  }
+
+  if (hydrated && !profileReady) {
+    return (
+      <div className="px-5 py-3">
+        <button onClick={() => router.back()} className="text-sm text-blue font-semibold mb-4">← 戻る</button>
+        <div className="text-2xl font-black mb-4">新規スイング分析</div>
+
+        <div className="bg-card rounded-card p-5 shadow-card text-center">
+          <div className="text-3xl mb-2">📋</div>
+          <div className="text-sm font-black mb-2">プロフィール情報が必要です</div>
+          <div className="text-[12px] text-sub leading-relaxed mb-4">
+            AIコーチがあなたに合わせた解析をするために、<br />
+            下記の情報を登録してください。
+          </div>
+          <div className="bg-bg rounded-lg p-3 mb-4 text-left">
+            <div className="text-[11px] text-muted mb-1.5">未入力の項目</div>
+            <ul className="text-[13px] font-bold text-orange space-y-1">
+              {profileMissing.map((m) => <li key={m}>・{m}</li>)}
+            </ul>
+          </div>
+          <Link
+            href="/mypage/edit"
+            className="inline-block w-full py-3 bg-green text-white rounded-xl text-sm font-bold"
+          >
+            プロフィールを編集する
+          </Link>
+          <div className="text-[10px] text-muted mt-2">登録は1分で完了します</div>
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -23,6 +23,7 @@ export type User = {
   blockedUserIds?: string[];
   recentScores?: ScoreEntry[];
   notifyOff?: boolean;
+  golfHistory?: string;        // 「1年未満」「3〜5年」など
 };
 
 export type ScoreEntry = { score: number; date: string };

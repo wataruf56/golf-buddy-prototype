@@ -67,8 +67,21 @@ async function processOne(swing: SwingDoc): Promise<{ status: string }> {
     errorMessage: '',
   });
 
-  // Build prompt
-  const prompt = buildPromptForMode({ mode, userMessage: fresh.userMessage });
+  // Build prompt — include the user's profile context so the AI can tailor advice.
+  let userContext: any = undefined;
+  try {
+    const { db } = await import('@/lib/db');
+    const u = await db.getUser(userId);
+    if (u) {
+      userContext = {
+        gender: u.gender,
+        age: u.age,
+        scoreRange: u.scoreRange,
+        golfHistory: (u as any).golfHistory,
+      };
+    }
+  } catch (e) { /* fallback to no-context */ }
+  const prompt = buildPromptForMode({ mode, userMessage: fresh.userMessage, userContext });
 
   // Decide analyzer args per mode (matches gas/60_worker.js dispatch)
   let gcsUri = '';
