@@ -24,12 +24,13 @@ export default function NewSwingPage() {
   const [userMessage, setUserMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const ready =
-    !!mode &&
-    !!videoUri &&
-    (mode !== 'compare' || !!proUri) &&
-    (mode !== 'past' || !!prevUri) &&
-    (mode !== 'question' || !!userMessage.trim());
+  const missing: string[] = [];
+  if (!mode) missing.push('分析モード');
+  if (mode === 'compare' && !proUri) missing.push('プロ動画');
+  if (mode === 'past' && !prevUri) missing.push('過去動画');
+  if (mode && !videoUri) missing.push('自分の動画');
+  if (mode === 'question' && !userMessage.trim()) missing.push('質問内容');
+  const ready = missing.length === 0;
 
   async function submit() {
     if (!ready || !mode) return;
@@ -110,6 +111,11 @@ export default function NewSwingPage() {
           >
             {submitting ? '送信中...' : 'AI コーチに見てもらう'}
           </button>
+          {!ready && missing.length > 0 && (
+            <div className="text-[11px] text-orange text-center mt-2 font-bold">
+              未入力: {missing.join(' / ')}
+            </div>
+          )}
           <div className="text-[10px] text-muted text-center mt-2">解析には1〜2分ほどかかります</div>
         </>
       )}
