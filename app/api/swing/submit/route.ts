@@ -12,7 +12,7 @@ const VALID_MODES: SwingMode[] = ['self', 'compare', 'past', 'question'];
 export async function POST(req: NextRequest) {
   const meId = await getMeId();
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: noStore });
-  if (!isSwingAllowed(meId)) return NextResponse.json({ error: 'beta_only' }, { status: 403, headers: noStore });
+  if (!(await isSwingAllowed(meId))) return NextResponse.json({ error: 'beta_only' }, { status: 403, headers: noStore });
 
   let body: any;
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'bad json' }, { status: 400, headers: noStore }); }

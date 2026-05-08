@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase';
+import { listSwingAllowed } from '@/lib/swingAccess';
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 
@@ -16,8 +17,7 @@ export async function GET(req: NextRequest) {
   const db = getAdminDb();
   if (!db) return NextResponse.json({ error: 'firestore not initialized' }, { status: 500, headers: noStore });
 
-  const allowedRaw = process.env.SWING_ALLOWED_USER_IDS || '';
-  const allowedSet = new Set(allowedRaw.split(',').map((s) => s.trim()).filter(Boolean));
+  const allowedSet = new Set(await listSwingAllowed());
 
   try {
     const snap = await db.collection('users').limit(500).get();

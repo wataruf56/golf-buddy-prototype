@@ -7,6 +7,6 @@ const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 // GET /api/swing/access — returns { allowed: boolean }
 export async function GET() {
   const meId = await getMeId();
-  const allowed = isSwingAllowed(meId);
+  const allowed = await isSwingAllowed(meId);
   return NextResponse.json({ allowed }, { headers: noStore });
 }
