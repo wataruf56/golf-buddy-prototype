@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ReviewChunks } from '@/components/swing/ReviewChunks';
 import { StatusBadge } from '@/components/swing/StatusBadge';
+import { toast } from '@/components/Toast';
 import type { SwingDoc } from '@/types/swing';
 
 const MODE_LABEL: Record<string, string> = {
@@ -117,33 +118,126 @@ export default function SwingDetailPage() {
       <SwingVideos swing={swing} />
 
       {(swing.status === 'queued' || swing.status === 'analyzing') && (
-        <div className="bg-card rounded-card p-8 text-center shadow-card">
-          <div className="text-3xl mb-3 animate-pulse">⛳</div>
-          <div className="text-sm font-bold mb-1">
-            {swing.status === 'queued' ? '解析待機中...' : 'AIが解析中...'}
-          </div>
-          <div className="text-[11px] text-sub">通常1〜2分で完了します。完了するとLINE通知が届きます</div>
-        </div>
+        <AnalyzingCard swing={swing} />
       )}
 
       {swing.status === 'failed' && (
-        <div className="bg-red-50 border border-red-200 rounded-card p-4 text-center">
-          <div className="text-sm font-bold text-red-600 mb-1">⚠️ 解析に失敗しました</div>
-          {swing.errorMessage && (
-            <div className="text-[11px] text-red-500 mb-3 break-words">{swing.errorMessage}</div>
-          )}
-          <button
-            onClick={() => router.push('/swing/new')}
-            className="px-4 py-2 bg-green text-white rounded-full text-xs font-bold"
-          >もう一度試す</button>
-        </div>
+        <FailedCard swing={swing} onRetried={load} />
       )}
 
       {swing.status === 'done' && swing.reviewTextChunks && (
         <ReviewChunks chunks={swing.reviewTextChunks} />
       )}
 
+      {(swing.status === 'done' || swing.status === 'failed') && (
+        <DangerZone swing={swing} onDeleted={() => router.push('/swing')} />
+      )}
+
       <div className="h-5" />
+    </div>
+  );
+}
+
+/** Shows the elapsed time since startedAnalyzingAt (or createdAt if not started yet). */
+function AnalyzingCard({ swing }: { swing: SwingDoc }) {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const startTs = swing.startedAnalyzingAt || swing.createdAt;
+    const update = () => setElapsed(Math.max(0, Math.floor((Date.now() - startTs) / 1000)));
+    update();
+    const t = setInterval(update, 1000);
+    return () => clearInterval(t);
+  }, [swing.startedAnalyzingAt, swing.createdAt]);
+
+  const min = Math.floor(elapsed / 60);
+  const sec = elapsed % 60;
+  const fmt = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+
+  return (
+    <div className="bg-card rounded-card p-8 text-center shadow-card">
+      <div className="text-3xl mb-3 animate-pulse">⛳</div>
+      <div className="text-sm font-bold mb-1">
+        {swing.status === 'queued' ? '解析待機中...' : 'AIが解析中...'}
+      </div>
+      <div className="text-2xl font-mono font-black my-3 tracking-wider text-green">{fmt}</div>
+      <div className="text-[11px] text-sub">通常1〜2分で完了します</div>
+      <div className="text-[10px] text-muted mt-1">完了するとLINE通知が届きます</div>
+    </div>
+  );
+}
+
+function FailedCard({ swing, onRetried }: { swing: SwingDoc; onRetried: () => void }) {
+  const [busy, setBusy] = useState(false);
+  async function retry() {
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/swing/${swing.swingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'retry' }),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.error || `${r.status}`);
+      }
+      toast('再キューしました。しばらくお待ちください');
+      onRetried();
+    } catch (e) {
+      toast(`再試行失敗: ${(e as Error).message}`, 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+  const canRetry = !!swing.videoGcsPath; // need video still in GCS
+
+  return (
+    <div className="bg-red-50 border border-red-200 rounded-card p-4 text-center mb-4">
+      <div className="text-sm font-bold text-red-600 mb-1">⚠️ 解析に失敗しました</div>
+      {swing.errorMessage && (
+        <div className="text-[11px] text-red-500 mb-3 break-words">{swing.errorMessage}</div>
+      )}
+      <div className="flex gap-2 mt-3">
+        {canRetry && (
+          <button
+            onClick={retry}
+            disabled={busy}
+            className="flex-1 py-2.5 bg-orange text-white rounded-lg text-xs font-bold disabled:opacity-50"
+          >{busy ? '再キュー中...' : '🔄 同じ動画でもう一度試す'}</button>
+        )}
+        <a
+          href="/swing/new"
+          className="flex-1 py-2.5 bg-green text-white rounded-lg text-xs font-bold inline-block text-center"
+        >📹 新しく撮り直す</a>
+      </div>
+    </div>
+  );
+}
+
+function DangerZone({ swing, onDeleted }: { swing: SwingDoc; onDeleted: () => void }) {
+  const [busy, setBusy] = useState(false);
+  async function del() {
+    if (!confirm('この解析と動画を完全に削除します。よろしいですか？')) return;
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/swing/${swing.swingId}`, { method: 'DELETE' });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.error || `${r.status}`);
+      }
+      toast('削除しました');
+      onDeleted();
+    } catch (e) {
+      toast(`削除失敗: ${(e as Error).message}`, 'error');
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="mt-4 text-center">
+      <button
+        onClick={del}
+        disabled={busy}
+        className="text-[11px] text-muted underline disabled:opacity-50"
+      >{busy ? '削除中...' : '🗑 この解析と動画を削除'}</button>
     </div>
   );
 }

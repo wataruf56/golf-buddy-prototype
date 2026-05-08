@@ -109,6 +109,18 @@ export default function NewSwingPage() {
       <button onClick={() => router.back()} className="text-sm text-blue font-semibold mb-4">← 戻る</button>
       <div className="text-2xl font-black mb-4">新規スイング分析</div>
 
+      <details className="mb-5 bg-blue-50 border border-blue-200 rounded-xl p-3">
+        <summary className="text-xs font-bold text-blue cursor-pointer">📹 動画の撮り方のコツ（タップで開く）</summary>
+        <ul className="text-[12px] text-text leading-relaxed mt-2 space-y-1.5">
+          <li>📐 <b>横から撮る</b>（飛球線方向の真横、ターゲットラインに垂直）</li>
+          <li>👤 <b>全身が画面に入る</b>ようにスマホを縦向きで（足元〜頭上＋少し余白）</li>
+          <li>🌳 <b>シンプルな背景</b>を選ぶ（人や旗が背後にあると認識精度↓）</li>
+          <li>⏱ <b>3〜10秒</b>の長さがベスト（テークバック前〜フィニッシュ後まで）</li>
+          <li>📱 <b>三脚やスマホスタンド</b>推奨（手ブレ厳禁）</li>
+          <li>☀️ <b>明るい場所</b>で撮影（暗いと骨格認識が落ちる）</li>
+        </ul>
+      </details>
+
       <div className="text-xs font-bold text-sub mb-2">① 分析モードを選ぶ</div>
       <ModeSelector value={mode} onChange={setMode} />
 
