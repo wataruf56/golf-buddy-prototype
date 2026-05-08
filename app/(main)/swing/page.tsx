@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { OnboardingModal } from '@/components/swing/OnboardingModal';
 import { StatusBadge } from '@/components/swing/StatusBadge';
 import { formatDate } from '@/lib/utils';
 import type { SwingDoc } from '@/types/swing';
@@ -32,6 +33,7 @@ export default function SwingListPage() {
 
   return (
     <>
+      <OnboardingModal />
       <div className="px-5 pt-2 pb-3 flex items-center justify-between">
         <div className="text-2xl font-black tracking-tight">スイング分析</div>
         <Link href="/swing/new" className="px-3.5 py-2 bg-green text-white rounded-full text-xs font-bold">

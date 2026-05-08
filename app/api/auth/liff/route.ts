@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
   const picture: string | undefined = verified?.picture;
 
   // Upsert user (create only if missing — preserve existing profile)
+  let isNewUser = false;
   try {
     const existing = await db.getUser(userId);
     if (!existing) {
@@ -60,9 +61,26 @@ export async function POST(req: NextRequest) {
         buddyCount: 0,
         lineId: userId,
       });
+      isNewUser = true;
     }
   } catch (e) {
     console.error('[liff auth] upsert failed', e);
+  }
+
+  // Notify admins on new signup (LINE push). Best-effort, never block login.
+  if (isNewUser) {
+    const adminIds = (process.env.ADMIN_NOTIFY_USER_IDS || '').split(',').map((s) => s.trim()).filter(Boolean);
+    if (adminIds.length) {
+      try {
+        const { pushToMany, liffUrl } = await import('@/lib/linePush');
+        const pretty = displayName || '(名前なし)';
+        pushToMany(
+          adminIds,
+          `🆕 新規ユーザー登録\n${pretty}\nuserId: ${userId.slice(0, 12)}...`,
+          liffUrl(`/admin/users`),
+        ).catch(() => {});
+      } catch { /* noop */ }
+    }
   }
 
   const token = makeSessionToken(userId, secret);
