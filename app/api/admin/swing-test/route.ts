@@ -62,8 +62,9 @@ export async function GET(req: NextRequest) {
       const { getAdminDb } = await import('@/lib/firebase');
       const db = getAdminDb();
       if (db) {
-        const snap = await db.collection('users').doc(userId).collection('swings').orderBy('createdAt', 'desc').limit(20).get();
-        swings = snap.docs.map((d: any) => {
+        const snap = await db.collection('swings').where('userId', '==', userId).limit(40).get();
+        const docs = snap.docs.slice().sort((a: any, b: any) => (b.data().createdAt || 0) - (a.data().createdAt || 0)).slice(0, 20);
+        swings = docs.map((d: any) => {
           const data = d.data();
           return {
             swingId: data.swingId,
@@ -77,7 +78,7 @@ export async function GET(req: NextRequest) {
           };
         });
         if (requeue) {
-          for (const d of snap.docs) {
+          for (const d of docs) {
             const data = d.data();
             if (data.status === 'analyzing' || data.status === 'failed') {
               await d.ref.set({ status: 'queued', analysisRunId: '', errorMessage: '', updatedAt: Date.now() }, { merge: true });

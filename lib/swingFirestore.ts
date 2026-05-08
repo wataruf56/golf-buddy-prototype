@@ -1,11 +1,12 @@
 import 'server-only';
 import { getAdminDb } from './firebase';
-import type { SwingDoc, SwingStatus } from '@/types/swing';
+import type { SwingDoc } from '@/types/swing';
 
-// Path: users/{userId}/swings/{swingId}
-// Top-level lookup (worker queue): collectionGroup('swings').where('status', '==', 'queued')
-// We also mirror status+createdAt at top-level `_swingsIndex/{swingId}` for cheap query
-// without composite indexes — but if collectionGroup is acceptable, prefer that.
+// Top-level collection: `swings/{swingId}`.
+// Each doc has `userId` for filtering. Single-collection queries don't need
+// composite indexes (where + limit on a single equality field works out of box).
+
+const COL = 'swings';
 
 function stripUndefined<T extends Record<string, any>>(o: T): T {
   const out: any = {};
@@ -17,55 +18,56 @@ export async function createSwing(doc: SwingDoc): Promise<void> {
   const db = getAdminDb();
   if (!db) throw new Error('firestore not initialized');
   const data = stripUndefined({ ...doc });
-  await db.collection('users').doc(doc.userId).collection('swings').doc(doc.swingId).set(data);
+  await db.collection(COL).doc(doc.swingId).set(data);
 }
 
 export async function getSwing(userId: string, swingId: string): Promise<SwingDoc | null> {
   const db = getAdminDb();
   if (!db) return null;
-  const snap = await db.collection('users').doc(userId).collection('swings').doc(swingId).get();
+  const snap = await db.collection(COL).doc(swingId).get();
   if (!snap.exists) return null;
-  return snap.data() as SwingDoc;
+  const data = snap.data() as SwingDoc;
+  // Defensive: enforce ownership at read time.
+  if (data.userId !== userId) return null;
+  return data;
 }
 
 export async function updateSwing(userId: string, swingId: string, patch: Partial<SwingDoc>): Promise<void> {
   const db = getAdminDb();
   if (!db) throw new Error('firestore not initialized');
   const data = stripUndefined({ ...patch, updatedAt: Date.now() });
-  await db.collection('users').doc(userId).collection('swings').doc(swingId).set(data, { merge: true });
+  await db.collection(COL).doc(swingId).set(data, { merge: true });
 }
 
 export async function listSwingsForUser(userId: string, limit = 50): Promise<SwingDoc[]> {
   const db = getAdminDb();
   if (!db) return [];
   try {
+    // Avoid composite index: filter only, sort in app code.
     const snap = await db
-      .collection('users').doc(userId)
-      .collection('swings')
-      .orderBy('createdAt', 'desc')
-      .limit(limit)
+      .collection(COL)
+      .where('userId', '==', userId)
+      .limit(limit * 2)
       .get();
-    return snap.docs.map((d: any) => d.data() as SwingDoc);
+    const docs = snap.docs.map((d: any) => d.data() as SwingDoc);
+    docs.sort((a: SwingDoc, b: SwingDoc) => (b.createdAt || 0) - (a.createdAt || 0));
+    return docs.slice(0, limit);
   } catch (e) {
     console.error('[listSwingsForUser]', e);
     return [];
   }
 }
 
-/** Worker: pick up to N queued swings across all users.
- *  Also reclaims docs stuck in `analyzing` longer than 5 minutes — usually
- *  caused by a Vercel function timeout mid-Cloud-Run-call.
- */
+/** Worker: pick up to N queued swings + reclaim stuck `analyzing` ones. */
 export async function listQueuedSwings(limit = 3): Promise<SwingDoc[]> {
   const db = getAdminDb();
   if (!db) return [];
   const STUCK_MS = 5 * 60 * 1000;
-  const out: SwingDoc[] = [];
 
   // Reclaim stuck 'analyzing' docs first.
   try {
     const stuckSnap = await db
-      .collectionGroup('swings')
+      .collection(COL)
       .where('status', '==', 'analyzing')
       .limit(limit)
       .get();
@@ -81,16 +83,15 @@ export async function listQueuedSwings(limit = 3): Promise<SwingDoc[]> {
     console.error('[listQueuedSwings reclaim]', e);
   }
 
-  // Pick queued.
   try {
     const snap = await db
-      .collectionGroup('swings')
+      .collection(COL)
       .where('status', '==', 'queued')
       .limit(limit)
       .get();
-    snap.docs.forEach((d: any) => out.push(d.data() as SwingDoc));
+    return snap.docs.map((d: any) => d.data() as SwingDoc);
   } catch (e) {
     console.error('[listQueuedSwings]', e);
+    return [];
   }
-  return out;
 }
