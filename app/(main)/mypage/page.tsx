@@ -185,10 +185,14 @@ export default function MyPage() {
             {me.notifyOff ? 'OFF' : 'ON'}
           </span>
         </button>
-        <div className="bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card cursor-pointer">
+        <Link href="/legal/terms" className="bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card">
           <span className="text-sm font-medium">利用規約</span>
           <span className="text-muted">›</span>
-        </div>
+        </Link>
+        <Link href="/legal/privacy" className="bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card">
+          <span className="text-sm font-medium">プライバシーポリシー</span>
+          <span className="text-muted">›</span>
+        </Link>
         <button onClick={logout} className="w-full bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card text-left">
           <span className="text-sm font-medium text-red">ログアウト</span>
           <span className="text-muted">›</span>
