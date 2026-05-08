@@ -126,7 +126,10 @@ export default function SwingDetailPage() {
       )}
 
       {swing.status === 'done' && swing.reviewTextChunks && (
-        <ReviewChunks chunks={swing.reviewTextChunks} />
+        <>
+          <ReviewChunks chunks={swing.reviewTextChunks} />
+          <ShareCard swing={swing} />
+        </>
       )}
 
       {(swing.status === 'done' || swing.status === 'failed') && (
@@ -208,6 +211,61 @@ function FailedCard({ swing, onRetried }: { swing: SwingDoc; onRetried: () => vo
           href="/swing/new"
           className="flex-1 py-2.5 bg-green text-white rounded-lg text-xs font-bold inline-block text-center"
         >📹 新しく撮り直す</a>
+      </div>
+    </div>
+  );
+}
+
+function ShareCard({ swing }: { swing: SwingDoc }) {
+  const [copied, setCopied] = useState(false);
+  // Use LIFF URL so taps from LINE open inside the app.
+  const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '2009973733-P5UdNex9';
+  const url = `https://liff.line.me/${liffId}?to=${encodeURIComponent(`/swing/${swing.swingId}`)}`;
+  const text = `⛳ AIコーチにスイング解析してもらった！\n\n${url}`;
+
+  function copy() {
+    navigator.clipboard?.writeText(url).then(() => {
+      setCopied(true);
+      toast('URLをコピーしました');
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  // Native share sheet on iOS/Android — falls back to clipboard.
+  async function nativeShare() {
+    const w = window as any;
+    if (w.navigator?.share) {
+      try {
+        await w.navigator.share({ title: 'Golf Buddy スイング解析', text, url });
+      } catch { /* user canceled, that's fine */ }
+    } else {
+      copy();
+    }
+  }
+
+  const lineShare = `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
+
+  return (
+    <div className="bg-card rounded-card p-4 shadow-card mt-4">
+      <div className="text-[12px] font-bold mb-2.5">📤 この解析結果をシェア</div>
+      <div className="flex gap-2">
+        <a
+          href={lineShare}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 py-2.5 bg-green text-white rounded-lg text-xs font-bold text-center"
+        >LINEで送る</a>
+        <button
+          onClick={nativeShare}
+          className="flex-1 py-2.5 bg-bg border-[1.5px] border-border rounded-lg text-xs font-bold"
+        >他のアプリ</button>
+        <button
+          onClick={copy}
+          className="px-3 py-2.5 bg-bg border-[1.5px] border-border rounded-lg text-xs font-bold whitespace-nowrap"
+        >{copied ? '✓' : '🔗'}</button>
+      </div>
+      <div className="text-[10px] text-muted mt-2">
+        ※ 受け取った人もこのアプリにLINEログインすれば閲覧できます（Β版中はホワイトリスト登録ユーザーのみ）
       </div>
     </div>
   );

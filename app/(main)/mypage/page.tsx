@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { getMe, store, useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
+import { PracticeCalendar } from '@/components/swing/PracticeCalendar';
 import { track } from '@/lib/telemetry';
 import type { Review } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
@@ -129,6 +130,8 @@ export default function MyPage() {
             </div>
           </div>
         )}
+
+        <PracticeCalendar />
 
         <div className="bg-card rounded-card p-4 shadow-card mb-4">
           <div className="text-[13px] font-bold mb-2.5">ラウンド履歴 / 参加中</div>
