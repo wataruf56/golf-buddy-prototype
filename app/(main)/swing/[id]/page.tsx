@@ -13,6 +13,53 @@ const MODE_LABEL: Record<string, string> = {
   question: '❓ 質問モード',
 };
 
+function gcsToPublicUrl(gcsUri?: string): string {
+  if (!gcsUri || !gcsUri.startsWith('gs://')) return '';
+  const stripped = gcsUri.replace(/^gs:\/\//, '');
+  const idx = stripped.indexOf('/');
+  if (idx < 0) return '';
+  const bucket = stripped.slice(0, idx);
+  const objectName = stripped.slice(idx + 1);
+  return `https://storage.googleapis.com/${bucket}/${objectName.split('/').map(encodeURIComponent).join('/')}`;
+}
+
+function VideoCard({ src, label }: { src: string; label: string }) {
+  if (!src) return null;
+  return (
+    <div className="bg-card rounded-card p-3 shadow-card">
+      <div className="text-[11px] font-bold text-sub mb-2">{label}</div>
+      <video
+        src={src}
+        controls
+        playsInline
+        preload="metadata"
+        className="w-full rounded-lg bg-black"
+      />
+    </div>
+  );
+}
+
+function SwingVideos({ swing }: { swing: SwingDoc }) {
+  const main = gcsToPublicUrl(swing.videoGcsPath);
+  const pro = gcsToPublicUrl(swing.proGcsPath);
+  const prev = gcsToPublicUrl(swing.prevGcsPath);
+  if (!main && !pro && !prev) return null;
+
+  // For compare/past modes, show both side-by-side label-wise.
+  const mainLabel =
+    swing.mode === 'compare' ? '🎥 自分のスイング'
+    : swing.mode === 'past' ? '🎥 今回のスイング'
+    : '🎥 スイング動画';
+
+  return (
+    <div className="flex flex-col gap-2.5 mb-4">
+      {pro && <VideoCard src={pro} label="🎥 プロのお手本" />}
+      {prev && <VideoCard src={prev} label="🎥 過去のスイング" />}
+      {main && <VideoCard src={main} label={mainLabel} />}
+    </div>
+  );
+}
+
 export default function SwingDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -66,6 +113,8 @@ export default function SwingDetailPage() {
           </div>
         )}
       </div>
+
+      <SwingVideos swing={swing} />
 
       {(swing.status === 'queued' || swing.status === 'analyzing') && (
         <div className="bg-card rounded-card p-8 text-center shadow-card">

@@ -47,6 +47,20 @@ export async function generateUploadUrl(objectName: string, contentType = 'video
   return url as string;
 }
 
+/** Convert gs:// URI to public HTTPS URL.
+ *  Bucket gs://golf-ai-line-videos has allUsers:objectViewer (per spec 4-1),
+ *  so direct browser playback works without signing.
+ */
+export function gcsUriToPublicUrl(gcsUri: string): string {
+  if (!gcsUri || !gcsUri.startsWith('gs://')) return '';
+  const stripped = gcsUri.replace(/^gs:\/\//, '');
+  const idx = stripped.indexOf('/');
+  if (idx < 0) return '';
+  const bucket = stripped.slice(0, idx);
+  const objectName = stripped.slice(idx + 1);
+  return `https://storage.googleapis.com/${bucket}/${objectName.split('/').map(encodeURIComponent).join('/')}`;
+}
+
 export async function deleteByGcsUri(gcsUri: string): Promise<void> {
   if (!gcsUri || !gcsUri.startsWith('gs://')) return;
   const stripped = gcsUri.replace(/^gs:\/\//, '');

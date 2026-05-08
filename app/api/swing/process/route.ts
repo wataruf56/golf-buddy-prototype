@@ -3,7 +3,6 @@ import { listQueuedSwings, updateSwing, getSwing } from '@/lib/swingFirestore';
 import { analyzeSwing, AnalyzerError } from '@/lib/swingAnalyzer';
 import { buildPromptForMode } from '@/lib/swingPrompts';
 import { splitReviewByDivider } from '@/lib/swingSplitter';
-import { deleteByGcsUri } from '@/lib/swingGcs';
 import type { SwingDoc } from '@/types/swing';
 
 // Increase timeout for Vercel — we may run analyzeSwing inline (60〜120s).
@@ -113,15 +112,6 @@ async function processOne(swing: SwingDoc): Promise<{ status: string }> {
     errorMessage: '',
   });
 
-  // Delete videos from GCS (privacy / spec section 4-5)
-  const targets = [fresh.videoGcsPath, fresh.proGcsPath, fresh.prevGcsPath].filter(Boolean) as string[];
-  await Promise.all(targets.map((u) => deleteByGcsUri(u).catch(() => {})));
-  await updateSwing(userId, swingId, {
-    videoGcsPath: '',
-    proGcsPath: '',
-    prevGcsPath: '',
-    videoDeleted: true,
-  });
-
+  // Keep videos in GCS so the result page can play them back.
   return { status: 'done' };
 }
