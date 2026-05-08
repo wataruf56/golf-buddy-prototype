@@ -74,8 +74,8 @@ function Inner() {
 
   async function delRound(id: string, cascade: boolean) {
     const msg = cascade
-      ? 'このラウンドと関連データ（チャット・レビュー依頼）を全て削除します。よろしいですか？'
-      : 'このラウンドを削除します（チャット・レビュー依頼は残ります）。よろしいですか？';
+      ? 'このラウンドに紐づく全てを削除します:\n・ラウンド本体\n・参加者の投稿レビュー\n・レビュー依頼\n・グループチャット履歴\n\n本当に削除しますか？'
+      : 'このラウンド本体だけを削除します（レビュー・チャット・依頼は残ります）。よろしいですか？';
     if (!confirm(msg)) return;
     try {
       const r = await fetch(`/api/admin/rounds?token=${encodeURIComponent(token)}`, {
@@ -86,8 +86,8 @@ function Inner() {
       if (!r.ok) throw new Error(`${r.status}`);
       const d = await r.json();
       setItems((prev) => prev.filter((x) => x.id !== id));
-      if (d.pendingDeleted || d.chatMsgsDeleted) {
-        alert(`削除完了\n関連pendingReviews: ${d.pendingDeleted}\n関連チャット: ${d.chatMsgsDeleted}`);
+      if (d.pendingDeleted || d.reviewsDeleted || d.chatMsgsDeleted) {
+        alert(`削除完了\nレビュー: ${d.reviewsDeleted ?? 0}件\nレビュー依頼: ${d.pendingDeleted}件\nチャット: ${d.chatMsgsDeleted}件`);
       }
     } catch (e) {
       alert(`失敗: ${(e as Error).message}`);
@@ -171,11 +171,11 @@ function Inner() {
                 <button
                   onClick={() => delRound(r.id, false)}
                   className="flex-1 py-1.5 text-[11px] font-bold bg-red-50 text-red-600 rounded"
-                >削除</button>
+                >ラウンドのみ削除</button>
                 <button
                   onClick={() => delRound(r.id, true)}
                   className="flex-1 py-1.5 text-[11px] font-bold bg-red-100 text-red-700 rounded"
-                >完全削除</button>
+                >🗑 全部削除</button>
               </div>
               <details className="mt-1">
                 <summary className="text-[9px] text-muted cursor-pointer">ID</summary>

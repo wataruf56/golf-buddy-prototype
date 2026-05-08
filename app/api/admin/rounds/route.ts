@@ -59,7 +59,10 @@ export async function DELETE(req: NextRequest) {
     await db.collection('rounds').doc(id).delete();
 
     let pendingDeleted = 0;
+    let reviewsDeleted = 0;
     let chatMsgsDeleted = 0;
+    const recomputeUsers = new Set<string>();
+
     if (cascade) {
       // Delete pendingReviews tied to this round
       try {
@@ -68,6 +71,32 @@ export async function DELETE(req: NextRequest) {
         snap.docs.forEach((d: any) => { batch.delete(d.ref); pendingDeleted++; });
         if (!snap.empty) await batch.commit();
       } catch {}
+
+      // Delete reviews tied to this round (and remember reviewees for stat recompute)
+      try {
+        const snap = await db.collection('reviews').where('roundId', '==', id).get();
+        const batch = db.batch();
+        snap.docs.forEach((d: any) => {
+          const data = d.data();
+          if (data.revieweeId) recomputeUsers.add(data.revieweeId);
+          batch.delete(d.ref);
+          reviewsDeleted++;
+        });
+        if (!snap.empty) await batch.commit();
+      } catch {}
+
+      // Recompute reviewAvg/Count for each affected user
+      for (const uid of Array.from(recomputeUsers)) {
+        try {
+          const rs = await db.collection('reviews').where('revieweeId', '==', uid).get();
+          const reviews = rs.docs.map((d: any) => d.data());
+          const count = reviews.length;
+          const avg = count > 0
+            ? Math.round((reviews.reduce((s: number, r: any) => s + (r.stars || 0), 0) / count) * 10) / 10
+            : 0;
+          await db.collection('users').doc(uid).set({ reviewAvg: avg, reviewCount: count }, { merge: true });
+        } catch {}
+      }
 
       // Delete round chat messages
       try {
@@ -78,7 +107,7 @@ export async function DELETE(req: NextRequest) {
       } catch {}
     }
 
-    return NextResponse.json({ ok: true, pendingDeleted, chatMsgsDeleted }, { headers: noStore });
+    return NextResponse.json({ ok: true, pendingDeleted, reviewsDeleted, chatMsgsDeleted }, { headers: noStore });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
   }
