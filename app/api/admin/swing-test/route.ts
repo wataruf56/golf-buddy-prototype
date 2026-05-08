@@ -52,5 +52,44 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ env, keyParsed, parseErr, signedUrlOk, signedUrlErr });
+  // List swings for a userId, optionally requeue stuck ones
+  const userId = url.searchParams.get('userId') || '';
+  const requeue = url.searchParams.get('requeue') === '1';
+  let swings: any[] = [];
+  let requeued = 0;
+  if (userId) {
+    try {
+      const { getAdminDb } = await import('@/lib/firebase');
+      const db = getAdminDb();
+      if (db) {
+        const snap = await db.collection('users').doc(userId).collection('swings').orderBy('createdAt', 'desc').limit(20).get();
+        swings = snap.docs.map((d: any) => {
+          const data = d.data();
+          return {
+            swingId: data.swingId,
+            status: data.status,
+            mode: data.mode,
+            createdAt: data.createdAt,
+            startedAnalyzingAt: data.startedAnalyzingAt,
+            errorMessage: data.errorMessage,
+            hasReview: !!data.reviewText,
+            videoGcsPath: data.videoGcsPath,
+          };
+        });
+        if (requeue) {
+          for (const d of snap.docs) {
+            const data = d.data();
+            if (data.status === 'analyzing' || data.status === 'failed') {
+              await d.ref.set({ status: 'queued', analysisRunId: '', errorMessage: '', updatedAt: Date.now() }, { merge: true });
+              requeued++;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      swings = [{ error: (e as Error).message }];
+    }
+  }
+
+  return NextResponse.json({ env, keyParsed, parseErr, signedUrlOk, signedUrlErr, swings, requeued });
 }

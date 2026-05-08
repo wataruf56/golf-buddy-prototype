@@ -4,7 +4,6 @@ import { analyzeSwing, AnalyzerError } from '@/lib/swingAnalyzer';
 import { buildPromptForMode } from '@/lib/swingPrompts';
 import { splitReviewByDivider } from '@/lib/swingSplitter';
 import { deleteByGcsUri } from '@/lib/swingGcs';
-import { pushTo, liffUrl } from '@/lib/linePush';
 import type { SwingDoc } from '@/types/swing';
 
 // Increase timeout for Vercel — we may run analyzeSwing inline (60〜120s).
@@ -22,6 +21,9 @@ function authorizeCron(req: NextRequest): boolean {
   // Vercel-internal cron user-agent
   const ua = req.headers.get('user-agent') || '';
   if (ua.includes('vercel-cron')) return true;
+  // Internal fire-and-forget kick from /api/swing/submit
+  const url = new URL(req.url);
+  if (expected && url.searchParams.get('secret') === expected) return true;
   return false;
 }
 
@@ -99,13 +101,6 @@ async function processOne(swing: SwingDoc): Promise<{ status: string }> {
       retryCount,
       errorMessage: err.message.slice(0, 500),
     });
-    if (!canRetry) {
-      // Notify user of final failure (utilization not consumed — billing not implemented yet)
-      await pushTo(userId,
-        '⚠️ スイング分析に失敗しました\nもう一度お試しください。何度も失敗する場合はお知らせください。',
-        liffUrl(`/swing/${swingId}`),
-      ).catch(() => {});
-    }
     return { status: canRetry ? 'requeued' : 'failed' };
   }
 
@@ -117,12 +112,6 @@ async function processOne(swing: SwingDoc): Promise<{ status: string }> {
     completedAt: Date.now(),
     errorMessage: '',
   });
-
-  // Notify on LINE
-  await pushTo(userId,
-    'スイング分析が完了しました⛳\n結果はこちら👇',
-    liffUrl(`/swing/${swingId}`),
-  ).catch(() => {});
 
   // Delete videos from GCS (privacy / spec section 4-5)
   const targets = [fresh.videoGcsPath, fresh.proGcsPath, fresh.prevGcsPath].filter(Boolean) as string[];

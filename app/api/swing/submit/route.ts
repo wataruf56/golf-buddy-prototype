@@ -46,8 +46,21 @@ export async function POST(req: NextRequest) {
 
   try {
     await createSwing(doc);
-    return NextResponse.json({ ok: true, swingId }, { headers: noStore });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
   }
+
+  // Fire-and-forget: kick the worker immediately so users don't wait for the next Cron tick.
+  // We don't await — the response returns now and the worker keeps running on its own.
+  const cron = process.env.CRON_SECRET || '';
+  if (cron) {
+    const origin = new URL(req.url).origin;
+    fetch(`${origin}/api/swing/process?secret=${encodeURIComponent(cron)}`, {
+      method: 'GET',
+      // @ts-ignore — Next.js fetch supports `cache` and timeout via AbortController
+      cache: 'no-store',
+    }).catch(() => {});
+  }
+
+  return NextResponse.json({ ok: true, swingId }, { headers: noStore });
 }

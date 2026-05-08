@@ -52,19 +52,45 @@ export async function listSwingsForUser(userId: string, limit = 50): Promise<Swi
   }
 }
 
-/** Worker: pick up to N queued swings across all users. */
+/** Worker: pick up to N queued swings across all users.
+ *  Also reclaims docs stuck in `analyzing` longer than 5 minutes — usually
+ *  caused by a Vercel function timeout mid-Cloud-Run-call.
+ */
 export async function listQueuedSwings(limit = 3): Promise<SwingDoc[]> {
   const db = getAdminDb();
   if (!db) return [];
+  const STUCK_MS = 5 * 60 * 1000;
+  const out: SwingDoc[] = [];
+
+  // Reclaim stuck 'analyzing' docs first.
+  try {
+    const stuckSnap = await db
+      .collectionGroup('swings')
+      .where('status', '==', 'analyzing')
+      .limit(limit)
+      .get();
+    const now = Date.now();
+    for (const d of stuckSnap.docs) {
+      const data = d.data();
+      const startedAt = data.startedAnalyzingAt || 0;
+      if (startedAt && now - startedAt > STUCK_MS) {
+        await d.ref.set({ status: 'queued', analysisRunId: '', updatedAt: now, errorMessage: 'reclaimed_stuck_analyzing' }, { merge: true });
+      }
+    }
+  } catch (e) {
+    console.error('[listQueuedSwings reclaim]', e);
+  }
+
+  // Pick queued.
   try {
     const snap = await db
       .collectionGroup('swings')
       .where('status', '==', 'queued')
       .limit(limit)
       .get();
-    return snap.docs.map((d: any) => d.data() as SwingDoc);
+    snap.docs.forEach((d: any) => out.push(d.data() as SwingDoc));
   } catch (e) {
     console.error('[listQueuedSwings]', e);
-    return [];
   }
+  return out;
 }
