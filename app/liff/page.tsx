@@ -68,6 +68,16 @@ function LiffEntryInner() {
         });
         if (!res.ok) {
           const text = await res.text();
+          // LIFF caches the ID token client-side and it expires after ~1 hour.
+          // If LINE rejects it as expired, log out and bounce back through
+          // liff.login() so the SDK fetches a fresh token.
+          if (res.status === 401 && /IdToken expired|expired/i.test(text)) {
+            log('idToken expired, forcing re-login');
+            setStatus('セッション期限切れ。再ログインします...');
+            try { liff.logout(); } catch {}
+            liff.login({ redirectUri: window.location.href });
+            return;
+          }
           throw new Error(`auth failed: ${res.status} ${text.slice(0, 200)}`);
         }
         clearTimeout(watchdog);
