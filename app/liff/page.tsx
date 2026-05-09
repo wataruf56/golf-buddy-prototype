@@ -18,6 +18,41 @@ export default function LiffEntryPage() {
   );
 }
 
+// Decode a JWT's payload without verifying. Returns null on any failure.
+// Used only to check the `exp` claim client-side so we don't ship a token
+// LINE will reject as expired.
+function decodeJwt(token: string): any {
+  try {
+    const part = token.split('.')[1];
+    if (!part) return null;
+    // base64url -> base64
+    const b64 = part.replace(/-/g, '+').replace(/_/g, '/').padEnd(part.length + (4 - part.length % 4) % 4, '=');
+    return JSON.parse(decodeURIComponent(escape(atob(b64))));
+  } catch { return null; }
+}
+
+function isTokenStale(token: string | null | undefined): boolean {
+  if (!token) return true;
+  const p = decodeJwt(token);
+  if (!p || typeof p.exp !== 'number') return false; // can't tell — let server decide
+  // 60s safety buffer so we don't ship one that expires mid-flight.
+  return p.exp * 1000 < Date.now() + 60_000;
+}
+
+// Belt-and-braces local-storage cleanup. liff.logout() doesn't always purge
+// every cached entry on every browser, and a stale entry leads liff.getIDToken()
+// to keep returning the same expired token.
+function nukeLiffStorage() {
+  try {
+    const drop: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith('LIFF') || k.startsWith('liff'))) drop.push(k);
+    }
+    drop.forEach((k) => localStorage.removeItem(k));
+  } catch {}
+}
+
 function LiffEntryInner() {
   const router = useRouter();
   const search = useSearchParams();
@@ -58,7 +93,21 @@ function LiffEntryInner() {
         }
         setStatus('セッション発行中...');
         const idToken = liff.getIDToken();
-        if (!idToken) throw new Error('idToken が取得できませんでした');
+        const payload = idToken ? decodeJwt(idToken) : null;
+        log('idToken claims', { exp: payload?.exp, now: Math.floor(Date.now() / 1000), staleBy: payload?.exp ? Math.floor(Date.now() / 1000) - payload.exp : null });
+
+        // Pre-flight: if the cached idToken is missing or already expired,
+        // don't bother POSTing it — go straight to a forced refresh. This
+        // avoids the round-trip that LINE will reject anyway.
+        if (!idToken || isTokenStale(idToken)) {
+          log('idToken missing/stale before send → forcing fresh login');
+          setStatus('セッション更新中...');
+          try { liff.logout(); } catch {}
+          nukeLiffStorage();
+          liff.login({ redirectUri: window.location.href });
+          return;
+        }
+
         const res = await fetch('/api/auth/liff', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -68,13 +117,14 @@ function LiffEntryInner() {
         });
         if (!res.ok) {
           const text = await res.text();
-          // LIFF caches the ID token client-side and it expires after ~1 hour.
-          // If LINE rejects it as expired, log out and bounce back through
-          // liff.login() so the SDK fetches a fresh token.
+          // Server-side fallback: if LINE rejects the token as expired even
+          // though our pre-flight check passed (clock skew, race, etc.),
+          // nuke local cache and bounce through login one more time.
           if (res.status === 401 && /IdToken expired|expired/i.test(text)) {
-            log('idToken expired, forcing re-login');
+            log('server reported expired idToken → forcing fresh login');
             setStatus('セッション期限切れ。再ログインします...');
             try { liff.logout(); } catch {}
+            nukeLiffStorage();
             liff.login({ redirectUri: window.location.href });
             return;
           }
