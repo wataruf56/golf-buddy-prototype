@@ -54,7 +54,10 @@ function LiffEntryInner() {
           throw new Error(`auth failed: ${res.status} ${text.slice(0, 200)}`);
         }
         setStatus('完了。ホームへ移動します...');
-        router.replace(to);
+        // Hard navigation so middleware on the new path runs cleanly
+        // (e.g. /admin on app.goltomo.com → redirect to admin.goltomo.com/admin
+        // where the parent-scoped LIFF cookie is now visible).
+        window.location.replace(to);
       } catch (e) {
         setErrorMsg((e as Error).message);
       }

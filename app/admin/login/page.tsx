@@ -2,52 +2,25 @@
 
 import { useEffect, useState } from 'react';
 
-// LIFF bridge for the admin login.
-// Same flow as /liff but redirects to /admin afterwards.
+// Admin login bridge.
+// LIFF endpoint URL is registered as https://app.goltomo.com/liff (single subdomain),
+// so we can't run liff.login() directly on admin.goltomo.com — LINE would reject the
+// redirect URI. Instead, bounce the user through app.goltomo.com/liff?to=/admin where
+// the LIFF cookie gets set with `domain=.goltomo.com` (parent-scope, see api/auth/liff).
+// After login, /liff redirects to /admin which middleware sends back to admin.goltomo.com,
+// where the cookie is now visible and the admin layout admits the user.
 export default function AdminLoginPage() {
-  const [status, setStatus] = useState('LIFFを起動中...');
-  const [errorMsg, setErrorMsg] = useState('');
+  const [status, setStatus] = useState('LINE ログインへ転送します...');
 
   useEffect(() => {
-    const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '';
-    if (!liffId) {
-      setErrorMsg('NEXT_PUBLIC_LIFF_ID が未設定です');
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        setStatus('LIFF SDK 読み込み中...');
-        const liff = (await import('@line/liff')).default;
-        await liff.init({ liffId });
-        if (cancelled) return;
-        if (!liff.isLoggedIn()) {
-          setStatus('LINE ログインへ転送...');
-          liff.login({ redirectUri: window.location.href });
-          return;
-        }
-        setStatus('セッション発行中...');
-        const idToken = liff.getIDToken();
-        if (!idToken) throw new Error('idToken が取得できませんでした');
-        const res = await fetch('/api/auth/liff', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ idToken }),
-          cache: 'no-store',
-          credentials: 'include',
-        });
-        if (!res.ok) {
-          const t = await res.text();
-          throw new Error(`auth failed: ${res.status} ${t.slice(0, 200)}`);
-        }
-        setStatus('完了。管理画面へ移動します...');
-        // Hard redirect so the cookie is read by the server-side admin layout.
-        window.location.replace('/admin');
-      } catch (e) {
-        setErrorMsg((e as Error).message);
-      }
-    })();
-    return () => { cancelled = true; };
+    if (typeof window === 'undefined') return;
+    // If we're already on app.goltomo.com (e.g. someone clicked /admin/login there),
+    // send them through the standard LIFF login flow with /admin as the destination.
+    const host = window.location.hostname;
+    const target = host === 'app.goltomo.com' ? '/liff?to=/admin' : 'https://app.goltomo.com/liff?to=/admin';
+    setStatus('LIFF経由でログイン中...');
+    // Small delay so the user sees the message
+    setTimeout(() => { window.location.replace(target); }, 200);
   }, []);
 
   return (
@@ -55,13 +28,8 @@ export default function AdminLoginPage() {
       <div className="text-4xl mb-4 animate-pulse">⚙️</div>
       <div className="text-base font-bold mb-2">ゴルトモ 管理画面</div>
       <div className="text-sm text-sub mb-2">{status}</div>
-      {errorMsg && (
-        <div className="mt-4 p-3 bg-red-50 text-red-700 rounded-lg text-xs max-w-sm break-words">
-          {errorMsg}
-        </div>
-      )}
       <div className="mt-6 text-[10px] text-muted max-w-sm">
-        LINEログイン後、許可されたアカウントのみ管理画面にアクセスできます。
+        LINE ログイン後、許可された LINE アカウントのみ管理画面にアクセスできます。
       </div>
     </div>
   );
