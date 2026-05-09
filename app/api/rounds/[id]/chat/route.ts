@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { pushToMany, liffUrl } from '@/lib/linePush';
+import { isMatchingAllowedByAge } from '@/lib/ageGate';
 
 const noStore = {
   'Cache-Control': 'no-store, must-revalidate',
@@ -23,6 +24,10 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const meId = await getMeId();
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: noStore });
+  const me = await db.getUser(meId);
+  if (!isMatchingAllowedByAge(me?.age)) {
+    return NextResponse.json({ error: 'age_restricted', message: '20〜30代の方のみご利用いただけます' }, { status: 403, headers: noStore });
+  }
   const round = await db.getRound(params.id);
   if (!round) return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStore });
   const allowed = round.hostId === meId || (round.applicantIds || []).includes(meId);

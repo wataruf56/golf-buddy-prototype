@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { pushTo, liffUrl } from '@/lib/linePush';
+import { isMatchingAllowedByAge } from '@/lib/ageGate';
 
 export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
   const meId = await getMeId();
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const me = await db.getUser(meId);
+  if (!isMatchingAllowedByAge(me?.age)) {
+    return NextResponse.json({ error: 'age_restricted', message: '20〜30代の方のみご利用いただけます' }, { status: 403 });
+  }
   const existing = await db.getRound(params.id);
   if (!existing) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   const host = await db.getUser(existing.hostId);
@@ -15,7 +20,6 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   const round = await db.joinRound(params.id, meId);
   // Notify host of new application.
   if (host && !(host as any).notifyOff) {
-    const me = await db.getUser(meId);
     const applicantName = me?.displayName || 'ゲスト';
     pushTo(existing.hostId, `🆕 ${applicantName} さんが「${existing.title}」に参加申請しました`, liffUrl(`/round/${params.id}`)).catch(() => {});
   }

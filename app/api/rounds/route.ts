@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
+import { isMatchingAllowedByAge } from '@/lib/ageGate';
 import type { Round } from '@/lib/types';
 
 export async function GET() {
@@ -11,6 +12,10 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const meId = await getMeId();
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const me = await db.getUser(meId);
+  if (!isMatchingAllowedByAge(me?.age)) {
+    return NextResponse.json({ error: 'age_restricted', message: '20〜30代の方のみご利用いただけます' }, { status: 403 });
+  }
   const body = await req.json();
   const round: Omit<Round, 'id'> = {
     hostId: meId,
