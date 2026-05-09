@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-export const metadata = { title: '利用規約 - Golf Buddy' };
+export const metadata = { title: '利用規約 - ゴルトモ' };
 
 export default function TermsPage() {
   return (
@@ -10,7 +10,7 @@ export default function TermsPage() {
       <div className="text-[11px] text-muted mb-6">最終更新: 2026年5月</div>
 
       <Section title="第1条（適用）">
-        本規約は、Golf Buddy（以下「本サービス」）の利用に関するすべての関係に適用されます。
+        本規約は、ゴルトモ（以下「本サービス」）の利用に関するすべての関係に適用されます。
         ユーザーは本サービスを利用することで、本規約に同意したものとみなします。
       </Section>
 

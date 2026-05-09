@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-export const metadata = { title: 'プライバシーポリシー - Golf Buddy' };
+export const metadata = { title: 'プライバシーポリシー - ゴルトモ' };
 
 export default function PrivacyPage() {
   return (

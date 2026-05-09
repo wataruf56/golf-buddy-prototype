@@ -21,8 +21,8 @@ export default function LoginPage() {
     <PhoneFrame>
       <div className="screen px-6 flex flex-col items-center justify-center text-center">
         <div className="w-24 h-24 rounded-full bg-green-light flex items-center justify-center text-5xl mb-6">⛳</div>
-        <h1 className="text-3xl font-black mb-2">Golf Buddy</h1>
-        <p className="text-sm text-sub mb-12">ゴル友マッチング<br />一緒にラウンドを回る仲間を見つけよう</p>
+        <h1 className="text-3xl font-black mb-2">ゴルトモ</h1>
+        <p className="text-sm text-sub mb-12">ゴル友マッチング × AIスイング解析<br />同年代のゴルファーと一緒にラウンドを回ろう</p>
 
         <button
           onClick={handleLogin}

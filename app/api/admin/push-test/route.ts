@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({
           to: userId,
-          messages: [{ type: 'text', text: '🏌️ Golf Buddy テスト通知です。届いたら成功！' }],
+          messages: [{ type: 'text', text: '🏌️ ゴルトモ テスト通知です。届いたら成功！' }],
         }),
       });
       pushStatus = r.status;

@@ -126,7 +126,7 @@ export default function SharedSwingPage() {
 function Header() {
   return (
     <div className="bg-gradient-to-r from-green to-emerald-500 text-white px-5 py-4 text-center">
-      <div className="text-[11px] font-bold tracking-wider opacity-90">GOLF BUDDY</div>
+      <div className="text-[11px] font-bold tracking-wider opacity-90">GOLTOMO</div>
       <div className="text-lg font-black leading-tight">⛳ AIスイング解析</div>
       <div className="text-[10px] mt-1 opacity-90">PGAツアープロを指導するレベルのAIコーチが解析</div>
     </div>
@@ -158,7 +158,7 @@ function CallToAction() {
           href={liffUrl}
           className="block w-full py-3 bg-green text-white rounded-xl text-sm font-bold"
         >
-          LINEで Golf Buddy を開く
+          LINEでゴルトモを開く
         </a>
         <div className="text-[10px] text-muted mt-2">※ ベータ版のため、利用には事前承認が必要です</div>
       </div>

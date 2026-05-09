@@ -15,7 +15,7 @@ export function MatchingBanner() {
     : 'from-green to-emerald-500';
   return (
     <div className={`bg-gradient-to-r ${grad} text-white px-5 py-2.5 text-center`}>
-      <div className="text-[11px] font-bold tracking-wider opacity-90">GOLF BUDDY</div>
+      <div className="text-[11px] font-bold tracking-wider opacity-90">GOLTOMO</div>
       <div className="text-[15px] font-black leading-tight">🎯 {label}</div>
     </div>
   );

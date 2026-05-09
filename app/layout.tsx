@@ -3,10 +3,10 @@ import './globals.css';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  title: 'Golf Buddy',
-  description: 'ゴル友マッチング — 一緒にラウンドを回る仲間を見つけよう',
+  title: 'ゴルトモ - ゴル友マッチング × AIスイング解析',
+  description: 'ゴル友マッチングとAIスイング解析が一つになったLINEアプリ。同年代のゴルファーと一緒にラウンドを回ろう。',
   manifest: '/manifest.json',
-  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Golf Buddy' },
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'ゴルトモ' },
 };
 
 export const viewport: Viewport = {

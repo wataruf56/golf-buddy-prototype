@@ -1,29 +1,17 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
-// LIFF entry: initialize SDK → ensure logged in → exchange idToken for our cookie → redirect.
-// Default redirect target is /home, override with ?to=/round/xxx etc.
-export default function LiffEntryPage() {
-  return (
-    <Suspense fallback={<LiffLoading status="LIFFを起動中..." />}>
-      <LiffEntryInner />
-    </Suspense>
-  );
-}
-
-function LiffEntryInner() {
-  const router = useRouter();
-  const search = useSearchParams();
-  const to = search?.get('to') || '/home';
-  const [status, setStatus] = useState<string>('LIFFを起動中...');
-  const [errorMsg, setErrorMsg] = useState<string>('');
+// LIFF bridge for the admin login.
+// Same flow as /liff but redirects to /admin afterwards.
+export default function AdminLoginPage() {
+  const [status, setStatus] = useState('LIFFを起動中...');
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '';
     if (!liffId) {
-      setErrorMsg('NEXT_PUBLIC_LIFF_ID が未設定です。Vercel の環境変数に LIFF ID を入れてください。');
+      setErrorMsg('NEXT_PUBLIC_LIFF_ID が未設定です');
       return;
     }
     let cancelled = false;
@@ -35,7 +23,6 @@ function LiffEntryInner() {
         if (cancelled) return;
         if (!liff.isLoggedIn()) {
           setStatus('LINE ログインへ転送...');
-          // After login LINE redirects back to the LIFF endpoint with login state.
           liff.login({ redirectUri: window.location.href });
           return;
         }
@@ -50,32 +37,32 @@ function LiffEntryInner() {
           credentials: 'include',
         });
         if (!res.ok) {
-          const text = await res.text();
-          throw new Error(`auth failed: ${res.status} ${text.slice(0, 200)}`);
+          const t = await res.text();
+          throw new Error(`auth failed: ${res.status} ${t.slice(0, 200)}`);
         }
-        setStatus('完了。ホームへ移動します...');
-        router.replace(to);
+        setStatus('完了。管理画面へ移動します...');
+        // Hard redirect so the cookie is read by the server-side admin layout.
+        window.location.replace('/admin');
       } catch (e) {
         setErrorMsg((e as Error).message);
       }
     })();
     return () => { cancelled = true; };
-  }, [router, to]);
+  }, []);
 
-  return <LiffLoading status={status} errorMsg={errorMsg} />;
-}
-
-function LiffLoading({ status, errorMsg }: { status: string; errorMsg?: string }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-bg">
-      <div className="text-4xl mb-4 animate-pulse">⛳</div>
-      <div className="text-base font-bold mb-2">ゴルトモ</div>
+      <div className="text-4xl mb-4 animate-pulse">⚙️</div>
+      <div className="text-base font-bold mb-2">ゴルトモ 管理画面</div>
       <div className="text-sm text-sub mb-2">{status}</div>
       {errorMsg && (
         <div className="mt-4 p-3 bg-red-50 text-red-700 rounded-lg text-xs max-w-sm break-words">
           {errorMsg}
         </div>
       )}
+      <div className="mt-6 text-[10px] text-muted max-w-sm">
+        LINEログイン後、許可されたアカウントのみ管理画面にアクセスできます。
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 {
-  "name": "Golf Buddy",
-  "short_name": "GolfBuddy",
-  "description": "ゴル友マッチングアプリ",
+  "name": "ゴルトモ",
+  "short_name": "ゴルトモ",
+  "description": "ゴル友マッチング × AIスイング解析",
   "start_url": "/home",
   "display": "standalone",
   "background_color": "#FAFAF8",
