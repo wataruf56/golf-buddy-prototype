@@ -43,14 +43,15 @@ export default async function middleware(req: NextRequest) {
     }
     // Branded launch URL: goltomo.com/app → LIFF entry. Lets us share a
     // friendly URL on the goltomo.com domain instead of liff.line.me/{id}.
-    // Preserves ?to=/some/path so deep links keep working.
+    // Preserves ?to=/some/path so deep links keep working. We hardcode the
+    // LIFF id as a fallback because NEXT_PUBLIC_* envs aren't always inlined
+    // into Edge middleware bundles, and falling through to the LP rewrite
+    // would silently swallow the launch URL. Same id is in lp/page.tsx.
     if (path === '/app' || path.startsWith('/app/')) {
-      const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '';
-      if (liffId) {
-        const to = url.searchParams.get('to');
-        const target = `https://liff.line.me/${liffId}${to ? `?to=${encodeURIComponent(to)}` : ''}`;
-        return NextResponse.redirect(target);
-      }
+      const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '2009973733-P5UdNex9';
+      const to = url.searchParams.get('to');
+      const target = `https://liff.line.me/${liffId}${to ? `?to=${encodeURIComponent(to)}` : ''}`;
+      return NextResponse.redirect(target);
     }
     // App or admin paths accidentally hit on LP host → bounce to the right host.
     if (path.startsWith('/admin') || path.startsWith('/api/admin')) {
