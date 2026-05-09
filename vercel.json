@@ -4,10 +4,10 @@
   ],
   "redirects": [
     {
-      "source": "/:path*",
+      "source": "/((?!liff($|/)|api/auth/).*)",
       "has": [{ "type": "host", "value": "golf-buddy-prototype.vercel.app" }],
-      "destination": "https://app.goltomo.com/:path*",
-      "permanent": true
+      "destination": "https://app.goltomo.com/$1",
+      "permanent": false
     }
   ]
 }

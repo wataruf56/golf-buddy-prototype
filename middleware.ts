@@ -85,9 +85,13 @@ export default async function middleware(req: NextRequest) {
     // Also accept the LIFF-issued session cookie as proof of login.
     const liffCookie = req.cookies.get('gb_liff_session');
     if (!token && !liffCookie) {
-      // SAME-ORIGIN redirect to /liff so the LIFF SDK can run inside the LINE
-      // in-app webview. Going to /login (NextAuth web OAuth) would launch Safari
-      // on iOS and break the webview context.
+      // Always go through /liff (same origin). It's safe both inside the LINE
+      // in-app webview (LIFF SDK runs natively) and in plain browsers (the
+      // SDK falls back to LINE Login web OAuth in the same window).
+      // We deliberately do NOT redirect to https://liff.line.me/{id} from the
+      // server — that's a cross-origin jump and iOS sometimes opens it in a
+      // brand-new Safari tab even when the user came from the LINE webview,
+      // which breaks the cookie chain.
       const liffUrl = new URL('/liff', req.url);
       liffUrl.searchParams.set('to', path + (url.search || ''));
       return NextResponse.redirect(liffUrl);
