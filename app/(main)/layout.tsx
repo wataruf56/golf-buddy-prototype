@@ -8,6 +8,7 @@ import { ReviewOverlay } from '@/components/ReviewOverlay';
 import { BlockerPopup } from '@/components/BlockerPopup';
 import { ToastHost } from '@/components/Toast';
 import { AgeGateScreen } from '@/components/AgeGateScreen';
+import { MatchingBanner } from '@/components/MatchingBanner';
 import { getMe, useStore } from '@/lib/store';
 import { isMatchingAllowedByAge } from '@/lib/ageGate';
 
@@ -62,7 +63,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         ) : ageGated ? (
           <AgeGateScreen age={me?.age} />
         ) : (
-          children
+          <>
+            {needsMatchingAccess(pathname) && <MatchingBanner />}
+            {children}
+          </>
         )}
       </div>
       {blockerOpen && pendingCount > 0 && (

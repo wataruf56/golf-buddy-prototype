@@ -218,9 +218,10 @@ function FailedCard({ swing, onRetried }: { swing: SwingDoc; onRetried: () => vo
 
 function ShareCard({ swing }: { swing: SwingDoc }) {
   const [copied, setCopied] = useState(false);
-  // Use LIFF URL so taps from LINE open inside the app.
-  const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '2009973733-P5UdNex9';
-  const url = `https://liff.line.me/${liffId}?to=${encodeURIComponent(`/swing/${swing.swingId}`)}`;
+  // Public share URL — accessible WITHOUT LINE login. Friends can preview the
+  // result, then sign up themselves via the CTA on the share page.
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://golf-buddy-prototype.vercel.app';
+  const url = `${origin}/share/swing/${swing.swingId}`;
   const text = `⛳ AIコーチにスイング解析してもらった！\n\n${url}`;
 
   function copy() {
@@ -265,7 +266,7 @@ function ShareCard({ swing }: { swing: SwingDoc }) {
         >{copied ? '✓' : '🔗'}</button>
       </div>
       <div className="text-[10px] text-muted mt-2">
-        ※ 受け取った人もこのアプリにLINEログインすれば閲覧できます（Β版中はホワイトリスト登録ユーザーのみ）
+        ※ 受け取った人はログイン不要で結果を見られます。気に入ったら自分も解析してみよう👇
       </div>
     </div>
   );
