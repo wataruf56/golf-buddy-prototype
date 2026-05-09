@@ -30,7 +30,7 @@ function Inner() {
     // manual prompt. /api/admin/_init returns the env-var value as JSON.
     (async () => {
       try {
-        const r = await fetch('/api/admin/_init', { cache: 'no-store' });
+        const r = await fetch('/api/admin/init', { cache: 'no-store' });
         if (!r.ok) return;
         const j = await r.json();
         const t: string = j?.token || '';
