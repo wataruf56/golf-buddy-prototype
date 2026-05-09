@@ -79,22 +79,19 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL(`https://admin.goltomo.com${path}${url.search}`));
   }
 
-  // Apply legacy NextAuth check for protected app routes (mirrors the old behaviour).
+  // Apply legacy NextAuth check for protected app routes — identical to the
+  // pre-domain-migration behaviour: unauthenticated users go to /login, where
+  // signIn('line') runs NextAuth's web OAuth in the same window. Inside the
+  // LINE in-app webview this stays in-webview; in a normal browser it stays
+  // in that browser. No cross-origin hops, no Safari hand-off.
   if (!isDemoMode && shouldRequireAppAuth(path)) {
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
     // Also accept the LIFF-issued session cookie as proof of login.
     const liffCookie = req.cookies.get('gb_liff_session');
     if (!token && !liffCookie) {
-      // Always go through /liff (same origin). It's safe both inside the LINE
-      // in-app webview (LIFF SDK runs natively) and in plain browsers (the
-      // SDK falls back to LINE Login web OAuth in the same window).
-      // We deliberately do NOT redirect to https://liff.line.me/{id} from the
-      // server — that's a cross-origin jump and iOS sometimes opens it in a
-      // brand-new Safari tab even when the user came from the LINE webview,
-      // which breaks the cookie chain.
-      const liffUrl = new URL('/liff', req.url);
-      liffUrl.searchParams.set('to', path + (url.search || ''));
-      return NextResponse.redirect(liffUrl);
+      const loginUrl = new URL('/login', req.url);
+      loginUrl.searchParams.set('callbackUrl', path + (url.search || ''));
+      return NextResponse.redirect(loginUrl);
     }
   }
 

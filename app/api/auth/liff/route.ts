@@ -85,21 +85,15 @@ export async function POST(req: NextRequest) {
 
   const token = makeSessionToken(userId, secret);
   const res = NextResponse.json({ ok: true, userId });
-
-  // Scope the cookie to the parent domain when on the goltomo.com family of
-  // subdomains so that login on app.goltomo.com is also valid on admin.goltomo.com.
-  const reqHost = (new URL(req.url)).hostname.toLowerCase();
-  const cookieDomain = reqHost.endsWith('.goltomo.com') || reqHost === 'goltomo.com'
-    ? '.goltomo.com'
-    : undefined;
-
+  // Host-only cookie — matches pre-domain-migration behaviour. Admin uses its
+  // own gb_admin_session cookie now (lib/adminSession.ts), so we no longer
+  // need to scope this to the parent .goltomo.com domain.
   res.cookies.set(LIFF_COOKIE_NAME, token, {
     httpOnly: true,
     secure: true,
     sameSite: 'none', // LIFF runs in LINE's in-app webview — needs SameSite=None
     path: '/',
     maxAge: LIFF_COOKIE_MAX_AGE,
-    ...(cookieDomain ? { domain: cookieDomain } : {}),
   });
   return res;
 }
