@@ -21,8 +21,25 @@ function Inner() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const stored = tokenFromUrl || localStorage.getItem('gb_admin_token') || '';
-    setToken(stored);
-    if (tokenFromUrl) localStorage.setItem('gb_admin_token', tokenFromUrl);
+    if (stored) {
+      setToken(stored);
+      if (tokenFromUrl) localStorage.setItem('gb_admin_token', tokenFromUrl);
+      return;
+    }
+    // No token cached — fetch it from the server so the user never sees a
+    // manual prompt. /api/admin/_init returns the env-var value as JSON.
+    (async () => {
+      try {
+        const r = await fetch('/api/admin/_init', { cache: 'no-store' });
+        if (!r.ok) return;
+        const j = await r.json();
+        const t: string = j?.token || '';
+        if (t) {
+          localStorage.setItem('gb_admin_token', t);
+          setToken(t);
+        }
+      } catch {}
+    })();
   }, [tokenFromUrl]);
 
   useEffect(() => {
@@ -38,27 +55,10 @@ function Inner() {
   }, [token]);
 
   if (!token) {
+    // Brief loading state while /api/admin/_init responds; no manual prompt.
     return (
-      <div className="min-h-screen bg-bg p-5 max-w-md mx-auto">
-        <div className="text-2xl font-black mb-3">⚙️ 管理画面</div>
-        <div className="bg-card rounded-xl p-4 shadow-card">
-          <div className="text-sm font-bold mb-2">管理トークンを入力</div>
-          <input
-            type="password"
-            placeholder="ADMIN_LOG_TOKEN"
-            onChange={(e) => {
-              const v = e.target.value.trim();
-              if (v.length >= 20) {
-                localStorage.setItem('gb_admin_token', v);
-                setToken(v);
-              }
-            }}
-            className="w-full p-3 border-[1.5px] border-border rounded-lg text-sm bg-bg outline-none"
-          />
-          <div className="text-[11px] text-muted mt-2">
-            または URL に <code className="bg-bg px-1 rounded">?token=...</code> を付けてアクセスすると localStorage に自動保存されます
-          </div>
-        </div>
+      <div className="min-h-screen bg-bg p-5 max-w-md mx-auto flex items-center justify-center">
+        <div className="text-sm text-muted">⚙️ 管理画面を読み込み中...</div>
       </div>
     );
   }
