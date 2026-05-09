@@ -41,6 +41,17 @@ export default async function middleware(req: NextRequest) {
     if (path.startsWith('/legal') || path === '/lp' || path.startsWith('/lp/') || path.startsWith('/icons/') || path === '/manifest.json' || path === '/favicon.ico') {
       return NextResponse.next();
     }
+    // Branded launch URL: goltomo.com/app → LIFF entry. Lets us share a
+    // friendly URL on the goltomo.com domain instead of liff.line.me/{id}.
+    // Preserves ?to=/some/path so deep links keep working.
+    if (path === '/app' || path.startsWith('/app/')) {
+      const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '';
+      if (liffId) {
+        const to = url.searchParams.get('to');
+        const target = `https://liff.line.me/${liffId}${to ? `?to=${encodeURIComponent(to)}` : ''}`;
+        return NextResponse.redirect(target);
+      }
+    }
     // App or admin paths accidentally hit on LP host → bounce to the right host.
     if (path.startsWith('/admin') || path.startsWith('/api/admin')) {
       return NextResponse.redirect(new URL(`https://admin.goltomo.com${path}${url.search}`));

@@ -6,8 +6,9 @@ export const metadata = {
   description: '同年代のゴルファーと一緒にラウンドを回ろう。スイング動画をAIコーチが7フェーズに分けて解析。LINEで完結、ダウンロード不要。',
 };
 
-const LIFF_ID = process.env.NEXT_PUBLIC_LIFF_ID || '2009973733-P5UdNex9';
-const LIFF_URL = `https://liff.line.me/${LIFF_ID}`;
+// Use the branded launch URL so visitors see goltomo.com/app, not liff.line.me.
+// The /app path is handled in middleware.ts and 302-redirects to the LIFF URL.
+const LIFF_URL = '/app';
 
 export default function LandingPage() {
   return (
