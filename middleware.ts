@@ -85,15 +85,6 @@ export default async function middleware(req: NextRequest) {
     // Also accept the LIFF-issued session cookie as proof of login.
     const liffCookie = req.cookies.get('gb_liff_session');
     if (!token && !liffCookie) {
-      // Send unauthenticated users to the LIFF URL so the app stays inside the
-      // LINE in-app webview when launched from LINE. NextAuth's /login page
-      // does web OAuth which iOS opens in Safari and breaks the LIFF context.
-      const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '';
-      if (liffId) {
-        const target = `https://liff.line.me/${liffId}?to=${encodeURIComponent(path + (url.search || ''))}`;
-        return NextResponse.redirect(target);
-      }
-      // Fallback if LIFF ID not configured: legacy /login.
       const loginUrl = new URL('/login', req.url);
       loginUrl.searchParams.set('callbackUrl', path);
       return NextResponse.redirect(loginUrl);

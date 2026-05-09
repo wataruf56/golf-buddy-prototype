@@ -12,17 +12,9 @@ export default function LoginPage() {
   function handleLogin() {
     if (isDemo) {
       router.push('/home');
-      return;
+    } else {
+      signIn('line', { callbackUrl: '/home' });
     }
-    // Prefer the LIFF flow: opens inside the LINE in-app webview when launched
-    // from LINE, and falls back to LINE Login web OAuth in regular browsers.
-    // Web OAuth alone (signIn('line')) opens Safari on iOS and breaks LIFF.
-    const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '';
-    if (liffId) {
-      window.location.href = `https://liff.line.me/${liffId}?to=${encodeURIComponent('/home')}`;
-      return;
-    }
-    signIn('line', { callbackUrl: '/home' });
   }
 
   return (
