@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { isDemoMode } from '@/lib/demoMode';
+import { getCohort } from '@/lib/ageGate';
 
 export async function GET() {
   const meId = await getMeId();
@@ -26,7 +27,18 @@ export async function GET() {
     db.listReviewsByUser(meId),
     db.listReviewsForUser(meId),
   ]);
-  const rounds = roundsRes.status === 'fulfilled' ? roundsRes.value : [];
+  let rounds = roundsRes.status === 'fulfilled' ? roundsRes.value : [];
+  // Cohort isolation: hide rounds from the other cohort.
+  // - If the user has a cohort, only show rounds whose hostCohort matches OR is missing
+  //   (legacy rounds are kept visible for backward compat).
+  // - If the user has no cohort, they shouldn't be browsing rounds anyway, but be safe.
+  const myCohort = getCohort(me?.age);
+  if (myCohort) {
+    rounds = rounds.filter((r) => !r.hostCohort || r.hostCohort === myCohort);
+  } else {
+    // No cohort = no matching access. Hide all rounds in API response too.
+    rounds = [];
+  }
   const pendingReviews = pendingReviewsRes.status === 'fulfilled' ? pendingReviewsRes.value : [];
   const chats = chatsRes.status === 'fulfilled' ? chatsRes.value : [];
   const reviewsByMe = byMeRes.status === 'fulfilled' ? byMeRes.value : [];

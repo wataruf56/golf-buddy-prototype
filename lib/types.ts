@@ -35,6 +35,7 @@ export type RoundStatus = 'open' | 'closed' | 'completed';
 export type Round = {
   id: string;
   hostId: string;
+  hostCohort?: 'a' | 'b';        // 'a' = 20s/30s, 'b' = 40s/50s. Stamped at creation time.
   title: string;
   type: RoundType;
   courseName?: string;

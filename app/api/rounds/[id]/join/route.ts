@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { pushTo, liffUrl } from '@/lib/linePush';
-import { isMatchingAllowedByAge } from '@/lib/ageGate';
+import { isMatchingAllowedByAge, getCohort } from '@/lib/ageGate';
 
 export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
   const meId = await getMeId();
@@ -13,6 +13,14 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   }
   const existing = await db.getRound(params.id);
   if (!existing) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+
+  // Cohort isolation: applicant must be in the same age cohort as the host's round.
+  // Legacy rounds without `hostCohort` (created before this rule) are open to all eligible users.
+  const myCohort = getCohort(me?.age);
+  if (existing.hostCohort && myCohort && existing.hostCohort !== myCohort) {
+    return NextResponse.json({ error: 'cohort_mismatch', message: '別の年齢帯のラウンドには参加できません' }, { status: 403 });
+  }
+
   const host = await db.getUser(existing.hostId);
   if ((host?.blockedUserIds || []).includes(meId)) {
     return NextResponse.json({ error: 'blocked_by_host' }, { status: 403 });

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
-import { isMatchingAllowedByAge } from '@/lib/ageGate';
+import { isMatchingAllowedByAge, getCohort } from '@/lib/ageGate';
 import type { Round } from '@/lib/types';
 
 export async function GET() {
@@ -17,8 +17,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'age_restricted', message: '20〜30代の方のみご利用いただけます' }, { status: 403 });
   }
   const body = await req.json();
+  const cohort = getCohort(me?.age) || undefined;
   const round: Omit<Round, 'id'> = {
     hostId: meId,
+    hostCohort: cohort,
     title: body.title,
     type: body.type,
     courseName: body.courseName,
