@@ -85,7 +85,10 @@ function Inner() {
 
       <div className="bg-card rounded-xl p-4 mb-3 shadow-card">
         <div className="text-xs font-bold mb-2">🚀 デプロイ</div>
-        <Row label="本番URL" value="golf-buddy-prototype.vercel.app" />
+        <Row label="本番URL (LIFF)" value="app.goltomo.com" />
+        <Row label="本番URL (LP)" value="goltomo.com" />
+        <Row label="管理画面" value="admin.goltomo.com" />
+        <Row label="(旧)" value="golf-buddy-prototype.vercel.app" />
         <Row label="LIFF URL" value="liff.line.me/2009973733-P5UdNex9" />
       </div>
 

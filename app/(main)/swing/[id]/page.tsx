@@ -220,7 +220,7 @@ function ShareCard({ swing }: { swing: SwingDoc }) {
   const [copied, setCopied] = useState(false);
   // Public share URL — accessible WITHOUT LINE login. Friends can preview the
   // result, then sign up themselves via the CTA on the share page.
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://golf-buddy-prototype.vercel.app';
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.goltomo.com';
   const url = `${origin}/share/swing/${swing.swingId}`;
   const text = `⛳ AIコーチにスイング解析してもらった！\n\n${url}`;
 

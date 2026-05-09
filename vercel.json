@@ -1,5 +1,13 @@
 {
   "crons": [
     { "path": "/api/swing/process", "schedule": "* * * * *" }
+  ],
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "golf-buddy-prototype.vercel.app" }],
+      "destination": "https://app.goltomo.com/:path*",
+      "permanent": true
+    }
   ]
 }
