@@ -15,9 +15,8 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   if (!existing) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
   // Cohort isolation: applicant must be in the same age cohort as the host's round.
-  // Legacy rounds without `hostCohort` (created before this rule) are open to all eligible users.
   const myCohort = getCohort(me?.age);
-  if (existing.hostCohort && myCohort && existing.hostCohort !== myCohort) {
+  if (!existing.hostCohort || !myCohort || existing.hostCohort !== myCohort) {
     return NextResponse.json({ error: 'cohort_mismatch', message: '別の年齢帯のラウンドには参加できません' }, { status: 403 });
   }
 

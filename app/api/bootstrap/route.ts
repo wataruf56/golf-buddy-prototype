@@ -28,15 +28,12 @@ export async function GET() {
     db.listReviewsForUser(meId),
   ]);
   let rounds = roundsRes.status === 'fulfilled' ? roundsRes.value : [];
-  // Cohort isolation: hide rounds from the other cohort.
-  // - If the user has a cohort, only show rounds whose hostCohort matches OR is missing
-  //   (legacy rounds are kept visible for backward compat).
-  // - If the user has no cohort, they shouldn't be browsing rounds anyway, but be safe.
+  // Cohort isolation: only show rounds whose hostCohort matches the user's cohort.
+  // Rounds without hostCohort are treated as orphan/legacy and hidden.
   const myCohort = getCohort(me?.age);
   if (myCohort) {
-    rounds = rounds.filter((r) => !r.hostCohort || r.hostCohort === myCohort);
+    rounds = rounds.filter((r) => r.hostCohort === myCohort);
   } else {
-    // No cohort = no matching access. Hide all rounds in API response too.
     rounds = [];
   }
   const pendingReviews = pendingReviewsRes.status === 'fulfilled' ? pendingReviewsRes.value : [];
