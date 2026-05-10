@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { Avatar } from '@/components/Avatar';
 import { track } from '@/lib/telemetry';
 import { chatIdFor, formatDate } from '@/lib/utils';
+import type { Round, User } from '@/lib/types';
 
 // Brand launch URL — handled by middleware, redirects to liff.line.me/{id}
 // while preserving the ?to= query so the recipient lands directly on the
@@ -25,14 +26,50 @@ const allAreas = ['東京都', '神奈川県', '千葉県', '埼玉県', '茨城
 export default function RoundDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const round = useStore((s) => s.rounds.find((r) => r.id === params.id));
-  const users = useStore((s) => s.users);
+  const storeRound = useStore((s) => s.rounds.find((r) => r.id === params.id));
+  const storeUsers = useStore((s) => s.users);
   const meId = useStore((s) => s.meId);
   const me = useStore(getMe);
   const profileReady = isProfileComplete(me?.age);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  // Fallback fetch: a friend who arrived via a shared link before completing
+  // profile registration won't have this round in their store (bootstrap's
+  // cohort filter strips it). Pull it directly so the page can still render.
+  const [fetchedRound, setFetchedRound] = useState<Round | null>(null);
+  const [fetchedUsers, setFetchedUsers] = useState<User[]>([]);
+  const [fetchState, setFetchState] = useState<'idle' | 'loading' | 'notfound' | 'error'>('idle');
+
+  useEffect(() => {
+    if (storeRound || !params.id) { setFetchState('idle'); return; }
+    let cancelled = false;
+    setFetchState('loading');
+    (async () => {
+      try {
+        const r = await fetch(`/api/rounds/${encodeURIComponent(params.id)}`, { cache: 'no-store' });
+        if (cancelled) return;
+        if (r.status === 404) { setFetchState('notfound'); return; }
+        if (!r.ok) { setFetchState('error'); return; }
+        const j = await r.json();
+        setFetchedRound(j.round || null);
+        setFetchedUsers(Array.isArray(j.users) ? j.users : []);
+        setFetchState('idle');
+      } catch {
+        if (!cancelled) setFetchState('error');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [params.id, storeRound]);
+
+  const round = storeRound || fetchedRound;
+  // Merge users so the host/applicant lookups work whether the data came from
+  // the store (bootstrap) or the fallback fetch.
+  const users = storeRound ? storeUsers : [...storeUsers, ...fetchedUsers.filter((u) => !storeUsers.find((s) => s.id === u.id))];
+
   if (!round) {
+    if (fetchState === 'loading') {
+      return <div className="p-5 text-center text-sub">読み込み中...</div>;
+    }
     return <div className="p-5 text-center text-sub">募集が見つかりません</div>;
   }
 
