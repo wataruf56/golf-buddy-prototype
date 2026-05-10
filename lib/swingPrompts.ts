@@ -931,13 +931,40 @@ function appendSnapshotSection(prompt: string, mode: SwingMode): string {
   return prompt + '\n' + SNAPSHOT_INSTRUCTION_BLOCK + '\n';
 }
 
+// ---------------------------------------------------------------------------
+// Prompt versioning
+//
+// v1 = pre-snapshot prompts (no 📸 注目フレーム block, no @SNAP lines).
+//      The text review is everything; the UI never tries to draw circles.
+// v2 = current default. Adds the @SNAP block so the UI can render annotated
+//      screenshots (components/swing/AnnotatedSnapshot.tsx). Gemini's pixel
+//      coordinates have proven unreliable in production — the user reported
+//      circles landing in the sky / on the wrong body part. Keep v1 around
+//      as a known-good fallback while we iterate the v2 wording (and decide
+//      whether to drop pixel coords entirely / move to a real keypoint
+//      detector).
+//
+// Switch via SWING_PROMPT_VERSION env var on the server. Default = 'v2'.
+// Example: set SWING_PROMPT_VERSION=v1 in Vercel to disable snapshots
+// without redeploying any code.
+// ---------------------------------------------------------------------------
+export type PromptVersion = 'v1' | 'v2';
+
+function activePromptVersion(): PromptVersion {
+  const v = (process.env.SWING_PROMPT_VERSION || '').trim().toLowerCase();
+  return v === 'v1' ? 'v1' : 'v2';
+}
+
 /** Mode dispatch — used by the worker. Profile context is prepended above the prompt. */
 export function buildPromptForMode(args: {
   mode: SwingMode;
   userMessage?: string;
   userContext?: SwingUserContext;
+  /** Override the env-var default. Mostly for tests / admin tools. */
+  version?: PromptVersion;
 }): string {
   const { mode, userMessage, userContext } = args;
+  const version = args.version || activePromptVersion();
   let body: string;
   switch (mode) {
     case 'self':           body = buildSelfPrompt(userMessage); break;
@@ -946,7 +973,7 @@ export function buildPromptForMode(args: {
     case 'range_vs_round': body = buildRangeVsRoundPrompt(userMessage); break;
     case 'question':       body = buildQuestionPrompt(userMessage || ''); break;
   }
-  body = appendSnapshotSection(body, mode);
+  if (version === 'v2') body = appendSnapshotSection(body, mode);
   const ctxBlock = buildUserContextBlock(userContext);
   if (!ctxBlock) return body;
   return ctxBlock + '\n' + body;
