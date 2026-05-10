@@ -3,11 +3,22 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { store, useStore } from '@/lib/store';
+import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { Avatar } from '@/components/Avatar';
 import { track } from '@/lib/telemetry';
 import { chatIdFor, formatDate } from '@/lib/utils';
+
+// Brand launch URL — handled by middleware, redirects to liff.line.me/{id}
+// while preserving the ?to= query so the recipient lands directly on the
+// round detail page after LIFF login.
+const SHARE_BASE = 'https://goltomo.com/app';
+
+function isProfileComplete(age?: number): boolean {
+  // We treat "age set to a positive value" as the proxy for "profile saved".
+  // The profile edit form requires age before allowing save, so this matches.
+  return typeof age === 'number' && age > 0;
+}
 
 const allAreas = ['東京都', '神奈川県', '千葉県', '埼玉県', '茨城県', '栃木県', '群馬県', '静岡県', '山梨県', 'その他'];
 
@@ -17,6 +28,8 @@ export default function RoundDetailPage() {
   const round = useStore((s) => s.rounds.find((r) => r.id === params.id));
   const users = useStore((s) => s.users);
   const meId = useStore((s) => s.meId);
+  const me = useStore(getMe);
+  const profileReady = isProfileComplete(me?.age);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   if (!round) {
@@ -38,6 +51,15 @@ export default function RoundDetailPage() {
 
   async function join() {
     track('join_round_click', { roundId: round!.id, hostId: round!.hostId });
+    // Profile gate: a friend who arrived via a shared link can read the round
+    // detail without registering, but joining requires a profile. Bounce them
+    // to the edit screen with returnTo so save sends them right back here.
+    if (!profileReady) {
+      track('join_round_profile_gate', { roundId: round!.id });
+      toast('参加にはプロフィール登録が必要です');
+      router.push(`/mypage/edit?returnTo=${encodeURIComponent(`/round/${round!.id}`)}`);
+      return;
+    }
     try {
       await store.joinRound(round!.id);
       track('join_round_success', { roundId: round!.id });
@@ -45,6 +67,30 @@ export default function RoundDetailPage() {
     } catch (e) {
       track('join_round_error', { message: (e as Error).message });
       toast('失敗: ' + (e as Error).message, 'error');
+    }
+  }
+  async function shareRound() {
+    const url = `${SHARE_BASE}?to=${encodeURIComponent(`/round/${round!.id}`)}`;
+    const text = `⛳ ${round!.title}\n${dateLabel}${round!.startTime ? ' ' + round!.startTime : ''}`;
+    track('share_round_click', { roundId: round!.id });
+    const w = window as any;
+    if (w.navigator?.share) {
+      try {
+        await w.navigator.share({ title: 'ゴルトモ ラウンド募集', text, url });
+        track('share_round_native_ok', { roundId: round!.id });
+        return;
+      } catch {
+        // user cancelled or unsupported — fall through to clipboard
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast('リンクをコピーしました');
+      track('share_round_clipboard_ok', { roundId: round!.id });
+    } catch {
+      // Clipboard failed (e.g. webview without permission). Show the URL so
+      // the user can long-press to copy manually.
+      window.prompt('このリンクをコピーして共有してください', url);
     }
   }
   async function leave() {
@@ -79,7 +125,17 @@ export default function RoundDetailPage() {
 
   return (
     <div className="px-5 py-3">
-      <button onClick={() => router.back()} className="text-sm text-blue font-semibold mb-4">← 戻る</button>
+      <div className="flex items-center justify-between mb-4">
+        <button onClick={() => router.back()} className="text-sm text-blue font-semibold">← 戻る</button>
+        <button
+          onClick={shareRound}
+          className="px-3 py-1.5 bg-bg border-[1.5px] border-border rounded-full text-xs font-bold flex items-center gap-1"
+          aria-label="この募集を友達にシェア"
+        >
+          <span>🔗</span>
+          <span>シェア</span>
+        </button>
+      </div>
 
       <div className="bg-card rounded-card p-5 shadow-card">
         {isComp && (
@@ -224,9 +280,15 @@ export default function RoundDetailPage() {
         ) : (
           <>
             <button onClick={join} className="w-full py-4 bg-green text-white rounded-xl text-[15px] font-bold mt-2">
-              参加を申請する（残り{remaining}枠）
+              {profileReady
+                ? `参加を申請する（残り${remaining}枠）`
+                : `プロフィール登録して参加する（残り${remaining}枠）`}
             </button>
-            <div className="text-[11px] text-muted text-center mt-2">主催者が承認するまでお待ちください</div>
+            <div className="text-[11px] text-muted text-center mt-2">
+              {profileReady
+                ? '主催者が承認するまでお待ちください'
+                : '次の画面でプロフィールを登録すると、戻ってきて参加申請できます'}
+            </div>
           </>
         )}
       </div>

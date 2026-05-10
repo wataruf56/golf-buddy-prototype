@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { Avatar } from '@/components/Avatar';
@@ -37,6 +37,12 @@ const golfHistoryOptions = ['1年未満', '1〜3年', '3〜5年', '5〜10年', '
 
 export default function ProfileEditPage() {
   const router = useRouter();
+  const search = useSearchParams();
+  // Allow callers (e.g. the round-detail page when a friend without a profile
+  // taps "join") to specify where to bounce after save. Restricted to
+  // same-origin paths to avoid open-redirect abuse.
+  const returnToRaw = search?.get('returnTo') || '';
+  const returnTo = returnToRaw.startsWith('/') && !returnToRaw.startsWith('//') ? returnToRaw : '';
   const hydrated = useStore((s) => s.hydrated);
   const me = useStore(getMe);
   const meId = useStore((s) => s.meId);
@@ -152,8 +158,8 @@ export default function ProfileEditPage() {
       });
       track('profile_save_success', { displayName });
       toast('保存しました');
-      track('profile_save_navigate_attempt');
-      router.push('/mypage');
+      track('profile_save_navigate_attempt', { returnTo });
+      router.push(returnTo || '/mypage');
       track('profile_save_navigate_called');
     } catch (e) {
       track('profile_save_error', { message: (e as Error).message });

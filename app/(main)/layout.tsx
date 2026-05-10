@@ -13,7 +13,10 @@ import { getMe, useStore } from '@/lib/store';
 import { isMatchingAllowedByAge } from '@/lib/ageGate';
 
 // Routes that don't require matching access (always available, regardless of age)
-const ALWAYS_ALLOWED = ['/swing', '/mypage', '/profile', '/admin', '/legal'];
+// /round is included so a friend who opens a shared round URL can read the
+// post even before completing profile registration. The "join" button on the
+// round page itself enforces the profile gate.
+const ALWAYS_ALLOWED = ['/swing', '/mypage', '/profile', '/admin', '/legal', '/round'];
 
 function needsMatchingAccess(pathname: string): boolean {
   if (!pathname) return false;
