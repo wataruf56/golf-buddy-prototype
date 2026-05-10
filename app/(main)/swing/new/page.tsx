@@ -35,6 +35,7 @@ export default function NewSwingPage() {
   const [videoUri, setVideoUri] = useState('');
   const [proUri, setProUri] = useState('');
   const [prevUri, setPrevUri] = useState('');
+  const [rangeUri, setRangeUri] = useState('');
   const [userMessage, setUserMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -42,7 +43,8 @@ export default function NewSwingPage() {
   if (!mode) missing.push('分析モード');
   if (mode === 'compare' && !proUri) missing.push('プロ動画');
   if (mode === 'past' && !prevUri) missing.push('過去動画');
-  if (mode && !videoUri) missing.push('自分の動画');
+  if (mode === 'range_vs_round' && !rangeUri) missing.push('練習場の動画');
+  if (mode && !videoUri) missing.push(mode === 'range_vs_round' ? 'ラウンド本番の動画' : '自分の動画');
   if (mode === 'question' && !userMessage.trim()) missing.push('質問内容');
   const ready = missing.length === 0;
 
@@ -59,6 +61,7 @@ export default function NewSwingPage() {
           videoGcsPath: videoUri,
           proGcsPath: proUri || undefined,
           prevGcsPath: prevUri || undefined,
+          rangeGcsPath: rangeUri || undefined,
           userMessage: userMessage.trim() || undefined,
         }),
       });
@@ -138,12 +141,20 @@ export default function NewSwingPage() {
               <VideoUploader swingId={swingId} role="prev" label="過去動画" onUploaded={setPrevUri} />
             </div>
           )}
+          {mode === 'range_vs_round' && (
+            <div className="mt-5">
+              <div className="text-xs font-bold text-sub mb-2">② 練習場でのスイング動画</div>
+              <VideoUploader swingId={swingId} role="range" label="練習場動画" onUploaded={setRangeUri} />
+            </div>
+          )}
 
           <div className="mt-5">
             <div className="text-xs font-bold text-sub mb-2">
-              {mode === 'compare' || mode === 'past' ? '③ 自分の動画（今回）' : '② 自分の動画'}
+              {mode === 'compare' || mode === 'past' ? '③ 自分の動画（今回）'
+                : mode === 'range_vs_round' ? '③ ラウンド本番のスイング動画'
+                : '② 自分の動画'}
             </div>
-            <VideoUploader swingId={swingId} role="video" label="自分の動画" onUploaded={setVideoUri} />
+            <VideoUploader swingId={swingId} role="video" label={mode === 'range_vs_round' ? 'ラウンド動画' : '自分の動画'} onUploaded={setVideoUri} />
           </div>
 
           <div className="mt-5">

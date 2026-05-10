@@ -3,6 +3,7 @@ import { listQueuedSwings, updateSwing, getSwing } from '@/lib/swingFirestore';
 import { analyzeSwing, AnalyzerError } from '@/lib/swingAnalyzer';
 import { buildPromptForMode } from '@/lib/swingPrompts';
 import { splitReviewByDivider } from '@/lib/swingSplitter';
+import { parseSnapshots, stripSnapshotSection } from '@/lib/swingSnapshots';
 import { pushTo, liffUrl } from '@/lib/linePush';
 import type { SwingDoc } from '@/types/swing';
 
@@ -96,6 +97,11 @@ async function processOne(swing: SwingDoc): Promise<{ status: string }> {
     if (!fresh.videoGcsPath) throw new Error('past: videoGcsPath missing');
     gcsUri = fresh.prevGcsPath;      // 1本目=過去
     gcsUri2 = fresh.videoGcsPath;    // 2本目=今回
+  } else if (mode === 'range_vs_round') {
+    if (!fresh.rangeGcsPath) throw new Error('range_vs_round: rangeGcsPath missing');
+    if (!fresh.videoGcsPath) throw new Error('range_vs_round: videoGcsPath (round) missing');
+    gcsUri = fresh.rangeGcsPath;     // 1本目=練習場
+    gcsUri2 = fresh.videoGcsPath;    // 2本目=ラウンド本番
   } else {
     if (!fresh.videoGcsPath) throw new Error(`${mode}: videoGcsPath missing`);
     gcsUri = fresh.videoGcsPath;
@@ -117,11 +123,16 @@ async function processOne(swing: SwingDoc): Promise<{ status: string }> {
     return { status: canRetry ? 'requeued' : 'failed' };
   }
 
-  const chunks = splitReviewByDivider(reviewText);
+  // Pull out the @SNAP annotations and remove that section from the text the
+  // UI splits into chunks — we render snapshots as their own visual cards.
+  const snapshots = parseSnapshots(reviewText);
+  const cleanedText = stripSnapshotSection(reviewText);
+  const chunks = splitReviewByDivider(cleanedText);
   await updateSwing(userId, swingId, {
     status: 'done',
     reviewText,
     reviewTextChunks: chunks,
+    snapshots,
     completedAt: Date.now(),
     errorMessage: '',
   });

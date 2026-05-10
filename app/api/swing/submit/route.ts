@@ -5,10 +5,10 @@ import { isSwingAllowed } from '@/lib/swingAccess';
 import type { SwingDoc, SwingMode } from '@/types/swing';
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
-const VALID_MODES: SwingMode[] = ['self', 'compare', 'past', 'question'];
+const VALID_MODES: SwingMode[] = ['self', 'compare', 'past', 'range_vs_round', 'question'];
 
 // POST /api/swing/submit
-// Body: { swingId, mode, videoGcsPath, proGcsPath?, prevGcsPath?, userMessage? }
+// Body: { swingId, mode, videoGcsPath, proGcsPath?, prevGcsPath?, rangeGcsPath?, userMessage? }
 export async function POST(req: NextRequest) {
   const meId = await getMeId();
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: noStore });
@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
   const videoGcsPath = String(body?.videoGcsPath || '').trim();
   const proGcsPath = body?.proGcsPath ? String(body.proGcsPath).trim() : undefined;
   const prevGcsPath = body?.prevGcsPath ? String(body.prevGcsPath).trim() : undefined;
+  const rangeGcsPath = body?.rangeGcsPath ? String(body.rangeGcsPath).trim() : undefined;
   const userMessage = body?.userMessage ? String(body.userMessage).trim() : undefined;
 
   if (!swingId) return NextResponse.json({ error: 'swingId required' }, { status: 400, headers: noStore });
@@ -29,6 +30,7 @@ export async function POST(req: NextRequest) {
   if (!videoGcsPath) return NextResponse.json({ error: 'videoGcsPath required' }, { status: 400, headers: noStore });
   if (mode === 'compare' && !proGcsPath) return NextResponse.json({ error: 'proGcsPath required for compare mode' }, { status: 400, headers: noStore });
   if (mode === 'past' && !prevGcsPath) return NextResponse.json({ error: 'prevGcsPath required for past mode' }, { status: 400, headers: noStore });
+  if (mode === 'range_vs_round' && !rangeGcsPath) return NextResponse.json({ error: 'rangeGcsPath required for range_vs_round mode' }, { status: 400, headers: noStore });
   if (mode === 'question' && !userMessage) return NextResponse.json({ error: 'userMessage required for question mode' }, { status: 400, headers: noStore });
 
   const now = Date.now();
@@ -40,6 +42,7 @@ export async function POST(req: NextRequest) {
     videoGcsPath,
     proGcsPath,
     prevGcsPath,
+    rangeGcsPath,
     userMessage,
     billingPlanSnapshot: 'free',
     createdAt: now,

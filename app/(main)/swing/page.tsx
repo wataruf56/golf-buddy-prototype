@@ -11,6 +11,7 @@ const MODE_LABEL: Record<string, string> = {
   self: '🏌️ 自分解析',
   compare: '🆚 プロ比較',
   past: '📈 過去比較',
+  range_vs_round: '🏟️ 練習場vs本番',
   question: '❓ 質問',
 };
 

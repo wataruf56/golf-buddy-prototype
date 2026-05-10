@@ -6,6 +6,7 @@ const MODES: { id: SwingMode; emoji: string; title: string; desc: string }[] = [
   { id: 'self', emoji: '🏌️', title: '自分のスイング解析', desc: '7フェーズ評価＋改善点TOP3' },
   { id: 'compare', emoji: '🆚', title: 'プロと比較', desc: 'プロ動画と自分の動画を対比' },
   { id: 'past', emoji: '📈', title: '過去と比較', desc: '前回と今回の変化を判定' },
+  { id: 'range_vs_round', emoji: '🏟️', title: '練習場 vs ラウンド', desc: '練習場と本番の差分を可視化' },
   { id: 'question', emoji: '❓', title: '自由質問', desc: '動画について自由に質問' },
 ];
 

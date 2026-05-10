@@ -738,6 +738,145 @@ export function buildPastPrompt(userMessage?: string): string {
   ].join('\n');
 }
 
+// ---------- 練習場 vs ラウンド ベース ----------
+function rangeVsRoundBase(withMessage: boolean): string {
+  const prefaceForMessage = withMessage
+    ? [
+        '',
+        '【ユーザーからのメッセージへの返答ルール】',
+        '・ユーザーが補足メッセージを送っている場合、回答の冒頭で2〜3行でしっかり返答する。',
+        '・その上で、通常の練習場 vs ラウンド比較フォーマットで出力する。',
+      ].join('\n')
+    : '';
+  const messageSection = withMessage
+    ? [
+        '💬 補足への返答',
+        '（2〜3行でしっかり答える）',
+        '',
+        '━━━━━━━━━━━━━━',
+        '',
+      ].join('\n')
+    : '';
+  return [
+    COACH_INTRO,
+    '',
+    'これから同じゴルファーの「練習場でのスイング」と「実際のラウンドでのスイング」の2本の動画を渡す。',
+    '練習場では出来ているのに本番で崩れている、または逆に本番の方が良くなっている、といった差分を具体的に明らかにする。',
+    '',
+    '【評価ルール】',
+    '以下の7フェーズ＋全体テンポ感のそれぞれについて、練習場と本番ラウンドの差を具体的に文章で評価する。',
+    '点数・スコア・数値評価は一切つけない。文章で評価する。',
+    '',
+    '各フェーズでは「練習場ではこうしていた」と「ラウンド本番ではこうなっている」を対比して書く。',
+    '・「練習場ではこうしていた」は、練習場動画から読み取れる動きを2〜3行で具体的に書く。',
+    '・「ラウンド本番ではこうなっている」は、本番動画から読み取れる動きを2〜3行で書く。練習場と同じレベルで出来ている部分は「ここは本番でも崩れていない！」と褒め、崩れている部分は「本番で力が入りやすい原因」も添えて前向きに伝える。',
+    '・本当に問題がないフェーズでも、「さらに本番でも安定させるためのヒント」を1つ添える。「特段の問題なし」とだけ書くのは禁止。',
+    prefaceForMessage,
+    '',
+    '【遵守事項】',
+    '・動画で確認できる内容を中心に評価する',
+    '・推測しすぎない',
+    '・各フェーズの差を【練習場と同じ】【本番で崩れている】【本番で改善】で明確に判定する',
+    '・本番で崩れているフェーズについては、緊張・力み・地面状況など本番特有の原因仮説を1〜2行触れる',
+    '・出力はテンプレ外の説明を追加しない',
+    '・点数やスコアは絶対に出力しない',
+    '',
+    '【出力フォーマット（この順番・この装飾で出力すること）】',
+    '',
+    messageSection,
+    '💬 全体サマリー',
+    '（3〜4行。練習場でのいい動きを認めてから、本番で崩れている最大の課題を前向きに伝える）',
+    '',
+    '━━━━━━━━━━━━━━',
+    '',
+    '📊 フェーズ別比較',
+    '',
+    'アドレス：【練習場と同じ/本番で崩れている/本番で改善】',
+    '→ 練習場ではこうしていた：（2〜3行）',
+    '→ ラウンド本番ではこうなっている：（2〜3行）',
+    '',
+    'テイクバック：【練習場と同じ/本番で崩れている/本番で改善】',
+    '→ 練習場ではこうしていた：（同上）',
+    '→ ラウンド本番ではこうなっている：（同上）',
+    '',
+    'トップ：【練習場と同じ/本番で崩れている/本番で改善】',
+    '→ 練習場ではこうしていた：（同上）',
+    '→ ラウンド本番ではこうなっている：（同上）',
+    '',
+    '切り返し：【練習場と同じ/本番で崩れている/本番で改善】',
+    '→ 練習場ではこうしていた：（同上）',
+    '→ ラウンド本番ではこうなっている：（同上）',
+    '',
+    'インパクト：【練習場と同じ/本番で崩れている/本番で改善】',
+    '→ 練習場ではこうしていた：（同上）',
+    '→ ラウンド本番ではこうなっている：（同上）',
+    '',
+    'フォロー：【練習場と同じ/本番で崩れている/本番で改善】',
+    '→ 練習場ではこうしていた：（同上）',
+    '→ ラウンド本番ではこうなっている：（同上）',
+    '',
+    'フィニッシュ：【練習場と同じ/本番で崩れている/本番で改善】',
+    '→ 練習場ではこうしていた：（同上）',
+    '→ ラウンド本番ではこうなっている：（同上）',
+    '',
+    'テンポ感（スイング全体のリズム）：【練習場と同じ/本番で崩れている/本番で改善】',
+    '→ 練習場ではこうしていた：（2〜3行）',
+    '→ ラウンド本番ではこうなっている：（2〜3行。本番特有の力みやリズム変化に触れる）',
+    '',
+    '━━━━━━━━━━━━━━',
+    '',
+    '🌟 本番でもキープ出来ている点（最大3つ）',
+    '①（具体的に何が崩れていないか）',
+    '②',
+    '③',
+    '',
+    '━━━━━━━━━━━━━━',
+    '',
+    '⚠️ 本番で崩れている点（最大3つ）',
+    '①（何が、どう崩れているか）',
+    '②',
+    '③',
+    '',
+    '━━━━━━━━━━━━━━',
+    '',
+    '🎯 本番で最優先で意識する1つ',
+    '「○○」を意識しよう！理由：○○。練習場のスイングを本番でも再現するための最重要ポイント。',
+    '',
+    '━━━━━━━━━━━━━━',
+    '',
+    '🏋️ おすすめ練習・ルーティン',
+    '○○（プレッシャー下でも崩れにくくするための練習方法・本番前のルーティン提案）',
+    '',
+    GLOSSARY_INSTRUCTION,
+  ].join('\n');
+}
+
+/** 練習場 vs ラウンド 動画直接（1本目=練習場、2本目=ラウンド本番） */
+export function buildRangeVsRoundPrompt(userMessage?: string): string {
+  const msg = (userMessage || '').trim();
+  const base = rangeVsRoundBase(!!msg);
+  const tail = msg
+    ? [
+        '',
+        '【ユーザーからのメッセージ】',
+        `「${msg}」`,
+        '',
+        '上記のメッセージの内容に応じて柔軟に対応してください。',
+        'その上で、通常の練習場 vs ラウンド比較フォーマットで出力してください。',
+      ].join('\n')
+    : '';
+  return [
+    base,
+    '',
+    '---',
+    '',
+    '添付された2本のスイング動画を直接分析してください。',
+    '1本目が練習場でのスイング、2本目がラウンド本番でのスイングです。',
+    '本番でどこが崩れているか、なぜ崩れるか、どう直せば本番でも練習場の動きを再現できるかを軸に評価してください。',
+    tail,
+  ].join('\n');
+}
+
 /** 質問モード 動画直接（フェーズ別評価なし／自由回答） */
 export function buildQuestionPrompt(userPrompt: string): string {
   return [
@@ -758,6 +897,40 @@ export function buildQuestionPrompt(userPrompt: string): string {
   ].join('\n');
 }
 
+// Instruction appended to comparison prompts so the AI marks 1〜2 frames worth
+// visualising side-by-side. Parsed back out by lib/swingSnapshots.ts and
+// rendered as actual screenshots with circles in the swing detail UI.
+const SNAPSHOT_INSTRUCTION_BLOCK = [
+  '',
+  '━━━━━━━━━━━━━━',
+  '',
+  '📸 注目フレーム (重要・厳密にこのフォーマットで出力)',
+  '上の比較で「最も注目すべき差分」を 1〜2 個選び、両方の動画から該当フレームを指し示す。',
+  'クライアント側で動画から該当フレームを切り出し、注目部位に丸を描画して表示する。',
+  '比較相手があるモード(プロ比較／過去比較／練習場vsラウンド)では、必ず「両方の動画」から1フレームずつ出力してペアにする。',
+  '',
+  'フォーマット (1ペアあたり2行、各行は厳密に "key=value, ..." の形):',
+  '@SNAP subject=<対象>, time=<秒>, phase=<フェーズ>, body=<部位>, x=<0〜1の小数>, y=<0〜1の小数>, caption=<短い説明>',
+  '',
+  '・<対象> はモードに応じて pro / mine / past / range / round のいずれか。',
+  '  - プロ比較モード: pro と mine の2行ペア',
+  '  - 過去比較モード: past と mine の2行ペア',
+  '  - 練習場vsラウンドモード: range と round の2行ペア',
+  '  - 単体モード: mine 1行のみで可',
+  '・time は動画開始からの秒数(小数1桁まで, 例: 1.8)',
+  '・phase はトップ・切り返し・インパクトなど日本語のフェーズ名',
+  '・body は注目部位を短く(例: 右肘 / 左肩 / 右手首 / 頭の位置)',
+  '・x, y は フレーム上の正規化座標(左上が0,0、右下が1,1)。注目部位の中心座標。動画解像度を意識して推定する。',
+  '・caption は1行(最大40文字)で「ここがこうなっている」を簡潔に。',
+  '・上記の "@SNAP" 行以外、このセクションには何も書かない(箇条書き記号も不要)。',
+].join('\n');
+
+function appendSnapshotSection(prompt: string, mode: SwingMode): string {
+  // Snapshots only make sense for video-grounded analyses, not free-form Q&A.
+  if (mode === 'question') return prompt;
+  return prompt + '\n' + SNAPSHOT_INSTRUCTION_BLOCK + '\n';
+}
+
 /** Mode dispatch — used by the worker. Profile context is prepended above the prompt. */
 export function buildPromptForMode(args: {
   mode: SwingMode;
@@ -767,11 +940,13 @@ export function buildPromptForMode(args: {
   const { mode, userMessage, userContext } = args;
   let body: string;
   switch (mode) {
-    case 'self':     body = buildSelfPrompt(userMessage); break;
-    case 'compare':  body = buildComparePrompt(userMessage); break;
-    case 'past':     body = buildPastPrompt(userMessage); break;
-    case 'question': body = buildQuestionPrompt(userMessage || ''); break;
+    case 'self':           body = buildSelfPrompt(userMessage); break;
+    case 'compare':        body = buildComparePrompt(userMessage); break;
+    case 'past':           body = buildPastPrompt(userMessage); break;
+    case 'range_vs_round': body = buildRangeVsRoundPrompt(userMessage); break;
+    case 'question':       body = buildQuestionPrompt(userMessage || ''); break;
   }
+  body = appendSnapshotSection(body, mode);
   const ctxBlock = buildUserContextBlock(userContext);
   if (!ctxBlock) return body;
   return ctxBlock + '\n' + body;

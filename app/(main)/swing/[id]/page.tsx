@@ -4,13 +4,15 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ReviewChunks } from '@/components/swing/ReviewChunks';
 import { StatusBadge } from '@/components/swing/StatusBadge';
+import { SnapshotGallery } from '@/components/swing/SnapshotGallery';
 import { toast } from '@/components/Toast';
-import type { SwingDoc } from '@/types/swing';
+import type { SwingDoc, SwingSnapshot } from '@/types/swing';
 
 const MODE_LABEL: Record<string, string> = {
   self: '🏌️ 自分のスイング解析',
   compare: '🆚 プロ比較',
   past: '📈 過去比較',
+  range_vs_round: '🏟️ 練習場 vs ラウンド',
   question: '❓ 質問モード',
 };
 
@@ -44,21 +46,36 @@ function SwingVideos({ swing }: { swing: SwingDoc }) {
   const main = gcsToPublicUrl(swing.videoGcsPath);
   const pro = gcsToPublicUrl(swing.proGcsPath);
   const prev = gcsToPublicUrl(swing.prevGcsPath);
-  if (!main && !pro && !prev) return null;
+  const range = gcsToPublicUrl((swing as any).rangeGcsPath);
+  if (!main && !pro && !prev && !range) return null;
 
-  // For compare/past modes, show both side-by-side label-wise.
+  // For compare/past/range_vs_round modes, show both with appropriate labels.
   const mainLabel =
     swing.mode === 'compare' ? '🎥 自分のスイング'
     : swing.mode === 'past' ? '🎥 今回のスイング'
+    : swing.mode === 'range_vs_round' ? '🎥 ラウンド本番のスイング'
     : '🎥 スイング動画';
 
   return (
     <div className="flex flex-col gap-2.5 mb-4">
       {pro && <VideoCard src={pro} label="🎥 プロのお手本" />}
       {prev && <VideoCard src={prev} label="🎥 過去のスイング" />}
+      {range && <VideoCard src={range} label="🎥 練習場でのスイング" />}
       {main && <VideoCard src={main} label={mainLabel} />}
     </div>
   );
+}
+
+// Map snapshot.subject → the corresponding video URL on this doc, so the
+// SnapshotGallery can render an annotated frame from the right source.
+function buildSnapshotVideoMap(swing: SwingDoc): Partial<Record<SwingSnapshot['subject'], string>> {
+  return {
+    mine: gcsToPublicUrl(swing.videoGcsPath),
+    pro: gcsToPublicUrl(swing.proGcsPath),
+    past: gcsToPublicUrl(swing.prevGcsPath),
+    range: gcsToPublicUrl((swing as any).rangeGcsPath),
+    round: gcsToPublicUrl(swing.videoGcsPath), // round_vs_range main = round
+  };
 }
 
 export default function SwingDetailPage() {
@@ -128,6 +145,9 @@ export default function SwingDetailPage() {
       {swing.status === 'done' && swing.reviewTextChunks && (
         <>
           <ReviewChunks chunks={swing.reviewTextChunks} />
+          {swing.snapshots && swing.snapshots.length > 0 && (
+            <SnapshotGallery snapshots={swing.snapshots} videos={buildSnapshotVideoMap(swing)} />
+          )}
           <ShareCard swing={swing} />
         </>
       )}

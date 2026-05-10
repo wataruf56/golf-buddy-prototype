@@ -3,11 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { ReviewChunks } from '@/components/swing/ReviewChunks';
+import { SnapshotGallery } from '@/components/swing/SnapshotGallery';
+import type { SwingSnapshot } from '@/types/swing';
 
 const MODE_LABEL: Record<string, string> = {
   self: '🏌️ 自分のスイング解析',
   compare: '🆚 プロ比較',
   past: '📈 過去比較',
+  range_vs_round: '🏟️ 練習場 vs ラウンド',
   question: '❓ 質問モード',
 };
 
@@ -29,7 +32,9 @@ type PublicSwing = {
   videoGcsPath: string;
   proGcsPath: string;
   prevGcsPath: string;
+  rangeGcsPath?: string;
   reviewTextChunks: string[];
+  snapshots?: SwingSnapshot[];
   createdAt: number;
   completedAt?: number;
   userMessage: string;
@@ -80,6 +85,14 @@ export default function SharedSwingPage() {
   const mainVideo = gcsToPublicUrl(swing.videoGcsPath);
   const proVideo = gcsToPublicUrl(swing.proGcsPath);
   const prevVideo = gcsToPublicUrl(swing.prevGcsPath);
+  const rangeVideo = gcsToPublicUrl(swing.rangeGcsPath);
+  const snapshotVideos = {
+    mine: mainVideo,
+    pro: proVideo,
+    past: prevVideo,
+    range: rangeVideo,
+    round: mainVideo,
+  };
 
   return (
     <div className="min-h-screen bg-bg pb-10 max-w-md mx-auto">
@@ -101,12 +114,14 @@ export default function SharedSwingPage() {
         <div className="flex flex-col gap-2.5 mb-4">
           {proVideo && <Video src={proVideo} label="🎥 プロのお手本" />}
           {prevVideo && <Video src={prevVideo} label="🎥 過去のスイング" />}
+          {rangeVideo && <Video src={rangeVideo} label="🎥 練習場でのスイング" />}
           {mainVideo && (
             <Video
               src={mainVideo}
               label={
                 swing.mode === 'compare' ? '🎥 自分のスイング'
                 : swing.mode === 'past' ? '🎥 今回のスイング'
+                : swing.mode === 'range_vs_round' ? '🎥 ラウンド本番のスイング'
                 : '🎥 スイング動画'
               }
             />
@@ -115,6 +130,10 @@ export default function SharedSwingPage() {
 
         {swing.reviewTextChunks?.length > 0 && (
           <ReviewChunks chunks={swing.reviewTextChunks} />
+        )}
+
+        {swing.snapshots && swing.snapshots.length > 0 && (
+          <SnapshotGallery snapshots={swing.snapshots} videos={snapshotVideos} />
         )}
       </div>
 

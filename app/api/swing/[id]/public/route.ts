@@ -24,7 +24,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
         videoGcsPath: d.videoGcsPath || '',
         proGcsPath: d.proGcsPath || '',
         prevGcsPath: d.prevGcsPath || '',
+        rangeGcsPath: d.rangeGcsPath || '',
         reviewTextChunks: Array.isArray(d.reviewTextChunks) ? d.reviewTextChunks : [],
+        snapshots: Array.isArray(d.snapshots) ? d.snapshots : [],
         createdAt: d.createdAt,
         completedAt: d.completedAt,
         // userMessage is intentionally exposed (it's part of the analysis context)
