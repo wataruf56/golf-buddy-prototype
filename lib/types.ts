@@ -54,6 +54,11 @@ export type Round = {
   status: RoundStatus;
   isCompetition: boolean;
   createdAt: number;
+  // Per-participant scores recorded after the round completes. Optional and
+  // sparse — any participant may fill in their own or each other's score, and
+  // saved entries are also mirrored into each user's recentScores list so
+  // their profile updates automatically.
+  scores?: Record<string, number>;
 };
 
 export type Review = {

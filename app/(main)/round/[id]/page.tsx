@@ -329,6 +329,18 @@ export default function RoundDetailPage() {
           </>
         )}
       </div>
+
+      {/* Score entry — visible to any participant once the round is marked
+          completed. The host triggers completion via the ラウンド完了 button
+          above; after that everyone in the round can fill in / edit scores. */}
+      {round.status === 'completed' && (isHost || isApproved) && (
+        <ScoreEntryCard
+          round={round}
+          host={host}
+          applicants={applicants as any}
+        />
+      )}
+
       <div className="h-5" />
 
       {confirmOpen && (
@@ -338,6 +350,103 @@ export default function RoundDetailPage() {
           onClose={() => setConfirmOpen(false)}
         />
       )}
+    </div>
+  );
+}
+
+function ScoreEntryCard({ round, host, applicants }: {
+  round: import('@/lib/types').Round;
+  host: import('@/lib/types').User | undefined;
+  applicants: (import('@/lib/types').User | undefined)[];
+}) {
+  // Build the participant list = host + approved applicants. Host first so
+  // their slot is always at the top regardless of join order.
+  const people = [host, ...applicants].filter(Boolean) as import('@/lib/types').User[];
+
+  // Local form state mirrors round.scores. Empty string means "no score yet".
+  const initial: Record<string, string> = {};
+  for (const p of people) {
+    const v = round.scores?.[p.id];
+    initial[p.id] = typeof v === 'number' && v > 0 ? String(v) : '';
+  }
+  const [drafts, setDrafts] = useState<Record<string, string>>(initial);
+  const [busy, setBusy] = useState(false);
+
+  // If the round.scores prop changes (e.g. another participant saved while
+  // we had this open), re-sync the form so we don't clobber their input.
+  useEffect(() => {
+    const next: Record<string, string> = {};
+    for (const p of people) {
+      const v = round.scores?.[p.id];
+      next[p.id] = typeof v === 'number' && v > 0 ? String(v) : '';
+    }
+    setDrafts(next);
+    // people array identity changes every render but the ids list is stable
+    // enough; we key on round.id + the serialised scores so we only re-sync
+    // when something actually changed server-side.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [round.id, JSON.stringify(round.scores || {})]);
+
+  async function save() {
+    setBusy(true);
+    try {
+      // Convert empty strings to null so the API drops them; numbers stay.
+      const payload: Record<string, number | null> = {};
+      for (const [uid, raw] of Object.entries(drafts)) {
+        const trimmed = raw.trim();
+        if (!trimmed) { payload[uid] = null; continue; }
+        const n = parseInt(trimmed, 10);
+        if (!Number.isFinite(n)) continue;
+        payload[uid] = n;
+      }
+      await store.saveRoundScores(round.id, payload);
+      track('round_scores_save', { roundId: round.id, count: Object.values(payload).filter((v) => v !== null).length });
+      toast('スコアを保存しました');
+    } catch (e) {
+      toast('保存失敗: ' + (e as Error).message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 bg-card rounded-card p-4 shadow-card">
+      <div className="text-base font-black mb-1 flex items-center gap-1.5">
+        <span>📊</span><span>スコア入力</span>
+      </div>
+      <div className="text-[11px] text-sub leading-relaxed mb-3">
+        参加者全員のその日のスコアを入力できます。誰でも全員分を編集できるので、
+        覚えている人が代わりに入れてもOK。空欄のままでも大丈夫です。
+        保存すると各メンバーのプロフィール「直近のスコア」にも自動で反映されます。
+      </div>
+      <div className="flex flex-col gap-1.5 mb-3">
+        {people.map((p) => (
+          <div key={p.id} className="flex items-center gap-2.5 p-2.5 bg-bg rounded-[10px]">
+            <Avatar user={p} size={32} />
+            <div className="flex-1 min-w-0 text-[13px] font-semibold truncate">{p.displayName}</div>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={30}
+              max={200}
+              placeholder="—"
+              value={drafts[p.id] ?? ''}
+              onChange={(e) => setDrafts((d) => ({ ...d, [p.id]: e.target.value }))}
+              className="w-20 p-2 border-[1.5px] border-border rounded-lg text-center text-sm font-bold bg-card outline-none"
+            />
+          </div>
+        ))}
+      </div>
+      <button
+        onClick={save}
+        disabled={busy}
+        className="w-full py-3 bg-green text-white rounded-xl text-sm font-bold disabled:opacity-50"
+      >
+        {busy ? '保存中...' : 'スコアを保存'}
+      </button>
+      <div className="text-[10px] text-muted text-center mt-2">
+        範囲外(30未満 / 200超)は保存されません。空欄にして保存すると登録済みのスコアが消えます。
+      </div>
     </div>
   );
 }

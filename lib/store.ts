@@ -173,6 +173,38 @@ export const store = {
     setState({ rounds: state.rounds.map((r) => (r.id === roundId ? { ...r, status: 'completed' } : r)) });
   },
 
+  saveRoundScores: async (roundId: string, scores: Record<string, number | null>) => {
+    const res = await api<{ scores: Record<string, number> }>(`/api/rounds/${roundId}/scores`, {
+      method: 'POST',
+      body: JSON.stringify({ scores }),
+    });
+    // Mirror the new score map back into the local store immediately so the
+    // UI reflects the save without waiting for a re-bootstrap. We also patch
+    // each affected user's recentScores list so their profile pages stay in
+    // sync without a refresh.
+    const round = state.rounds.find((r) => r.id === roundId);
+    const date = round?.date || new Date().toISOString().slice(0, 10);
+    const nextScores = res.scores || {};
+    setState({
+      rounds: state.rounds.map((r) => (r.id === roundId ? { ...r, scores: nextScores } : r)),
+      users: state.users.map((u) => {
+        if (!(u.id in scores)) return u;
+        const list = Array.isArray(u.recentScores) ? [...u.recentScores] : [];
+        const idx = list.findIndex((e) => e.date === date);
+        const newScore = nextScores[u.id];
+        if (newScore === undefined) {
+          if (idx >= 0) list.splice(idx, 1);
+        } else {
+          const entry = { score: newScore, date };
+          if (idx >= 0) list[idx] = entry; else list.push(entry);
+        }
+        const cleaned = list.filter((e) => e.score > 0 && e.date)
+          .sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 10);
+        return { ...u, recentScores: cleaned };
+      }),
+    });
+  },
+
   submitReview: async (pendingId: string, stars: number, tags: string[], comment?: string) => {
     const pending = state.pendingReviews.find((p) => p.id === pendingId);
     if (!pending) return;
