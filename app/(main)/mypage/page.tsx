@@ -12,11 +12,13 @@ import type { Review } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
 
 const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+const BOT_BASIC_ID = process.env.NEXT_PUBLIC_LINE_BOT_BASIC_ID || '';
 
 export default function MyPage() {
   const router = useRouter();
   const me = useStore(getMe);
   const meId = useStore((s) => s.meId);
+  const [showAddBotModal, setShowAddBotModal] = useState(false);
   const myRounds = useStore((s) =>
     s.rounds.filter((r) =>
       r.hostId === s.meId ||
@@ -180,6 +182,14 @@ export default function MyPage() {
           onClick={async () => {
             const next = !me.notifyOff;
             await store.updateMe({ notifyOff: next } as any);
+            // Turning notifications ON for the first time → user needs to be
+            // friends with the official LINE account to actually receive
+            // pushes. Show the add-bot modal once; gb_bot_added marks that
+            // they've confirmed they did so we don't ask every toggle.
+            if (next === false && BOT_BASIC_ID && typeof window !== 'undefined') {
+              const added = localStorage.getItem('gb_bot_added') === '1';
+              if (!added) setShowAddBotModal(true);
+            }
           }}
           className="w-full bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card text-left"
         >
@@ -202,7 +212,53 @@ export default function MyPage() {
         </button>
       </div>
       <div className="h-5" />
+
+      {showAddBotModal && BOT_BASIC_ID && (
+        <AddBotModal
+          botBasicId={BOT_BASIC_ID}
+          onConfirmed={() => {
+            try { localStorage.setItem('gb_bot_added', '1'); } catch {}
+            setShowAddBotModal(false);
+          }}
+          onLater={() => setShowAddBotModal(false)}
+        />
+      )}
     </>
+  );
+}
+
+function AddBotModal({ botBasicId, onConfirmed, onLater }: { botBasicId: string; onConfirmed: () => void; onLater: () => void }) {
+  return (
+    <div className="absolute inset-0 bg-black/50 z-[160] flex items-center justify-center p-5 backdrop-blur-sm">
+      <div className="bg-card rounded-card p-5 w-full max-w-[340px] shadow-lg">
+        <div className="text-center text-3xl mb-2">🔔</div>
+        <div className="text-base font-black text-center mb-1">公式アカウントを友だち追加</div>
+        <div className="text-[12px] text-sub leading-relaxed mb-4">
+          LINE 通知を受け取るには、ゴルトモの公式アカウントを友だち追加する必要があります。<br />
+          下のボタンから追加してください。
+        </div>
+        <a
+          href={`https://line.me/R/ti/p/${encodeURIComponent(botBasicId)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block w-full py-3 bg-[#06C755] text-white text-sm font-bold rounded-xl text-center mb-2"
+        >
+          💬 LINE で友だち追加
+        </a>
+        <button
+          onClick={onConfirmed}
+          className="w-full py-2.5 bg-bg text-text border border-border rounded-xl text-sm font-bold mb-1.5"
+        >
+          追加した
+        </button>
+        <button
+          onClick={onLater}
+          className="w-full py-2 text-muted text-xs font-bold"
+        >
+          あとで
+        </button>
+      </div>
+    </div>
   );
 }
 

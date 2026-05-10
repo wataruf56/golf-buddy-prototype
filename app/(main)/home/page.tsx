@@ -16,6 +16,9 @@ export default function HomePage() {
     if (!BOT_BASIC_ID || me.notifyOff) return;
     if (typeof window === 'undefined') return;
     if (localStorage.getItem('gb_add_bot_dismissed') === '1') return;
+    // Same marker the mypage modal sets when the user confirms they added
+    // the bot — once that happens we never show the home banner either.
+    if (localStorage.getItem('gb_bot_added') === '1') return;
     setShowAddBot(true);
   }, [me.notifyOff]);
   const rounds = useStore((s) => s.rounds.filter((r) => r.status === 'open'));
