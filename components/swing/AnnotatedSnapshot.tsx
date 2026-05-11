@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { SwingSnapshot } from '@/types/swing';
+import { detectPose } from '@/lib/poseDetector';
+import { resolveBodyPart, pointForResolver, type Point } from '@/lib/poseLandmarks';
 
 const SUBJECT_LABEL: Record<SwingSnapshot['subject'], string> = {
   pro: 'プロ',
@@ -25,17 +27,24 @@ type Props = {
 };
 
 // Renders a single video frame at snapshot.timeSec with an overlaid circle
-// at (snapshot.x, snapshot.y) — the AI-flagged "look-here" point. Frame
-// extraction is done client-side: we set <video>.currentTime, wait for the
-// "seeked" event, then draw the frame onto a canvas. No server-side ffmpeg.
+// on the AI-flagged body part.
 //
-// The circle is drawn relative to the rendered <canvas> so it scales with
-// CSS sizing. If the AI didn't supply x/y we just render the bare frame
-// with the caption — still useful as a visual cue.
+// v3 strategy:
+//   1. Seek the off-screen <video> to snapshot.timeSec, draw the frame to a
+//      hidden canvas.
+//   2. Run MediaPipe Pose Landmarker on the frame to detect 33 body keypoints.
+//   3. Map snapshot.bodyPart (e.g. "右肘") to the relevant landmark index via
+//      lib/poseLandmarks.ts and draw the red circle there.
+//   4. Fallback chain if any step fails:
+//        - body part not in our vocabulary → fall back to AI-supplied x/y
+//          (legacy v2 data) if present
+//        - no AI x/y → render the frame with no circle, just caption
+//      So the user always sees a useful image even if detection misses.
 export function AnnotatedSnapshot({ videoUrl, snapshot }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [ready, setReady] = useState(false);
   const [err, setErr] = useState('');
+  const [usedDetection, setUsedDetection] = useState<'pose' | 'ai-coords' | 'none'>('none');
 
   useEffect(() => {
     if (!videoUrl) return;
@@ -51,14 +60,16 @@ export function AnnotatedSnapshot({ videoUrl, snapshot }: Props) {
       try { video.removeAttribute('src'); video.load(); } catch {}
     };
 
-    const draw = () => {
+    const draw = async () => {
       if (cancelled) { cleanup(); return; }
       const canvas = canvasRef.current;
       if (!canvas) { cleanup(); return; }
       const w = video.videoWidth;
       const h = video.videoHeight;
       if (!w || !h) { cleanup(); return; }
-      // Cap canvas to keep memory + paint work down on phones.
+      // Cap to keep paint work down on phones. We scale the source frame
+      // before any pose detection so the model sees the same pixels we'll
+      // draw, keeping coordinates consistent.
       const maxW = 720;
       const scale = w > maxW ? maxW / w : 1;
       canvas.width = Math.round(w * scale);
@@ -66,12 +77,34 @@ export function AnnotatedSnapshot({ videoUrl, snapshot }: Props) {
       const ctx = canvas.getContext('2d');
       if (!ctx) { cleanup(); return; }
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      // Overlay circle at normalised (x,y) when supplied.
-      if (typeof snapshot.x === 'number' && typeof snapshot.y === 'number') {
-        const cx = snapshot.x * canvas.width;
-        const cy = snapshot.y * canvas.height;
+
+      // Decide where the circle goes.
+      let target: Point | null = null;
+      let resolution: 'pose' | 'ai-coords' | 'none' = 'none';
+
+      const resolver = resolveBodyPart(snapshot.bodyPart);
+      if (resolver) {
+        try {
+          // Run pose detection on the rendered canvas (already scaled).
+          const landmarks = await detectPose(canvas);
+          if (cancelled) { cleanup(); return; }
+          if (landmarks) {
+            const p = pointForResolver(resolver, landmarks);
+            if (p) { target = p; resolution = 'pose'; }
+          }
+        } catch {/* fall through */}
+      }
+      // Fallback to AI-supplied coords (legacy v2 data) if pose failed.
+      if (!target && typeof snapshot.x === 'number' && typeof snapshot.y === 'number') {
+        target = { x: snapshot.x, y: snapshot.y };
+        resolution = 'ai-coords';
+      }
+
+      if (target) {
+        const cx = target.x * canvas.width;
+        const cy = target.y * canvas.height;
         const r = Math.max(canvas.width, canvas.height) * 0.06;
-        // Solid red ring + subtle dark halo so it shows on light/dark frames.
+        // Solid red ring + dark halo so it shows on light/dark frames.
         ctx.strokeStyle = 'rgba(0,0,0,0.6)';
         ctx.lineWidth = Math.max(2, r * 0.18);
         ctx.beginPath(); ctx.arc(cx, cy, r * 1.05, 0, Math.PI * 2); ctx.stroke();
@@ -79,16 +112,15 @@ export function AnnotatedSnapshot({ videoUrl, snapshot }: Props) {
         ctx.lineWidth = Math.max(2, r * 0.12);
         ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
       }
+      setUsedDetection(resolution);
       setReady(true);
       cleanup();
     };
 
-    const onSeeked = () => draw();
+    const onSeeked = () => { void draw(); };
     const onLoaded = () => {
-      // Clamp to actual duration so absurd timestamps don't reject.
       const target = Math.max(0, Math.min(snapshot.timeSec, Math.max(0, (video.duration || 0) - 0.05)));
       try { video.currentTime = target; } catch {
-        // Some browsers refuse currentTime before metadata; retry once.
         setTimeout(() => { try { video.currentTime = target; } catch {} }, 100);
       }
     };
@@ -105,7 +137,9 @@ export function AnnotatedSnapshot({ videoUrl, snapshot }: Props) {
       video.removeEventListener('error', onError);
       cleanup();
     };
-  }, [videoUrl, snapshot.timeSec, snapshot.x, snapshot.y]);
+    // We intentionally re-render when bodyPart / x / y change so a refreshed
+    // snapshot list (e.g. from prop updates) gets re-detected.
+  }, [videoUrl, snapshot.timeSec, snapshot.bodyPart, snapshot.x, snapshot.y]);
 
   return (
     <div className="bg-card rounded-xl overflow-hidden shadow-card">
@@ -130,6 +164,9 @@ export function AnnotatedSnapshot({ videoUrl, snapshot }: Props) {
         <div className="text-[11px] font-bold text-sub mb-0.5">
           {snapshot.bodyPart ? `📍 ${snapshot.bodyPart}` : '📍 注目ポイント'}
           <span className="ml-2 text-[10px] text-muted font-normal">{snapshot.timeSec.toFixed(1)}s</span>
+          {ready && usedDetection === 'none' && snapshot.bodyPart && (
+            <span className="ml-2 text-[10px] text-muted font-normal">(自動検出できず)</span>
+          )}
         </div>
         <div className="text-[12px] text-text leading-relaxed">{snapshot.caption || '—'}</div>
       </div>

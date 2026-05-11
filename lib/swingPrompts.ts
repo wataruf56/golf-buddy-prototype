@@ -897,9 +897,42 @@ export function buildQuestionPrompt(userPrompt: string): string {
   ].join('\n');
 }
 
-// Instruction appended to comparison prompts so the AI marks 1〜2 frames worth
-// visualising side-by-side. Parsed back out by lib/swingSnapshots.ts and
-// rendered as actual screenshots with circles in the swing detail UI.
+// v3 snapshot instruction. The big change vs v2: we no longer ask the AI to
+// produce x/y pixel coordinates — Gemini's spatial guesses landed circles in
+// the sky in production. Instead the AI just says WHEN (timestamp) and WHAT
+// (body part), and the client runs MediaPipe Pose on that frame to find the
+// landmark itself. We restrict the body-part vocabulary to labels MediaPipe
+// can resolve (see lib/poseLandmarks.ts).
+import { ALLOWED_BODY_PARTS } from './poseLandmarks';
+
+const SNAPSHOT_INSTRUCTION_BLOCK_V3 = [
+  '',
+  '━━━━━━━━━━━━━━',
+  '',
+  '📸 注目フレーム (重要・厳密にこのフォーマットで出力)',
+  '上の比較で「最も注目すべき差分」を 1〜2 個選び、両方の動画から該当フレームを指し示す。',
+  'クライアント側で動画から該当フレームを切り出し、画像認識で注目部位の座標を求めて丸を描画する。',
+  '比較相手があるモード(プロ比較／過去比較／練習場vsラウンド)では、必ず「両方の動画」から1フレームずつ出力してペアにする。',
+  '',
+  'フォーマット (1ペアあたり2行、各行は厳密に "key=value, ..." の形):',
+  '@SNAP subject=<対象>, time=<秒>, phase=<フェーズ>, body=<部位>, caption=<短い説明>',
+  '',
+  '・<対象> はモードに応じて pro / mine / past / range / round のいずれか。',
+  '  - プロ比較モード: pro と mine の2行ペア',
+  '  - 過去比較モード: past と mine の2行ペア',
+  '  - 練習場vsラウンドモード: range と round の2行ペア',
+  '  - 単体モード: mine 1行のみで可',
+  '・time は動画開始からの秒数(小数1桁まで, 例: 1.8)',
+  '・phase はトップ・切り返し・インパクトなど日本語のフェーズ名',
+  `・body は **必ず以下のリストから1つ** を選ぶ (リスト外の語は描画されない):`,
+  `  ${ALLOWED_BODY_PARTS.join(' / ')}`,
+  '・caption は1行(最大40文字)で「ここがこうなっている」を簡潔に。',
+  '・上記の "@SNAP" 行以外、このセクションには何も書かない(箇条書き記号も不要)。',
+  '・絶対に x= や y= といった座標は書かない。座標は出力しないこと。',
+].join('\n');
+
+// v2 snapshot instruction (kept for rollback). Asks the AI for x/y pixel
+// coordinates directly — turned out unreliable in production.
 const SNAPSHOT_INSTRUCTION_BLOCK = [
   '',
   '━━━━━━━━━━━━━━',
@@ -925,10 +958,12 @@ const SNAPSHOT_INSTRUCTION_BLOCK = [
   '・上記の "@SNAP" 行以外、このセクションには何も書かない(箇条書き記号も不要)。',
 ].join('\n');
 
-function appendSnapshotSection(prompt: string, mode: SwingMode): string {
+function appendSnapshotSection(prompt: string, mode: SwingMode, version: PromptVersion): string {
   // Snapshots only make sense for video-grounded analyses, not free-form Q&A.
   if (mode === 'question') return prompt;
-  return prompt + '\n' + SNAPSHOT_INSTRUCTION_BLOCK + '\n';
+  if (version === 'v1') return prompt;
+  const block = version === 'v3' ? SNAPSHOT_INSTRUCTION_BLOCK_V3 : SNAPSHOT_INSTRUCTION_BLOCK;
+  return prompt + '\n' + block + '\n';
 }
 
 // ---------------------------------------------------------------------------
@@ -936,23 +971,24 @@ function appendSnapshotSection(prompt: string, mode: SwingMode): string {
 //
 // v1 = pre-snapshot prompts (no 📸 注目フレーム block, no @SNAP lines).
 //      The text review is everything; the UI never tries to draw circles.
-// v2 = current default. Adds the @SNAP block so the UI can render annotated
-//      screenshots (components/swing/AnnotatedSnapshot.tsx). Gemini's pixel
-//      coordinates have proven unreliable in production — the user reported
-//      circles landing in the sky / on the wrong body part. Keep v1 around
-//      as a known-good fallback while we iterate the v2 wording (and decide
-//      whether to drop pixel coords entirely / move to a real keypoint
-//      detector).
+// v2 = adds the @SNAP block AND asks Gemini to output normalised x/y
+//      coordinates of the focal body part. Gemini's spatial guesses turned
+//      out unreliable (circles landed in the sky / on the wrong body part)
+//      so v2 is no longer the default but is kept for comparison.
+// v3 = current default. Same @SNAP block but WITHOUT x/y — Gemini only
+//      names a frame + body part from a restricted vocabulary. The client
+//      runs MediaPipe Pose on the frame to locate that body part itself,
+//      which is far more reliable for human keypoints than Gemini.
 //
-// Switch via SWING_PROMPT_VERSION env var on the server. Default = 'v2'.
-// Example: set SWING_PROMPT_VERSION=v1 in Vercel to disable snapshots
-// without redeploying any code.
+// Switch via SWING_PROMPT_VERSION env var. Default = 'v3'.
 // ---------------------------------------------------------------------------
-export type PromptVersion = 'v1' | 'v2';
+export type PromptVersion = 'v1' | 'v2' | 'v3';
 
 function activePromptVersion(): PromptVersion {
   const v = (process.env.SWING_PROMPT_VERSION || '').trim().toLowerCase();
-  return v === 'v1' ? 'v1' : 'v2';
+  if (v === 'v1') return 'v1';
+  if (v === 'v2') return 'v2';
+  return 'v3';
 }
 
 /** Mode dispatch — used by the worker. Profile context is prepended above the prompt. */
@@ -973,7 +1009,7 @@ export function buildPromptForMode(args: {
     case 'range_vs_round': body = buildRangeVsRoundPrompt(userMessage); break;
     case 'question':       body = buildQuestionPrompt(userMessage || ''); break;
   }
-  if (version === 'v2') body = appendSnapshotSection(body, mode);
+  body = appendSnapshotSection(body, mode, version);
   const ctxBlock = buildUserContextBlock(userContext);
   if (!ctxBlock) return body;
   return ctxBlock + '\n' + body;
