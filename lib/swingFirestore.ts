@@ -62,7 +62,12 @@ export async function listSwingsForUser(userId: string, limit = 50): Promise<Swi
 export async function listQueuedSwings(limit = 3): Promise<SwingDoc[]> {
   const db = getAdminDb();
   if (!db) return [];
-  const STUCK_MS = 5 * 60 * 1000;
+  // Stuck = analyzing for >2 min. The Cloud Run analyzer typically returns
+  // in 30〜60s; anything over 2 minutes almost certainly means the previous
+  // tick crashed mid-flight (Vercel timeout, lost network, etc) and we
+  // should re-queue. Was 5 min before, which kept users waiting a long
+  // time on the rare crash.
+  const STUCK_MS = 2 * 60 * 1000;
 
   // Reclaim stuck 'analyzing' docs first.
   try {

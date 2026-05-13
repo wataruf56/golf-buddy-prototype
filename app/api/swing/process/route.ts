@@ -28,10 +28,11 @@ function authorizeCron(req: NextRequest): boolean {
   return false;
 }
 
-const MAX_PER_TICK = 3;
+const MAX_PER_TICK = 5;
 const MAX_RETRY = 2;
 
 export async function GET(req: NextRequest) {
+  const tickStart = Date.now();
   if (!authorizeCron(req)) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
   }
@@ -39,15 +40,25 @@ export async function GET(req: NextRequest) {
   const queued = await listQueuedSwings(MAX_PER_TICK);
   if (!queued.length) return NextResponse.json({ ok: true, processed: 0 }, { headers: noStore });
 
-  const results: any[] = [];
-  for (const swing of queued) {
+  // Process all queued items in PARALLEL within this single cron tick. Each
+  // analyzeSwing call sits idle on a Cloud Run round-trip for ~30〜60s, so
+  // running them sequentially burned the whole tick on the slowest one and
+  // delayed everything else by minutes. Vercel function memory and 5-min
+  // timeout easily fit MAX_PER_TICK parallel runs.
+  console.log('[swing/process] tick start', { count: queued.length, ids: queued.map((q) => q.swingId) });
+  const settled = await Promise.allSettled(queued.map(async (swing) => {
+    const swingStart = Date.now();
     try {
       const r = await processOne(swing);
-      results.push({ swingId: swing.swingId, ok: true, ...r });
+      console.log('[swing/process] done', { swingId: swing.swingId, status: r.status, ms: Date.now() - swingStart });
+      return { swingId: swing.swingId, ok: true, ...r };
     } catch (e) {
-      results.push({ swingId: swing.swingId, ok: false, error: (e as Error).message });
+      console.warn('[swing/process] error', { swingId: swing.swingId, ms: Date.now() - swingStart, err: (e as Error).message });
+      return { swingId: swing.swingId, ok: false, error: (e as Error).message };
     }
-  }
+  }));
+  const results = settled.map((s) => (s.status === 'fulfilled' ? s.value : { ok: false, error: String(s.reason) }));
+  console.log('[swing/process] tick end', { count: queued.length, ms: Date.now() - tickStart });
   return NextResponse.json({ ok: true, processed: results.length, results }, { headers: noStore });
 }
 

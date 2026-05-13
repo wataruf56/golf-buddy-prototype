@@ -55,16 +55,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
   }
 
-  // Fire-and-forget: kick the worker immediately so users don't wait for the next Cron tick.
-  // We don't await — the response returns now and the worker keeps running on its own.
+  // Fire-and-forget: kick the worker immediately so users don't wait for the
+  // next Cron tick. Vercel kills dangling promises after the response, so we
+  // wrap the fetch in `waitUntil` to guarantee the runtime keeps the kick
+  // alive until it actually fires (otherwise the user waits 0〜60s for the
+  // next cron tick before processing even starts).
   const cron = process.env.CRON_SECRET || '';
   if (cron) {
     const origin = new URL(req.url).origin;
-    fetch(`${origin}/api/swing/process?secret=${encodeURIComponent(cron)}`, {
-      method: 'GET',
-      // @ts-ignore — Next.js fetch supports `cache` and timeout via AbortController
-      cache: 'no-store',
-    }).catch(() => {});
+    const kickUrl = `${origin}/api/swing/process?secret=${encodeURIComponent(cron)}`;
+    try {
+      const { waitUntil } = await import('@vercel/functions');
+      waitUntil(fetch(kickUrl, { method: 'GET', cache: 'no-store' }).catch(() => {}));
+    } catch {
+      // Local dev / non-Vercel runtime: fall back to bare fetch.
+      fetch(kickUrl, { method: 'GET', cache: 'no-store' }).catch(() => {});
+    }
   }
 
   return NextResponse.json({ ok: true, swingId }, { headers: noStore });
