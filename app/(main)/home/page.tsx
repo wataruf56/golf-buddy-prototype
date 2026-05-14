@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { getMe, store, useStore } from '@/lib/store';
 import { RoundCard } from '@/components/RoundCard';
 import { Avatar } from '@/components/Avatar';
+import { InstallToHomeModal } from '@/components/InstallToHomeModal';
 
 const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 const BOT_BASIC_ID = process.env.NEXT_PUBLIC_LINE_BOT_BASIC_ID || '';
@@ -12,6 +13,15 @@ const BOT_BASIC_ID = process.env.NEXT_PUBLIC_LINE_BOT_BASIC_ID || '';
 export default function HomePage() {
   const me = useStore(getMe);
   const [showAddBot, setShowAddBot] = useState(false);
+  const [showInstallModal, setShowInstallModal] = useState(false);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (localStorage.getItem('gb_install_dismissed') === '1') return;
+    // Already installed → standalone display mode → don't nag.
+    if (window.matchMedia?.('(display-mode: standalone)').matches) return;
+    setShowInstallBanner(true);
+  }, []);
   useEffect(() => {
     if (!BOT_BASIC_ID || me.notifyOff) return;
     if (typeof window === 'undefined') return;
@@ -54,6 +64,31 @@ export default function HomePage() {
             >×</button>
           </div>
         </div>
+      )}
+
+      {showInstallBanner && (
+        <div className="px-5 pb-3">
+          <div className="bg-blue-light border-2 border-blue rounded-card p-3.5 flex items-center gap-3">
+            <span className="text-xl">📱</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-black text-blue">ホーム画面に追加してアプリのように使う</div>
+              <div className="text-[11px] text-sub mt-0.5">毎回 LINE から開かなくてもワンタップで起動</div>
+            </div>
+            <button
+              onClick={() => setShowInstallModal(true)}
+              className="px-3 py-1.5 bg-blue text-white text-xs font-bold rounded-full whitespace-nowrap"
+            >方法を見る</button>
+            <button
+              onClick={() => { localStorage.setItem('gb_install_dismissed', '1'); setShowInstallBanner(false); }}
+              className="text-muted text-lg leading-none px-1"
+              aria-label="閉じる"
+            >×</button>
+          </div>
+        </div>
+      )}
+
+      {showInstallModal && (
+        <InstallToHomeModal onClose={() => setShowInstallModal(false)} />
       )}
 
       {myHostedPending.length > 0 && (

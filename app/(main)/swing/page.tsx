@@ -15,16 +15,30 @@ const MODE_LABEL: Record<string, string> = {
   question: '❓ 質問',
 };
 
+type Quota = {
+  allowed: boolean;
+  whitelisted: boolean;
+  used: number;
+  limit: number;
+  month: string;
+  lifetime: number;
+};
+
 export default function SwingListPage() {
   const [swings, setSwings] = useState<SwingDoc[] | null>(null);
   const [err, setErr] = useState<string>('');
+  const [quota, setQuota] = useState<Quota | null>(null);
 
   async function load() {
     try {
-      const r = await fetch('/api/swing/list', { cache: 'no-store' });
-      if (!r.ok) throw new Error(`${r.status}`);
-      const d = await r.json();
+      const [swingsRes, quotaRes] = await Promise.all([
+        fetch('/api/swing/list', { cache: 'no-store' }),
+        fetch('/api/swing/quota', { cache: 'no-store' }),
+      ]);
+      if (!swingsRes.ok) throw new Error(`${swingsRes.status}`);
+      const d = await swingsRes.json();
       setSwings(d.swings || []);
+      if (quotaRes.ok) setQuota(await quotaRes.json());
     } catch (e) {
       setErr((e as Error).message);
       setSwings([]);
@@ -41,6 +55,41 @@ export default function SwingListPage() {
           ＋ 新規分析
         </Link>
       </div>
+
+      {quota && (
+        <div className="px-5 pb-3">
+          {quota.whitelisted ? (
+            <div className="bg-green-light border-[1.5px] border-green rounded-card px-4 py-2.5 flex items-center gap-2">
+              <span className="text-base">⭐</span>
+              <div className="flex-1">
+                <div className="text-[12px] font-black text-green">無制限プラン</div>
+                <div className="text-[10px] text-sub">何回でも解析できます</div>
+              </div>
+            </div>
+          ) : quota.allowed ? (
+            <div className="bg-card rounded-card px-4 py-2.5 flex items-center gap-2 shadow-card">
+              <span className="text-base">📊</span>
+              <div className="flex-1">
+                <div className="text-[12px] font-black">
+                  今月の無料解析: <span className="text-green">{quota.used} / {quota.limit}</span> 回
+                </div>
+                <div className="text-[10px] text-sub">{quota.month} ・ 残り {Math.max(0, quota.limit - quota.used)} 回</div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-orange-light border-[1.5px] border-orange rounded-card px-4 py-3">
+              <div className="text-[13px] font-black text-orange mb-1">
+                🔒 今月の無料枠を使い切りました
+              </div>
+              <div className="text-[11px] text-sub leading-relaxed">
+                {quota.month} の無料解析は {quota.limit} / {quota.limit} 回。
+                追加で利用したい場合は管理者に依頼してください。
+                来月になると自動的に枠がリセットされます。
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="px-5 pb-6">
         {swings === null ? (

@@ -24,6 +24,10 @@ export type User = {
   recentScores?: ScoreEntry[];
   notifyOff?: boolean;
   golfHistory?: string;        // 「1年未満」「3〜5年」など
+  // Per-month free swing analysis usage. Whitelisted users (isSwingAllowed)
+  // bypass this counter entirely; everyone else gets SWING_FREE_LIMIT runs
+  // per calendar month (default 1). Reset semantics live in lib/swingQuota.
+  swingUsage?: { month: string; count: number; lifetimeCount?: number };
 };
 
 export type ScoreEntry = { score: number; date: string };

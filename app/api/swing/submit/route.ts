@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMeId } from '@/lib/session';
 import { createSwing } from '@/lib/swingFirestore';
-import { isSwingAllowed } from '@/lib/swingAccess';
+import { getSwingQuota, incrementSwingUsage } from '@/lib/swingQuota';
 import type { SwingDoc, SwingMode } from '@/types/swing';
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
@@ -12,7 +12,21 @@ const VALID_MODES: SwingMode[] = ['self', 'compare', 'past', 'range_vs_round', '
 export async function POST(req: NextRequest) {
   const meId = await getMeId();
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: noStore });
-  if (!(await isSwingAllowed(meId))) return NextResponse.json({ error: 'beta_only' }, { status: 403, headers: noStore });
+
+  // Quota gate. Whitelisted users (admin-approved) bypass the counter and
+  // get unlimited runs; everyone else is capped at SWING_FREE_LIMIT/month
+  // (default 1). 402 = "payment required" so the client can distinguish a
+  // quota refusal from auth/validation failures.
+  const quota = await getSwingQuota(meId);
+  if (!quota.allowed) {
+    return NextResponse.json({
+      error: 'quota_exceeded',
+      used: quota.used,
+      limit: quota.limit,
+      month: quota.month,
+      message: `今月の無料解析枠 ${quota.limit} 回を使い切りました (${quota.month})`,
+    }, { status: 402, headers: noStore });
+  }
 
   let body: any;
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'bad json' }, { status: 400, headers: noStore }); }
@@ -54,6 +68,10 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
   }
+
+  // Counted at submit time, not at analysis success — otherwise users could
+  // re-roll free runs by force-quitting after upload. No-op for whitelist.
+  try { await incrementSwingUsage(meId); } catch (e) { console.warn('[swing/submit] usage bump failed', e); }
 
   // Fire-and-forget: kick the worker immediately so users don't wait for the
   // next Cron tick. Vercel kills dangling promises after the response, so we

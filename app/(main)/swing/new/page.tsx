@@ -66,6 +66,16 @@ export default function NewSwingPage() {
         }),
       });
       if (!r.ok) {
+        // Quota refusal: friendlier message + send the user back to the
+        // list page where the orange "今月の枠を使い切りました" banner is
+        // already rendered. Avoids a generic "402 ..." error toast.
+        if (r.status === 402) {
+          let msg = '今月の無料解析枠を使い切りました';
+          try { const j = await r.json(); if (j?.message) msg = j.message; } catch {}
+          toast(msg, 'error');
+          router.push('/swing');
+          return;
+        }
         const t = await r.text();
         throw new Error(`${r.status} ${t.slice(0, 120)}`);
       }
