@@ -29,13 +29,25 @@ function authorizeCron(req: NextRequest): boolean {
 }
 
 const MAX_PER_TICK = 5;
-const MAX_RETRY = 2;
+// One retry. Two retries × ~90s Gemini call × ~60s Cron wait per attempt
+// pushed end-to-end latency past 6 minutes when the new (longer) prompt
+// occasionally truncated and tripped the retryable check. Capping at 1
+// retry keeps a transient flake covered while bounding the worst case.
+const MAX_RETRY = 1;
 
 export async function GET(req: NextRequest) {
   const tickStart = Date.now();
   if (!authorizeCron(req)) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
   }
+
+  // Origin + secret are passed through to processOne so a requeued swing can
+  // self-kick the next attempt immediately instead of waiting up to 60s for
+  // the next Vercel Cron tick. processOne returns whether it requeued, and
+  // we fire one kick at the end if anything did — single fetch covers any
+  // number of requeued items in this tick.
+  const reqOrigin = new URL(req.url).origin;
+  const cronSecret = process.env.CRON_SECRET || '';
 
   const queued = await listQueuedSwings(MAX_PER_TICK);
   if (!queued.length) return NextResponse.json({ ok: true, processed: 0 }, { headers: noStore });
@@ -58,6 +70,22 @@ export async function GET(req: NextRequest) {
     }
   }));
   const results = settled.map((s) => (s.status === 'fulfilled' ? s.value : { ok: false, error: String(s.reason) }));
+
+  // If any swing was put back in the queue for retry, kick ourselves
+  // immediately rather than waiting up to 60s for the next Cron tick. One
+  // fetch is enough — the next tick picks up everything still queued.
+  const anyRequeued = results.some((r: any) => r?.status === 'requeued');
+  if (anyRequeued && cronSecret) {
+    const kickUrl = `${reqOrigin}/api/swing/process?secret=${encodeURIComponent(cronSecret)}`;
+    try {
+      const { waitUntil } = await import('@vercel/functions');
+      waitUntil(fetch(kickUrl, { method: 'GET', cache: 'no-store' }).catch(() => {}));
+    } catch {
+      fetch(kickUrl, { method: 'GET', cache: 'no-store' }).catch(() => {});
+    }
+    console.log('[swing/process] retry kick fired');
+  }
+
   console.log('[swing/process] tick end', { count: queued.length, ms: Date.now() - tickStart });
   return NextResponse.json({ ok: true, processed: results.length, results }, { headers: noStore });
 }
