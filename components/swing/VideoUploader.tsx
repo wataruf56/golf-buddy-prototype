@@ -36,7 +36,16 @@ export function VideoUploader({ swingId, role, label, onUploaded }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ swingId, role, contentType: fileType }),
       });
-      if (!r.ok) throw new Error(`upload-url ${r.status}`);
+      if (!r.ok) {
+        // 402 = quota exceeded. Surface the friendly message instead of
+        // "upload-url 402" so the user understands why upload didn't start.
+        if (r.status === 402) {
+          let msg = '今月の無料解析枠を使い切りました';
+          try { const j = await r.json(); if (j?.message) msg = j.message; } catch {}
+          throw new Error(msg);
+        }
+        throw new Error(`upload-url ${r.status}`);
+      }
       const { uploadUrl, gcsUri, contentType: signedType } = await r.json();
 
       // 2) PUT directly to GCS with progress

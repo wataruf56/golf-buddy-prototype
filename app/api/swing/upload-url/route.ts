@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMeId } from '@/lib/session';
 import { generateUploadUrl, buildObjectName, gcsUriFor } from '@/lib/swingGcs';
-import { isSwingAllowed } from '@/lib/swingAccess';
+import { getSwingQuota } from '@/lib/swingQuota';
 import type { SwingUploadRole } from '@/types/swing';
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
@@ -12,7 +12,20 @@ const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 export async function POST(req: NextRequest) {
   const meId = await getMeId();
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: noStore });
-  if (!(await isSwingAllowed(meId))) return NextResponse.json({ error: 'beta_only' }, { status: 403, headers: noStore });
+
+  // Pre-flight quota check so we refuse the upload BEFORE the user's phone
+  // spends 30s pushing 50MB of video that would just bounce off
+  // /api/swing/submit. Whitelisted users bypass.
+  const quota = await getSwingQuota(meId);
+  if (!quota.allowed) {
+    return NextResponse.json({
+      error: 'quota_exceeded',
+      used: quota.used,
+      limit: quota.limit,
+      month: quota.month,
+      message: `今月の無料解析枠 ${quota.limit} 回を使い切りました (${quota.month})`,
+    }, { status: 402, headers: noStore });
+  }
 
   let body: any;
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'bad json' }, { status: 400, headers: noStore }); }
