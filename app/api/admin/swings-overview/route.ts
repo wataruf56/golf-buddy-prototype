@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
 
   // Identify stuck items: analyzing for > stuckMinutes, OR failed in last hour.
   const stuck = docs
-    .filter((d) => {
+    .filter((d: any) => {
       const data = d.data;
       if (data.status === 'analyzing') {
         const startedAt = data.startedAnalyzingAt || data.updatedAt || 0;
@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
   });
 
   const byStatus = (status: string) =>
-    docs.filter((d) => d.data.status === status).slice(0, 10).map(summarise);
+    docs.filter((d: any) => d.data.status === status).slice(0, 10).map(summarise);
 
   return NextResponse.json({
     now,
@@ -96,6 +96,6 @@ export async function GET(req: NextRequest) {
       queued: byStatus('queued'),
       done: byStatus('done').slice(0, 5),
     },
-    stuckSwings: stuck.map((s) => summarise(s)),
+    stuckSwings: stuck.map((s: any) => summarise(s)),
   }, { headers: noStore });
 }
