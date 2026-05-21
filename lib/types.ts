@@ -63,6 +63,10 @@ export type Round = {
   // saved entries are also mirrored into each user's recentScores list so
   // their profile updates automatically.
   scores?: Record<string, number>;
+  // ms timestamp when the "レビューしてください" LINE push was sent for this
+  // round. Used by /api/cron/round-reminders to avoid double-sending. Unset
+  // = never sent.
+  reviewReminderSentAt?: number;
 };
 
 export type Review = {

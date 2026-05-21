@@ -425,13 +425,21 @@ function ScoreEntryCard({ round, host, applicants }: {
             <Avatar user={p} size={32} />
             <div className="flex-1 min-w-0 text-[13px] font-semibold truncate">{p.displayName}</div>
             <input
-              type="number"
+              // type="text" with inputMode="numeric" — type="number" + min/max on
+              // iOS Safari froze controlled inputs when the same digit repeated
+              // ("11" → couldn't add 3 to make "113"). Filter to digits in onChange
+              // instead; range/length checks live on the server (and are clamped
+              // here too: max 3 chars, server rejects <30 / >200).
+              type="text"
               inputMode="numeric"
-              min={30}
-              max={200}
+              pattern="\\d*"
+              maxLength={3}
               placeholder="—"
               value={drafts[p.id] ?? ''}
-              onChange={(e) => setDrafts((d) => ({ ...d, [p.id]: e.target.value }))}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/[^0-9]/g, '').slice(0, 3);
+                setDrafts((d) => ({ ...d, [p.id]: digits }));
+              }}
               className="w-20 p-2 border-[1.5px] border-border rounded-lg text-center text-sm font-bold bg-card outline-none"
             />
           </div>
