@@ -48,15 +48,19 @@ export function parseSnapshots(reviewText: string): SwingSnapshot[] {
     if (timeSec === undefined || timeSec < 0) continue;
     const x = parseFloatSafe(kv.x);
     const y = parseFloatSafe(kv.y);
-    out.push({
+    // Build the object with conditional spreads so optional fields are
+    // OMITTED when missing, not set to `undefined`. Firestore Admin SDK
+    // rejects undefined values and v3 prompts deliberately don't emit x/y.
+    const snap: SwingSnapshot = {
       subject: subjectRaw,
       timeSec,
-      phase: kv.phase || undefined,
-      bodyPart: kv.body || undefined,
-      x: x !== undefined && x >= 0 && x <= 1 ? x : undefined,
-      y: y !== undefined && y >= 0 && y <= 1 ? y : undefined,
       caption: kv.caption || '',
-    });
+      ...(kv.phase ? { phase: kv.phase } : {}),
+      ...(kv.body ? { bodyPart: kv.body } : {}),
+      ...(x !== undefined && x >= 0 && x <= 1 ? { x } : {}),
+      ...(y !== undefined && y >= 0 && y <= 1 ? { y } : {}),
+    };
+    out.push(snap);
   }
   return out;
 }

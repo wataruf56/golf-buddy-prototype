@@ -21,6 +21,13 @@ export function getAdminDb(): any | null {
       _adminApp = admin.apps[0];
     }
     _adminDb = admin.firestore();
+    // Safety net: lets us write objects that have explicit `undefined`
+    // properties without crashing. Without this the analyzer worker bricked
+    // every swing when v3 prompts stopped emitting x/y on snapshots — one
+    // undefined leaf rejected the whole document update and the swing got
+    // stuck in 'analyzing' forever. We still try to omit undefined at the
+    // call sites; this is the seatbelt.
+    try { _adminDb.settings({ ignoreUndefinedProperties: true }); } catch {}
     return _adminDb;
   } catch (e) {
     console.error('[firebase] admin init failed:', e);
