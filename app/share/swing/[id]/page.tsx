@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { ReviewChunks } from '@/components/swing/ReviewChunks';
+import { TabbedReview } from '@/components/swing/TabbedReview';
 import { SnapshotGallery } from '@/components/swing/SnapshotGallery';
 import type { SwingSnapshot } from '@/types/swing';
 
@@ -129,7 +129,7 @@ export default function SharedSwingPage() {
         </div>
 
         {swing.reviewTextChunks?.length > 0 && (
-          <ReviewChunks chunks={swing.reviewTextChunks} />
+          <TabbedReview chunks={swing.reviewTextChunks} />
         )}
 
         {swing.snapshots && swing.snapshots.length > 0 && (

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ReviewChunks } from '@/components/swing/ReviewChunks';
+import { TabbedReview } from '@/components/swing/TabbedReview';
 import { StatusBadge } from '@/components/swing/StatusBadge';
 import { SnapshotGallery } from '@/components/swing/SnapshotGallery';
 import { toast } from '@/components/Toast';
@@ -144,7 +144,7 @@ export default function SwingDetailPage() {
 
       {swing.status === 'done' && swing.reviewTextChunks && (
         <>
-          <ReviewChunks chunks={swing.reviewTextChunks} />
+          <TabbedReview chunks={swing.reviewTextChunks} />
           {swing.snapshots && swing.snapshots.length > 0 && (
             <SnapshotGallery snapshots={swing.snapshots} videos={buildSnapshotVideoMap(swing)} />
           )}
