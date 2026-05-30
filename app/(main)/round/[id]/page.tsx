@@ -8,6 +8,7 @@ import { toast } from '@/components/Toast';
 import { Avatar } from '@/components/Avatar';
 import { track } from '@/lib/telemetry';
 import { chatIdFor, formatDate } from '@/lib/utils';
+import { levelConditionLabel } from '@/lib/roundEligibility';
 import type { Round, User } from '@/lib/types';
 
 // Brand launch URL — handled by middleware, redirects to liff.line.me/{id}
