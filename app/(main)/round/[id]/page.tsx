@@ -187,9 +187,32 @@ export default function RoundDetailPage() {
         <div className="grid grid-cols-2 gap-2.5 mb-4">
           <Cell label="日時">{dateLabel} {round.startTime || ''}</Cell>
           <Cell label={round.type === 'confirmed' ? 'コース' : 'エリア'}>{round.type === 'confirmed' ? round.courseName : round.area}</Cell>
-          <Cell label="レベル">{round.levelCondition}</Cell>
+          <Cell label="レベル">{levelConditionLabel(round)}</Cell>
           <Cell label="費用目安">{round.price || '—'}</Cell>
         </div>
+
+        {/* Gender breakdown across host + approved applicants. Always shown
+            (incl. competitions) so you can see the mix at a glance. */}
+        {(() => {
+          const ids = [round.hostId, ...round.applicantIds];
+          let m = 0, f = 0, o = 0;
+          for (const id of ids) {
+            const u = users.find((x) => x.id === id);
+            if (!u) { o++; continue; }
+            if (u.gender === 'male') m++;
+            else if (u.gender === 'female') f++;
+            else o++;
+          }
+          return (
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-light text-blue">👨 男 {m}</span>
+              <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-pink-100 text-pink-600">👩 女 {f}</span>
+              {o > 0 && (
+                <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-bg text-sub">未設定 {o}</span>
+              )}
+            </div>
+          );
+        })()}
 
         {isComp && (
           <div className="mb-4">
@@ -225,7 +248,7 @@ export default function RoundDetailPage() {
                 <Avatar user={host} size={44} />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-bold truncate">{host.displayName}</div>
-                  <div className="text-[11px] text-sub truncate">★{host.reviewAvg}（{host.reviewCount}件）{host.scoreRange ? ' ・ ' + host.scoreRange : ''}</div>
+                  <div className="text-[11px] text-sub truncate">{describeUser(host)} ・ ★{host.reviewAvg}（{host.reviewCount}件）{host.scoreRange ? ' ・ ' + host.scoreRange : ''}</div>
                 </div>
               </Link>
               {!isHost && (
