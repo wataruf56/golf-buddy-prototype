@@ -85,16 +85,25 @@ export const mockChats: Chat[] = [
   },
 ];
 
-// Simplified flat tag list. Review UI requires at least 1 selected; the
-// free-form comment is optional. Order matters — positive first, negative
-// last — because the picker renders them in declaration order.
+// Flat tag list. Review UI requires at least 1 selected; the free-form
+// comment is optional. Order matters — positives first, negatives last —
+// because the picker renders them in declaration order.
 export const reviewTags = [
+  // --- positive ---
   '✨ マナーが良い',
   '⏰ 時間厳守',
+  '⛳ プレイファースト徹底',
   '😄 楽しい雰囲気',
   '👍 教え上手',
+  '🙌 すごく推せる',
+  '🤝 また一緒に回りたい',
+  '🌱 初心者に優しい',
+  // --- negative ---
+  '🐢 スロープレイ気味',
   '⏱️ 遅刻・ドタキャン',
   '⚠️ マナーが気になった',
+  '🚫 全然おすすめしない',
+  '😬 雰囲気が合わなかった',
 ];
 
 export const allAreas = [
