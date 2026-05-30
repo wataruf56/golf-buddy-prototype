@@ -18,10 +18,14 @@ export async function POST(req: NextRequest) {
   if (!revieweeId || !roundId || !stars) {
     return NextResponse.json({ error: 'invalid: revieweeId/roundId/stars required' }, { status: 400 });
   }
+  const tagList = Array.isArray(tags) ? tags.filter((t: any) => typeof t === 'string' && t.trim()) : [];
+  if (tagList.length < 1) {
+    return NextResponse.json({ error: 'tags_required', message: 'タグを1つ以上選んでください' }, { status: 400 });
+  }
   try {
     const review = await db.createReview({
       roundId, reviewerId: meId, revieweeId,
-      stars: Number(stars), tags: Array.isArray(tags) ? tags : [],
+      stars: Number(stars), tags: tagList,
       comment: comment ? String(comment) : '',
       createdAt: Date.now(), isAnonymous: true,
     });

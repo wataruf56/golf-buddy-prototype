@@ -249,7 +249,7 @@ export default function RoundDetailPage() {
                   <Avatar user={u} size={36} />
                   <div className="flex-1 min-w-0">
                     <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
-                    <div className="text-[10px] text-sub">★{u.reviewAvg}</div>
+                    <div className="text-[10px] text-sub">{describeUser(u)} ・ ★{u.reviewAvg}</div>
                   </div>
                 </Link>
                 {!isHost && u.id !== meId && (
@@ -276,7 +276,7 @@ export default function RoundDetailPage() {
                   <Avatar user={u} size={36} />
                   <div className="flex-1 min-w-0">
                     <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
-                    <div className="text-[10px] text-sub">★{u.reviewAvg}（{u.reviewCount}件）</div>
+                    <div className="text-[10px] text-sub">{describeUser(u)} ・ ★{u.reviewAvg}（{u.reviewCount}件）</div>
                   </div>
                 </Link>
                 <Link href={`/chat/${chatIdFor(meId, u.id)}?other=${u.id}`} className="px-2.5 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
@@ -457,6 +457,15 @@ function ScoreEntryCard({ round, host, applicants }: {
       </div>
     </div>
   );
+}
+
+function describeUser(u: import('@/lib/types').User): string {
+  // Compact "性別 ・ 年齢" line shown next to a participant's name.
+  const parts: string[] = [];
+  if (u.gender === 'male') parts.push('👨 男性');
+  else if (u.gender === 'female') parts.push('👩 女性');
+  if (typeof u.age === 'number' && u.age > 0) parts.push(`${u.age}歳`);
+  return parts.join(' ・ ') || '未設定';
 }
 
 function Cell({ label, children }: { label: string; children: React.ReactNode }) {

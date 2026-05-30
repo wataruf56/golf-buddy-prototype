@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { pushTo, liffUrl } from '@/lib/linePush';
 import { isMatchingAllowedByAge, getCohort } from '@/lib/ageGate';
+import { checkRoundEligibility } from '@/lib/roundEligibility';
 
 export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
   const meId = await getMeId();
@@ -24,6 +25,14 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   if ((host?.blockedUserIds || []).includes(meId)) {
     return NextResponse.json({ error: 'blocked_by_host' }, { status: 403 });
   }
+
+  // Beginner-only + gender restriction enforcement. Pure function so the
+  // UI can show the same explanation before the user even taps "申し込む".
+  const elig = checkRoundEligibility(existing, me || undefined);
+  if (!elig.ok) {
+    return NextResponse.json({ error: elig.code, message: elig.message }, { status: 403 });
+  }
+
   const round = await db.joinRound(params.id, meId);
   // Notify host of new application.
   if (host && !(host as any).notifyOff) {

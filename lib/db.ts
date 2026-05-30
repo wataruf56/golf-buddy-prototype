@@ -144,9 +144,19 @@ class MemoryDB implements DB {
     if (!r) throw new Error('round not found');
     r.status = 'completed';
     const participants = [r.hostId, ...r.applicantIds];
+    // BUG FIX: bump roundCount for every participant. Previously this never
+    // incremented, so profile "ラウンド回数" stayed at 0 forever.
+    for (const uid of participants) {
+      const u = this.users.find((x) => x.id === uid);
+      if (u) u.roundCount = (u.roundCount || 0) + 1;
+    }
     return {
       round: r,
       pendingForUser: (userId: string) => {
+        // Competitions (5+ spots) → skip mutual reviews entirely. The host
+        // explicitly marks these (isCompetition) and feedback among 5+
+        // strangers doesn't carry the same weight as a 2〜4 person round.
+        if (r.isCompetition) return [];
         if (!participants.includes(userId)) return [];
         return participants.filter((p) => p !== userId).map((reviewee) => ({
           id: `p_${id}_${userId}_${reviewee}`,
@@ -407,9 +417,28 @@ class FirestoreDB implements DB {
     await ref.set({ status: 'completed' }, { merge: true });
     const round = { ...data, id: snap.id, status: 'completed' as const };
     const participants = [round.hostId, ...(round.applicantIds || [])];
+
+    // BUG FIX: bump roundCount on every participant's user doc. Previously
+    // never happened → profile "ラウンド回数" stayed at 0.
+    // FieldValue.increment is atomic and safe under concurrent completions.
+    try {
+      const admin = require('firebase-admin');
+      const INC = admin.firestore.FieldValue.increment(1);
+      await Promise.all(participants.map((uid) =>
+        this.fs.collection('users').doc(uid).set({ roundCount: INC }, { merge: true })
+          .catch((e: any) => console.warn('[completeRound] roundCount bump failed', uid, e)),
+      ));
+    } catch (e) {
+      console.warn('[completeRound] FieldValue.increment unavailable', e);
+    }
+
     return {
       round,
       pendingForUser: (userId: string) => {
+        // Competitions (5+ spots) → skip mutual reviews entirely. Mass
+        // mutual reviews among strangers don't carry the same signal as a
+        // 2〜4 person round and just noise up the queue.
+        if (round.isCompetition) return [];
         if (!participants.includes(userId)) return [];
         return participants.filter((p) => p !== userId).map((reviewee) => ({
           id: `p_${id}_${userId}_${reviewee}`,

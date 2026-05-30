@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { isMatchingAllowedByAge, getCohort } from '@/lib/ageGate';
+import { levelConditionLabel } from '@/lib/roundEligibility';
 import type { Round } from '@/lib/types';
 
 export async function GET() {
@@ -18,6 +19,9 @@ export async function POST(req: NextRequest) {
   }
   const body = await req.json();
   const cohort = getCohort(me?.age) || undefined;
+  const beginnerOnly = !!body.beginnerOnly;
+  const genderCondition: 'any' | 'male' | 'female' =
+    body.genderCondition === 'male' || body.genderCondition === 'female' ? body.genderCondition : 'any';
   const round: Omit<Round, 'id'> = {
     hostId: meId,
     hostCohort: cohort,
@@ -33,7 +37,11 @@ export async function POST(req: NextRequest) {
     currentCount: 1,
     applicantIds: [],
     price: body.price,
-    levelCondition: body.levelCondition || 'スコア不問',
+    beginnerOnly,
+    genderCondition,
+    // Derive the display label from the structured fields so older list/card
+    // UIs that only read levelCondition still show the right thing.
+    levelCondition: levelConditionLabel({ beginnerOnly, genderCondition, levelCondition: '' }),
     description: body.description,
     status: 'open',
     isCompetition: (Number(body.maxSpots) || 1) >= 5,

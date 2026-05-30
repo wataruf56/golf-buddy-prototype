@@ -31,8 +31,9 @@ export function ReviewOverlay() {
   }
 
   const [busy, setBusy] = useState(false);
+  const canSubmit = stars > 0 && tags.length >= 1 && !busy;
   async function submit() {
-    if (stars === 0 || busy) return;
+    if (!canSubmit) return;
     setBusy(true);
     track('review_submit_click', { pendingId: current.id, revieweeId: current.revieweeId, stars, tagCount: tags.length });
     try {
@@ -79,7 +80,7 @@ export function ReviewOverlay() {
           <div className="text-center text-[13px] font-bold text-green mb-3">{labels[stars]}</div>
         )}
 
-        <div className="text-xs text-sub mb-2">タグ（任意）</div>
+        <div className="text-xs text-sub mb-2">タグ（最低1つ必須）</div>
         <div className="flex flex-wrap gap-1.5 mb-4">
           {reviewTags.map((t) => {
             const sel = tags.includes(t);
@@ -110,13 +111,19 @@ export function ReviewOverlay() {
 
         <button
           onClick={submit}
-          disabled={stars === 0 || busy}
+          disabled={!canSubmit}
           className={cn(
             'w-full py-3.5 rounded-xl text-[15px] font-bold',
-            stars > 0 && !busy ? 'bg-green text-white hover:bg-green-dark' : 'bg-border text-muted cursor-not-allowed'
+            canSubmit ? 'bg-green text-white hover:bg-green-dark' : 'bg-border text-muted cursor-not-allowed'
           )}
         >
-          {busy ? '送信中...' : stars > 0 ? 'レビューを送信する' : '★をタップして評価してください'}
+          {busy
+            ? '送信中...'
+            : stars === 0
+              ? '★をタップして評価してください'
+              : tags.length === 0
+                ? 'タグを1つ以上選んでください'
+                : 'レビューを送信する'}
         </button>
       </div>
     </div>

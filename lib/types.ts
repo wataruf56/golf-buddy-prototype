@@ -53,7 +53,16 @@ export type Round = {
   applicantIds: string[];
   pendingApplicantIds?: string[];
   price?: string;
+  // Free-form display label kept for back-compat (mock data uses strings
+  // like "初心者OK"). Auto-derived from beginnerOnly + genderCondition for
+  // new rounds, used only for display.
   levelCondition: string;
+  // True = "初心者のみ"; only scoreRange in BEGINNER_FRIENDLY_SCORES may
+  // apply (see lib/roundEligibility). False/undefined = 誰でも・初心者OK.
+  beginnerOnly?: boolean;
+  // 'any' (default) = 男女どちらでも申込可。'male' = 男性のみ。'female' = 女性のみ。
+  // Server-side gate enforced in /api/rounds/[id]/join.
+  genderCondition?: 'any' | 'male' | 'female';
   description?: string;
   status: RoundStatus;
   isCompetition: boolean;

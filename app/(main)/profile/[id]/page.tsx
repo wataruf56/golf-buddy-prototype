@@ -173,15 +173,36 @@ export default function ProfilePage() {
         <div className="text-[13px] font-bold mb-2.5">レビュー（匿名）</div>
         {reviews.length === 0 ? (
           <div className="text-xs text-muted py-3 text-center">まだレビューがありません</div>
-        ) : reviews.map((rv) => (
-          <div key={rv.id} className="p-2.5 bg-bg rounded-[10px] mb-2">
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-[11px] text-muted">匿名レビュー</span>
-              <span className="text-[13px] text-yellow">{'★'.repeat(rv.stars)}{'☆'.repeat(5 - rv.stars)}</span>
+        ) : reviews.map((rv) => {
+          const r: any = rv;
+          const demo = r.reviewer;
+          const genderLabel = demo?.gender === 'male' ? '👨 男性'
+            : demo?.gender === 'female' ? '👩 女性' : null;
+          return (
+            <div key={rv.id} className="p-2.5 bg-bg rounded-[10px] mb-2">
+              <div className="flex justify-between items-center mb-1 gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] text-muted font-bold">匿名レビュー</span>
+                  {demo?.ageBucket && (
+                    <span className="text-[10px] font-bold px-1.5 py-[1px] rounded-full bg-card text-sub border border-border">{demo.ageBucket}歳</span>
+                  )}
+                  {genderLabel && (
+                    <span className={`text-[10px] font-bold px-1.5 py-[1px] rounded-full ${demo?.gender === 'male' ? 'bg-blue-light text-blue' : 'bg-pink-100 text-pink-600'}`}>{genderLabel}</span>
+                  )}
+                </div>
+                <span className="text-[13px] text-yellow">{'★'.repeat(rv.stars)}{'☆'.repeat(5 - rv.stars)}</span>
+              </div>
+              {Array.isArray(rv.tags) && rv.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-1">
+                  {rv.tags.map((t: string) => (
+                    <span key={t} className="text-[10px] px-1.5 py-[1px] rounded-full bg-green-light text-green font-bold">{t}</span>
+                  ))}
+                </div>
+              )}
+              {rv.comment && <div className="text-[13px] leading-relaxed">{rv.comment}</div>}
             </div>
-            {rv.comment && <div className="text-[13px] leading-relaxed">{rv.comment}</div>}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {isMe ? null : isBlocked ? (

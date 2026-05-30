@@ -85,9 +85,16 @@ export const mockChats: Chat[] = [
   },
 ];
 
+// Simplified flat tag list. Review UI requires at least 1 selected; the
+// free-form comment is optional. Order matters — positive first, negative
+// last — because the picker renders them in declaration order.
 export const reviewTags = [
-  'マナーが良い', '時間厳守', '楽しい雰囲気', '教え上手', '初心者に優しい',
-  'ドタキャン', '遅刻', 'マナー悪い',
+  '✨ マナーが良い',
+  '⏰ 時間厳守',
+  '😄 楽しい雰囲気',
+  '👍 教え上手',
+  '⏱️ 遅刻・ドタキャン',
+  '⚠️ マナーが気になった',
 ];
 
 export const allAreas = [

@@ -4,10 +4,24 @@ import Link from 'next/link';
 import type { Round, User } from '@/lib/types';
 import { Avatar } from '@/components/Avatar';
 import { useUnreadCounts } from '@/lib/useUnread';
+import { useStore } from '@/lib/store';
 import { formatDate } from '@/lib/utils';
+import { levelConditionLabel } from '@/lib/roundEligibility';
 
 export function RoundCard({ round, host }: { round: Round; host?: User }) {
   const { unreadRoundIds } = useUnreadCounts();
+  const allUsers = useStore((s) => s.users);
+  // Aggregate male / female counts across host + approved applicants.
+  const participantIds = [round.hostId, ...(round.applicantIds || [])];
+  let maleCount = 0, femaleCount = 0, otherCount = 0;
+  for (const uid of participantIds) {
+    const u = allUsers.find((x) => x.id === uid);
+    if (!u) continue;
+    if (u.gender === 'male') maleCount++;
+    else if (u.gender === 'female') femaleCount++;
+    else otherCount++;
+  }
+  const conditionLabel = levelConditionLabel(round);
   const hasUnread = unreadRoundIds.has(round.id);
   const isComp = round.maxSpots >= 5;
   const remaining = round.maxSpots - round.currentCount;
@@ -73,9 +87,20 @@ export function RoundCard({ round, host }: { round: Round; host?: User }) {
         </div>
       )}
       <div className="flex flex-wrap gap-1.5 mb-2.5">
-        <span className="badge px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-blue-light text-blue">{round.levelCondition}</span>
+        <span className="badge px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-blue-light text-blue">{conditionLabel}</span>
         {round.price && (
           <span className="badge px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-yellow-light text-orange">{round.price}</span>
+        )}
+      </div>
+
+      {/* Gender breakdown of current participants (host + approved applicants).
+          Helps applicants see at a glance if they'd be the lone outlier
+          before tapping in. */}
+      <div className="flex flex-wrap gap-1.5 mb-2.5">
+        <span className="px-2 py-[2px] rounded-md text-[10px] font-bold bg-blue-light text-blue">👨 男 {maleCount}</span>
+        <span className="px-2 py-[2px] rounded-md text-[10px] font-bold bg-pink-100 text-pink-600">👩 女 {femaleCount}</span>
+        {otherCount > 0 && (
+          <span className="px-2 py-[2px] rounded-md text-[10px] font-bold bg-bg text-sub">未設定 {otherCount}</span>
         )}
       </div>
       {host && (

@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { allAreas, levelOptions } from '@/lib/mockData';
+import { allAreas } from '@/lib/mockData';
+import { BEGINNER_FRIENDLY_SCORES } from '@/lib/roundEligibility';
 import { store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { track } from '@/lib/telemetry';
@@ -25,7 +26,9 @@ export default function CreatePage() {
   const [dateRange, setDateRange] = useState('');
   const [maxSpots, setMaxSpots] = useState(4);
   const [price, setPrice] = useState('');
-  const [levelCondition, setLevelCondition] = useState(levelOptions[0]);
+  // Replaced free-form levelCondition string with two structured selectors.
+  const [beginnerOnly, setBeginnerOnly] = useState<boolean>(false);
+  const [genderCondition, setGenderCondition] = useState<'any' | 'male' | 'female'>('any');
   const [description, setDescription] = useState('');
 
   const isComp = maxSpots >= 5;
@@ -52,7 +55,8 @@ export default function CreatePage() {
       startTime: type === 'confirmed' ? startTime : undefined,
       maxSpots,
       price: price || undefined,
-      levelCondition,
+      beginnerOnly,
+      genderCondition,
       description: description || undefined,
     };
     track('round_create_click', { ...payload, isComp });
@@ -195,11 +199,39 @@ export default function CreatePage() {
             )}
           </Field>
 
-          <Field label="レベル条件">
+          <Field label="参加条件 - レベル">
             <div className="flex gap-1.5 flex-wrap">
-              {levelOptions.map((l) => (
-                <button key={l} onClick={() => setLevelCondition(l)} className={cn('px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px]', levelCondition === l ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub')}>{l}</button>
-              ))}
+              <button
+                onClick={() => setBeginnerOnly(false)}
+                className={cn('px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px]', !beginnerOnly ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub')}
+              >誰でも・初心者OK</button>
+              <button
+                onClick={() => setBeginnerOnly(true)}
+                className={cn('px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px]', beginnerOnly ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub')}
+              >初心者のみ</button>
+            </div>
+            {beginnerOnly && (
+              <div className="mt-2 px-3 py-2 bg-bg rounded-lg text-[11px] text-sub leading-relaxed">
+                スコア帯 <b>{BEGINNER_FRIENDLY_SCORES.join(' / ')}</b> の人だけ参加申込できます。
+                それより上手な人(90台以下)は申込時に弾かれます。
+              </div>
+            )}
+          </Field>
+
+          <Field label="参加条件 - 性別">
+            <div className="flex gap-1.5 flex-wrap">
+              <button
+                onClick={() => setGenderCondition('any')}
+                className={cn('px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px]', genderCondition === 'any' ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub')}
+              >男女OK</button>
+              <button
+                onClick={() => setGenderCondition('male')}
+                className={cn('px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px]', genderCondition === 'male' ? 'bg-blue-light border-blue text-blue' : 'bg-bg border-border text-sub')}
+              >👨 男性のみ</button>
+              <button
+                onClick={() => setGenderCondition('female')}
+                className={cn('px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px]', genderCondition === 'female' ? 'bg-pink-100 border-pink-400 text-pink-600' : 'bg-bg border-border text-sub')}
+              >👩 女性のみ</button>
             </div>
           </Field>
 
