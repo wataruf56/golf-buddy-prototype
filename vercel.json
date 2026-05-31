@@ -1,8 +1,7 @@
 {
   "crons": [
     { "path": "/api/swing/process", "schedule": "* * * * *" },
-    { "path": "/api/cron/swing-recovery", "schedule": "*/5 * * * *" },
-    { "path": "/api/cron/round-reminders", "schedule": "*/30 * * * *" }
+    { "path": "/api/cron/housekeeping", "schedule": "*/15 * * * *" }
   ],
   "redirects": [
     {
