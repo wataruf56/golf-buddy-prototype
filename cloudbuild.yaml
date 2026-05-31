@@ -1,0 +1,50 @@
+# GitHub push → Cloud Build → Cloud Run deploy.
+# Wired via a Cloud Build trigger on the golf-buddy-d2305 project so that
+# every push to main rebuilds and redeploys (the GCP equivalent of Vercel's
+# Git integration). Runtime secrets live on the Cloud Run service, not here.
+substitutions:
+  _REGION: asia-northeast1
+  _SERVICE: goltomo-web
+  _REPO: goltomo
+  # Public (build-time) values — safe to keep in the repo.
+  _NEXT_PUBLIC_LIFF_ID: '2009973733-P5UdNex9'
+  _NEXT_PUBLIC_LINE_BOT_BASIC_ID: ''
+
+steps:
+  # Build the image, passing NEXT_PUBLIC_* as build args (baked into the client bundle).
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_LIFF_ID=${_NEXT_PUBLIC_LIFF_ID}'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_LINE_BOT_BASIC_ID=${_NEXT_PUBLIC_LINE_BOT_BASIC_ID}'
+      - '.'
+
+  # Push to Artifact Registry.
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA'
+
+  # Deploy to Cloud Run. Env vars / secrets are set on the service once
+  # (gcloud run services update ... --set-env-vars / --set-secrets) and are
+  # preserved across deploys, so we don't re-specify them here.
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - '${_SERVICE}'
+      - '--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA'
+      - '--region=${_REGION}'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+
+images:
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

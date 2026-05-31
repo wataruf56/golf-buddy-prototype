@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+.vercel
+npm-debug.log
+*.log
+.env*.local
+README.md
+.claude

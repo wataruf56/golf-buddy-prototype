@@ -1,0 +1,16 @@
+{
+  "hosting": {
+    "site": "goltomo",
+    "public": "public",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "goltomo-web",
+          "region": "asia-northeast1"
+        }
+      }
+    ]
+  }
+}

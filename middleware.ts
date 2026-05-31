@@ -33,7 +33,12 @@ function shouldRequireAppAuth(path: string): boolean {
 
 export default async function middleware(req: NextRequest) {
   const url = req.nextUrl;
-  const host = (req.headers.get('host') || '').toLowerCase();
+  // Prefer x-forwarded-host: when Firebase Hosting proxies to Cloud Run it
+  // puts the ORIGINAL domain (goltomo.com / app. / admin.) here while `host`
+  // becomes the internal *.run.app hostname. On Vercel x-forwarded-host equals
+  // the request host, so preferring it is safe on both platforms. This keeps
+  // the host-based routing below working after the GCP migration.
+  const host = (req.headers.get('x-forwarded-host') || req.headers.get('host') || '').toLowerCase();
   const path = url.pathname;
 
   // -------- LP host (goltomo.com / www.goltomo.com) --------
