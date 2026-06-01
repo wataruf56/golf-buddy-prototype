@@ -62,7 +62,24 @@ function Inner() {
     if (!token) return;
     setBusy(true); setErr('');
     try {
-      const r = await fetch(`/api/admin/rounds?token=${encodeURIComponent(token)}`, { cache: 'no-store' });
+      let useToken = token;
+      let r = await fetch(`/api/admin/rounds?token=${encodeURIComponent(useToken)}`, { cache: 'no-store' });
+      // Self-heal a stale token: if the saved token was rotated on redeploy it
+      // returns 403. Re-fetch the live token from /api/admin/init and retry once
+      // instead of leaving the screen blank.
+      if (r.status === 403) {
+        try {
+          const ir = await fetch('/api/admin/init', { cache: 'no-store' });
+          const ij = ir.ok ? await ir.json() : null;
+          const fresh = ij?.token || '';
+          if (fresh && fresh !== useToken) {
+            useToken = fresh;
+            localStorage.setItem('gb_admin_token', fresh);
+            setToken(fresh);
+            r = await fetch(`/api/admin/rounds?token=${encodeURIComponent(fresh)}`, { cache: 'no-store' });
+          }
+        } catch {}
+      }
       if (!r.ok) throw new Error(`${r.status}`);
       const d = await r.json();
       setItems(d.items || []);

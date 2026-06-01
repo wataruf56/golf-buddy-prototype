@@ -20,23 +20,24 @@ function Inner() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const stored = tokenFromUrl || localStorage.getItem('gb_admin_token') || '';
-    if (stored) {
-      setToken(stored);
-      if (tokenFromUrl) localStorage.setItem('gb_admin_token', tokenFromUrl);
-      return;
-    }
-    // No token cached — fetch it from the server so the user never sees a
-    // manual prompt. /api/admin/_init returns the env-var value as JSON.
+    // Always treat /api/admin/init as the source of truth for the token. A
+    // cached localStorage token can go stale when ADMIN_LOG_TOKEN rotates on
+    // redeploy — that previously made every /api/admin/* call 403 and the
+    // screens came up blank. By fetching the live token here and overwriting
+    // the cache, a rotation self-heals as soon as the admin opens /admin.
+    const cached = tokenFromUrl || localStorage.getItem('gb_admin_token') || '';
+    if (cached) setToken(cached); // optimistic: render immediately
     (async () => {
       try {
         const r = await fetch('/api/admin/init', { cache: 'no-store' });
         if (!r.ok) return;
         const j = await r.json();
         const t: string = j?.token || '';
-        if (t) {
+        if (t && t !== cached) {
           localStorage.setItem('gb_admin_token', t);
           setToken(t);
+        } else if (t) {
+          localStorage.setItem('gb_admin_token', t);
         }
       } catch {}
     })();
