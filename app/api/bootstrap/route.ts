@@ -3,7 +3,6 @@ import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { isDemoMode } from '@/lib/demoMode';
 import { getCohort } from '@/lib/ageGate';
-import { isAdminUserId } from '@/lib/adminAccess';
 
 export async function GET() {
   const meId = await getMeId();
@@ -37,8 +36,8 @@ export async function GET() {
   } else {
     rounds = [];
   }
-  // Derive official status server-side (works for legacy rounds too).
-  for (const r of rounds) r.isOfficial = isAdminUserId(r.hostId);
+  // isOfficial is now an explicit stored flag (admin-toggled per round), so we
+  // pass it through as-is — no read-time derivation.
   const pendingReviews = pendingReviewsRes.status === 'fulfilled' ? pendingReviewsRes.value : [];
   const chats = chatsRes.status === 'fulfilled' ? chatsRes.value : [];
   const reviewsByMe = byMeRes.status === 'fulfilled' ? byMeRes.value : [];

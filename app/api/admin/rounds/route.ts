@@ -40,6 +40,33 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// PATCH /api/admin/rounds?token=XXX  body: { id, isOfficial: boolean }
+// Toggle a specific round's "ゴルトモ公式" flag from the admin screen.
+export async function PATCH(req: NextRequest) {
+  if (!checkToken(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
+  const db = getAdminDb();
+  if (!db) return NextResponse.json({ error: 'firestore not initialized' }, { status: 500, headers: noStore });
+
+  let body: any;
+  try { body = await req.json(); } catch { return NextResponse.json({ error: 'bad json' }, { status: 400, headers: noStore }); }
+  const id = String(body?.id || '').trim();
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400, headers: noStore });
+  if (typeof body?.isOfficial !== 'boolean') {
+    return NextResponse.json({ error: 'isOfficial (boolean) required' }, { status: 400, headers: noStore });
+  }
+  const isOfficial = body.isOfficial as boolean;
+
+  try {
+    const ref = db.collection('rounds').doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStore });
+    await ref.set({ isOfficial }, { merge: true });
+    return NextResponse.json({ ok: true, id, isOfficial }, { headers: noStore });
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
+  }
+}
+
 // DELETE /api/admin/rounds?token=XXX  body: { id, cascade?: boolean }
 // cascade=true → also deletes related pendingReviews + roundChats
 export async function DELETE(req: NextRequest) {

@@ -36,47 +36,53 @@ export function NotifySettings({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="absolute inset-0 bg-black/50 z-[170] flex items-end sm:items-center justify-center p-0 sm:p-5 backdrop-blur-sm">
-      <div className="bg-card rounded-t-3xl sm:rounded-card w-full max-w-[420px] max-h-[88vh] overflow-y-auto shadow-lg">
-        <div className="sticky top-0 bg-card flex items-center justify-between px-5 pt-4 pb-3 border-b border-border z-10">
+      {/* Flex column: fixed header + scrollable body + fixed footer, so the
+          保存 button is always visible regardless of list length. */}
+      <div className="bg-card rounded-t-3xl sm:rounded-card w-full max-w-[420px] max-h-[88vh] flex flex-col shadow-lg overflow-hidden">
+        <div className="bg-card flex items-center justify-between px-5 pt-4 pb-3 border-b border-border flex-shrink-0">
           <div className="text-base font-black">🔔 通知の設定</div>
           <button onClick={onClose} className="text-muted text-xl leading-none px-1" aria-label="閉じる">×</button>
         </div>
 
-        {/* Master switch */}
-        <div className="px-5 pt-3">
-          <button
-            onClick={() => setMasterOn((v) => !v)}
-            className="w-full flex items-center justify-between p-3.5 bg-bg rounded-xl mb-1"
-          >
-            <div className="text-left">
-              <div className="text-sm font-black">すべての通知</div>
-              <div className="text-[10px] text-sub mt-0.5">オフにすると下の設定に関係なく一切届きません</div>
-            </div>
-            <Switch on={masterOn} />
-          </button>
-        </div>
+        {/* Scrollable middle */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Master switch */}
+          <div className="px-5 pt-3">
+            <button
+              onClick={() => setMasterOn((v) => !v)}
+              className="w-full flex items-center justify-between p-3.5 bg-bg rounded-xl mb-1"
+            >
+              <div className="text-left">
+                <div className="text-sm font-black">すべての通知</div>
+                <div className="text-[10px] text-sub mt-0.5">オフにすると下の設定に関係なく一切届きません</div>
+              </div>
+              <Switch on={masterOn} />
+            </button>
+          </div>
 
-        {/* Per-type list */}
-        <div className={`px-5 pt-2 pb-1 ${masterOn ? '' : 'opacity-40 pointer-events-none'}`}>
-          <div className="text-[11px] font-bold text-sub px-1 mb-1.5">受け取る通知を選ぶ</div>
-          <div className="flex flex-col gap-1.5">
-            {NOTIFY_TYPES.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setPrefs((p) => ({ ...p, [t.key]: !p[t.key] }))}
-                className="w-full flex items-center justify-between p-3 bg-bg rounded-xl text-left"
-              >
-                <div className="flex-1 min-w-0 pr-2">
-                  <div className="text-[13px] font-bold">{t.label}</div>
-                  <div className="text-[10px] text-sub mt-0.5 leading-relaxed">{t.desc}</div>
-                </div>
-                <Switch on={prefs[t.key]} />
-              </button>
-            ))}
+          {/* Per-type list */}
+          <div className={`px-5 pt-2 pb-3 ${masterOn ? '' : 'opacity-40 pointer-events-none'}`}>
+            <div className="text-[11px] font-bold text-sub px-1 mb-1.5">受け取る通知を選ぶ</div>
+            <div className="flex flex-col gap-1.5">
+              {NOTIFY_TYPES.map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setPrefs((p) => ({ ...p, [t.key]: !p[t.key] }))}
+                  className="w-full flex items-center justify-between p-3 bg-bg rounded-xl text-left"
+                >
+                  <div className="flex-1 min-w-0 pr-2">
+                    <div className="text-[13px] font-bold">{t.label}</div>
+                    <div className="text-[10px] text-sub mt-0.5 leading-relaxed">{t.desc}</div>
+                  </div>
+                  <Switch on={prefs[t.key]} />
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        <div className="px-5 py-4 sticky bottom-0 bg-card border-t border-border">
+        {/* Fixed footer */}
+        <div className="px-5 py-4 bg-card border-t border-border flex-shrink-0">
           <button
             onClick={save}
             disabled={busy}

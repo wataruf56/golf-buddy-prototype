@@ -3,7 +3,6 @@ import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { isMatchingAllowedByAge, getCohort } from '@/lib/ageGate';
 import { levelConditionLabel } from '@/lib/roundEligibility';
-import { isAdminUserId } from '@/lib/adminAccess';
 import type { Round } from '@/lib/types';
 
 export async function GET() {
@@ -46,9 +45,9 @@ export async function POST(req: NextRequest) {
     description: body.description,
     status: 'open',
     isCompetition: (Number(body.maxSpots) || 1) >= 5,
-    // Official flag derived server-side from the admin allow-list, so a
-    // regular user can never post as "ゴルトモ公式".
-    isOfficial: isAdminUserId(meId),
+    // No auto-official on creation. "ゴルトモ公式" is now an explicit,
+    // per-round flag the admin toggles from the admin screen.
+    isOfficial: false,
     createdAt: Date.now(),
   };
   try {

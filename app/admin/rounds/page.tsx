@@ -22,6 +22,7 @@ type Round = {
   levelCondition?: string;
   status: string;
   isCompetition?: boolean;
+  isOfficial?: boolean;
   createdAt: number;
 };
 
@@ -94,6 +95,22 @@ function Inner() {
     }
   }
 
+  async function toggleOfficial(id: string, next: boolean) {
+    // Optimistic flip; revert on failure.
+    setItems((prev) => prev.map((x) => (x.id === id ? { ...x, isOfficial: next } : x)));
+    try {
+      const r = await fetch(`/api/admin/rounds?token=${encodeURIComponent(token)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, isOfficial: next }),
+      });
+      if (!r.ok) throw new Error(`${r.status}`);
+    } catch (e) {
+      setItems((prev) => prev.map((x) => (x.id === id ? { ...x, isOfficial: !next } : x)));
+      alert(`公式切替に失敗: ${(e as Error).message}`);
+    }
+  }
+
   const filtered = items.filter((r) => {
     if (statusFilter !== 'all' && r.status !== statusFilter) return false;
     if (!filter) return true;
@@ -147,7 +164,10 @@ function Inner() {
           return (
             <div key={r.id} className="bg-card rounded-xl p-3 shadow-card">
               <div className="flex items-center justify-between mb-1">
-                <div className="text-sm font-bold truncate flex-1 min-w-0">{r.title || '(タイトル無し)'}</div>
+                <div className="text-sm font-bold truncate flex-1 min-w-0">
+                  {r.isOfficial && <span className="text-green mr-1">⛳公式</span>}
+                  {r.title || '(タイトル無し)'}
+                </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ml-2 ${STATUS_COLOR[r.status] || 'bg-bg text-sub'}`}>
                   {r.status === 'open' ? '募集中' : r.status === 'completed' ? '完了' : r.status}
                 </span>
@@ -162,6 +182,17 @@ function Inner() {
               <div className="text-[10px] text-muted mt-0.5">
                 作成: {new Date(r.createdAt).toLocaleString('ja-JP')}
               </div>
+
+              <button
+                onClick={() => toggleOfficial(r.id, !r.isOfficial)}
+                className={`w-full py-1.5 mt-2 text-[11px] font-bold rounded border-[1.5px] ${
+                  r.isOfficial
+                    ? 'bg-green text-white border-green'
+                    : 'bg-card text-green border-green'
+                }`}
+              >
+                {r.isOfficial ? '⛳ ゴルトモ公式（解除する）' : '⛳ ゴルトモ公式にする'}
+              </button>
 
               <div className="flex gap-1.5 mt-2">
                 <Link
