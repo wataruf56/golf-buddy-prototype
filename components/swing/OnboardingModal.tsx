@@ -46,7 +46,7 @@ export function OnboardingModal() {
   const isLast = step === STEPS.length - 1;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
       <div className="bg-card rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
         <div className="p-6 text-center">
           <div className="text-5xl mb-3">{s.emoji}</div>

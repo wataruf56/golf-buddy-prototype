@@ -4,6 +4,21 @@ import { useEffect, useState } from 'react';
 import { enableWebPush, disableWebPush, pushSupported, pushPermission } from '@/lib/webPushClient';
 import { toast } from '@/components/Toast';
 
+// iOS only exposes PushManager inside an installed (home-screen) PWA. Detect
+// "iOS Safari, not yet installed" so we can tell the user exactly what to do
+// instead of just greying the row out.
+function isIOS(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+    // iPadOS 13+ reports as Mac; detect via touch.
+    (navigator.platform === 'MacIntel' && (navigator as any).maxTouchPoints > 1);
+}
+function isStandalone(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia?.('(display-mode: standalone)').matches ||
+    (navigator as any).standalone === true;
+}
+
 // A settings row that lets the user turn on browser/web push notifications.
 // Works independently of LINE notifications — this delivers to the device's
 // lock screen even for users who never added the LINE official account
@@ -56,35 +71,65 @@ export function WebPushToggle() {
   }
 
   if (state === 'unsupported') {
+    // On iOS the real reason is almost always "not installed to home screen
+    // yet" — guide them there rather than saying "unsupported".
+    const iosNeedsInstall = isIOS() && !isStandalone();
     return (
-      <div className="w-full bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card opacity-60">
-        <div>
+      <div className="w-full bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card">
+        <div className="flex-1 min-w-0 pr-2">
           <div className="text-sm font-medium">プッシュ通知（端末）</div>
-          <div className="text-[10px] text-muted mt-0.5">この端末では利用できません</div>
+          <div className="text-[10px] text-muted mt-0.5 leading-relaxed">
+            {iosNeedsInstall
+              ? 'iPhoneでは「ホーム画面に追加」したアプリから開くと使えます。マイページの「📱 ホーム画面に追加」をご確認ください。'
+              : 'この端末／ブラウザでは利用できません'}
+          </div>
         </div>
-        <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-bg text-muted">—</span>
+        <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-bg text-muted flex-shrink-0">
+          {iosNeedsInstall ? '要設定' : '—'}
+        </span>
       </div>
     );
   }
 
   const isOn = state === 'on';
+
+  async function sendTest() {
+    try {
+      const r = await fetch('/api/push/test', { method: 'POST' });
+      if (r.ok) toast('テスト通知を送信しました（数秒で届きます）');
+      else toast('テスト送信に失敗しました', 'error');
+    } catch {
+      toast('テスト送信に失敗しました', 'error');
+    }
+  }
+
   return (
-    <button
-      onClick={toggle}
-      disabled={busy || state === 'unknown'}
-      className="w-full bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card text-left disabled:opacity-50"
-    >
-      <div>
-        <div className="text-sm font-medium">プッシュ通知（端末）</div>
-        <div className="text-[10px] text-muted mt-0.5">
-          {state === 'denied'
-            ? 'ブロック中 — ブラウザ設定で許可してください'
-            : 'ロック画面に通知が届きます（LINE追加なしでOK）'}
+    <div className="mb-1.5">
+      <button
+        onClick={toggle}
+        disabled={busy || state === 'unknown'}
+        className="w-full bg-card rounded-xl px-4 py-3.5 flex justify-between items-center shadow-card text-left disabled:opacity-50"
+      >
+        <div>
+          <div className="text-sm font-medium">プッシュ通知（端末）</div>
+          <div className="text-[10px] text-muted mt-0.5">
+            {state === 'denied'
+              ? 'ブロック中 — ブラウザ設定で許可してください'
+              : 'ロック画面に通知が届きます（LINE追加なしでOK）'}
+          </div>
         </div>
-      </div>
-      <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${isOn ? 'bg-green-light text-green' : 'bg-bg text-muted'}`}>
-        {busy ? '...' : isOn ? 'ON' : 'OFF'}
-      </span>
-    </button>
+        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${isOn ? 'bg-green-light text-green' : 'bg-bg text-muted'}`}>
+          {busy ? '...' : isOn ? 'ON' : 'OFF'}
+        </span>
+      </button>
+      {isOn && (
+        <button
+          onClick={sendTest}
+          className="w-full mt-1 px-4 py-2 text-[12px] font-bold text-green bg-green-light rounded-lg"
+        >
+          🔔 テスト通知を送る
+        </button>
+      )}
+    </div>
   );
 }
