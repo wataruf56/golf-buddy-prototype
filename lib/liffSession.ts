@@ -1,7 +1,13 @@
 import 'server-only';
 import crypto from 'crypto';
 
-export const LIFF_COOKIE_NAME = 'gb_liff_session';
+// MUST be exactly "__session" — Firebase Hosting strips every cookie EXCEPT
+// one named __session before forwarding the request to Cloud Run (so that
+// responses remain CDN-cacheable). Any other name (e.g. the old
+// gb_liff_session) silently never reaches the server, so middleware sees the
+// user as logged-out and bounces them back to /login in a loop.
+// Ref: https://firebase.google.com/docs/hosting/manage-cache#using_cookies
+export const LIFF_COOKIE_NAME = '__session';
 export const LIFF_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
 function sign(payload: string, secret: string) {

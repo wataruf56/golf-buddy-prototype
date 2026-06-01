@@ -104,7 +104,9 @@ export default async function middleware(req: NextRequest) {
   if (!isDemoMode && shouldRequireAppAuth(path)) {
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
     // Also accept the LIFF-issued session cookie as proof of login.
-    const liffCookie = req.cookies.get('gb_liff_session');
+    // Cookie name must match lib/liffSession.ts (now "__session" so Firebase
+    // Hosting forwards it to Cloud Run instead of stripping it).
+    const liffCookie = req.cookies.get('__session');
     if (!token && !liffCookie) {
       const loginUrl = new URL('/login', req.url);
       loginUrl.searchParams.set('callbackUrl', path + (url.search || ''));

@@ -6,7 +6,10 @@ import crypto from 'crypto';
 // flows break out into Safari on iOS and lose their cookie scope, so we
 // keep this completely independent.
 
-export const ADMIN_COOKIE_NAME = 'gb_admin_session';
+// Must be "__session" — Firebase Hosting strips all other cookies before
+// forwarding to Cloud Run. Admin lives on its own host (admin.goltomo.com),
+// so sharing the name with the app's LIFF cookie is fine (separate cookie jar).
+export const ADMIN_COOKIE_NAME = '__session';
 export const ADMIN_COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
 
 function sign(payload: string, secret: string) {
