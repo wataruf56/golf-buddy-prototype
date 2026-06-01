@@ -16,3 +16,4 @@ public/sw.js.map
 public/workbox-*.js.map
 
 .vercel
+scripts/richmenu.png

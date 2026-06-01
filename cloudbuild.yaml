@@ -8,7 +8,8 @@ substitutions:
   _REPO: goltomo
   # Public (build-time) values — safe to keep in the repo.
   _NEXT_PUBLIC_LIFF_ID: '2009973733-P5UdNex9'
-  _NEXT_PUBLIC_LINE_BOT_BASIC_ID: ''
+  # ゴルトモ Messaging API bot basic id — used for the "add friend" deep links.
+  _NEXT_PUBLIC_LINE_BOT_BASIC_ID: '@711xiyrs'
 
 steps:
   # Build the image, passing NEXT_PUBLIC_* as build args (baked into the client bundle).
