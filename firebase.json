@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "goltomo",
+    "site": "golf-buddy-d2305",
     "public": "public",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
