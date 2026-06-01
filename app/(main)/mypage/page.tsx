@@ -181,7 +181,16 @@ export default function MyPage() {
                 <span className="text-[11px] text-muted">匿名レビュー</span>
                 <span className="text-[13px] text-yellow">{'★'.repeat(rv.stars)}{'☆'.repeat(5 - rv.stars)}</span>
               </div>
-              {rv.comment && <div className="text-[13px]">{rv.comment}</div>}
+              {rv.tags && rv.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {rv.tags.map((tag, i) => (
+                    <span key={i} className="text-[11px] bg-green-light text-green px-2 py-0.5 rounded-full font-medium">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {rv.comment && <div className="text-[13px] mt-1.5">{rv.comment}</div>}
             </div>
           ))}
         </div>
