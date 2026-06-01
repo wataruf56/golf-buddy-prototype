@@ -257,7 +257,7 @@ function ShareCard({ swing }: { swing: SwingDoc }) {
     const w = window as any;
     if (w.navigator?.share) {
       try {
-        await w.navigator.share({ title: 'Golf Buddy スイング解析', text, url });
+        await w.navigator.share({ title: 'ゴルトモ スイング解析', text, url });
       } catch { /* user canceled, that's fine */ }
     } else {
       copy();

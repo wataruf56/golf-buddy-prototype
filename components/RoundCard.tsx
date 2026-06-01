@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import type { Round, User } from '@/lib/types';
 import { Avatar } from '@/components/Avatar';
+import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
 import { useUnreadCounts } from '@/lib/useUnread';
 import { useStore } from '@/lib/store';
 import { formatDate } from '@/lib/utils';
@@ -36,8 +37,13 @@ export function RoundCard({ round, host }: { round: Round; host?: User }) {
       className="block bg-card rounded-card p-4 mb-2.5 shadow-card cursor-pointer"
       style={isComp ? { borderLeft: '4px solid #E67E22' } : undefined}
     >
-      {(isComp || (round.pendingApplicantIds || []).length > 0 || hasUnread) && (
+      {(round.isOfficial || isComp || (round.pendingApplicantIds || []).length > 0 || hasUnread) && (
         <div className="flex items-center gap-1.5 mb-2.5 flex-wrap">
+          {round.isOfficial && (
+            <span className="badge inline-flex items-center gap-1 px-2.5 py-[3px] rounded-full text-[11px] font-black bg-green text-white">
+              ✓ ゴルトモ公式
+            </span>
+          )}
           {isComp && (
             <span className="badge inline-flex items-center gap-1 px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-orange text-white">
               🏆 コンペ・イベント
@@ -103,13 +109,19 @@ export function RoundCard({ round, host }: { round: Round; host?: User }) {
           <span className="px-2 py-[2px] rounded-md text-[10px] font-bold bg-bg text-sub">未設定 {otherCount}</span>
         )}
       </div>
-      {host && (
+      {round.isOfficial ? (
+        <div className="flex items-center gap-2 pt-2.5 border-t border-border">
+          <OfficialAvatar size={28} />
+          <div className="text-xs font-black">ゴルトモ公式</div>
+          <OfficialBadge />
+        </div>
+      ) : host ? (
         <div className="flex items-center gap-2 pt-2.5 border-t border-border">
           <Avatar user={host} size={28} />
           <div className="text-xs font-semibold">{host.displayName}</div>
           <div className="text-[11px] text-muted">★{host.reviewAvg}（{host.reviewCount}件）</div>
         </div>
-      )}
+      ) : null}
     </Link>
   );
 }

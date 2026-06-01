@@ -66,6 +66,10 @@ export type Round = {
   description?: string;
   status: RoundStatus;
   isCompetition: boolean;
+  // True when the host is a ゴルトモ admin (set server-side at creation from
+  // isAdminUserId — cannot be spoofed by the client). Official rounds render
+  // with a dedicated icon + "ゴルトモ公式" name + badge.
+  isOfficial?: boolean;
   createdAt: number;
   // Per-participant scores recorded after the round completes. Optional and
   // sparse — any participant may fill in their own or each other's score, and

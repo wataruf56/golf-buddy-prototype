@@ -9,6 +9,7 @@ import { Avatar } from '@/components/Avatar';
 import { track } from '@/lib/telemetry';
 import { chatIdFor, formatDate } from '@/lib/utils';
 import { levelConditionLabel } from '@/lib/roundEligibility';
+import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
 import type { Round, User } from '@/lib/types';
 
 // Brand launch URL — handled by middleware, redirects to liff.line.me/{id}
@@ -239,8 +240,22 @@ export default function RoundDetailPage() {
           </Link>
         )}
 
-        {/* Host */}
-        {host && (
+        {/* Host — official rounds show the branded ゴルトモ公式 identity instead
+            of the admin's personal profile. */}
+        {round.isOfficial ? (
+          <div className="mb-4">
+            <div className="text-[13px] font-bold mb-2">主催者</div>
+            <div className="flex items-center gap-2.5 p-3 bg-green-light rounded-xl">
+              <OfficialAvatar size={44} />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-black flex items-center gap-1.5">
+                  ゴルトモ公式 <OfficialBadge />
+                </div>
+                <div className="text-[11px] text-sub">ゴルトモ運営による公式ラウンド</div>
+              </div>
+            </div>
+          </div>
+        ) : host ? (
           <div className="mb-4">
             <div className="text-[13px] font-bold mb-2">主催者</div>
             <div className="flex items-center gap-2.5 p-3 bg-bg rounded-xl">
@@ -261,7 +276,7 @@ export default function RoundDetailPage() {
               )}
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Approved applicants */}
         {applicants.length > 0 && (
