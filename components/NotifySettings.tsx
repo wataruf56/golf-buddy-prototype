@@ -85,7 +85,7 @@ export function NotifySettings({ onClose }: { onClose: () => void }) {
             {busy ? '保存中...' : '保存する'}
           </button>
           <div className="text-[10px] text-muted text-center mt-2">
-            LINE公式アカウントの友だち追加が必要です（端末プッシュはマイページの「プッシュ通知」から）
+            通知を受け取るには、ゴルトモ公式アカウントの友だち追加が必要です
           </div>
         </div>
       </div>

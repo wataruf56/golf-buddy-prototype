@@ -6,8 +6,6 @@ import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { getMe, store, useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
-import { InstallToHomeModal } from '@/components/InstallToHomeModal';
-import { WebPushToggle } from '@/components/WebPushToggle';
 import { NotifySettings } from '@/components/NotifySettings';
 import { PracticeCalendar } from '@/components/swing/PracticeCalendar';
 import { track } from '@/lib/telemetry';
@@ -23,7 +21,6 @@ export default function MyPage() {
   const meId = useStore((s) => s.meId);
   const [showAddBotModal, setShowAddBotModal] = useState(false);
   const [showNotifySettings, setShowNotifySettings] = useState(false);
-  const [showInstallModal, setShowInstallModal] = useState(false);
   const myRounds = useStore((s) =>
     s.rounds.filter((r) =>
       r.hostId === s.meId ||
@@ -184,13 +181,6 @@ export default function MyPage() {
           <span className="text-muted">›</span>
         </Link>
         <button
-          onClick={() => setShowInstallModal(true)}
-          className="w-full bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card text-left"
-        >
-          <span className="text-sm font-medium">📱 ホーム画面に追加</span>
-          <span className="text-muted">›</span>
-        </button>
-        <button
           onClick={() => {
             setShowNotifySettings(true);
             // First time opening → nudge to add the official account so LINE
@@ -205,7 +195,6 @@ export default function MyPage() {
           <span className="text-sm font-medium">🔔 LINE通知の設定</span>
           <span className="text-muted">›</span>
         </button>
-        <WebPushToggle />
         <Link href="/legal/terms" className="bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card">
           <span className="text-sm font-medium">利用規約</span>
           <span className="text-muted">›</span>
@@ -220,10 +209,6 @@ export default function MyPage() {
         </button>
       </div>
       <div className="h-5" />
-
-      {showInstallModal && (
-        <InstallToHomeModal onClose={() => setShowInstallModal(false)} />
-      )}
 
       {showNotifySettings && (
         <NotifySettings onClose={() => setShowNotifySettings(false)} />

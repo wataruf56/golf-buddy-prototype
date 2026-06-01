@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react';
 import { getMe, store, useStore } from '@/lib/store';
 import { RoundCard } from '@/components/RoundCard';
 import { Avatar } from '@/components/Avatar';
-import { InstallToHomeModal } from '@/components/InstallToHomeModal';
 
 const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 const BOT_BASIC_ID = process.env.NEXT_PUBLIC_LINE_BOT_BASIC_ID || '';
@@ -13,15 +12,6 @@ const BOT_BASIC_ID = process.env.NEXT_PUBLIC_LINE_BOT_BASIC_ID || '';
 export default function HomePage() {
   const me = useStore(getMe);
   const [showAddBot, setShowAddBot] = useState(false);
-  const [showInstallModal, setShowInstallModal] = useState(false);
-  const [showInstallBanner, setShowInstallBanner] = useState(false);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (localStorage.getItem('gb_install_dismissed') === '1') return;
-    // Already installed → standalone display mode → don't nag.
-    if (window.matchMedia?.('(display-mode: standalone)').matches) return;
-    setShowInstallBanner(true);
-  }, []);
   useEffect(() => {
     if (!BOT_BASIC_ID || me.notifyOff) return;
     if (typeof window === 'undefined') return;
@@ -41,36 +31,6 @@ export default function HomePage() {
 
   return (
     <>
-      {/* Install-to-home banner is the FIRST thing on the home tab so new
-          users see it before everything else. Whole banner is tappable to
-          open the how-to modal; small × dismisses for the lifetime of this
-          browser/install. */}
-      {showInstallBanner && (
-        <div className="px-5 pt-3 pb-1">
-          <button
-            onClick={() => setShowInstallModal(true)}
-            className="w-full bg-blue-light border-2 border-blue rounded-card p-3.5 flex items-center gap-3 text-left"
-          >
-            <span className="text-2xl">📱</span>
-            <div className="flex-1 min-w-0">
-              <div className="text-[13px] font-black text-blue">ホーム画面へ追加すると使いやすい</div>
-              <div className="text-[11px] text-sub mt-0.5">タップして追加方法を見る ›</div>
-            </div>
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={(e) => {
-                e.stopPropagation();
-                localStorage.setItem('gb_install_dismissed', '1');
-                setShowInstallBanner(false);
-              }}
-              className="text-muted text-lg leading-none px-2 py-1"
-              aria-label="閉じる"
-            >×</span>
-          </button>
-        </div>
-      )}
-
       <div className="px-5 pt-2 pb-4 text-2xl font-black tracking-tight">ホーム</div>
 
       {showAddBot && (
@@ -96,9 +56,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {showInstallModal && (
-        <InstallToHomeModal onClose={() => setShowInstallModal(false)} />
-      )}
 
       {myHostedPending.length > 0 && (
         <div className="px-5 pb-3">
