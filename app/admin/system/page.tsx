@@ -88,12 +88,12 @@ function Inner() {
         <Row label="本番URL (LIFF)" value="app.goltomo.com" />
         <Row label="本番URL (LP)" value="goltomo.com" />
         <Row label="管理画面" value="admin.goltomo.com" />
-        <Row label="(旧)" value="golf-buddy-prototype.vercel.app" />
+        <Row label="インフラ" value="Cloud Run (asia-northeast1)" />
         <Row label="LIFF URL" value="liff.line.me/2009973733-P5UdNex9" />
       </div>
 
       <div className="text-[10px] text-muted text-center px-3">
-        ※ 設定変更が必要な場合は Vercel ダッシュボード → Settings → Environment Variables から
+        ※ 環境変数の変更は gcloud run services update goltomo-web --update-env-vars から
       </div>
     </div>
   );
