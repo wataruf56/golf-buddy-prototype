@@ -1,38 +1,48 @@
 // Generate the ゴルトモ rich menu image (2500×1686) as PNG from SVG via sharp.
-// Layout: 2 rows × 3 columns = 6 tappable areas.
-//   Row1: ホーム | 募集をさがす | スイング解析
-//   Row2: 募集を作る | ゴル友 | マイページ
+// Polished design: gradient cards, large emoji in a soft circle, bold labels,
+// subtle shadows, alternating accent so it reads as tappable buttons.
 const sharp = require('sharp');
-const fs = require('fs');
 
 const W = 2500, H = 1686;
 const COL = W / 3, ROW = H / 2;
-const GREEN = '#2D8C4E', GREEN_D = '#246b3d', WHITE = '#ffffff';
+const GAP = 28;
 
 const cells = [
-  { emoji: '🏠', label: 'ホーム', tint: GREEN },
-  { emoji: '🔍', label: 'さがす', tint: GREEN_D },
-  { emoji: '⛳', label: 'スイング解析', tint: GREEN },
-  { emoji: '➕', label: '募集を作る', tint: GREEN_D },
-  { emoji: '🤝', label: 'ゴル友', tint: GREEN },
-  { emoji: '👤', label: 'マイページ', tint: GREEN_D },
+  { emoji: '🏠', label: 'ホーム',       sub: 'トップへ',     c1: '#34A85A', c2: '#2D8C4E' },
+  { emoji: '🔍', label: 'さがす',       sub: '募集を探す',   c1: '#3AA0C9', c2: '#2E86AB' },
+  { emoji: '⛳', label: 'スイング解析', sub: 'AIコーチ',     c1: '#46B36B', c2: '#2D8C4E' },
+  { emoji: '✏️', label: '募集をつくる', sub: 'ラウンド企画', c1: '#E8943A', c2: '#D97E1E' },
+  { emoji: '🤝', label: 'ゴル友',       sub: '仲間とつながる', c1: '#46B36B', c2: '#2D8C4E' },
+  { emoji: '👤', label: 'マイページ',   sub: 'プロフィール', c1: '#7C6FE0', c2: '#5B4FC4' },
 ];
 
-function cellSvg(c, i) {
-  const cx = (i % 3) * COL;
-  const cy = Math.floor(i / 3) * ROW;
-  const centerX = cx + COL / 2;
+function cell(c, i) {
+  const x = (i % 3) * COL + GAP;
+  const y = Math.floor(i / 3) * ROW + GAP;
+  const w = COL - GAP * 2;
+  const h = ROW - GAP * 2;
+  const cx = x + w / 2;
+  const gid = `g${i}`;
   return `
+    <defs>
+      <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="${c.c1}"/>
+        <stop offset="1" stop-color="${c.c2}"/>
+      </linearGradient>
+    </defs>
     <g>
-      <rect x="${cx + 8}" y="${cy + 8}" width="${COL - 16}" height="${ROW - 16}" rx="36" fill="${c.tint}"/>
-      <text x="${centerX}" y="${cy + ROW / 2 - 30}" font-size="220" text-anchor="middle" dominant-baseline="middle">${c.emoji}</text>
-      <text x="${centerX}" y="${cy + ROW / 2 + 170}" font-size="84" font-weight="700" fill="${WHITE}" text-anchor="middle" font-family="sans-serif">${c.label}</text>
+      <rect x="${x}" y="${y + 8}" width="${w}" height="${h}" rx="48" fill="rgba(0,0,0,0.12)"/>
+      <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="48" fill="url(#${gid})"/>
+      <circle cx="${cx}" cy="${y + h * 0.40}" r="135" fill="rgba(255,255,255,0.18)"/>
+      <text x="${cx}" y="${y + h * 0.40}" font-size="170" text-anchor="middle" dominant-baseline="central">${c.emoji}</text>
+      <text x="${cx}" y="${y + h * 0.74}" font-size="92" font-weight="800" fill="#ffffff" text-anchor="middle" font-family="sans-serif">${c.label}</text>
+      <text x="${cx}" y="${y + h * 0.86}" font-size="46" font-weight="600" fill="rgba(255,255,255,0.85)" text-anchor="middle" font-family="sans-serif">${c.sub}</text>
     </g>`;
 }
 
 const svg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
-  <rect width="${W}" height="${H}" fill="#ffffff"/>
-  ${cells.map(cellSvg).join('\n')}
+  <rect width="${W}" height="${H}" fill="#F4F7F5"/>
+  ${cells.map(cell).join('\n')}
 </svg>`;
 
 sharp(Buffer.from(svg))

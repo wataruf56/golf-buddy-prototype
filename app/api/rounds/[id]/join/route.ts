@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { pushTo, liffUrl } from '@/lib/linePush';
 import { webPushText } from '@/lib/webPush';
+import { isNotifyEnabled } from '@/lib/notifyPrefs';
 import { isMatchingAllowedByAge, getCohort } from '@/lib/ageGate';
 import { checkRoundEligibility } from '@/lib/roundEligibility';
 
@@ -35,9 +36,8 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   }
 
   const round = await db.joinRound(params.id, meId);
-  // Notify host of new application — via LINE AND web push (whichever the
-  // host has set up). Both are best-effort and never block the response.
-  if (host && !(host as any).notifyOff) {
+  // Notify host of new application — gated on their "applyReceived" pref.
+  if (isNotifyEnabled(host as any, 'applyReceived')) {
     const applicantName = me?.displayName || 'ゲスト';
     const msg = `🆕 ${applicantName} さんが「${existing.title}」に参加申請しました`;
     pushTo(existing.hostId, msg, liffUrl(`/round/${params.id}`)).catch(() => {});

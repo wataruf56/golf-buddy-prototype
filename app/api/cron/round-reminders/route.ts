@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { pushToMany, liffUrl } from '@/lib/linePush';
+import { isNotifyEnabled } from '@/lib/notifyPrefs';
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 
@@ -64,10 +65,10 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
-    // Filter out users who turned off notifications.
+    // Only users who want the review reminder.
     const users = await db.listUsers(participants);
     const targetIds = users
-      .filter((u) => u && !(u as any).notifyOff)
+      .filter((u) => isNotifyEnabled(u as any, 'reviewReminder'))
       .map((u) => u.id);
 
     if (targetIds.length) {

@@ -22,7 +22,10 @@ export type User = {
   buddyCount: number;
   blockedUserIds?: string[];
   recentScores?: ScoreEntry[];
-  notifyOff?: boolean;
+  notifyOff?: boolean;        // legacy master switch (true = all notifications off)
+  // Per-type notification preferences for the LINE official account + web push.
+  // Keys are NotifyType (lib/notifyPrefs). Missing key → that type's default.
+  notifyPrefs?: Record<string, boolean>;
   golfHistory?: string;        // 「1年未満」「3〜5年」など
   // Per-month free swing analysis usage. Whitelisted users (isSwingAllowed)
   // bypass this counter entirely; everyone else gets SWING_FREE_LIMIT runs

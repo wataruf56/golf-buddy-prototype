@@ -181,7 +181,8 @@ async function processOne(swing: SwingDoc): Promise<{ status: string }> {
   try {
     const { db } = await import('@/lib/db');
     const u = await db.getUser(userId);
-    if (!u || !(u as any).notifyOff) {
+    const { isNotifyEnabled } = await import('@/lib/notifyPrefs');
+    if (isNotifyEnabled(u as any, 'swing')) {
       await pushTo(
         userId,
         '⛳ スイング分析が完了しました\n結果ページで動画と一緒にチェックしてみてください👇',

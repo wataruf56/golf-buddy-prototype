@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
+import { pushTo, liffUrl } from '@/lib/linePush';
+import { webPushText } from '@/lib/webPush';
+import { isNotifyEnabled } from '@/lib/notifyPrefs';
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -37,6 +40,18 @@ export async function POST(req: NextRequest) {
       try { await db.completePendingReview('', { roundId, reviewerId: meId, revieweeId }); }
       catch (e) { console.error('[completePendingReview triple] failed (non-fatal)', e); }
     }
+
+    // Notify the reviewee — anonymously (reviews are anonymous, so never
+    // include the reviewer's name). Gated on their "review" pref.
+    try {
+      const reviewee = await db.getUser(revieweeId);
+      if (isNotifyEnabled(reviewee as any, 'review')) {
+        const msg = '⭐ あなたへのレビューが届きました';
+        pushTo(revieweeId, msg, liffUrl(`/profile/${revieweeId}`)).catch(() => {});
+        webPushText(revieweeId, 'レビューが届きました', '新しいレビューが投稿されました', `/profile/${revieweeId}`, `review-${roundId}`).catch(() => {});
+      }
+    } catch { /* non-fatal */ }
+
     return NextResponse.json({ review });
   } catch (e) {
     const msg = (e as Error).message;

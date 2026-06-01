@@ -8,6 +8,7 @@ import { getMe, store, useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { InstallToHomeModal } from '@/components/InstallToHomeModal';
 import { WebPushToggle } from '@/components/WebPushToggle';
+import { NotifySettings } from '@/components/NotifySettings';
 import { PracticeCalendar } from '@/components/swing/PracticeCalendar';
 import { track } from '@/lib/telemetry';
 import type { Review } from '@/lib/types';
@@ -21,6 +22,7 @@ export default function MyPage() {
   const me = useStore(getMe);
   const meId = useStore((s) => s.meId);
   const [showAddBotModal, setShowAddBotModal] = useState(false);
+  const [showNotifySettings, setShowNotifySettings] = useState(false);
   const [showInstallModal, setShowInstallModal] = useState(false);
   const myRounds = useStore((s) =>
     s.rounds.filter((r) =>
@@ -189,24 +191,19 @@ export default function MyPage() {
           <span className="text-muted">›</span>
         </button>
         <button
-          onClick={async () => {
-            const next = !me.notifyOff;
-            await store.updateMe({ notifyOff: next } as any);
-            // Turning notifications ON for the first time → user needs to be
-            // friends with the official LINE account to actually receive
-            // pushes. Show the add-bot modal once; gb_bot_added marks that
-            // they've confirmed they did so we don't ask every toggle.
-            if (next === false && BOT_BASIC_ID && typeof window !== 'undefined') {
+          onClick={() => {
+            setShowNotifySettings(true);
+            // First time opening → nudge to add the official account so LINE
+            // pushes actually arrive.
+            if (BOT_BASIC_ID && typeof window !== 'undefined') {
               const added = localStorage.getItem('gb_bot_added') === '1';
               if (!added) setShowAddBotModal(true);
             }
           }}
           className="w-full bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card text-left"
         >
-          <span className="text-sm font-medium">LINE通知</span>
-          <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${me.notifyOff ? 'bg-bg text-muted' : 'bg-green-light text-green'}`}>
-            {me.notifyOff ? 'OFF' : 'ON'}
-          </span>
+          <span className="text-sm font-medium">🔔 LINE通知の設定</span>
+          <span className="text-muted">›</span>
         </button>
         <WebPushToggle />
         <Link href="/legal/terms" className="bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card">
@@ -226,6 +223,10 @@ export default function MyPage() {
 
       {showInstallModal && (
         <InstallToHomeModal onClose={() => setShowInstallModal(false)} />
+      )}
+
+      {showNotifySettings && (
+        <NotifySettings onClose={() => setShowNotifySettings(false)} />
       )}
 
       {showAddBotModal && BOT_BASIC_ID && (

@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { pushTo, liffUrl } from '@/lib/linePush';
 import { webPushText } from '@/lib/webPush';
+import { isNotifyEnabled } from '@/lib/notifyPrefs';
 import { isMatchingAllowedByAge } from '@/lib/ageGate';
 
 export async function GET(req: NextRequest) {
@@ -37,8 +38,8 @@ export async function POST(req: NextRequest) {
   if (otherBlocksMe) return NextResponse.json({ error: 'blocked_by_other' }, { status: 403 });
   const participants: [string, string] = [meId, otherUserId].sort() as [string, string];
   const message = await db.sendMessage(chatId, participants, meId, text);
-  // Fire-and-forget LINE push (only if recipient hasn't disabled notifications).
-  if (!(other as any)?.notifyOff) {
+  // Fire-and-forget LINE + web push, gated on the recipient's "dm" preference.
+  if (isNotifyEnabled(other as any, 'dm')) {
     const senderName = me?.displayName || 'ゴル友';
     const preview = text.length > 60 ? text.slice(0, 60) + '…' : text;
     pushTo(otherUserId, `💬 ${senderName} さんからメッセージ\n${preview}`, liffUrl(`/chat/${chatId}?other=${meId}`)).catch(() => {});
