@@ -28,10 +28,13 @@ export default function HomePage() {
       (r.pendingApplicantIds || []).map((uid) => ({ round: r, applicantId: uid }))
     )
   );
-  // Live round count: rounds I host or have been approved into. The stored
-  // me.roundCount only bumps on completion, so it sat at 0 for active rounds.
-  const myRoundCount = useStore((s) =>
-    s.rounds.filter((r) => r.hostId === s.meId || r.applicantIds.includes(s.meId)).length
+  // "ラウンド回数" = COMPLETED rounds only (host or approved applicant).
+  // Open/recruiting rounds are excluded. Max with the stored counter so
+  // completions outside the visible set still count.
+  const myCompletedRoundCount = useStore((s) =>
+    s.rounds.filter((r) =>
+      r.status === 'completed' && (r.hostId === s.meId || r.applicantIds.includes(s.meId))
+    ).length
   );
 
   return (
@@ -92,7 +95,7 @@ export default function HomePage() {
           </div>
           <div className="flex gap-2">
             <Stat value={me.reviewAvg.toFixed(1)} label="レビュー平均" color="text-green" />
-            <Stat value={String(Math.max(me.roundCount || 0, myRoundCount))} label="ラウンド回数" color="text-blue" />
+            <Stat value={String(Math.max(me.roundCount || 0, myCompletedRoundCount))} label="ラウンド回数" color="text-blue" />
             <Stat value={String(me.buddyCount)} label="ゴル友" color="text-orange" />
           </div>
         </div>

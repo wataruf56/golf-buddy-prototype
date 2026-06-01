@@ -28,11 +28,15 @@ export default function MyPage() {
       (r.pendingApplicantIds || []).includes(s.meId)
     )
   );
-  // "ラウンド回数" = rounds I'm actually in (host or approved applicant),
-  // computed live from the store so it reflects participation immediately —
-  // the stored roundCount only bumps on round completion and was showing 0.
-  const myRoundCount = useStore((s) =>
-    s.rounds.filter((r) => r.hostId === s.meId || r.applicantIds.includes(s.meId)).length
+  // "ラウンド回数" = COMPLETED rounds I was in (host or approved applicant).
+  // Only finished rounds count — open/recruiting ones don't. We take the max
+  // of this live count and the stored roundCount (which is incremented at
+  // completion time) so completions that have scrolled out of the visible
+  // set still count.
+  const myCompletedRoundCount = useStore((s) =>
+    s.rounds.filter((r) =>
+      r.status === 'completed' && (r.hostId === s.meId || r.applicantIds.includes(s.meId))
+    ).length
   );
   // Pending applications waiting for ME to approve (across rounds I host)
   const myHostedRounds = useStore((s) => s.rounds.filter((r) => r.hostId === s.meId));
@@ -117,7 +121,7 @@ export default function MyPage() {
           </div>
           <div className="flex gap-2">
             <Stat value={`★${me.reviewAvg}`} label="平均レビュー" color="text-green" />
-            <Stat value={`${Math.max(me.roundCount || 0, myRoundCount)}回`} label="ラウンド" />
+            <Stat value={`${Math.max(me.roundCount || 0, myCompletedRoundCount)}回`} label="ラウンド" />
             <Stat value={`${myHostedRounds.length}回`} label="募集" />
           </div>
         </div>
