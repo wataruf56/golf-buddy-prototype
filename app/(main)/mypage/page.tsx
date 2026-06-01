@@ -7,6 +7,7 @@ import { signOut } from 'next-auth/react';
 import { getMe, store, useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { InstallToHomeModal } from '@/components/InstallToHomeModal';
+import { WebPushToggle } from '@/components/WebPushToggle';
 import { PracticeCalendar } from '@/components/swing/PracticeCalendar';
 import { track } from '@/lib/telemetry';
 import type { Review } from '@/lib/types';
@@ -207,6 +208,7 @@ export default function MyPage() {
             {me.notifyOff ? 'OFF' : 'ON'}
           </span>
         </button>
+        <WebPushToggle />
         <Link href="/legal/terms" className="bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card">
           <span className="text-sm font-medium">利用規約</span>
           <span className="text-muted">›</span>

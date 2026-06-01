@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { pushToMany, liffUrl } from '@/lib/linePush';
+import { webPushToMany } from '@/lib/webPush';
 import { isMatchingAllowedByAge } from '@/lib/ageGate';
 
 const noStore = {
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       const senderName = me?.displayName || '参加者';
       const preview = trimmed.length > 60 ? trimmed.slice(0, 60) + '…' : trimmed;
       pushToMany(targets, `🏌️ ${round.title}\n${senderName}: ${preview}`, liffUrl(`/round/${params.id}/chat`)).catch(() => {});
+      webPushToMany(targets, `🏌️ ${round.title}`, `${senderName}: ${preview}`, `/round/${params.id}/chat`, `roundchat-${params.id}`).catch(() => {});
     }
   }
   return NextResponse.json({ message }, { headers: noStore });

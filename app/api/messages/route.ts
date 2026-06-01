@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { pushTo, liffUrl } from '@/lib/linePush';
+import { webPushText } from '@/lib/webPush';
 import { isMatchingAllowedByAge } from '@/lib/ageGate';
 
 export async function GET(req: NextRequest) {
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest) {
     const senderName = me?.displayName || 'ゴル友';
     const preview = text.length > 60 ? text.slice(0, 60) + '…' : text;
     pushTo(otherUserId, `💬 ${senderName} さんからメッセージ\n${preview}`, liffUrl(`/chat/${chatId}?other=${meId}`)).catch(() => {});
+    webPushText(otherUserId, `💬 ${senderName}`, preview, `/chat/${chatId}?other=${meId}`, `chat-${chatId}`).catch(() => {});
   }
   return NextResponse.json({ message });
 }

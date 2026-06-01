@@ -187,6 +187,8 @@ async function processOne(swing: SwingDoc): Promise<{ status: string }> {
         '⛳ スイング分析が完了しました\n結果ページで動画と一緒にチェックしてみてください👇',
         liffUrl(`/swing/${swingId}`),
       );
+      const { webPushText } = await import('@/lib/webPush');
+      await webPushText(userId, '⛳ スイング分析が完了しました', '結果ページで動画と一緒にチェック！', `/swing/${swingId}`, `swing-${swingId}`).catch(() => {});
     }
   } catch (e) { /* push failure is non-fatal */ }
 
