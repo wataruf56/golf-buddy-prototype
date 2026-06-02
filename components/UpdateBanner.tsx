@@ -1,35 +1,24 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-
-// The build this client bundle was compiled from (baked at build time via
-// Dockerfile ARG → NEXT_PUBLIC_BUILD_ID = git SHA). Empty in local dev.
-const BUILD = process.env.NEXT_PUBLIC_BUILD_ID || '';
+import { CURRENT_BUILD, fetchLatestVersion, forceUpdate } from '@/lib/appUpdate';
 
 // Shows a banner when a newer version has been deployed than the one the user
 // currently has loaded. Tapping "更新する" clears caches + service workers and
 // reloads with a cache-busting query so even an aggressive in-app webview
-// (LINE LIFF / WKWebView) picks up the new build. This makes updates reliable
-// regardless of CDN or device HTTP caching.
+// (LINE LIFF / WKWebView) picks up the new build — no app restart needed.
 export function UpdateBanner() {
   const [latest, setLatest] = useState('');
   const [busy, setBusy] = useState(false);
 
   const check = useCallback(async () => {
-    if (!BUILD) return; // unknown/local build → never nag
-    try {
-      const r = await fetch('/api/version', { cache: 'no-store' });
-      if (!r.ok) return;
-      const d = await r.json();
-      if (d?.version) setLatest(String(d.version));
-    } catch {
-      /* offline / transient — ignore */
-    }
+    if (!CURRENT_BUILD || CURRENT_BUILD === 'dev') return; // unknown/local build → never nag
+    const v = await fetchLatestVersion();
+    if (v) setLatest(v);
   }, []);
 
   useEffect(() => {
     check();
-    // Re-check when the user returns to the app (common in LIFF) and every 5 min.
     const onVis = () => { if (document.visibilityState === 'visible') check(); };
     document.addEventListener('visibilitychange', onVis);
     const iv = setInterval(check, 5 * 60 * 1000);
@@ -39,35 +28,13 @@ export function UpdateBanner() {
     };
   }, [check]);
 
-  const updateAvailable = !!BUILD && !!latest && latest !== 'dev' && latest !== BUILD;
+  const updateAvailable =
+    CURRENT_BUILD !== 'dev' && !!latest && latest !== 'dev' && latest !== CURRENT_BUILD;
   if (!updateAvailable) return null;
 
-  async function doUpdate() {
+  async function onClick() {
     setBusy(true);
-    try {
-      // Drop any service worker so it can't keep serving cached assets.
-      if ('serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map((r) => r.unregister()));
-      }
-      // Clear the Cache Storage API (PWA caches, if any).
-      if (typeof caches !== 'undefined') {
-        const keys = await caches.keys();
-        await Promise.all(keys.map((k) => caches.delete(k)));
-      }
-    } catch {
-      /* best-effort */
-    }
-    // Reload with a cache-busting param so the webview fetches fresh HTML
-    // (which references the new build's hashed JS chunks). Setting it to the
-    // target version keeps the URL stable across repeated updates.
-    try {
-      const u = new URL(window.location.href);
-      u.searchParams.set('_v', latest);
-      window.location.replace(u.toString());
-    } catch {
-      window.location.reload();
-    }
+    await forceUpdate(latest);
   }
 
   return (
@@ -79,7 +46,7 @@ export function UpdateBanner() {
         </div>
       </div>
       <button
-        onClick={doUpdate}
+        onClick={onClick}
         disabled={busy}
         className="flex-shrink-0 bg-white text-green text-[12px] font-black px-4 py-1.5 rounded-full shadow-sm disabled:opacity-60"
       >

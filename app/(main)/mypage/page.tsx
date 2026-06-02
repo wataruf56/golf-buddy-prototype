@@ -7,6 +7,7 @@ import { signOut } from 'next-auth/react';
 import { getMe, store, useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { NotifySettings } from '@/components/NotifySettings';
+import { AppUpdateButton } from '@/components/AppUpdateButton';
 import { PracticeCalendar } from '@/components/swing/PracticeCalendar';
 import { track } from '@/lib/telemetry';
 import type { Review } from '@/lib/types';
@@ -221,6 +222,7 @@ export default function MyPage() {
           <span className="text-sm font-medium">🔔 LINE通知の設定</span>
           <span className="text-muted">›</span>
         </button>
+        <AppUpdateButton />
         <Link href="/legal/terms" className="bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card">
           <span className="text-sm font-medium">利用規約</span>
           <span className="text-muted">›</span>
