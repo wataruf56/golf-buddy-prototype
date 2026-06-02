@@ -56,7 +56,12 @@ export function NotifySettings({ onClose }: { onClose: () => void }) {
           <button onClick={onClose} className="text-muted text-xl leading-none px-1" aria-label="閉じる">×</button>
         </div>
 
-        {/* Scrollable middle */}
+        {/* Everything scrolls, including the 保存 button. We deliberately do NOT
+            pin the button to the bottom: in the LINE LIFF webview the visible
+            height is unpredictable (top bar, no dvh on old iOS) and a pinned
+            footer could sit behind the tab bar. Putting the button in the
+            scroll area plus a tall blank spacer guarantees the user can always
+            swipe down to reveal and tap it. */}
         <div className="flex-1 overflow-y-auto">
           {/* Master switch */}
           <div className="px-5 pt-3">
@@ -91,20 +96,24 @@ export function NotifySettings({ onClose }: { onClose: () => void }) {
               ))}
             </div>
           </div>
-        </div>
 
-        {/* Fixed footer — extra bottom padding for the iPhone home indicator. */}
-        <div className="px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-card border-t border-border flex-shrink-0">
-          <button
-            onClick={save}
-            disabled={busy}
-            className="w-full py-3 bg-green text-white rounded-xl text-sm font-bold disabled:opacity-50"
-          >
-            {busy ? '保存中...' : '保存する'}
-          </button>
-          <div className="text-[10px] text-muted text-center mt-2">
-            通知を受け取るには、ゴルトモ公式アカウントの友だち追加が必要です
+          {/* 保存 button — inside the scroll area. */}
+          <div className="px-5 pt-2">
+            <button
+              onClick={save}
+              disabled={busy}
+              className="w-full py-3.5 bg-green text-white rounded-xl text-sm font-bold disabled:opacity-50"
+            >
+              {busy ? '保存中...' : '保存する'}
+            </button>
+            <div className="text-[10px] text-muted text-center mt-2">
+              通知を受け取るには、ゴルトモ公式アカウントの友だち追加が必要です
+            </div>
           </div>
+
+          {/* Tall blank spacer so the 保存 button can always be swiped fully
+              into view, clear of the LINE bottom bar / app tab bar. */}
+          <div className="h-40" />
         </div>
       </div>
     </div>
