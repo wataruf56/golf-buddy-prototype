@@ -9,6 +9,7 @@ import { BlockerPopup } from '@/components/BlockerPopup';
 import { ToastHost } from '@/components/Toast';
 import { AgeGateScreen } from '@/components/AgeGateScreen';
 import { MatchingBanner } from '@/components/MatchingBanner';
+import { UpdateBanner } from '@/components/UpdateBanner';
 import { getMe, useStore } from '@/lib/store';
 import { isMatchingAllowedByAge } from '@/lib/ageGate';
 
@@ -57,6 +58,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <PhoneFrame>
+      <UpdateBanner />
       <div className="screen">
         {!hydrated ? (
           <div className="flex flex-col items-center justify-center h-full pt-32">

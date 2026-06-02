@@ -22,6 +22,9 @@ steps:
       - 'NEXT_PUBLIC_LIFF_ID=${_NEXT_PUBLIC_LIFF_ID}'
       - '--build-arg'
       - 'NEXT_PUBLIC_LINE_BOT_BASIC_ID=${_NEXT_PUBLIC_LINE_BOT_BASIC_ID}'
+      # Git SHA of this commit → baked in as the client build id for update detection.
+      - '--build-arg'
+      - 'NEXT_PUBLIC_BUILD_ID=$SHORT_SHA'
       - '.'
 
   # Push to Artifact Registry.

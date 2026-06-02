@@ -18,9 +18,14 @@ COPY . .
 ARG NEXT_PUBLIC_LIFF_ID
 ARG NEXT_PUBLIC_LINE_BOT_BASIC_ID
 ARG NEXT_PUBLIC_DEMO_MODE
+# Build identifier (git SHA via Cloud Build $SHORT_SHA). Baked into the client
+# bundle so the running app knows its own build; /api/version returns the current
+# server build, and the client shows an "update" banner when they differ.
+ARG NEXT_PUBLIC_BUILD_ID
 ENV NEXT_PUBLIC_LIFF_ID=$NEXT_PUBLIC_LIFF_ID \
     NEXT_PUBLIC_LINE_BOT_BASIC_ID=$NEXT_PUBLIC_LINE_BOT_BASIC_ID \
     NEXT_PUBLIC_DEMO_MODE=$NEXT_PUBLIC_DEMO_MODE \
+    NEXT_PUBLIC_BUILD_ID=$NEXT_PUBLIC_BUILD_ID \
     NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
