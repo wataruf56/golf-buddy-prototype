@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { getMe, store, useStore } from '@/lib/store';
 import { RoundCard } from '@/components/RoundCard';
 import { Avatar } from '@/components/Avatar';
+import { HomeUpdateCard } from '@/components/HomeUpdateCard';
 
 const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 const BOT_BASIC_ID = process.env.NEXT_PUBLIC_LINE_BOT_BASIC_ID || '';
@@ -44,6 +45,8 @@ export default function HomePage() {
   return (
     <>
       <div className="px-5 pt-2 pb-4 text-2xl font-black tracking-tight">ホーム</div>
+
+      <HomeUpdateCard />
 
       {showAddBot && (
         <div className="px-5 pb-3">

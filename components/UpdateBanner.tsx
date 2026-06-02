@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { CURRENT_BUILD, fetchLatestVersion, forceUpdate } from '@/lib/appUpdate';
 
 // Shows a banner when a newer version has been deployed than the one the user
@@ -8,6 +9,7 @@ import { CURRENT_BUILD, fetchLatestVersion, forceUpdate } from '@/lib/appUpdate'
 // reloads with a cache-busting query so even an aggressive in-app webview
 // (LINE LIFF / WKWebView) picks up the new build — no app restart needed.
 export function UpdateBanner() {
+  const pathname = usePathname() || '';
   const [latest, setLatest] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -30,7 +32,9 @@ export function UpdateBanner() {
 
   const updateAvailable =
     CURRENT_BUILD !== 'dev' && !!latest && latest !== 'dev' && latest !== CURRENT_BUILD;
-  if (!updateAvailable) return null;
+  // Home renders its own prominent update card (HomeUpdateCard), so suppress the
+  // top bar there to avoid a redundant double prompt.
+  if (!updateAvailable || pathname.startsWith('/home')) return null;
 
   async function onClick() {
     setBusy(true);
