@@ -17,3 +17,6 @@ public/workbox-*.js.map
 
 .vercel
 scripts/richmenu.png
+
+# Firebase deploy cache
+.firebase/
