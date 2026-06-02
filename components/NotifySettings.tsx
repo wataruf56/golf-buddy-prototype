@@ -42,7 +42,15 @@ export function NotifySettings({ onClose }: { onClose: () => void }) {
           TabBar. dvh accounts for mobile browser chrome so 88% is the real
           visible height. Flex column keeps header + scroll body + footer, so
           the 保存 button is always visible regardless of list length. */}
-      <div className="bg-card rounded-t-3xl sm:rounded-card w-full max-w-[420px] max-h-[88dvh] flex flex-col shadow-lg overflow-hidden">
+      {/* max-h: className gives an 88vh fallback that's always valid; the inline
+          88dvh overrides it on browsers that support dvh (more accurate on
+          mobile). On older iOS where dvh is unknown, the inline value is ignored
+          and the 88vh fallback still bounds the height — so the card can never
+          grow unbounded and hide the footer. */}
+      <div
+        style={{ maxHeight: '88dvh' }}
+        className="bg-card rounded-t-3xl sm:rounded-card w-full max-w-[420px] max-h-[88vh] flex flex-col shadow-lg overflow-hidden"
+      >
         <div className="bg-card flex items-center justify-between px-5 pt-4 pb-3 border-b border-border flex-shrink-0">
           <div className="text-base font-black">🔔 通知の設定</div>
           <button onClick={onClose} className="text-muted text-xl leading-none px-1" aria-label="閉じる">×</button>

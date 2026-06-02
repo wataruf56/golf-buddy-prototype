@@ -2,6 +2,16 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Providers } from './providers';
 
+// Force dynamic rendering for every route. Without this, Next statically
+// prerenders pages and serves the HTML with `Cache-Control: s-maxage=31536000`
+// (1 year). Firebase Hosting's CDN then keeps serving the OLD HTML — which
+// references the OLD hashed JS chunks — long after a new deploy, so fixes never
+// reached devices (especially the LINE LIFF in-app webview). Dynamic rendering
+// emits `no-store`, so each load fetches fresh HTML pointing at the current
+// build's chunks. The immutable /_next/static chunks stay CDN-cached, so the
+// cost is just re-fetching the small HTML document.
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'ゴルトモ - ゴル友マッチング × AIスイング解析',
   description: 'ゴル友マッチングとAIスイング解析が一つになったLINEアプリ。同年代のゴルファーと一緒にラウンドを回ろう。',
