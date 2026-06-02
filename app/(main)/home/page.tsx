@@ -36,6 +36,10 @@ export default function HomePage() {
       r.status === 'completed' && (r.hostId === s.meId || r.applicantIds.includes(s.meId))
     ).length
   );
+  // "ゴル友" = mutual-review buddies (rounded together + both reviewed).
+  // buddyIds is the live set from /api/bootstrap; max with stored count.
+  const buddyIdsCount = useStore((s) => s.buddyIds.length);
+  const buddyCount = Math.max(me.buddyCount || 0, buddyIdsCount);
 
   return (
     <>
@@ -96,7 +100,7 @@ export default function HomePage() {
           <div className="flex gap-2">
             <Stat value={me.reviewAvg.toFixed(1)} label="レビュー平均" color="text-green" />
             <Stat value={String(Math.max(me.roundCount || 0, myCompletedRoundCount))} label="ラウンド回数" color="text-blue" />
-            <Stat value={String(me.buddyCount)} label="ゴル友" color="text-orange" />
+            <Stat value={String(buddyCount)} label="ゴル友" color="text-orange" />
           </div>
         </div>
       </div>

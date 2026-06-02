@@ -38,6 +38,12 @@ export default function MyPage() {
       r.status === 'completed' && (r.hostId === s.meId || r.applicantIds.includes(s.meId))
     ).length
   );
+  // "ゴル友" = people I rounded with AND completed a mutual review with.
+  // buddyIds is computed server-side in /api/bootstrap as the mutual-review
+  // set, so its length is the live count. Max with the stored buddyCount in
+  // case some buddies fall outside the current bootstrap window.
+  const buddyIdsCount = useStore((s) => s.buddyIds.length);
+  const buddyCount = Math.max(me.buddyCount || 0, buddyIdsCount);
   // Pending applications waiting for ME to approve (across rounds I host)
   const myHostedRounds = useStore((s) => s.rounds.filter((r) => r.hostId === s.meId));
   const pendingForMeAsHost = myHostedRounds.flatMap((r) =>
@@ -122,6 +128,7 @@ export default function MyPage() {
           <div className="flex gap-2">
             <Stat value={`★${me.reviewAvg}`} label="平均レビュー" color="text-green" />
             <Stat value={`${Math.max(me.roundCount || 0, myCompletedRoundCount)}回`} label="ラウンド" />
+            <Stat value={`${buddyCount}人`} label="ゴル友" color="text-orange" />
             <Stat value={`${myHostedRounds.length}回`} label="募集" />
           </div>
         </div>

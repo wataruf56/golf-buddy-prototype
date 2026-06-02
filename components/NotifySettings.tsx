@@ -35,10 +35,14 @@ export function NotifySettings({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="absolute inset-0 bg-black/50 z-[170] flex items-end sm:items-center justify-center p-0 sm:p-5 backdrop-blur-sm">
-      {/* Flex column: fixed header + scrollable body + fixed footer, so the
-          保存 button is always visible regardless of list length. */}
-      <div className="bg-card rounded-t-3xl sm:rounded-card w-full max-w-[420px] max-h-[88vh] flex flex-col shadow-lg overflow-hidden">
+    <div className="fixed inset-0 bg-black/50 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-5 backdrop-blur-sm">
+      {/* Use FIXED (viewport-anchored) not ABSOLUTE: the page lives inside a
+          scrollable `.screen` (overflow-y:auto) that would clip an absolutely
+          positioned bottom sheet, pushing the footer (保存 button) behind the
+          TabBar. dvh accounts for mobile browser chrome so 88% is the real
+          visible height. Flex column keeps header + scroll body + footer, so
+          the 保存 button is always visible regardless of list length. */}
+      <div className="bg-card rounded-t-3xl sm:rounded-card w-full max-w-[420px] max-h-[88dvh] flex flex-col shadow-lg overflow-hidden">
         <div className="bg-card flex items-center justify-between px-5 pt-4 pb-3 border-b border-border flex-shrink-0">
           <div className="text-base font-black">🔔 通知の設定</div>
           <button onClick={onClose} className="text-muted text-xl leading-none px-1" aria-label="閉じる">×</button>
@@ -81,8 +85,8 @@ export function NotifySettings({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
-        {/* Fixed footer */}
-        <div className="px-5 py-4 bg-card border-t border-border flex-shrink-0">
+        {/* Fixed footer — extra bottom padding for the iPhone home indicator. */}
+        <div className="px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-card border-t border-border flex-shrink-0">
           <button
             onClick={save}
             disabled={busy}
