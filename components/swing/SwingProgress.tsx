@@ -36,7 +36,6 @@ export function SwingProgress({ swings }: { swings: SwingDoc[] }) {
   const latest = scored[scored.length - 1];
   const first = scored[0];
   const delta = scored.length >= 2 ? (latest.swingScore! - first.swingScore!) : 0;
-  const axes = latest.swingAxes || [];
 
   // Build the SVG polyline. Map score 0-100 → y (top=100, bottom=0).
   const W = 320, H = 130, padX = 14, padTop = 16, padBot = 24;
@@ -49,6 +48,24 @@ export function SwingProgress({ swings }: { swings: SwingDoc[] }) {
   });
   const line = pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
   const area = `${line} ${pts[pts.length - 1].x.toFixed(1)},${H - padBot} ${pts[0].x.toFixed(1)},${H - padBot}`;
+
+  // Per-axis history: for each fixed axis, the series of values across all
+  // scored analyses (oldest→newest) so we can show the trajectory + change.
+  const AXIS_ORDER = ['体重移動', '手打ちの抑制', '頭の位置', 'スイング軌道', 'テンポ'];
+  const seenAxes = new Set<string>();
+  scored.forEach((s) => (s.swingAxes || []).forEach((a) => seenAxes.add(a.label)));
+  const axisLabels = [
+    ...AXIS_ORDER.filter((l) => seenAxes.has(l)),
+    ...Array.from(seenAxes).filter((l) => !AXIS_ORDER.includes(l)),
+  ];
+  const axisData = axisLabels
+    .map((label) => {
+      const series = scored
+        .map((s) => (s.swingAxes || []).find((a) => a.label === label)?.value)
+        .filter((v): v is number => typeof v === 'number');
+      return { label, series, latest: series[series.length - 1], first: series[0] };
+    })
+    .filter((a) => typeof a.latest === 'number');
 
   return (
     <div className="px-5 pb-3 flex flex-col gap-3">
@@ -88,22 +105,35 @@ export function SwingProgress({ swings }: { swings: SwingDoc[] }) {
         </svg>
       </div>
 
-      {/* Per-axis improvement bars (from the latest analysis) */}
-      {axes.length > 0 && (
+      {/* Per-axis improvement — shows the trajectory across all analyses so the
+          change over time is clear, not just the latest snapshot. */}
+      {axisData.length > 0 && (
         <div className="bg-card rounded-card p-4 shadow-card">
-          <div className="text-[13px] font-bold mb-1">課題の改善状況</div>
-          <div className="text-[10px] text-muted mb-2">最新の解析より</div>
-          <div className="flex flex-col gap-2.5">
-            {axes.map((a) => {
-              const st = statusOf(a.value);
+          <div className="text-[13px] font-bold mb-0.5">課題の改善状況</div>
+          <div className="text-[10px] text-muted mb-2.5">
+            {scored.length >= 2 ? `解析${scored.length}回分の推移（初回→最新）` : '解析を重ねると推移が表示されます'}
+          </div>
+          <div className="flex flex-col gap-3">
+            {axisData.map((a) => {
+              const st = statusOf(a.latest);
+              const delta = a.series.length >= 2 ? a.latest - a.first : 0;
+              const improved = delta > 0;
               return (
-                <div key={a.label}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[12px]">{a.label}</span>
-                    <span className="text-[10px] font-bold" style={{ color: st.color }}>{st.label}</span>
+                <div key={a.label} className="flex items-center gap-3">
+                  <div className="w-[68px] flex-shrink-0">
+                    <div className="text-[12px] font-semibold leading-tight">{a.label}</div>
+                    <div className="text-[10px] font-bold" style={{ color: st.color }}>{st.label}</div>
                   </div>
-                  <div className="h-2 bg-bg rounded-full overflow-hidden mt-1">
-                    <div className="h-full rounded-full" style={{ width: `${a.value}%`, background: st.color }} />
+                  <div className="flex-1 min-w-0">
+                    <AxisSpark values={a.series} color={st.color} />
+                  </div>
+                  <div className="w-[52px] text-right flex-shrink-0">
+                    <div className="text-[16px] font-black leading-none" style={{ color: st.color }}>{a.latest}</div>
+                    {a.series.length >= 2 && (
+                      <div className={`text-[10px] font-bold ${improved ? 'text-green' : delta < 0 ? 'text-orange' : 'text-muted'}`}>
+                        {delta > 0 ? `+${delta}` : delta}{improved ? ' ↑' : delta < 0 ? ' ↓' : ''}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -112,5 +142,25 @@ export function SwingProgress({ swings }: { swings: SwingDoc[] }) {
         </div>
       )}
     </div>
+  );
+}
+
+// Tiny per-axis sparkline. y is fixed to a 0-100 scale so the line's height
+// also reflects the absolute level, not just the shape.
+function AxisSpark({ values, color }: { values: number[]; color: string }) {
+  const w = 140, h = 30, p = 4;
+  const x = (i: number) => (values.length <= 1 ? w / 2 : p + (i * (w - p * 2)) / (values.length - 1));
+  const y = (v: number) => p + (1 - v / 100) * (h - p * 2);
+  const pts = values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} preserveAspectRatio="none">
+      <line x1={p} y1={y(50)} x2={w - p} y2={y(50)} stroke="#eef2ef" strokeWidth="1" />
+      {values.length >= 2 && (
+        <polyline points={pts} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      )}
+      {values.map((v, i) => (
+        <circle key={i} cx={x(i)} cy={y(v)} r={i === values.length - 1 ? 3.5 : 2} fill={color} />
+      ))}
+    </svg>
   );
 }
