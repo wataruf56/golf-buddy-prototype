@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>ゴルトモ 新機能コンセプト</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --green:#2D8C4E; --green2:#34A85A; --green-light:#E7F4EC;
+    --bg:#F4F7F5; --card:#FFFFFF; --text:#1A1A1A; --sub:#5b6b61; --muted:#9aa7a0;
+    --orange:#E8943A; --blue:#3AA0C9; --pink:#E36A8B; --border:#e7ece9; --yellow:#F2B705;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);line-height:1.5;padding-bottom:60px}
+  .wrap{max-width:460px;margin:0 auto;padding:0 16px}
+  .hero{background:linear-gradient(160deg,#34A85A,#1F7E41);color:#fff;padding:28px 20px 30px;text-align:center}
+  .hero h1{font-size:22px;font-weight:900;letter-spacing:.5px}
+  .hero p{font-size:12px;opacity:.92;margin-top:6px}
+  .pill{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);border-radius:999px;font-size:11px;font-weight:700;padding:4px 12px;margin-top:12px}
+  .sec{margin-top:26px}
+  .sec-tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:900;color:var(--green);background:var(--green-light);border-radius:999px;padding:5px 12px}
+  .sec h2{font-size:17px;font-weight:900;margin:10px 0 4px}
+  .sec .lead{font-size:12px;color:var(--sub);margin-bottom:14px}
+  .card{background:var(--card);border-radius:20px;padding:16px;box-shadow:0 2px 12px rgba(20,40,30,.05);margin-bottom:12px}
+  .row{display:flex;align-items:center;gap:12px}
+  .between{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .b{font-weight:900}.sb{font-weight:700}
+  .muted{color:var(--muted)}.sub{color:var(--sub)}
+  .tiny{font-size:10px}.sm{font-size:12px}.lg{font-size:18px}
+  .badge{display:inline-flex;align-items:center;gap:4px;border-radius:999px;font-size:11px;font-weight:700;padding:3px 10px}
+  .bg-greenl{background:var(--green-light);color:var(--green)}
+  .bg-orangel{background:#FBEEDD;color:var(--orange)}
+  .bg-bluel{background:#E2F1F8;color:var(--blue)}
+  .bg-bg{background:var(--bg);color:var(--sub)}
+  .avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;background:var(--green-light)}
+  /* XP bar */
+  .xpbar{height:10px;background:var(--bg);border-radius:999px;overflow:hidden;margin-top:8px}
+  .xpbar>i{display:block;height:100%;background:linear-gradient(90deg,#34A85A,#7BD39A);border-radius:999px}
+  .lvl{width:54px;height:54px;border-radius:50%;background:linear-gradient(160deg,#34A85A,#1F7E41);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0}
+  .lvl b{font-size:20px;line-height:1}.lvl span{font-size:8px;opacity:.9}
+  /* badges grid */
+  .bgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:4px}
+  .bitem{text-align:center}
+  .bdisc{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 4px;background:var(--green-light)}
+  .bdisc.off{background:var(--bg);filter:grayscale(1);opacity:.45}
+  .bitem .tiny{display:block;line-height:1.25}
+  /* streak */
+  .streak{display:flex;gap:6px;margin-top:10px}
+  .day{flex:1;aspect-ratio:1;border-radius:9px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted)}
+  .day.on{background:var(--green-light);color:var(--green);font-weight:900}
+  .day.today{outline:2px solid var(--green)}
+  /* tag progress */
+  .tagrow{margin-top:12px}
+  .track{height:8px;background:var(--bg);border-radius:999px;overflow:hidden;margin-top:5px}
+  .track>i{display:block;height:100%;border-radius:999px}
+  /* stepper */
+  .step{display:flex;gap:12px;align-items:flex-start;position:relative;padding-bottom:18px}
+  .step:last-child{padding-bottom:0}
+  .step .dot{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;z-index:1}
+  .dot.done{background:var(--green);color:#fff}
+  .dot.now{background:#fff;color:var(--green);border:2.5px solid var(--green)}
+  .dot.todo{background:var(--bg);color:var(--muted)}
+  .step .line{position:absolute;left:14px;top:30px;bottom:0;width:2.5px;background:var(--border)}
+  .step.done .line{background:var(--green)}
+  .rank{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+  .rank:last-child{border-bottom:0}
+  .rk{width:26px;text-align:center;font-weight:900}
+  .btn{display:block;text-align:center;background:var(--green);color:#fff;font-weight:700;border-radius:12px;padding:12px;font-size:13px;margin-top:6px}
+  .ghost{background:var(--bg);color:var(--sub);font-weight:700;border-radius:12px;padding:10px;text-align:center;font-size:12px}
+  .note{font-size:10px;color:var(--muted);text-align:center;margin-top:8px}
+  .disclaim{background:#FFF6E6;border:1px solid #F2D89B;border-radius:14px;padding:12px;font-size:11px;color:#8a6d1f;margin-top:18px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  svg text{font-family:'Noto Sans JP',sans-serif}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div style="font-size:30px">⛳</div>
+  <h1>ゴルトモ 新機能コンセプト</h1>
+  <p>「上達して、続けて、仲間が増える」成長レイヤー</p>
+  <div class="pill">これはイメージ確認用のモックです（本番には未実装）</div>
+</div>
+
+<div class="wrap">
+
+  <!-- ===== ① AIスイング進捗 ===== -->
+  <div class="sec">
+    <span class="sec-tag">📊 ① AIスイング活用＋進捗の可視化</span>
+    <h2>スイングの伸びが、ひと目でわかる</h2>
+    <div class="lead">解析するたびにスコア化。推移と課題の改善が見える。</div>
+
+    <!-- score trend -->
+    <div class="card">
+      <div class="between">
+        <div class="b sm">スイングスコアの推移</div>
+        <div class="badge bg-greenl">+12 この1ヶ月 ↑</div>
+      </div>
+      <svg viewBox="0 0 320 130" width="100%" height="130" style="margin-top:8px">
+        <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#34A85A" stop-opacity=".25"/>
+          <stop offset="1" stop-color="#34A85A" stop-opacity="0"/>
+        </linearGradient></defs>
+        <line x1="0" y1="30" x2="320" y2="30" stroke="#eef2ef"/>
+        <line x1="0" y1="70" x2="320" y2="70" stroke="#eef2ef"/>
+        <line x1="0" y1="110" x2="320" y2="110" stroke="#eef2ef"/>
+        <polyline fill="url(#g)" stroke="none" points="10,95 70,88 130,78 190,64 250,52 310,40 310,120 10,120"/>
+        <polyline fill="none" stroke="#2D8C4E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="10,95 70,88 130,78 190,64 250,52 310,40"/>
+        <circle cx="310" cy="40" r="5" fill="#2D8C4E"/>
+        <text x="305" y="30" font-size="11" font-weight="700" fill="#2D8C4E" text-anchor="end">78</text>
+        <text x="10" y="113" font-size="9" fill="#9aa7a0">5月</text>
+        <text x="300" y="113" font-size="9" fill="#9aa7a0" text-anchor="end">今</text>
+      </svg>
+    </div>
+
+    <!-- course tags improvement -->
+    <div class="card">
+      <div class="b sm">課題の改善状況</div>
+      <div class="tagrow">
+        <div class="between"><span class="sm">体重移動</span><span class="tiny" style="color:var(--green)">改善中 ↑</span></div>
+        <div class="track"><i style="width:72%;background:#34A85A"></i></div>
+      </div>
+      <div class="tagrow">
+        <div class="between"><span class="sm">手打ちの抑制</span><span class="tiny sub">あと少し</span></div>
+        <div class="track"><i style="width:54%;background:#3AA0C9"></i></div>
+      </div>
+      <div class="tagrow">
+        <div class="between"><span class="sm">頭の動き</span><span class="tiny" style="color:var(--orange)">要練習</span></div>
+        <div class="track"><i style="width:31%;background:#E8943A"></i></div>
+      </div>
+    </div>
+
+    <!-- drills -->
+    <div class="card">
+      <div class="b sm" style="margin-bottom:8px">🎯 今日のドリル（AIが提案）</div>
+      <div class="row" style="margin-bottom:8px"><div class="avatar">1️⃣</div><div><div class="sm sb">右足体重キープ素振り</div><div class="tiny sub">10回 × 3セット</div></div></div>
+      <div class="row" style="margin-bottom:8px"><div class="avatar">2️⃣</div><div><div class="sm sb">ハーフショットで頭固定</div><div class="tiny sub">20球</div></div></div>
+      <div class="row"><div class="avatar">3️⃣</div><div><div class="sm sb">タオルドリルで手打ち矯正</div><div class="tiny sub">5分</div></div></div>
+    </div>
+
+    <!-- streak -->
+    <div class="card">
+      <div class="between"><div class="b sm">🔥 練習ストリーク</div><div class="badge bg-orangel">6日連続！</div></div>
+      <div class="streak">
+        <div class="day on">月</div><div class="day on">火</div><div class="day on">水</div>
+        <div class="day on">木</div><div class="day on">金</div><div class="day on today">土</div><div class="day">日</div>
+      </div>
+      <div class="note">あと1日で「7日連続」バッジ獲得！</div>
+    </div>
+  </div>
+
+  <!-- ===== ② ゲーミフィケーション ===== -->
+  <div class="sec">
+    <span class="sec-tag">🏆 ② ゲーミフィケーション</span>
+    <h2>続けるほど、レベルが上がる</h2>
+    <div class="lead">ラウンド・解析・練習・レビューでXP。バッジとランキングで盛り上がる。</div>
+
+    <!-- level + xp -->
+    <div class="card">
+      <div class="row">
+        <div class="lvl"><b>7</b><span>Lv</span></div>
+        <div style="flex:1">
+          <div class="between"><div class="sm sb">ゴルファーレベル 7</div><div class="tiny muted">1,240 / 1,500 XP</div></div>
+          <div class="xpbar"><i style="width:82%"></i></div>
+          <div class="tiny muted" style="margin-top:6px">次のレベルまで 260 XP（ラウンド1回でアップ！）</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- badges -->
+    <div class="card">
+      <div class="between" style="margin-bottom:10px"><div class="b sm">獲得バッジ</div><div class="tiny muted">8 / 20</div></div>
+      <div class="bgrid">
+        <div class="bitem"><div class="bdisc">🐣</div><span class="tiny sub">初ラウンド</span></div>
+        <div class="bitem"><div class="bdisc">📹</div><span class="tiny sub">初スイング解析</span></div>
+        <div class="bitem"><div class="bdisc">🔥</div><span class="tiny sub">7日連続練習</span></div>
+        <div class="bitem"><div class="bdisc">🤝</div><span class="tiny sub">ゴル友5人</span></div>
+        <div class="bitem"><div class="bdisc">⛳</div><span class="tiny sub">自己ベスト</span></div>
+        <div class="bitem"><div class="bdisc off">🏆</div><span class="tiny muted">コンペ優勝</span></div>
+        <div class="bitem"><div class="bdisc off">💯</div><span class="tiny muted">100切り</span></div>
+        <div class="bitem"><div class="bdisc off">👑</div><span class="tiny muted">月間1位</span></div>
+      </div>
+    </div>
+
+    <!-- ranking -->
+    <div class="card">
+      <div class="between" style="margin-bottom:6px"><div class="b sm">📈 今月のXPランキング</div><div class="tiny muted">同年代の中で</div></div>
+      <div class="rank"><div class="rk" style="color:#F2B705">🥇</div><div class="avatar" style="width:30px;height:30px;font-size:15px">🧑</div><div style="flex:1" class="sm sb">たく</div><div class="sm b" style="color:var(--green)">3,120</div></div>
+      <div class="rank"><div class="rk" style="color:#9aa7a0">🥈</div><div class="avatar" style="width:30px;height:30px;font-size:15px">👩</div><div style="flex:1" class="sm sb">みき</div><div class="sm b" style="color:var(--green)">2,880</div></div>
+      <div class="rank" style="background:var(--green-light);margin:0 -8px;padding:9px 8px;border-radius:10px"><div class="rk">4</div><div class="avatar" style="width:30px;height:30px;font-size:15px">🙂</div><div style="flex:1" class="sm b">あなた</div><div class="sm b" style="color:var(--green)">1,240</div></div>
+    </div>
+
+    <!-- compe game -->
+    <div class="card">
+      <div class="b sm" style="margin-bottom:8px">🎪 コンペのゲーム結果</div>
+      <div class="chips">
+        <span class="badge bg-greenl">🎯 ニアピン: あなた</span>
+        <span class="badge bg-orangel">💪 ドラコン: たく</span>
+        <span class="badge bg-bluel">📊 ネット優勝: みき</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ③ 初心者デビュー動線 ===== -->
+  <div class="sec">
+    <span class="sec-tag">🌱 ③ ゴルフ場デビュー / 初心者動線</span>
+    <h2>はじめてでも、安心して一歩を</h2>
+    <div class="lead">クエストで迷わない。安心枠と先輩の案内でデビュー。</div>
+
+    <!-- quest stepper -->
+    <div class="card">
+      <div class="b sm" style="margin-bottom:14px">🚩 デビュークエスト（2/3 完了）</div>
+      <div class="step done">
+        <div class="dot done">✓</div><div class="line"></div>
+        <div><div class="sm sb">プロフィールを作成</div><div class="tiny sub">完了！ +50 XP</div></div>
+      </div>
+      <div class="step done">
+        <div class="dot done">✓</div><div class="line"></div>
+        <div><div class="sm sb">スイングをAI解析</div><div class="tiny sub">完了！ +100 XP</div></div>
+      </div>
+      <div class="step">
+        <div class="dot now">3</div>
+        <div style="flex:1"><div class="sm sb">初ラウンドに参加する</div><div class="tiny sub">あと1つでデビューバッジ🐣</div>
+        <div class="btn" style="margin-top:8px">安心枠のラウンドを探す</div></div>
+      </div>
+    </div>
+
+    <!-- safe round card -->
+    <div class="card" style="border:1.5px solid var(--green)">
+      <div class="chips" style="margin-top:0;margin-bottom:8px">
+        <span class="badge bg-greenl">🌱 初心者歓迎</span>
+        <span class="badge bg-bluel">🧑‍🏫 経験者が案内</span>
+        <span class="badge bg-bg">未経験OK</span>
+      </div>
+      <div class="b">のんびり9H 初ラウンド体験会</div>
+      <div class="sm sub" style="margin-top:4px">📅 6/15(日) ・ ⛳ 市原コース ・ 残り2枠</div>
+      <div class="row" style="margin-top:10px">
+        <div class="avatar">🧔</div>
+        <div style="flex:1"><div class="sm sb">案内役：ゆうき（ゴルフ歴8年）</div><div class="tiny sub">★4.9 ・ 「教え上手」タグ多数</div></div>
+      </div>
+      <div class="btn" style="margin-top:12px">参加を申し込む</div>
+    </div>
+
+    <!-- mini guide -->
+    <div class="card">
+      <div class="b sm" style="margin-bottom:6px">📖 デビュー前ミニガイド（LINEで届く）</div>
+      <div class="sm sub">・持ち物チェックリスト　・基本マナー　・当日の流れ　・服装の例</div>
+      <div class="ghost" style="margin-top:10px">ガイドを見る</div>
+    </div>
+  </div>
+
+  <div class="disclaim">
+    ※ これは方向性を確認するための<b>デザインイメージ（モック）</b>です。数値・名前はサンプルで、まだ実際には動作しません。「この方向で進めてOK」「ここはこう変えたい」などフィードバックをいただければ、選んだものから実装します。
+  </div>
+
+  <div class="note" style="margin-top:18px;margin-bottom:10px">ゴルトモ 新機能コンセプト ・ プレビュー</div>
+</div>
+
+</body>
+</html>
