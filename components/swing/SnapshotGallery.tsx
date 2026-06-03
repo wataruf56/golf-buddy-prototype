@@ -15,6 +15,11 @@ type Props = {
 };
 
 export function SnapshotGallery({ snapshots, videos }: Props) {
+  // DISABLED per request: the "ここに注目" annotated-snapshot feature is removed.
+  // Render nothing (also hides it for older analyses that still have snapshots).
+  return null;
+
+  // eslint-disable-next-line no-unreachable
   if (!snapshots?.length) return null;
   const pairs = pairSnapshots(snapshots);
   return (

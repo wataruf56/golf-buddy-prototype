@@ -960,11 +960,10 @@ const SNAPSHOT_INSTRUCTION_BLOCK = [
 ].join('\n');
 
 function appendSnapshotSection(prompt: string, mode: SwingMode, version: PromptVersion): string {
-  // Snapshots only make sense for video-grounded analyses, not free-form Q&A.
-  if (mode === 'question') return prompt;
-  if (version === 'v1') return prompt;
-  const block = version === 'v3' ? SNAPSHOT_INSTRUCTION_BLOCK_V3 : SNAPSHOT_INSTRUCTION_BLOCK;
-  return prompt + '\n' + block + '\n';
+  // DISABLED: the "ここに注目" annotated-snapshot feature was removed per request.
+  // We no longer ask the AI to emit @SNAP frames. (Blocks kept above for
+  // reference / possible future re-enable.)
+  return prompt;
 }
 
 // ---------------------------------------------------------------------------
