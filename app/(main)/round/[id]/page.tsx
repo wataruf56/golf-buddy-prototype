@@ -35,6 +35,8 @@ export default function RoundDetailPage() {
   const buddyIds = useStore((s) => s.buddyIds);
   const profileReady = isProfileComplete(me?.age);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [interestedOpen, setInterestedOpen] = useState(false);
 
   // Fallback fetch: a friend who arrived via a shared link before completing
   // profile registration won't have this round in their store (bootstrap's
@@ -97,19 +99,22 @@ export default function RoundDetailPage() {
   const invitedUsers = (round.invitedIds || [])
     .map((id) => users.find((u) => u.id === id))
     .filter(Boolean) as User[];
-  // Host invite candidates = ゴル友 ∪ 気になる, minus host / already
-  // applied(pending or approved) / already invited.
-  const excluded = new Set<string>([
-    round.hostId,
+  // The host's ゴル友 (mutual-review buddies) to choose invitees from.
+  const buddyUsers = (buddyIds || [])
+    .map((id) => users.find((u) => u.id === id))
+    .filter(Boolean) as User[];
+  // Membership sets used to style invite buttons (participating → grey out).
+  const participatingIds = new Set<string>([
     ...(round.applicantIds || []),
     ...(round.pendingApplicantIds || []),
-    ...(round.invitedIds || []),
   ]);
-  const candidateIds = Array.from(new Set([...(buddyIds || []), ...(round.interestedIds || [])]))
-    .filter((id) => !excluded.has(id));
-  const inviteCandidates = candidateIds
-    .map((id) => ({ user: users.find((u) => u.id === id), isInterested: (round.interestedIds || []).includes(id) }))
-    .filter((c) => !!c.user) as { user: User; isInterested: boolean }[];
+  const invitedSet = new Set<string>(round.invitedIds || []);
+  // What kind of invite button a candidate gets.
+  function inviteState(id: string): 'joined' | 'invited' | 'open' {
+    if (participatingIds.has(id)) return 'joined';
+    if (invitedSet.has(id)) return 'invited';
+    return 'open';
+  }
 
   async function join() {
     track('join_round_click', { roundId: round!.id, hostId: round!.hostId });
@@ -412,45 +417,24 @@ export default function RoundDetailPage() {
           </div>
         )}
 
-        {/* Host invite panel — invite ゴル友 or people who marked 気になる */}
-        {isHost && round.status === 'open' && inviteCandidates.length > 0 && (
-          <div className="mb-4">
-            <div className="text-[13px] font-bold mb-2">📨 招待する（ゴル友・気になるの人）</div>
-            {inviteCandidates.map(({ user: u, isInterested }) => (
-              <div key={u.id} className="flex items-center gap-2 p-2.5 bg-green-light rounded-[10px] mb-1.5">
-                <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
-                  <Avatar user={u} size={36} />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-semibold truncate flex items-center gap-1.5">
-                      {u.displayName}
-                      {isInterested && <span className="text-[9px] font-bold px-1.5 py-[1px] rounded-full bg-pink-100 text-pink-600">❤️ 気になる</span>}
-                    </div>
-                    <div className="text-[10px] text-sub">{describeUser(u)} ・ ★{u.reviewAvg}</div>
-                  </div>
-                </Link>
-                <button onClick={() => invite(u.id, u.displayName)} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold flex-shrink-0">招待</button>
-              </div>
-            ))}
-          </div>
+        {/* Host: open the ゴルトモ invite picker */}
+        {isHost && round.status === 'open' && (
+          <button
+            onClick={() => setInviteOpen(true)}
+            className="w-full py-3 bg-green text-white rounded-xl mb-3 text-sm font-bold flex items-center justify-center gap-2"
+          >
+            <span>💌</span> ゴルトモを招待する
+          </button>
         )}
 
-        {/* Interested users — publicly visible to everyone */}
+        {/* Anyone: open the 気になる list */}
         {interestedUsers.length > 0 && (
-          <div className="mb-4">
-            <div className="text-[13px] font-bold mb-2">❤️ 気になる（{interestedUsers.length}名）</div>
-            <div className="flex flex-wrap gap-1.5">
-              {interestedUsers.map((u) => (
-                <Link
-                  key={u.id}
-                  href={`/profile/${u.id}`}
-                  className="flex items-center gap-1.5 pl-1 pr-2.5 py-1 bg-bg rounded-full"
-                >
-                  <Avatar user={u} size={22} />
-                  <span className="text-[11px] font-semibold truncate max-w-[120px]">{u.displayName}</span>
-                </Link>
-              ))}
-            </div>
-          </div>
+          <button
+            onClick={() => setInterestedOpen(true)}
+            className="w-full py-2.5 bg-bg rounded-xl mb-4 text-sm font-bold flex items-center justify-center gap-2 text-sub"
+          >
+            <span>❤️</span> 気になる {interestedUsers.length}人 <span className="text-muted">›</span>
+          </button>
         )}
 
         {/* Action buttons */}
@@ -516,6 +500,93 @@ export default function RoundDetailPage() {
           onClose={() => setConfirmOpen(false)}
         />
       )}
+
+      {inviteOpen && (
+        <PickerModal title="ゴルトモを招待する" onClose={() => setInviteOpen(false)}>
+          {buddyUsers.length === 0 ? (
+            <div className="text-center text-sub text-sm py-10">
+              まだゴルトモがいません。<br />一緒にラウンドして相互レビューするとここに表示されます。
+            </div>
+          ) : (
+            buddyUsers.map((u) => {
+              const st = inviteState(u.id);
+              return (
+                <div key={u.id} className="flex items-center gap-2 p-2.5 bg-bg rounded-[10px] mb-1.5">
+                  <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
+                    <Avatar user={u} size={36} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
+                      <div className="text-[10px] text-sub">{describeUser(u)} ・ ★{u.reviewAvg}</div>
+                    </div>
+                  </Link>
+                  {st === 'joined' ? (
+                    <span className="px-3 py-1.5 bg-bg text-muted border border-border rounded-lg text-xs font-bold flex-shrink-0">参加済み</span>
+                  ) : st === 'invited' ? (
+                    <span className="px-3 py-1.5 bg-bg text-muted border border-border rounded-lg text-xs font-bold flex-shrink-0">招待済み</span>
+                  ) : (
+                    <button onClick={() => invite(u.id, u.displayName)} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold flex-shrink-0">招待</button>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </PickerModal>
+      )}
+
+      {interestedOpen && (
+        <PickerModal title={`❤️ 気になる（${interestedUsers.length}名）`} onClose={() => setInterestedOpen(false)}>
+          {interestedUsers.length === 0 ? (
+            <div className="text-center text-sub text-sm py-10">まだ「気になる」した人はいません。</div>
+          ) : (
+            interestedUsers.map((u) => {
+              const st = inviteState(u.id);
+              return (
+                <div key={u.id} className="flex items-center gap-2 p-2.5 bg-bg rounded-[10px] mb-1.5">
+                  <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
+                    <Avatar user={u} size={36} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
+                      <div className="text-[10px] text-sub">{describeUser(u)} ・ ★{u.reviewAvg}</div>
+                    </div>
+                  </Link>
+                  {/* Host can invite interested people straight from this list. */}
+                  {isHost && (
+                    st === 'joined' ? (
+                      <span className="px-3 py-1.5 bg-bg text-muted border border-border rounded-lg text-xs font-bold flex-shrink-0">参加済み</span>
+                    ) : st === 'invited' ? (
+                      <span className="px-3 py-1.5 bg-bg text-muted border border-border rounded-lg text-xs font-bold flex-shrink-0">招待済み</span>
+                    ) : (
+                      <button onClick={() => invite(u.id, u.displayName)} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold flex-shrink-0">招待</button>
+                    )
+                  )}
+                </div>
+              );
+            })
+          )}
+        </PickerModal>
+      )}
+    </div>
+  );
+}
+
+// Bottom-sheet style picker modal (fixed → escapes the scrollable .screen clip,
+// same fix as the notification settings sheet). Header + scrollable body.
+function PickerModal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 bg-black/50 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-5 backdrop-blur-sm">
+      <div
+        style={{ maxHeight: '85dvh' }}
+        className="bg-card rounded-t-3xl sm:rounded-card w-full max-w-[420px] max-h-[85vh] flex flex-col shadow-lg overflow-hidden"
+      >
+        <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border flex-shrink-0">
+          <div className="text-base font-black">{title}</div>
+          <button onClick={onClose} className="text-muted text-xl leading-none px-1" aria-label="閉じる">×</button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-5 py-3">
+          {children}
+          <div className="h-6" />
+        </div>
+      </div>
     </div>
   );
 }
