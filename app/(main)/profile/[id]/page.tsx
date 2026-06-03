@@ -150,14 +150,17 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {Array.isArray(user.recentScores) && user.recentScores.length > 0 && (
-        <div className="bg-card rounded-card p-4 shadow-card mb-4">
-          <div className="text-[13px] font-bold mb-2.5">直近のスコア</div>
-          <div className="flex flex-col gap-1.5">
-            {[...user.recentScores]
-              .sort((a, b) => (a.date < b.date ? 1 : -1))
-              .slice(0, 10)
-              .map((s, i) => (
+      {Array.isArray(user.recentScores) && user.recentScores.length > 0 && (() => {
+        const sorted = [...user.recentScores].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 3);
+        const avg = Math.round(sorted.reduce((s, x) => s + x.score, 0) / sorted.length);
+        return (
+          <details className="bg-card rounded-card shadow-card mb-4">
+            <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
+              <span className="text-[13px] font-bold">直近のスコア</span>
+              <span className="text-[11px] text-muted">直近3件 平均 {avg} ▾</span>
+            </summary>
+            <div className="px-4 pb-4 flex flex-col gap-1.5">
+              {sorted.map((s, i) => (
                 <div key={i} className="flex justify-between items-center px-3 py-2 bg-bg rounded-[10px]">
                   <span className="text-[12px] text-sub">
                     {new Date(s.date).toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' })}
@@ -165,12 +168,17 @@ export default function ProfilePage() {
                   <span className="text-[15px] font-black text-green">{s.score}</span>
                 </div>
               ))}
-          </div>
-        </div>
-      )}
+            </div>
+          </details>
+        );
+      })()}
 
-      <div className="bg-card rounded-card p-4 shadow-card mb-4">
-        <div className="text-[13px] font-bold mb-2.5">レビュー（匿名）</div>
+      <details className="bg-card rounded-card shadow-card mb-4">
+        <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
+          <span className="text-[13px] font-bold">レビュー（匿名）</span>
+          <span className="text-[11px] text-muted">{reviews.length}件 ▾</span>
+        </summary>
+        <div className="px-4 pb-4">
         {reviews.length === 0 ? (
           <div className="text-xs text-muted py-3 text-center">まだレビューがありません</div>
         ) : reviews.map((rv) => {
@@ -203,7 +211,8 @@ export default function ProfilePage() {
             </div>
           );
         })}
-      </div>
+        </div>
+      </details>
 
       {isMe ? null : isBlocked ? (
         <div className="text-center py-3 bg-bg rounded-xl text-[13px] text-sub">

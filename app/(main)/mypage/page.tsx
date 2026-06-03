@@ -169,8 +169,12 @@ export default function MyPage() {
 
         <PracticeCalendar />
 
-        <div className="bg-card rounded-card p-4 shadow-card mb-4">
-          <div className="text-[13px] font-bold mb-2.5">ラウンド履歴 / 参加中</div>
+        <details className="bg-card rounded-card shadow-card mb-4">
+          <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
+            <span className="text-[13px] font-bold">ラウンド履歴 / 参加中</span>
+            <span className="text-[11px] text-muted">{myRounds.length}件 ▾</span>
+          </summary>
+          <div className="px-4 pb-4">
           {myRounds.length === 0 ? (
             <div className="text-xs text-muted py-3 text-center">まだラウンドがありません</div>
           ) : myRounds.map((r) => {
@@ -191,10 +195,15 @@ export default function MyPage() {
               </Link>
             );
           })}
-        </div>
+          </div>
+        </details>
 
-        <div className="bg-card rounded-card p-4 shadow-card mb-4">
-          <div className="text-[13px] font-bold mb-2.5">自分へのレビュー</div>
+        <details className="bg-card rounded-card shadow-card mb-4">
+          <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
+            <span className="text-[13px] font-bold">自分へのレビュー</span>
+            <span className="text-[11px] text-muted">{myReviews.length}件 ▾</span>
+          </summary>
+          <div className="px-4 pb-4">
           {myReviews.length === 0 ? (
             <div className="text-xs text-muted py-3 text-center">まだレビューがありません</div>
           ) : myReviews.map((rv) => (
@@ -215,7 +224,8 @@ export default function MyPage() {
               {rv.comment && <div className="text-[13px] mt-1.5">{rv.comment}</div>}
             </div>
           ))}
-        </div>
+          </div>
+        </details>
 
         <button
           onClick={() => {

@@ -61,22 +61,24 @@ export function PracticeCalendar() {
   }
 
   return (
-    <div className="bg-card rounded-card p-4 shadow-card mb-4">
-      <div className="flex items-center justify-between mb-3">
+    <details className="bg-card rounded-card shadow-card mb-4">
+      <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
         <div className="text-[13px] font-bold">📅 スイング練習カレンダー</div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setCursor(new Date(year, month - 1, 1))}
-            className="w-7 h-7 flex items-center justify-center text-sub"
-          >‹</button>
-          <span className="text-xs font-bold tabular-nums w-20 text-center">
-            {year}年{month + 1}月
-          </span>
-          <button
-            onClick={() => setCursor(new Date(year, month + 1, 1))}
-            className="w-7 h-7 flex items-center justify-center text-sub"
-          >›</button>
-        </div>
+        <span className="text-[11px] text-muted">開閉 ▾</span>
+      </summary>
+      <div className="px-4 pb-4">
+      <div className="flex items-center justify-center gap-1 mb-3">
+        <button
+          onClick={() => setCursor(new Date(year, month - 1, 1))}
+          className="w-7 h-7 flex items-center justify-center text-sub"
+        >‹</button>
+        <span className="text-xs font-bold tabular-nums w-20 text-center">
+          {year}年{month + 1}月
+        </span>
+        <button
+          onClick={() => setCursor(new Date(year, month + 1, 1))}
+          className="w-7 h-7 flex items-center justify-center text-sub"
+        >›</button>
       </div>
 
       <div className="grid grid-cols-7 gap-1 mb-1">
@@ -114,6 +116,7 @@ export function PracticeCalendar() {
       <div className="flex justify-center mt-3 text-[10px] text-muted gap-3">
         <span>計 <b className="text-green">{swings.length}</b> 本</span>
       </div>
-    </div>
+      </div>
+    </details>
   );
 }

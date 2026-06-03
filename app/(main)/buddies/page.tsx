@@ -41,21 +41,28 @@ export default function BuddiesPage() {
             const cid = chatIdFor(meId, other.id);
             const unread = chat?.unreadCount[meId] || 0;
             return (
-              <Link
+              <div
                 key={other.id}
-                href={`/chat/${cid}?other=${other.id}`}
-                className="block bg-card rounded-card p-4 shadow-card mb-2.5"
+                className="bg-card rounded-card p-4 shadow-card mb-2.5 flex items-center gap-3"
               >
-                <div className="flex items-center gap-3">
+                {/* Avatar + name → straight to the profile. */}
+                <Link href={`/profile/${other.id}`} className="flex items-center gap-3 min-w-0 flex-1">
                   <Avatar user={other} size={48} />
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[15px] font-bold">{other.displayName}</span>
                       <span className="text-[11px] text-green font-bold">★{other.reviewAvg}</span>
                     </div>
-                    <div className="text-xs text-sub mt-0.5 truncate">{chat?.lastMessage || 'メッセージを送ってみましょう'}</div>
+                    <div className="text-[10px] text-muted mt-0.5">タップでプロフィール</div>
                   </div>
-                  <div className="text-right flex-shrink-0">
+                </Link>
+                {/* Message preview / unread → opens the chat. */}
+                <Link
+                  href={`/chat/${cid}?other=${other.id}`}
+                  className="flex items-center gap-2 flex-shrink-0 max-w-[45%]"
+                >
+                  <div className="text-right min-w-0">
+                    <div className="text-xs text-sub truncate">{chat?.lastMessage || 'メッセージ ›'}</div>
                     {chat?.lastMessageAt ? (
                       <div className="text-[10px] text-muted">{new Date(chat.lastMessageAt).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}</div>
                     ) : null}
@@ -63,8 +70,9 @@ export default function BuddiesPage() {
                       <div className="inline-block mt-1 px-1.5 py-0.5 bg-orange text-white text-[10px] font-bold rounded-full min-w-[18px] text-center">{unread}</div>
                     )}
                   </div>
-                </div>
-              </Link>
+                  <span className="text-lg flex-shrink-0">💬</span>
+                </Link>
+              </div>
             );
           })
         )}
