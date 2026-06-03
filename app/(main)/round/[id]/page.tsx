@@ -584,7 +584,9 @@ function PickerModal({ title, onClose, children }: { title: string; onClose: () 
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-3">
           {children}
-          <div className="h-6" />
+          {/* Tall spacer so the last row can always be scrolled clear of the
+              LINE bottom bar / app tab bar (same fix as the notification sheet). */}
+          <div className="h-40" />
         </div>
       </div>
     </div>
