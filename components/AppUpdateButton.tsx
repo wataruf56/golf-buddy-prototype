@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CURRENT_BUILD, fetchLatestVersion, forceUpdate } from '@/lib/appUpdate';
+import { APP_VERSION, CURRENT_BUILD, fetchLatestVersion, forceUpdate } from '@/lib/appUpdate';
 
 // Always-available "update the app" button (mypage). Unlike the auto banner —
 // which only appears when a newer build exists — this is always visible so the
@@ -38,8 +38,8 @@ export function AppUpdateButton() {
             : updateAvailable
               ? '🟢 新しいバージョンがあります — タップで更新'
               : upToDate
-                ? `最新の状態です（${CURRENT_BUILD}）`
-                : 'タップして最新の状態に更新'}
+                ? `最新の状態です（バージョン ${APP_VERSION}）`
+                : `バージョン ${APP_VERSION}`}
         </span>
       </span>
       <span className="text-muted">›</span>
