@@ -76,7 +76,16 @@ export default function MyPage() {
 
   return (
     <>
-      <div className="px-5 pt-2 pb-4 text-2xl font-black tracking-tight">マイページ</div>
+      <div className="px-5 pt-2 pb-4 flex items-center justify-between gap-2">
+        <div className="text-2xl font-black tracking-tight">マイページ</div>
+        <Link
+          href="/mypage/edit"
+          className="flex items-center gap-1 px-3 py-1.5 bg-bg border border-border rounded-full text-xs font-bold text-sub flex-shrink-0"
+          aria-label="マイページ編集"
+        >
+          <span>✏️</span> 編集
+        </Link>
+      </div>
 
       <div className="px-5">
         {pendingForMeAsHost.length > 0 && (
@@ -134,14 +143,18 @@ export default function MyPage() {
           </div>
         </div>
 
-        {Array.isArray(me.recentScores) && me.recentScores.length > 0 && (
-          <div className="bg-card rounded-card p-4 shadow-card mb-4">
-            <div className="text-[13px] font-bold mb-2.5">直近のスコア</div>
-            <div className="flex flex-col gap-1.5">
-              {[...me.recentScores]
-                .sort((a, b) => (a.date < b.date ? 1 : -1))
-                .slice(0, 10)
-                .map((s, i) => (
+        {Array.isArray(me.recentScores) && me.recentScores.length > 0 && (() => {
+          const sorted = [...me.recentScores].sort((a, b) => (a.date < b.date ? 1 : -1));
+          const top3 = sorted.slice(0, 3);
+          const avg = Math.round(top3.reduce((s, x) => s + x.score, 0) / top3.length);
+          return (
+            <details className="bg-card rounded-card shadow-card mb-4">
+              <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
+                <span className="text-[13px] font-bold">直近のスコア</span>
+                <span className="text-[11px] text-muted">直近3件 平均 {avg} ▾</span>
+              </summary>
+              <div className="px-4 pb-4 flex flex-col gap-1.5">
+                {top3.map((s, i) => (
                   <div key={i} className="flex justify-between items-center px-3 py-2 bg-bg rounded-[10px]">
                     <span className="text-[12px] text-sub">
                       {new Date(s.date).toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' })}
@@ -149,9 +162,10 @@ export default function MyPage() {
                     <span className="text-[15px] font-black text-green">{s.score}</span>
                   </div>
                 ))}
-            </div>
-          </div>
-        )}
+              </div>
+            </details>
+          );
+        })()}
 
         <PracticeCalendar />
 
@@ -203,10 +217,6 @@ export default function MyPage() {
           ))}
         </div>
 
-        <Link href="/mypage/edit" className="bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card">
-          <span className="text-sm font-medium">プロフィール編集</span>
-          <span className="text-muted">›</span>
-        </Link>
         <button
           onClick={() => {
             setShowNotifySettings(true);

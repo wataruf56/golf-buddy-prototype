@@ -9,8 +9,13 @@ import { track } from '@/lib/telemetry';
 import { allAreas } from '@/lib/mockData';
 import type { Gender, CarStatus, ScoreEntry } from '@/lib/types';
 
-const playStyles = ['のんびり派', 'エンジョイ派', 'サクサク派', '研究派', 'ガチ派'];
-const frequencies = ['月1回', '月2回', '月3回', '月4回以上'];
+const playStyles = [
+  'のんびり派', 'エンジョイ派', 'サクサク派', '研究派', 'ガチ派',
+  '飲み会も楽しむ', '練習熱心', 'コンペ志向', '健康・運動目的', '初心者歓迎', 'マナー重視',
+];
+const frequencies = [
+  '月1回未満', '月1回', '月2回', '月3回', '月4回以上', '週1回以上', 'ほぼ毎日',
+];
 const avatars = ['⛳', '🧑', '👩', '👨', '🧔', '👱', '🧓', '🤠'];
 const scoreRanges = [
   'ラウンド未経験',
@@ -339,11 +344,14 @@ export default function ProfileEditPage() {
         </Field>
 
         <Field label="プレー頻度" hint="（任意）">
-          <div className="flex gap-1.5 flex-wrap">
-            {frequencies.map((f) => (
-              <button key={f} onClick={() => setFrequency(frequency === f ? '' : f)} className={`px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px] ${frequency === f ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub'}`}>{f}</button>
-            ))}
-          </div>
+          <select
+            value={frequency}
+            onChange={(e) => setFrequency(e.target.value)}
+            className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
+          >
+            <option value="">未設定</option>
+            {frequencies.map((f) => <option key={f} value={f}>{f}</option>)}
+          </select>
         </Field>
 
         <Field label="自己紹介" hint="（任意・最大300文字）">
@@ -356,8 +364,14 @@ export default function ProfileEditPage() {
           <div className="text-[10px] text-muted text-right mt-0.5">{bio.length}/300</div>
         </Field>
 
-        <Field label="直近のスコア" hint="（任意・最大10件・日付の新しい順に自動表示）">
-          <div className="flex flex-col gap-2">
+        <details className="mb-4 border-[1.5px] border-border rounded-[10px]">
+          <summary className="flex items-center justify-between p-3 cursor-pointer list-none">
+            <span className="text-xs font-bold text-sub">
+              直近のスコア <span className="text-muted font-medium">（任意・最大10件）</span>
+            </span>
+            <span className="text-[11px] text-muted">{recentScores.length}件 ▾</span>
+          </summary>
+          <div className="px-3 pb-3 flex flex-col gap-2">
             {recentScores.map((s, i) => (
               <div key={i} className="flex gap-2 items-center">
                 <input
@@ -390,7 +404,7 @@ export default function ProfileEditPage() {
               >＋ スコアを追加（{recentScores.length}/10）</button>
             )}
           </div>
-        </Field>
+        </details>
 
         <button onClick={save} className="w-full py-4 bg-green text-white rounded-xl text-[15px] font-bold mt-4">
           保存する
