@@ -21,6 +21,11 @@ export interface DB {
   leaveRound(id: string, userId: string): Promise<Round>;
   confirmCourse(id: string, info: { courseName: string; date: string; startTime: string; price?: string }): Promise<Round>;
   completeRound(id: string): Promise<{ round: Round; pendingForUser: (userId: string) => PendingReview[] }>;
+  // ♡ 気になる toggle. Returns the updated round and whether it was newly added
+  // (so the caller can decide whether to notify the host).
+  setInterest(id: string, userId: string, interested: boolean): Promise<{ round: Round; added: boolean }>;
+  // Host invites a user. Returns the updated round and whether newly invited.
+  inviteToRound(id: string, userId: string): Promise<{ round: Round; added: boolean }>;
 
   // Round group chat
   listRoundMessages(roundId: string): Promise<Message[]>;
@@ -165,6 +170,25 @@ class MemoryDB implements DB {
         }));
       },
     };
+  }
+
+  async setInterest(id: string, userId: string, interested: boolean) {
+    const r = this.rounds.find((x) => x.id === id);
+    if (!r) throw new Error('round not found');
+    const cur = new Set(r.interestedIds || []);
+    const had = cur.has(userId);
+    if (interested) cur.add(userId); else cur.delete(userId);
+    r.interestedIds = Array.from(cur);
+    return { round: r, added: interested && !had };
+  }
+  async inviteToRound(id: string, userId: string) {
+    const r = this.rounds.find((x) => x.id === id);
+    if (!r) throw new Error('round not found');
+    const cur = new Set(r.invitedIds || []);
+    const had = cur.has(userId);
+    cur.add(userId);
+    r.invitedIds = Array.from(cur);
+    return { round: r, added: !had };
   }
 
   async listReviewsForUser(revieweeId: string) {
@@ -447,6 +471,35 @@ class FirestoreDB implements DB {
         }));
       },
     };
+  }
+
+  async setInterest(id: string, userId: string, interested: boolean) {
+    const ref = this.fs.collection('rounds').doc(id);
+    return await this.fs.runTransaction(async (tx: any) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('round not found');
+      const data = snap.data() as Omit<Round, 'id'>;
+      const cur = new Set<string>(data.interestedIds || []);
+      const had = cur.has(userId);
+      if (interested) cur.add(userId); else cur.delete(userId);
+      const interestedIds = Array.from(cur);
+      tx.set(ref, { interestedIds }, { merge: true });
+      return { round: { ...data, id: snap.id, interestedIds } as Round, added: interested && !had };
+    });
+  }
+  async inviteToRound(id: string, userId: string) {
+    const ref = this.fs.collection('rounds').doc(id);
+    return await this.fs.runTransaction(async (tx: any) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('round not found');
+      const data = snap.data() as Omit<Round, 'id'>;
+      const cur = new Set<string>(data.invitedIds || []);
+      const had = cur.has(userId);
+      cur.add(userId);
+      const invitedIds = Array.from(cur);
+      tx.set(ref, { invitedIds }, { merge: true });
+      return { round: { ...data, id: snap.id, invitedIds } as Round, added: !had };
+    });
   }
 
   async listReviewsForUser(revieweeId: string) {

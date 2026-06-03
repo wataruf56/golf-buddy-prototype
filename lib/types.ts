@@ -83,6 +83,16 @@ export type Round = {
   // round. Used by /api/cron/round-reminders to avoid double-sending. Unset
   // = never sent.
   reviewReminderSentAt?: number;
+  // Users who tapped the ♡「気になる」heart on this round. Publicly visible
+  // (anyone can see who's interested). The host can invite people from here.
+  interestedIds?: string[];
+  // Users the host has invited to this round (ゴル友 or 気になる people).
+  // Invited users get a LINE notification and see the round highlighted.
+  invitedIds?: string[];
+  // ms timestamp when the "締切間近" LINE push was sent to 気になる users.
+  // Used by the interest-deadline reminder to avoid double-sending. Unset
+  // = never sent.
+  interestDeadlineSentAt?: number;
 };
 
 export type Review = {

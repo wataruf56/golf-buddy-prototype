@@ -32,6 +32,7 @@ export default function RoundDetailPage() {
   const storeUsers = useStore((s) => s.users);
   const meId = useStore((s) => s.meId);
   const me = useStore(getMe);
+  const buddyIds = useStore((s) => s.buddyIds);
   const profileReady = isProfileComplete(me?.age);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -87,6 +88,28 @@ export default function RoundDetailPage() {
   const isFlexible = round.type === 'flexible';
   const dateLabel = round.dateType === 'range' ? round.dateRange : formatDate(round.date);
   const canChatGroup = isHost || isApproved;
+
+  // ♡「気になる」state + people who marked interest (publicly visible).
+  const iAmInterested = (round.interestedIds || []).includes(meId);
+  const interestedUsers = (round.interestedIds || [])
+    .map((id) => users.find((u) => u.id === id))
+    .filter(Boolean) as User[];
+  const invitedUsers = (round.invitedIds || [])
+    .map((id) => users.find((u) => u.id === id))
+    .filter(Boolean) as User[];
+  // Host invite candidates = ゴル友 ∪ 気になる, minus host / already
+  // applied(pending or approved) / already invited.
+  const excluded = new Set<string>([
+    round.hostId,
+    ...(round.applicantIds || []),
+    ...(round.pendingApplicantIds || []),
+    ...(round.invitedIds || []),
+  ]);
+  const candidateIds = Array.from(new Set([...(buddyIds || []), ...(round.interestedIds || [])]))
+    .filter((id) => !excluded.has(id));
+  const inviteCandidates = candidateIds
+    .map((id) => ({ user: users.find((u) => u.id === id), isInterested: (round.interestedIds || []).includes(id) }))
+    .filter((c) => !!c.user) as { user: User; isInterested: boolean }[];
 
   async function join() {
     track('join_round_click', { roundId: round!.id, hostId: round!.hostId });
@@ -161,6 +184,31 @@ export default function RoundDetailPage() {
     try { await store.kickApplicant(round!.id, userId); toast('外しました'); }
     catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }
+  async function onToggleInterest() {
+    const next = !(round!.interestedIds || []).includes(meId);
+    if (storeRound) {
+      try { await store.toggleInterest(round!.id, next); }
+      catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
+    } else {
+      // Round not in store (arrived via shared link) — call API + patch local copy.
+      try {
+        const res = await fetch(`/api/rounds/${round!.id}/interest`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ interested: next }), cache: 'no-store',
+        });
+        if (!res.ok) throw new Error(String(res.status));
+        const j = await res.json();
+        if (j.round) setFetchedRound((prev) => (prev ? { ...prev, ...j.round } : j.round));
+      } catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
+    }
+  }
+  async function invite(userId: string, name: string) {
+    try {
+      const updated = await store.inviteToRound(round!.id, userId);
+      if (!storeRound && updated) setFetchedRound((prev) => (prev ? { ...prev, ...updated } : prev));
+      toast(`${name}さんを招待しました`);
+    } catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
+  }
 
   return (
     <div className="px-5 py-3">
@@ -229,6 +277,25 @@ export default function RoundDetailPage() {
 
         {round.description && (
           <div className="mb-4 p-3 bg-bg rounded-xl text-[13px] text-text leading-relaxed">{round.description}</div>
+        )}
+
+        {/* ♡「気になる」toggle — anyone but the host. Lets you bookmark a round
+            and get a "締切間近" nudge; the host can also invite you from here. */}
+        {!isHost && (
+          <button
+            onClick={onToggleInterest}
+            className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl mb-4 text-sm font-bold border-[1.5px] transition-colors ${
+              iAmInterested
+                ? 'bg-pink-100 text-pink-600 border-pink-300'
+                : 'bg-card text-sub border-border'
+            }`}
+          >
+            <span className="text-base">{iAmInterested ? '❤️' : '🤍'}</span>
+            {iAmInterested ? '気になるに追加済み' : '気になる'}
+            {interestedUsers.length > 0 && (
+              <span className="text-[11px] font-bold opacity-80">（{interestedUsers.length}）</span>
+            )}
+          </button>
         )}
 
         {/* Group chat entry */}
@@ -323,6 +390,66 @@ export default function RoundDetailPage() {
                 <button onClick={() => reject(u.id)} className="px-2.5 py-1 bg-card text-sub border border-border rounded-lg text-xs font-bold flex-shrink-0">却下</button>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Invited users (everyone can see who's been invited) */}
+        {invitedUsers.length > 0 && (
+          <div className="mb-4">
+            <div className="text-[13px] font-bold mb-2">💌 招待中（{invitedUsers.length}名）</div>
+            {invitedUsers.map((u) => (
+              <div key={u.id} className="flex items-center gap-2 p-2.5 bg-bg rounded-[10px] mb-1.5">
+                <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
+                  <Avatar user={u} size={36} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
+                    <div className="text-[10px] text-sub">{describeUser(u)} ・ ★{u.reviewAvg}</div>
+                  </div>
+                </Link>
+                <span className="text-[10px] text-sub font-bold flex-shrink-0">招待済み</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Host invite panel — invite ゴル友 or people who marked 気になる */}
+        {isHost && round.status === 'open' && inviteCandidates.length > 0 && (
+          <div className="mb-4">
+            <div className="text-[13px] font-bold mb-2">📨 招待する（ゴル友・気になるの人）</div>
+            {inviteCandidates.map(({ user: u, isInterested }) => (
+              <div key={u.id} className="flex items-center gap-2 p-2.5 bg-green-light rounded-[10px] mb-1.5">
+                <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
+                  <Avatar user={u} size={36} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-semibold truncate flex items-center gap-1.5">
+                      {u.displayName}
+                      {isInterested && <span className="text-[9px] font-bold px-1.5 py-[1px] rounded-full bg-pink-100 text-pink-600">❤️ 気になる</span>}
+                    </div>
+                    <div className="text-[10px] text-sub">{describeUser(u)} ・ ★{u.reviewAvg}</div>
+                  </div>
+                </Link>
+                <button onClick={() => invite(u.id, u.displayName)} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold flex-shrink-0">招待</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Interested users — publicly visible to everyone */}
+        {interestedUsers.length > 0 && (
+          <div className="mb-4">
+            <div className="text-[13px] font-bold mb-2">❤️ 気になる（{interestedUsers.length}名）</div>
+            <div className="flex flex-wrap gap-1.5">
+              {interestedUsers.map((u) => (
+                <Link
+                  key={u.id}
+                  href={`/profile/${u.id}`}
+                  className="flex items-center gap-1.5 pl-1 pr-2.5 py-1 bg-bg rounded-full"
+                >
+                  <Avatar user={u} size={22} />
+                  <span className="text-[11px] font-semibold truncate max-w-[120px]">{u.displayName}</span>
+                </Link>
+              ))}
+            </div>
           </div>
         )}
 

@@ -13,6 +13,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const userIds = new Set<string>([round.hostId]);
   for (const a of round.applicantIds || []) userIds.add(a);
   for (const a of round.pendingApplicantIds || []) userIds.add(a);
+  for (const a of round.interestedIds || []) userIds.add(a);
+  for (const a of round.invitedIds || []) userIds.add(a);
   const users = await db.listUsers(Array.from(userIds));
   return NextResponse.json({ round, users });
 }

@@ -155,6 +155,45 @@ export const store = {
     setState({ rounds: state.rounds.map((r) => (r.id === roundId ? round : r)) });
   },
 
+  // ♡「気になる」toggle. Optimistic update for snappy hearts, then reconcile
+  // with the server's authoritative interestedIds.
+  toggleInterest: async (roundId: string, interested: boolean) => {
+    const meId = state.meId;
+    setState({
+      rounds: state.rounds.map((r) => {
+        if (r.id !== roundId) return r;
+        const cur = new Set(r.interestedIds || []);
+        if (interested) cur.add(meId); else cur.delete(meId);
+        return { ...r, interestedIds: Array.from(cur) };
+      }),
+    });
+    try {
+      const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/interest`, {
+        method: 'POST', body: JSON.stringify({ interested }),
+      });
+      setState({ rounds: state.rounds.map((r) => (r.id === roundId ? { ...r, ...round } : r)) });
+    } catch (e) {
+      // Revert on failure.
+      setState({
+        rounds: state.rounds.map((r) => {
+          if (r.id !== roundId) return r;
+          const cur = new Set(r.interestedIds || []);
+          if (interested) cur.delete(meId); else cur.add(meId);
+          return { ...r, interestedIds: Array.from(cur) };
+        }),
+      });
+      throw e;
+    }
+  },
+
+  inviteToRound: async (roundId: string, userId: string) => {
+    const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/invite`, {
+      method: 'POST', body: JSON.stringify({ userId }),
+    });
+    setState({ rounds: state.rounds.map((r) => (r.id === roundId ? { ...r, ...round } : r)) });
+    return round;
+  },
+
   confirmCourse: async (roundId: string, info: { courseName: string; date: string; startTime: string; price?: string }) => {
     const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/confirm-course`, {
       method: 'POST', body: JSON.stringify(info),

@@ -44,5 +44,13 @@ export async function GET(req: NextRequest) {
     results.roundReminders = { error: (e as Error).message };
   }
 
+  try {
+    const { GET: interestReminders } = await import('../interest-reminders/route');
+    const res = await interestReminders(req);
+    results.interestReminders = await res.json().catch(() => ({ ok: res.ok }));
+  } catch (e) {
+    results.interestReminders = { error: (e as Error).message };
+  }
+
   return NextResponse.json({ ok: true, ...results }, { headers: noStore });
 }

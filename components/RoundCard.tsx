@@ -5,7 +5,7 @@ import type { Round, User } from '@/lib/types';
 import { Avatar } from '@/components/Avatar';
 import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
 import { useUnreadCounts } from '@/lib/useUnread';
-import { useStore } from '@/lib/store';
+import { useStore, store } from '@/lib/store';
 import { formatDate } from '@/lib/utils';
 import { levelConditionLabel } from '@/lib/roundEligibility';
 
@@ -63,11 +63,14 @@ export function RoundCard({ round, host }: { round: Round; host?: User }) {
       )}
       <div className="flex justify-between items-start mb-2.5 gap-2">
         <div className="text-[15px] font-bold flex-1">{round.title}</div>
-        {!isComp && (
-          <span className="badge inline-flex items-center px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-green-light text-green flex-shrink-0">
-            残り{remaining}枠
-          </span>
-        )}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {!isComp && (
+            <span className="badge inline-flex items-center px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-green-light text-green">
+              残り{remaining}枠
+            </span>
+          )}
+          <InterestHeart round={round} />
+        </div>
       </div>
       <div className="flex flex-wrap gap-1.5 mb-2.5">
         {round.type === 'confirmed' ? (
@@ -123,5 +126,43 @@ export function RoundCard({ round, host }: { round: Round; host?: User }) {
         </div>
       ) : null}
     </Link>
+  );
+}
+
+// ♡「気になる」heart. Lives inside the card's <Link>, so taps must not navigate.
+// Host sees a read-only count; everyone else can toggle their interest.
+function InterestHeart({ round }: { round: Round }) {
+  const meId = useStore((s) => s.meId);
+  const interested = (round.interestedIds || []).includes(meId);
+  const count = (round.interestedIds || []).length;
+  const isHost = round.hostId === meId;
+
+  async function onClick(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isHost) return;
+    try { await store.toggleInterest(round.id, !interested); } catch {}
+  }
+
+  if (isHost) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-bg text-sub" title="気になる人数">
+        <span>{count > 0 ? '❤️' : '🤍'}</span>
+        {count > 0 && <span>{count}</span>}
+      </span>
+    );
+  }
+
+  return (
+    <button
+      onClick={onClick}
+      aria-label={interested ? '気になるを解除' : '気になる'}
+      className={`inline-flex items-center gap-1 px-2.5 py-[3px] rounded-full text-[11px] font-bold transition-colors ${
+        interested ? 'bg-pink-100 text-pink-600' : 'bg-bg text-sub'
+      }`}
+    >
+      <span>{interested ? '❤️' : '🤍'}</span>
+      <span>{count > 0 ? count : '気になる'}</span>
+    </button>
   );
 }
