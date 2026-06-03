@@ -37,6 +37,8 @@ export default function RoundDetailPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [interestedOpen, setInterestedOpen] = useState(false);
+  // Host-only: kanji full names of participants (for golf-course registration).
+  const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
 
   // Fallback fetch: a friend who arrived via a shared link before completing
   // profile registration won't have this round in their store (bootstrap's
@@ -65,6 +67,27 @@ export default function RoundDetailPage() {
     })();
     return () => { cancelled = true; };
   }, [params.id, storeRound]);
+
+  // Host-only: pull participants' kanji full names. The endpoint is host-gated
+  // (returns 403 otherwise), so real names never reach non-hosts.
+  useEffect(() => {
+    const r = storeRound || fetchedRound;
+    if (!params.id || !r || r.hostId !== meId) { setParticipantNames({}); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/rounds/${encodeURIComponent(params.id)}/participant-names`, { cache: 'no-store' });
+        if (!res.ok || cancelled) return;
+        const j = await res.json();
+        if (!cancelled) setParticipantNames(j.names || {});
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [
+    params.id, meId, storeRound, fetchedRound,
+    (storeRound || fetchedRound)?.applicantIds?.length,
+    (storeRound || fetchedRound)?.pendingApplicantIds?.length,
+  ]);
 
   const round = storeRound || fetchedRound;
   // Merge users so the host/applicant lookups work whether the data came from
@@ -360,6 +383,9 @@ export default function RoundDetailPage() {
                   <Avatar user={u} size={36} />
                   <div className="flex-1 min-w-0">
                     <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
+                    {isHost && participantNames[u.id] && (
+                      <div className="text-[10px] text-green font-bold">📋 {participantNames[u.id]}</div>
+                    )}
                     <div className="text-[10px] text-sub">{describeUser(u)} ・ ★{u.reviewAvg}</div>
                   </div>
                 </Link>
@@ -387,6 +413,9 @@ export default function RoundDetailPage() {
                   <Avatar user={u} size={36} />
                   <div className="flex-1 min-w-0">
                     <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
+                    {participantNames[u.id] && (
+                      <div className="text-[10px] text-green font-bold">📋 {participantNames[u.id]}</div>
+                    )}
                     <div className="text-[10px] text-sub">{describeUser(u)} ・ ★{u.reviewAvg}（{u.reviewCount}件）</div>
                   </div>
                 </Link>

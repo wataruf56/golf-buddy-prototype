@@ -16,5 +16,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   for (const a of round.interestedIds || []) userIds.add(a);
   for (const a of round.invitedIds || []) userIds.add(a);
   const users = await db.listUsers(Array.from(userIds));
-  return NextResponse.json({ round, users });
+  // Strip private real names — the round host gets participant names via the
+  // dedicated /api/rounds/[id]/participant-names endpoint instead.
+  const { stripPrivateMany } = await import('@/lib/sanitizeUser');
+  return NextResponse.json({ round, users: stripPrivateMany(users, null) });
 }

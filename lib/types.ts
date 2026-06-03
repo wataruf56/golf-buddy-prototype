@@ -27,6 +27,11 @@ export type User = {
   // Keys are NotifyType (lib/notifyPrefs). Missing key → that type's default.
   notifyPrefs?: Record<string, boolean>;
   golfHistory?: string;        // 「1年未満」「3〜5年」など
+  // 漢字フルネーム（ゴルフ場への届出用）。一般ユーザー・友だちには非公開で、
+  // 参加/募集したラウンドの「募集者」にのみ表示される。API応答では本人以外には
+  // ストリップされ、募集者へは /api/rounds/[id]/participant-names 経由でのみ渡る。
+  realNameLast?: string;       // 名字（姓）
+  realNameFirst?: string;      // 名前（名）
   // Per-month free swing analysis usage. Whitelisted users (isSwingAllowed)
   // bypass this counter entirely; everyone else gets SWING_FREE_LIMIT runs
   // per calendar month (default 1). Reset semantics live in lib/swingQuota.

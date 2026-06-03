@@ -79,7 +79,11 @@ export async function GET() {
     } catch {}
   }));
 
+  // Strip private real names from everyone but the current user before sending.
+  const { stripPrivateMany } = await import('@/lib/sanitizeUser');
+  const safeUsers = stripPrivateMany(users, meId);
+
   return NextResponse.json({
-    ok: true, meId, me, users, rounds, pendingReviews, chats, buddyIds, roundChatActivity,
+    ok: true, meId, me, users: safeUsers, rounds, pendingReviews, chats, buddyIds, roundChatActivity,
   });
 }

@@ -52,6 +52,8 @@ export default function ProfileEditPage() {
   const meLoaded = hydrated;
 
   const [displayName, setDisplayName] = useState('');
+  const [realNameLast, setRealNameLast] = useState('');
+  const [realNameFirst, setRealNameFirst] = useState('');
   const [age, setAge] = useState<string>('');
   const [gender, setGender] = useState<Gender | ''>('');
   const [car, setCar] = useState<CarStatus | ''>('');
@@ -72,6 +74,8 @@ export default function ProfileEditPage() {
   useEffect(() => {
     if (!meLoaded || initialized) return;
     setDisplayName(me.displayName || '');
+    setRealNameLast(me.realNameLast || '');
+    setRealNameFirst(me.realNameFirst || '');
     setAge(me.age ? String(me.age) : '');
     setGender(me.gender || '');
     setCar(me.car || '');
@@ -147,7 +151,10 @@ export default function ProfileEditPage() {
         .sort((a, b) => (a.date < b.date ? 1 : -1))
         .slice(0, 10);
       await store.updateMe({
-        displayName, age: ageNum,
+        displayName,
+        realNameLast: realNameLast.trim(),
+        realNameFirst: realNameFirst.trim(),
+        age: ageNum,
         gender: (gender || undefined) as Gender | undefined,
         car: (car || undefined) as CarStatus | undefined,
         bio,
@@ -243,6 +250,28 @@ export default function ProfileEditPage() {
 
         <Field label="表示名">
           <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+        </Field>
+
+        <Field label="お名前（漢字フルネーム）" hint="（任意）">
+          <div className="flex items-center gap-2">
+            <input
+              value={realNameLast}
+              onChange={(e) => setRealNameLast(e.target.value)}
+              placeholder="名字"
+              className="flex-1 min-w-0 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
+            />
+            <input
+              value={realNameFirst}
+              onChange={(e) => setRealNameFirst(e.target.value)}
+              placeholder="名前"
+              className="flex-1 min-w-0 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
+            />
+          </div>
+          <ul className="mt-2 text-[10px] text-muted leading-relaxed space-y-0.5">
+            <li>・一般のユーザーや他の友だちには公開されません。</li>
+            <li>・ラウンドを募集・参加した際、そのラウンドの<b className="text-sub">募集者にのみ</b>表示されます。</li>
+            <li>・ゴルフ場へフルネームでの届出が必要になるためです。</li>
+          </ul>
         </Field>
 
         <Field label="年齢" required>
