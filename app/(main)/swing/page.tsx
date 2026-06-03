@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { OnboardingModal } from '@/components/swing/OnboardingModal';
 import { StatusBadge } from '@/components/swing/StatusBadge';
+import { SwingProgress } from '@/components/swing/SwingProgress';
 import { formatDate } from '@/lib/utils';
 import type { SwingDoc } from '@/types/swing';
 
@@ -90,6 +91,8 @@ export default function SwingListPage() {
           )}
         </div>
       )}
+
+      {swings && swings.length > 0 && <SwingProgress swings={swings} />}
 
       <div className="px-5 pb-6">
         {swings === null ? (

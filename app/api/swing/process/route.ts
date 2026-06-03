@@ -165,13 +165,18 @@ async function processOne(swing: SwingDoc): Promise<{ status: string }> {
   // Pull out the @SNAP annotations and remove that section from the text the
   // UI splits into chunks — we render snapshots as their own visual cards.
   const snapshots = parseSnapshots(reviewText);
-  const cleanedText = stripSnapshotSection(reviewText);
+  // Pull out the machine-readable score block + strip it from the display text.
+  const { parseSwingScore, stripScoreSection } = await import('@/lib/swingScore');
+  const parsedScore = parseSwingScore(reviewText);
+  const cleanedText = stripScoreSection(stripSnapshotSection(reviewText));
   const chunks = splitReviewByDivider(cleanedText);
   await updateSwing(userId, swingId, {
     status: 'done',
     reviewText,
     reviewTextChunks: chunks,
     snapshots,
+    swingScore: parsedScore.score,
+    swingAxes: parsedScore.axes,
     completedAt: Date.now(),
     errorMessage: '',
   });

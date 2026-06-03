@@ -27,6 +27,13 @@ export type SwingDoc = {
   // render annotated screenshots without re-parsing every render.
   snapshots?: SwingSnapshot[];
 
+  // Structured scoring emitted by the AI (parsed out of reviewText by the
+  // worker — see lib/swingScore.ts). Powers the score-trend graph and the
+  // per-axis "課題の改善" bars on the swing tab. Only present on analyses run
+  // after this feature shipped.
+  swingScore?: number;                 // overall 0-100
+  swingAxes?: { label: string; value: number }[]; // fixed rubric axes, each 0-100
+
   videoDeleted?: boolean;
   errorMessage?: string;
   retryCount?: number;

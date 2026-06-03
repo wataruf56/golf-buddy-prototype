@@ -3,6 +3,7 @@
 // Reference: golf-ai/gas/70_プロンプト.js (lines 1098-1755)
 
 import type { SwingMode } from '@/types/swing';
+import { SWING_SCORE_INSTRUCTION } from './swingScore';
 
 export type SwingUserContext = {
   gender?: 'male' | 'female' | 'other';
@@ -1010,6 +1011,12 @@ export function buildPromptForMode(args: {
     case 'question':       body = buildQuestionPrompt(userMessage || ''); break;
   }
   body = appendSnapshotSection(body, mode, version);
+  // Append the machine-readable scoring block (parsed out + stripped before the
+  // review is shown). Not for free-form Q&A. Powers the swing score trend +
+  // per-axis improvement bars on the swing tab.
+  if (mode !== 'question') {
+    body = body + '\n' + SWING_SCORE_INSTRUCTION + '\n';
+  }
   const ctxBlock = buildUserContextBlock(userContext);
   if (!ctxBlock) return body;
   return ctxBlock + '\n' + body;

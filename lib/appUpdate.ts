@@ -13,7 +13,7 @@
 // changes on every deploy) so the "new version available" banner keeps working
 // even between releases that share the same display version. Don't switch the
 // detection to APP_VERSION or back-to-back deploys won't be detected.
-export const APP_VERSION = '2.6';
+export const APP_VERSION = '2.7';
 
 // Per-deploy build id (git SHA), baked at build time. Used for update detection.
 export const CURRENT_BUILD = process.env.NEXT_PUBLIC_BUILD_ID || 'dev';
