@@ -29,6 +29,16 @@ export default function HomePage() {
       (r.pendingApplicantIds || []).map((uid) => ({ round: r, applicantId: uid }))
     )
   );
+  // Rounds I've been invited to (host pressed 招待) but haven't joined yet.
+  const myInvites = useStore((s) =>
+    s.rounds.filter((r) =>
+      r.status === 'open' &&
+      (r.invitedIds || []).includes(s.meId) &&
+      r.hostId !== s.meId &&
+      !r.applicantIds.includes(s.meId) &&
+      !(r.pendingApplicantIds || []).includes(s.meId)
+    )
+  );
   // "ラウンド回数" = COMPLETED rounds only (host or approved applicant).
   // Open/recruiting rounds are excluded. Max with the stored counter so
   // completions outside the visible set still count.
@@ -71,6 +81,23 @@ export default function HomePage() {
         </div>
       )}
 
+
+      {myInvites.length > 0 && (
+        <div className="px-5 pb-3 space-y-2">
+          {myInvites.map((r) => (
+            <Link key={r.id} href={`/round/${r.id}`} className="block bg-green-light border-2 border-green rounded-card p-4">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">💌</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-black text-green">ラウンドに招待されています</div>
+                  <div className="text-[11px] text-sub mt-0.5 truncate">「{r.title}」・タップして参加</div>
+                </div>
+                <span className="text-green">›</span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
 
       {myHostedPending.length > 0 && (
         <div className="px-5 pb-3">

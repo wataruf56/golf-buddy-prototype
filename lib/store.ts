@@ -13,6 +13,7 @@ type Store = {
   buddyIds: string[];
   roundChatActivity: Record<string, number>;
   banned: boolean;
+  isAdmin: boolean;
 };
 
 const initial: Store = {
@@ -25,6 +26,7 @@ const initial: Store = {
   buddyIds: [],
   roundChatActivity: {},
   banned: false,
+  isAdmin: false,
 };
 
 let state: Store = initial;
@@ -64,7 +66,7 @@ export const store = {
     type BootstrapData = {
       meId: string; me: User; users: User[]; rounds: Round[];
       pendingReviews: PendingReview[]; chats: Chat[];
-      buddyIds?: string[]; roundChatActivity?: Record<string, number>; banned?: boolean;
+      buddyIds?: string[]; roundChatActivity?: Record<string, number>; banned?: boolean; isAdmin?: boolean;
     };
     // Transient failures are common in the LINE in-app webview (cold starts,
     // a fetch aborted by navigation → "Load failed"). Retry a few times with
@@ -95,6 +97,7 @@ export const store = {
         buddyIds: data.buddyIds || [],
         roundChatActivity: data.roundChatActivity || {},
         banned: !!data.banned,
+        isAdmin: !!data.isAdmin,
       });
       // Fire-and-forget telemetry
       if (typeof window !== 'undefined') {

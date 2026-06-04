@@ -13,8 +13,11 @@ import { cn } from '@/lib/utils';
 export default function CreatePage() {
   const router = useRouter();
   const meId = useStore((s) => s.meId);
+  const isAdmin = useStore((s) => s.isAdmin);
   const [step, setStep] = useState<'select' | 'form'>('select');
   const [type, setType] = useState<RoundType>('confirmed');
+  // Admin-only (福田渉): post as ゴルトモ公式 or as personal account.
+  const [postAsOfficial, setPostAsOfficial] = useState<boolean>(false);
 
   // form state
   const [title, setTitle] = useState('');
@@ -58,6 +61,9 @@ export default function CreatePage() {
       beginnerOnly,
       genderCondition,
       description: description || undefined,
+      // Admin-only: request publishing under the ゴルトモ公式 identity. Server
+      // re-validates the caller is actually an admin before honoring this.
+      asOfficial: isAdmin ? postAsOfficial : undefined,
     };
     track('round_create_click', { ...payload, isComp });
     try {
@@ -77,6 +83,30 @@ export default function CreatePage() {
       <>
         <div className="px-5 pt-2 pb-4 text-2xl font-black tracking-tight">ラウンドを募集する</div>
         <div className="px-5">
+          {isAdmin && (
+            <div className="bg-card rounded-card p-4 shadow-card mb-4 border-2 border-green-light">
+              <div className="text-[13px] font-black mb-2.5">📣 どの名義で投稿しますか？</div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPostAsOfficial(true)}
+                  className={cn('flex-1 py-3 rounded-[10px] border-[1.5px] text-sm font-bold', postAsOfficial ? 'border-green bg-green-light text-green' : 'border-border bg-bg text-sub')}
+                >
+                  🏆 ゴルトモ公式
+                </button>
+                <button
+                  onClick={() => setPostAsOfficial(false)}
+                  className={cn('flex-1 py-3 rounded-[10px] border-[1.5px] text-sm font-bold', !postAsOfficial ? 'border-green bg-green-light text-green' : 'border-border bg-bg text-sub')}
+                >
+                  👤 個人アカウント
+                </button>
+              </div>
+              <div className="text-[11px] text-muted mt-2">
+                {postAsOfficial
+                  ? 'この募集は「ゴルトモ公式」として表示されます'
+                  : 'この募集はあなた個人の名義で表示されます'}
+              </div>
+            </div>
+          )}
           <div className="text-[13px] text-sub mb-4">募集タイプを選んでください</div>
 
           <button

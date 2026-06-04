@@ -271,14 +271,25 @@ export default function RoundDetailPage() {
     <div className="px-5 py-3">
       <div className="flex items-center justify-between mb-4">
         <button onClick={() => router.back()} className="text-sm text-blue font-semibold">← 戻る</button>
-        <button
-          onClick={shareRound}
-          className="px-3 py-1.5 bg-bg border-[1.5px] border-border rounded-full text-xs font-bold flex items-center gap-1"
-          aria-label="この募集を友達にシェア"
-        >
-          <span>🔗</span>
-          <span>シェア</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={shareRound}
+            className="px-3 py-1.5 bg-bg border-[1.5px] border-border rounded-full text-xs font-bold flex items-center gap-1"
+            aria-label="この募集を友達にシェア"
+          >
+            <span>🔗</span>
+            <span>シェア</span>
+          </button>
+          {isHost && round.status !== 'completed' && (
+            <button
+              onClick={() => router.push(`/round/${round.id}/edit`)}
+              className="w-9 h-9 bg-bg border-[1.5px] border-border rounded-full text-sm font-bold flex items-center justify-center"
+              aria-label="この投稿を編集"
+            >
+              ✏️
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bg-card rounded-card p-5 shadow-card">
@@ -530,14 +541,6 @@ export default function RoundDetailPage() {
             {(round.type === 'confirmed' || round.status !== 'open') && (
               <button onClick={complete} className="w-full py-4 bg-green text-white rounded-xl text-[15px] font-bold">
                 ラウンド完了
-              </button>
-            )}
-            {round.status !== 'completed' && (
-              <button
-                onClick={() => router.push(`/round/${round.id}/edit`)}
-                className="w-full py-3 bg-card border-[1.5px] border-green text-green rounded-xl text-sm font-bold flex items-center justify-center gap-2"
-              >
-                ✏️ 投稿を編集する
               </button>
             )}
             <button onClick={close} className="w-full py-3 bg-bg text-sub rounded-xl text-sm font-bold">募集を閉じる</button>

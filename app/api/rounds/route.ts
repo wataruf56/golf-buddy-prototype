@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { isMatchingAllowedByAge, getCohort } from '@/lib/ageGate';
+import { isAdminUserId } from '@/lib/adminAccess';
 import { levelConditionLabel } from '@/lib/roundEligibility';
 import type { Round } from '@/lib/types';
 
@@ -47,9 +48,9 @@ export async function POST(req: NextRequest) {
     description: body.description,
     status: 'open',
     isCompetition: (Number(body.maxSpots) || 1) >= 5,
-    // No auto-official on creation. "ゴルトモ公式" is now an explicit,
-    // per-round flag the admin toggles from the admin screen.
-    isOfficial: false,
+    // "ゴルトモ公式" は管理者（福田渉）のみが選択可能。クライアントの申告は
+    // 信用せず、サーバー側で管理者であることを再検証してから true にする。
+    isOfficial: !!body.asOfficial && isAdminUserId(meId),
     createdAt: Date.now(),
   };
   try {

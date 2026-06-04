@@ -87,7 +87,12 @@ export async function GET() {
   let banned = false;
   try { const { isBanned } = await import('@/lib/banAccess'); banned = await isBanned(meId); } catch {}
 
+  // 管理者（ゴルトモ公式アカウント）判定。投稿時に「公式 / 個人」を選べる
+  // UIを出すかどうかのフラグ。サーバー側でも投稿時に再検証する。
+  let isAdmin = false;
+  try { const { isAdminUserId } = await import('@/lib/adminAccess'); isAdmin = isAdminUserId(meId); } catch {}
+
   return NextResponse.json({
-    ok: true, meId, me, users: safeUsers, rounds, pendingReviews, chats, buddyIds, roundChatActivity, banned,
+    ok: true, meId, me, users: safeUsers, rounds, pendingReviews, chats, buddyIds, roundChatActivity, banned, isAdmin,
   });
 }
