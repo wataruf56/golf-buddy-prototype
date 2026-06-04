@@ -140,7 +140,16 @@ export default function RoundDetailPage() {
     return 'open';
   }
 
+  // Visitors arriving from a shared link may not be logged in. Defer login
+  // until they actually act. Returns true if it redirected to login.
+  function requireLogin(): boolean {
+    if (meId) return false;
+    router.push(`/login?callbackUrl=${encodeURIComponent(`/round/${round!.id}`)}`);
+    return true;
+  }
+
   async function join() {
+    if (requireLogin()) return;
     track('join_round_click', { roundId: round!.id, hostId: round!.hostId });
     // Profile gate: a friend who arrived via a shared link can read the round
     // detail without registering, but joining requires a profile. Bounce them
@@ -161,7 +170,9 @@ export default function RoundDetailPage() {
     }
   }
   async function shareRound() {
-    const url = `${SHARE_BASE}?to=${encodeURIComponent(`/round/${round!.id}`)}`;
+    // Direct public URL — opens & is viewable instantly, no LINE login required.
+    // Login is only requested when the visitor takes an action (apply, etc.).
+    const url = `https://app.goltomo.com/round/${round!.id}`;
     const text = `⛳ ${round!.title}\n${dateLabel}${round!.startTime ? ' ' + round!.startTime : ''}`;
     track('share_round_click', { roundId: round!.id });
     const w = window as any;
@@ -214,6 +225,7 @@ export default function RoundDetailPage() {
     catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }
   async function onToggleInterest() {
+    if (requireLogin()) return;
     const next = !(round!.interestedIds || []).includes(meId);
     if (storeRound) {
       try { await store.toggleInterest(round!.id, next); }
@@ -497,14 +509,18 @@ export default function RoundDetailPage() {
         ) : (
           <>
             <button onClick={join} className="w-full py-4 bg-green text-white rounded-xl text-[15px] font-bold mt-2">
-              {profileReady
-                ? `参加を申請する（残り${remaining}枠）`
-                : `プロフィール登録して参加する（残り${remaining}枠）`}
+              {!meId
+                ? `LINEログインして参加する（残り${remaining}枠）`
+                : profileReady
+                  ? `参加を申請する（残り${remaining}枠）`
+                  : `プロフィール登録して参加する（残り${remaining}枠）`}
             </button>
             <div className="text-[11px] text-muted text-center mt-2">
-              {profileReady
-                ? '主催者が承認するまでお待ちください'
-                : '次の画面でプロフィールを登録すると、戻ってきて参加申請できます'}
+              {!meId
+                ? 'まずは中身を自由に閲覧できます。参加する時だけログインが必要です'
+                : profileReady
+                  ? '主催者が承認するまでお待ちください'
+                  : '次の画面でプロフィールを登録すると、戻ってきて参加申請できます'}
             </div>
           </>
         )}

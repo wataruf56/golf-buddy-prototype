@@ -101,6 +101,9 @@ export type Round = {
   // コンペの組分け（主催者が編集）。各組のスタート時間とメンバー。未割り当ての
   // 参加者はどの組にも入っていない人として扱う。
   groups?: RoundGroup[];
+  // 主催者が自前のLINEオープンチャットを持っている場合のURL。設定されていれば
+  // グループチャット上部に「LINEのオープンチャットあり」として表示。未設定なら非表示。
+  openChatUrl?: string;
 };
 
 export type RoundGroup = {

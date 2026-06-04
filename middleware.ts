@@ -20,14 +20,22 @@ const LP_HOSTS = new Set(['goltomo.com', 'www.goltomo.com']);
 const ADMIN_HOSTS = new Set(['admin.goltomo.com']);
 
 // Routes on the app host that require LINE login.
+// Routes that REQUIRE login. Note: round detail (/round/[id]) and profiles
+// (/profile/[id]) are intentionally NOT here — shared links must open & be
+// viewable without login. Login is requested only when the visitor takes an
+// action. The round GROUP CHAT (/round/[id]/chat) stays login+participant
+// gated (handled in shouldRequireAppAuth).
 const APP_PROTECTED_PREFIXES = [
   '/home', '/search', '/create', '/buddies', '/mypage',
-  '/round', '/profile', '/chat', '/swing',
+  '/chat', '/swing',
 ];
 
 const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
 function shouldRequireAppAuth(path: string): boolean {
+  // Round group chat is participant-only → always require login (the API also
+  // enforces participant membership).
+  if (/^\/round\/[^/]+\/chat(\/|$)/.test(path)) return true;
   return APP_PROTECTED_PREFIXES.some((p) => path === p || path.startsWith(p + '/'));
 }
 
@@ -62,7 +70,10 @@ export default async function middleware(req: NextRequest) {
     if (path.startsWith('/admin') || path.startsWith('/api/admin')) {
       return NextResponse.redirect(new URL(`https://admin.goltomo.com${path}${url.search}`));
     }
-    if (path.startsWith('/share') || path.startsWith('/liff') || path.startsWith('/api/')) {
+    if (
+      path.startsWith('/share') || path.startsWith('/liff') || path.startsWith('/api/') ||
+      path.startsWith('/round') || path.startsWith('/profile')
+    ) {
       return NextResponse.redirect(new URL(`https://app.goltomo.com${path}${url.search}`));
     }
     // Everything else on LP host → render the LP (rewrite, keeps URL).
