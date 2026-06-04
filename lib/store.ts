@@ -61,12 +61,30 @@ export const store = {
 
   hydrate: async () => {
     const startedAt = Date.now();
+    type BootstrapData = {
+      meId: string; me: User; users: User[]; rounds: Round[];
+      pendingReviews: PendingReview[]; chats: Chat[];
+      buddyIds?: string[]; roundChatActivity?: Record<string, number>; banned?: boolean;
+    };
+    // Transient failures are common in the LINE in-app webview (cold starts,
+    // a fetch aborted by navigation → "Load failed"). Retry a few times with
+    // backoff before giving up, so a momentary blip self-heals instead of
+    // leaving the user on an empty shell. Auth failures (401/403) are not
+    // retried — retrying won't help.
+    let data: BootstrapData | null = null;
+    let lastErr: unknown = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        data = await api<BootstrapData>('/api/bootstrap');
+        break;
+      } catch (e) {
+        lastErr = e;
+        if (/^(401|403)\b/.test((e as Error).message || '')) break;
+        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+      }
+    }
     try {
-      const data = await api<{
-        meId: string; me: User; users: User[]; rounds: Round[];
-        pendingReviews: PendingReview[]; chats: Chat[];
-        buddyIds?: string[]; roundChatActivity?: Record<string, number>; banned?: boolean;
-      }>('/api/bootstrap');
+      if (!data) throw (lastErr || new Error('bootstrap failed'));
       setState({
         hydrated: true,
         meId: data.meId,
