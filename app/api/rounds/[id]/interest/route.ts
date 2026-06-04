@@ -32,10 +32,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   if (added) {
     const host = await db.getUser(existing.hostId);
+    const me = await db.getUser(meId);
+    const name = me?.displayName || 'ゲスト';
+    const msg = `💚 ${name} さんが「${existing.title}」を気になるに追加しました`;
+    const { addNotification } = await import('@/lib/notifications');
+    addNotification(existing.hostId, 'interestReceived', msg, `/round/${params.id}`).catch(() => {});
     if (isNotifyEnabled(host as any, 'interestReceived')) {
-      const me = await db.getUser(meId);
-      const name = me?.displayName || 'ゲスト';
-      const msg = `💚 ${name} さんが「${existing.title}」を気になるに追加しました`;
       pushTo(existing.hostId, msg, liffUrl(`/round/${params.id}`)).catch(() => {});
       webPushText(existing.hostId, '「気になる」が押されました', msg, `/round/${params.id}`, `interest-${params.id}`).catch(() => {});
     }

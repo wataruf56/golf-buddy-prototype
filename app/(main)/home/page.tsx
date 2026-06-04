@@ -1,18 +1,45 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { getMe, store, useStore } from '@/lib/store';
 import { RoundCard } from '@/components/RoundCard';
 import { Avatar } from '@/components/Avatar';
 import { HomeUpdateCard } from '@/components/HomeUpdateCard';
 
+function relTime(ts: number): string {
+  const diff = Date.now() - ts;
+  if (diff < 60_000) return 'たった今';
+  const m = Math.floor(diff / 60_000);
+  if (m < 60) return `${m}分前`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}時間前`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}日前`;
+  return `${Math.floor(d / 7)}週間前`;
+}
+
 const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 const BOT_BASIC_ID = process.env.NEXT_PUBLIC_LINE_BOT_BASIC_ID || '';
 
 export default function HomePage() {
+  const router = useRouter();
   const me = useStore(getMe);
+  const notifications = useStore((s) => s.notifications);
+  // Capture the "last read" timestamp ONCE on mount so unread highlights stay
+  // stable while the user is looking at the list (we mark-read in the bg below).
+  const readAtRef = useRef<number>(me.notifReadAt || 0);
+  const [showAllNotifs, setShowAllNotifs] = useState(false);
   const [showAddBot, setShowAddBot] = useState(false);
+  // Mark the お知らせ inbox read shortly after viewing the home screen.
+  useEffect(() => {
+    if (!notifications.length) return;
+    const newest = notifications[0]?.createdAt || 0;
+    if (newest <= (me.notifReadAt || 0)) return; // nothing new
+    const t = setTimeout(() => { store.markNotificationsRead(); }, 1500);
+    return () => clearTimeout(t);
+  }, [notifications, me.notifReadAt]);
   useEffect(() => {
     if (!BOT_BASIC_ID || me.notifyOff) return;
     if (typeof window === 'undefined') return;
@@ -134,6 +161,49 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      {notifications.length > 0 && (
+        <div className="px-5 pb-3">
+          <div className="bg-card rounded-card shadow-card overflow-hidden">
+            <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
+              <div className="text-base font-black flex items-center gap-1.5">
+                🔔 お知らせ
+              </div>
+              <div className="text-[11px] text-muted">通知はここにも届きます</div>
+            </div>
+            <div>
+              {(showAllNotifs ? notifications : notifications.slice(0, 5)).map((n) => {
+                const unread = n.createdAt > readAtRef.current;
+                const body = (
+                  <div className={`flex items-start gap-2.5 px-4 py-3 border-t border-border ${unread ? 'bg-green-light/40' : ''}`}>
+                    {unread
+                      ? <span className="mt-1.5 w-2 h-2 rounded-full bg-green flex-shrink-0" />
+                      : <span className="mt-1.5 w-2 h-2 rounded-full bg-transparent flex-shrink-0" />}
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-[13px] leading-snug ${unread ? 'font-bold text-text' : 'text-sub'}`}>{n.text}</div>
+                      <div className="text-[10px] text-muted mt-0.5">{relTime(n.createdAt)}</div>
+                    </div>
+                    {n.link && <span className="text-muted text-sm mt-0.5">›</span>}
+                  </div>
+                );
+                return n.link ? (
+                  <button key={n.id} onClick={() => router.push(n.link!)} className="block w-full text-left">{body}</button>
+                ) : (
+                  <div key={n.id}>{body}</div>
+                );
+              })}
+            </div>
+            {notifications.length > 5 && (
+              <button
+                onClick={() => setShowAllNotifs((v) => !v)}
+                className="w-full py-2.5 text-[12px] font-bold text-blue border-t border-border"
+              >
+                {showAllNotifs ? '閉じる' : `すべて表示（${notifications.length}件）`}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="px-5">
         <div className="text-base font-black mb-3">📋 新着ラウンド募集</div>

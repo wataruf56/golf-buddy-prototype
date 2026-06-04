@@ -64,6 +64,20 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       (isMentioned ? mentioned : rest).push(u);
     }
 
+    // Always record mentions in the in-app inbox (home screen), even if LINE is
+    // off. (General round-chat messages are intentionally NOT inboxed — they are
+    // already surfaced by the in-app round-chat unread badge, and inboxing every
+    // message would flood the お知らせ list.)
+    if (mentioned.length) {
+      const { addNotificationMany } = await import('@/lib/notifications');
+      addNotificationMany(
+        mentioned.map((u) => u.id),
+        'mention',
+        `📣 ${senderName} さんが「${round.title}」のチャットであなたにメンションしました`,
+        `/round/${params.id}/chat`,
+      ).catch(() => {});
+    }
+
     const mentionTargets = mentioned.filter((u) => isNotifyEnabled(u, 'mention')).map((u) => u.id);
     if (mentionTargets.length) {
       pushToMany(mentionTargets, `📣 ${round.title}\n${senderName} さんがあなたをメンションしました\n${preview}`, liffUrl(`/round/${params.id}/chat`)).catch(() => {});

@@ -38,10 +38,15 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   }
 
   const round = await db.joinRound(params.id, meId);
+  const applicantName = me?.displayName || 'ゲスト';
+  const msg = `🆕 ${applicantName} さんが「${existing.title}」に参加申請しました`;
+  // Always record in the host's in-app inbox (home screen), even if LINE is off.
+  {
+    const { addNotification } = await import('@/lib/notifications');
+    addNotification(existing.hostId, 'applyReceived', msg, `/round/${params.id}`).catch(() => {});
+  }
   // Notify host of new application — gated on their "applyReceived" pref.
   if (isNotifyEnabled(host as any, 'applyReceived')) {
-    const applicantName = me?.displayName || 'ゲスト';
-    const msg = `🆕 ${applicantName} さんが「${existing.title}」に参加申請しました`;
     pushTo(existing.hostId, msg, liffUrl(`/round/${params.id}`)).catch(() => {});
     webPushText(existing.hostId, '参加申請が届きました', msg, `/round/${params.id}`, `round-${params.id}`).catch(() => {});
   }

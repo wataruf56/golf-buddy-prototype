@@ -67,13 +67,24 @@ export async function GET(req: NextRequest) {
 
     // Only users who want the review reminder.
     const users = await db.listUsers(participants);
+    const roundName = round.title || round.courseName || 'ラウンド';
+    // Always record in every participant's in-app inbox (home screen), even if
+    // LINE is off.
+    {
+      const { addNotificationMany } = await import('@/lib/notifications');
+      addNotificationMany(
+        participants,
+        'reviewReminder',
+        `📝 「${roundName}」のレビュー・スコア入力をお願いします`,
+        `/round/${round.id}`,
+      ).catch(() => {});
+    }
     const targetIds = users
       .filter((u) => isNotifyEnabled(u as any, 'reviewReminder'))
       .map((u) => u.id);
 
     if (targetIds.length) {
       try {
-        const roundName = round.title || round.courseName || 'ラウンド';
         await pushToMany(
           targetIds,
           `⛳ お疲れさまでした！\n「${roundName}」のレビューをお願いします。\nスコアの入力もこちらから。`,

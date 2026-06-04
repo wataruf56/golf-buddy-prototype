@@ -3,6 +3,14 @@
 import { useSyncExternalStore } from 'react';
 import type { Chat, Message, PendingReview, Review, Round, User } from './types';
 
+export type AppNotification = {
+  id: string;
+  type: string;
+  text: string;
+  link?: string;
+  createdAt: number;
+};
+
 type Store = {
   hydrated: boolean;
   meId: string;
@@ -14,6 +22,7 @@ type Store = {
   roundChatActivity: Record<string, number>;
   banned: boolean;
   isAdmin: boolean;
+  notifications: AppNotification[];
 };
 
 const initial: Store = {
@@ -27,6 +36,7 @@ const initial: Store = {
   roundChatActivity: {},
   banned: false,
   isAdmin: false,
+  notifications: [],
 };
 
 let state: Store = initial;
@@ -67,6 +77,7 @@ export const store = {
       meId: string; me: User; users: User[]; rounds: Round[];
       pendingReviews: PendingReview[]; chats: Chat[];
       buddyIds?: string[]; roundChatActivity?: Record<string, number>; banned?: boolean; isAdmin?: boolean;
+      notifications?: AppNotification[];
     };
     // Transient failures are common in the LINE in-app webview (cold starts,
     // a fetch aborted by navigation → "Load failed"). Retry a few times with
@@ -98,6 +109,7 @@ export const store = {
         roundChatActivity: data.roundChatActivity || {},
         banned: !!data.banned,
         isAdmin: !!data.isAdmin,
+        notifications: data.notifications || [],
       });
       // Fire-and-forget telemetry
       if (typeof window !== 'undefined') {
@@ -133,6 +145,16 @@ export const store = {
   refreshMe: async () => {
     const { me } = await api<{ me: User }>('/api/me');
     if (me) setState({ users: state.users.map((u) => (u.id === me.id ? me : u)) });
+  },
+
+  // Mark the お知らせ inbox as read up to now (clears the unread highlight on
+  // next render). Optimistically bumps the local user's notifReadAt.
+  markNotificationsRead: async () => {
+    const now = Date.now();
+    setState({
+      users: state.users.map((u) => (u.id === state.meId ? { ...u, notifReadAt: now } : u)),
+    });
+    try { await api('/api/notifications/read', { method: 'POST' }); } catch { /* non-fatal */ }
   },
 
   refreshPending: async () => {

@@ -57,12 +57,23 @@ export async function GET(req: NextRequest) {
 
     if (targets.length) {
       const users = await db.listUsers(targets);
+      const name = round.title || round.courseName || 'ラウンド';
+      // Always record in every target's in-app inbox (home screen), even if
+      // LINE is off.
+      {
+        const { addNotificationMany } = await import('@/lib/notifications');
+        addNotificationMany(
+          targets,
+          'interestDeadline',
+          `⏰ 気になっていた「${name}」の開催が近づいています（${round.date} ${round.startTime}）`,
+          `/round/${round.id}`,
+        ).catch(() => {});
+      }
       const targetIds = users
         .filter((u) => isNotifyEnabled(u as any, 'interestDeadline'))
         .map((u) => u.id);
       if (targetIds.length) {
         try {
-          const name = round.title || round.courseName || 'ラウンド';
           await pushToMany(
             targetIds,
             `⏰ 気になっていた「${name}」の開催が近づいています（${round.date} ${round.startTime}）。\n参加するなら今のうちに申し込みましょう👇`,

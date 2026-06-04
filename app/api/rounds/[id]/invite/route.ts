@@ -47,10 +47,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   if (added) {
     const invitee = await db.getUser(userId);
+    const host = await db.getUser(meId);
+    const hostName = host?.displayName || '募集者';
+    const msg = `💌 ${hostName} さんから「${existing.title}」に招待が届きました`;
+    const { addNotification } = await import('@/lib/notifications');
+    addNotification(userId, 'invited', msg, `/round/${params.id}`).catch(() => {});
     if (isNotifyEnabled(invitee as any, 'invited')) {
-      const host = await db.getUser(meId);
-      const hostName = host?.displayName || '募集者';
-      const msg = `💌 ${hostName} さんから「${existing.title}」に招待が届きました`;
       pushTo(userId, msg, liffUrl(`/round/${params.id}`)).catch(() => {});
       webPushText(userId, 'ラウンドに招待されました', msg, `/round/${params.id}`, `invite-${params.id}`).catch(() => {});
     }

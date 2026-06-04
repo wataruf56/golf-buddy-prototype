@@ -92,7 +92,11 @@ export async function GET() {
   let isAdmin = false;
   try { const { isAdminUserId } = await import('@/lib/adminAccess'); isAdmin = isAdminUserId(meId); } catch {}
 
+  // アプリ内「お知らせ」(プッシュ通知と同じ内容を必ずホームにも表示する)。
+  let notifications: any[] = [];
+  try { const { listNotifications } = await import('@/lib/notifications'); notifications = await listNotifications(meId, 30); } catch {}
+
   return NextResponse.json({
-    ok: true, meId, me, users: safeUsers, rounds, pendingReviews, chats, buddyIds, roundChatActivity, banned, isAdmin,
+    ok: true, meId, me, users: safeUsers, rounds, pendingReviews, chats, buddyIds, roundChatActivity, banned, isAdmin, notifications,
   });
 }

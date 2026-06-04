@@ -18,8 +18,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   // Notify the approved applicant — gated on their "applyApproved" pref.
   try {
     const applicant = await db.getUser(userId);
+    const msg = `✅ 「${round.title}」への参加が承認されました！`;
+    const { addNotification } = await import('@/lib/notifications');
+    addNotification(userId, 'applyApproved', msg, `/round/${params.id}`).catch(() => {});
     if (isNotifyEnabled(applicant as any, 'applyApproved')) {
-      const msg = `✅ 「${round.title}」への参加が承認されました！`;
       pushTo(userId, msg, liffUrl(`/round/${params.id}`)).catch(() => {});
       webPushText(userId, '参加が承認されました', msg, `/round/${params.id}`, `approve-${params.id}`).catch(() => {});
     }

@@ -40,10 +40,15 @@ export async function POST(req: NextRequest) {
   if (otherBlocksMe) return NextResponse.json({ error: 'blocked_by_other' }, { status: 403 });
   const participants: [string, string] = [meId, otherUserId].sort() as [string, string];
   const message = await db.sendMessage(chatId, participants, meId, text);
+  // Always record in the in-app inbox (home screen), even if LINE is off.
+  const senderName = me?.displayName || 'ゴル友';
+  const preview = text.length > 60 ? text.slice(0, 60) + '…' : text;
+  {
+    const { addNotification } = await import('@/lib/notifications');
+    addNotification(otherUserId, 'dm', `💬 ${senderName} さんからメッセージ`, `/chat/${chatId}?other=${meId}`).catch(() => {});
+  }
   // Fire-and-forget LINE + web push, gated on the recipient's "dm" preference.
   if (isNotifyEnabled(other as any, 'dm')) {
-    const senderName = me?.displayName || 'ゴル友';
-    const preview = text.length > 60 ? text.slice(0, 60) + '…' : text;
     pushTo(otherUserId, `💬 ${senderName} さんからメッセージ\n${preview}`, liffUrl(`/chat/${chatId}?other=${meId}`)).catch(() => {});
     webPushText(otherUserId, `💬 ${senderName}`, preview, `/chat/${chatId}?other=${meId}`, `chat-${chatId}`).catch(() => {});
   }

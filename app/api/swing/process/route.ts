@@ -187,6 +187,9 @@ async function processOne(swing: SwingDoc): Promise<{ status: string }> {
     const { db } = await import('@/lib/db');
     const u = await db.getUser(userId);
     const { isNotifyEnabled } = await import('@/lib/notifyPrefs');
+    // Always record in the in-app inbox (home screen), even if LINE is off.
+    const { addNotification } = await import('@/lib/notifications');
+    addNotification(userId, 'swing', '⛳ スイング分析が完了しました', `/swing/${swingId}`).catch(() => {});
     if (isNotifyEnabled(u as any, 'swing')) {
       await pushTo(
         userId,
