@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useStore, store } from '@/lib/store';
+import { useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { toast } from '@/components/Toast';
 import { markRoundChatSeen } from '@/lib/useUnread';
@@ -97,24 +97,6 @@ export default function RoundChatPage() {
     }
   }
 
-  const isHost = !!round && round.hostId === meId;
-  async function setOpenChat() {
-    const cur = round?.openChatUrl || '';
-    const url = window.prompt('LINEオープンチャットのURLを入力してください（空欄で削除）', cur);
-    if (url === null) return;
-    try {
-      const res = await fetch(`/api/rounds/${params.id}/openchat`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url.trim() }), cache: 'no-store',
-      });
-      if (!res.ok) { const d = await res.text(); throw new Error(d.slice(0, 100)); }
-      const d = await res.json();
-      setFetchedRound((prev) => ({ ...(prev || (round as Round)), openChatUrl: d.openChatUrl } as Round));
-      store.refreshRounds().catch(() => {});
-      toast(url.trim() ? 'オープンチャットURLを設定しました' : '削除しました');
-    } catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
-  }
-
   async function createThread() {
     const name = (typeof window !== 'undefined') ? window.prompt('スレッド名を入力（例：🚗 配車相談）') : '';
     if (!name || !name.trim()) return;
@@ -175,31 +157,6 @@ export default function RoundChatPage() {
           </>
         )}
       </div>
-
-      {/* LINE Open Chat link — shown if the host set one. Host can set/edit. */}
-      {!activeThread && (round?.openChatUrl || isHost) && (
-        <div className="bg-card border-b border-border px-4 py-2 flex-shrink-0 flex items-center gap-2">
-          {round?.openChatUrl ? (
-            <a
-              href={round.openChatUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 min-w-0 flex items-center gap-2 bg-green-light text-green rounded-lg px-3 py-2"
-            >
-              <span className="text-base">💬</span>
-              <span className="text-[12px] font-bold flex-1 min-w-0 truncate">LINEのオープンチャットあり（タップで参加）</span>
-              <span className="text-[11px]">↗</span>
-            </a>
-          ) : (
-            <div className="flex-1 text-[11px] text-muted">LINEオープンチャットを使っている場合はURLを設定できます</div>
-          )}
-          {isHost && (
-            <button onClick={setOpenChat} className="flex-shrink-0 text-[11px] font-bold text-blue px-2 py-1">
-              {round?.openChatUrl ? '編集' : '＋設定'}
-            </button>
-          )}
-        </div>
-      )}
 
       {/* Thread bar — only in main view */}
       {!activeThread && (

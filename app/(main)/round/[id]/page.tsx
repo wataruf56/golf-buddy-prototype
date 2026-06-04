@@ -250,6 +250,22 @@ export default function RoundDetailPage() {
       toast(`${name}さんを招待しました`);
     } catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }
+  async function setOpenChat() {
+    const cur = round!.openChatUrl || '';
+    const url = window.prompt('LINEオープンチャットのURLを入力してください（空欄で削除）', cur);
+    if (url === null) return;
+    try {
+      const res = await fetch(`/api/rounds/${round!.id}/openchat`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url.trim() }), cache: 'no-store',
+      });
+      if (!res.ok) { const t = await res.text(); throw new Error(t.slice(0, 100)); }
+      const d = await res.json();
+      if (storeRound) await store.refreshRounds().catch(() => {});
+      else setFetchedRound((prev) => ({ ...(prev || (round as Round)), openChatUrl: d.openChatUrl } as Round));
+      toast(url.trim() ? 'オープンチャットURLを設定しました' : '削除しました');
+    } catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
+  }
 
   return (
     <div className="px-5 py-3">
@@ -341,12 +357,36 @@ export default function RoundDetailPage() {
 
         {/* Group chat entry */}
         {canChatGroup && (
-          <Link href={`/round/${round.id}/chat`} className="flex items-center gap-2 p-3 bg-green-light text-green rounded-xl mb-4 font-bold text-sm">
+          <Link href={`/round/${round.id}/chat`} className="flex items-center gap-2 p-3 bg-green-light text-green rounded-xl mb-2 font-bold text-sm">
             <span className="text-lg">💬</span>
             <span className="flex-1">ラウンドチャット（参加者全員）</span>
             <span>›</span>
           </Link>
         )}
+
+        {/* LINE Open Chat link — shown right under the round chat entry when the
+            host has set one. Host gets a set/edit affordance here. */}
+        {canChatGroup && round.openChatUrl && (
+          <a
+            href={round.openChatUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 p-3 bg-bg border border-border rounded-xl mb-2 font-bold text-sm text-text"
+          >
+            <span className="text-lg">💬</span>
+            <span className="flex-1">LINEオープンチャットはこちら</span>
+            <span className="text-muted">↗</span>
+          </a>
+        )}
+        {canChatGroup && isHost && (
+          <button
+            onClick={setOpenChat}
+            className="w-full text-[12px] font-bold text-blue py-1.5 mb-4 text-left"
+          >
+            {round.openChatUrl ? '🔗 LINEオープンチャットURLを編集' : '＋ LINEオープンチャットURLを設定'}
+          </button>
+        )}
+        {canChatGroup && !round.openChatUrl && <div className="mb-2" />}
 
         {/* Host — official rounds show the branded ゴルトモ公式 identity instead
             of the admin's personal profile. */}
