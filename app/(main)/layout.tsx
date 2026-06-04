@@ -36,6 +36,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   const matchingAllowed = isMatchingAllowedByAge(me?.age);
   const ageGated = hydrated && needsMatchingAccess(pathname) && !matchingAllowed;
+  const banned = useStore((s) => s.banned);
+  const banGated = hydrated && banned && needsMatchingAccess(pathname);
 
   useEffect(() => {
     if (pendingCount > 0 && !blockerOpen) setOverlayOpen(true);
@@ -64,6 +66,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           <div className="flex flex-col items-center justify-center h-full pt-32">
             <div className="w-12 h-12 rounded-full bg-green-light flex items-center justify-center text-2xl mb-3 animate-pulse">⛳</div>
             <div className="text-xs text-muted">読み込み中...</div>
+          </div>
+        ) : banGated ? (
+          <div className="flex flex-col items-center justify-center h-full px-8 text-center">
+            <div className="text-4xl mb-3">🚫</div>
+            <div className="text-base font-black mb-2">現在ご利用を制限しています</div>
+            <div className="text-[13px] text-sub leading-relaxed">
+              募集・参加・チャットなどのコミュニティ機能の利用が制限されています。<br />
+              お心当たりがない場合は運営までお問い合わせください。
+            </div>
           </div>
         ) : ageGated ? (
           <AgeGateScreen age={me?.age} />

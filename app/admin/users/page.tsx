@@ -18,6 +18,7 @@ type Row = {
   reviewCount: number;
   createdAt: number | null;
   swingAllowed: boolean;
+  banned?: boolean;
 };
 
 export default function AdminUsersPage() {
@@ -48,10 +49,15 @@ function Inner() {
   async function load() {
     if (!token) { setErr('ADMIN_LOG_TOKEN を ?token= か /admin で設定してください'); return; }
     try {
-      const r = await fetch(`/api/admin/users?token=${encodeURIComponent(token)}`, { cache: 'no-store' });
+      const [r, banRes] = await Promise.all([
+        fetch(`/api/admin/users?token=${encodeURIComponent(token)}`, { cache: 'no-store' }),
+        fetch(`/api/admin/ban?token=${encodeURIComponent(token)}`, { cache: 'no-store' }),
+      ]);
       if (!r.ok) throw new Error(`${r.status}`);
       const d = await r.json();
-      setUsers(d.users);
+      const bannedIds: string[] = banRes.ok ? ((await banRes.json()).ids || []) : [];
+      const bset = new Set(bannedIds);
+      setUsers((d.users || []).map((u: Row) => ({ ...u, banned: bset.has(u.id) })));
       setAllowedCount(d.allowedCount || 0);
       setErr('');
     } catch (e) {
@@ -73,6 +79,26 @@ function Inner() {
       // Optimistic update
       setUsers((prev) => prev?.map((x) => x.id === u.id ? { ...x, swingAllowed: !x.swingAllowed } : x) || null);
       setAllowedCount((c) => c + (u.swingAllowed ? -1 : 1));
+    } catch (e) {
+      alert(`失敗: ${(e as Error).message}`);
+    } finally {
+      setBusyId('');
+    }
+  }
+
+  async function toggleBan(u: Row) {
+    if (!token) return;
+    const next = !u.banned;
+    if (next && !confirm(`${u.displayName || 'このユーザー'} を「赤バン」しますか？\n募集・参加・チャット・気になる・招待・DM・レビューが利用できなくなります。`)) return;
+    setBusyId(u.id);
+    try {
+      const r = await fetch(`/api/admin/ban?token=${encodeURIComponent(token)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: u.id, banned: next }),
+      });
+      if (!r.ok) throw new Error(`${r.status}`);
+      setUsers((prev) => prev?.map((x) => x.id === u.id ? { ...x, banned: next } : x) || null);
     } catch (e) {
       alert(`失敗: ${(e as Error).message}`);
     } finally {
@@ -116,7 +142,7 @@ function Inner() {
         {filtered?.map((u) => (
           <div
             key={u.id}
-            className={`bg-card rounded-xl p-3 shadow-card border-[1.5px] ${u.swingAllowed ? 'border-green' : 'border-transparent'}`}
+            className={`bg-card rounded-xl p-3 shadow-card border-[1.5px] ${u.banned ? 'border-red-500' : u.swingAllowed ? 'border-green' : 'border-transparent'}`}
           >
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-full bg-bg flex items-center justify-center text-xl flex-shrink-0">
@@ -145,6 +171,18 @@ function Inner() {
               } ${busyId === u.id ? 'opacity-50' : ''}`}
             >
               {busyId === u.id ? '...' : u.swingAllowed ? '✓ Swing解析を許可中（タップで取消）' : '🏌️ Swing解析を許可する'}
+            </button>
+
+            <button
+              onClick={() => toggleBan(u)}
+              disabled={busyId === u.id}
+              className={`w-full mt-1.5 py-2.5 rounded-lg text-xs font-bold transition ${
+                u.banned
+                  ? 'bg-red-500 text-white'
+                  : 'bg-bg text-red-600 border-[1.5px] border-red-200'
+              } ${busyId === u.id ? 'opacity-50' : ''}`}
+            >
+              {busyId === u.id ? '...' : u.banned ? '🚫 赤バン中（タップで解除）' : '🚫 赤バンする（コミュニティ利用停止）'}
             </button>
 
             <details className="mt-2">

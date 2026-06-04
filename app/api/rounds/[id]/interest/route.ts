@@ -12,6 +12,8 @@ import { isNotifyEnabled } from '@/lib/notifyPrefs';
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const meId = await getMeId();
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const { blockedIfBanned } = await import('@/lib/banGuard');
+  const ban = await blockedIfBanned(meId); if (ban) return ban;
 
   const existing = await db.getRound(params.id);
   if (!existing) return NextResponse.json({ error: 'not_found' }, { status: 404 });

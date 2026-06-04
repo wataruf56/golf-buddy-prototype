@@ -10,6 +10,8 @@ import { checkRoundEligibility } from '@/lib/roundEligibility';
 export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
   const meId = await getMeId();
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const { blockedIfBanned } = await import('@/lib/banGuard');
+  const ban = await blockedIfBanned(meId); if (ban) return ban;
   const me = await db.getUser(meId);
   if (!isMatchingAllowedByAge(me?.age)) {
     return NextResponse.json({ error: 'age_restricted', message: '20〜30代の方のみご利用いただけます' }, { status: 403 });

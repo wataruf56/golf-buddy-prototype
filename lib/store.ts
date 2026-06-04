@@ -12,6 +12,7 @@ type Store = {
   chats: Chat[];
   buddyIds: string[];
   roundChatActivity: Record<string, number>;
+  banned: boolean;
 };
 
 const initial: Store = {
@@ -23,6 +24,7 @@ const initial: Store = {
   chats: [],
   buddyIds: [],
   roundChatActivity: {},
+  banned: false,
 };
 
 let state: Store = initial;
@@ -63,7 +65,7 @@ export const store = {
       const data = await api<{
         meId: string; me: User; users: User[]; rounds: Round[];
         pendingReviews: PendingReview[]; chats: Chat[];
-        buddyIds?: string[]; roundChatActivity?: Record<string, number>;
+        buddyIds?: string[]; roundChatActivity?: Record<string, number>; banned?: boolean;
       }>('/api/bootstrap');
       setState({
         hydrated: true,
@@ -74,6 +76,7 @@ export const store = {
         chats: data.chats,
         buddyIds: data.buddyIds || [],
         roundChatActivity: data.roundChatActivity || {},
+        banned: !!data.banned,
       });
       // Fire-and-forget telemetry
       if (typeof window !== 'undefined') {

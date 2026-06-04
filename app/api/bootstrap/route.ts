@@ -83,7 +83,11 @@ export async function GET() {
   const { stripPrivateMany } = await import('@/lib/sanitizeUser');
   const safeUsers = stripPrivateMany(users, meId);
 
+  // 赤バン状態（コミュニティ機能のUIゲート用）。
+  let banned = false;
+  try { const { isBanned } = await import('@/lib/banAccess'); banned = await isBanned(meId); } catch {}
+
   return NextResponse.json({
-    ok: true, meId, me, users: safeUsers, rounds, pendingReviews, chats, buddyIds, roundChatActivity,
+    ok: true, meId, me, users: safeUsers, rounds, pendingReviews, chats, buddyIds, roundChatActivity, banned,
   });
 }
