@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>ゴルトモ コンペ機能コンセプト</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root{--green:#2D8C4E;--green2:#34A85A;--green-light:#E7F4EC;--bg:#F4F7F5;--card:#fff;--text:#1A1A1A;--sub:#5b6b61;--muted:#9aa7a0;--orange:#E8943A;--blue:#3AA0C9;--border:#e7ece9}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);line-height:1.5;padding-bottom:60px;touch-action:manipulation}
+  .wrap{max-width:460px;margin:0 auto;padding:0 14px}
+  .hero{background:linear-gradient(160deg,#34A85A,#1F7E41);color:#fff;padding:24px 20px;text-align:center}
+  .hero h1{font-size:20px;font-weight:900}.hero p{font-size:12px;opacity:.92;margin-top:6px}
+  .pill{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);border-radius:999px;font-size:11px;font-weight:700;padding:4px 12px;margin-top:10px}
+  .sec{margin-top:22px}
+  .sec-tag{display:inline-flex;gap:6px;font-size:11px;font-weight:900;color:var(--green);background:var(--green-light);border-radius:999px;padding:5px 12px}
+  .sec h2{font-size:16px;font-weight:900;margin:10px 0 4px}.sec .lead{font-size:12px;color:var(--sub);margin-bottom:12px}
+  .card{background:var(--card);border-radius:16px;padding:14px;box-shadow:0 2px 12px rgba(20,40,30,.05);margin-bottom:12px}
+  .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+  .btn{background:var(--green);color:#fff;border:none;font-weight:800;border-radius:10px;padding:9px 14px;font-size:13px;font-family:inherit}
+  .btn.ghost{background:var(--bg);color:var(--sub);border:1px solid var(--border)}
+  .group{background:var(--card);border:2px dashed var(--border);border-radius:14px;padding:10px;margin-bottom:10px;transition:border-color .12s,background .12s}
+  .group.over{border-color:var(--green);background:var(--green-light)}
+  .group-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .group-title{font-weight:900;font-size:13px}
+  .group-time{font-size:12px;border:1.5px solid var(--border);border-radius:8px;padding:4px 6px;font-family:inherit;background:var(--bg)}
+  .members{display:flex;flex-direction:column;gap:7px;min-height:44px}
+  .m{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:13px;font-weight:700;user-select:none;cursor:grab;touch-action:none}
+  .m .grip{color:var(--muted);font-size:16px;line-height:1}
+  .m .av{width:26px;height:26px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:14px}
+  .m.dragging{opacity:.35}
+  .ghostcard{position:fixed;z-index:9999;pointer-events:none;background:#fff;border:1.5px solid var(--green);border-radius:10px;padding:8px 10px;font-size:13px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.18);display:flex;align-items:center;gap:8px}
+  .hint{font-size:10px;color:var(--muted);margin-top:2px}
+  .cnt{font-size:11px;color:var(--muted);font-weight:700}
+  /* chat / thread */
+  .chat{background:#EAF1ED;border-radius:14px;padding:12px}
+  .msg{max-width:80%;margin-bottom:10px}
+  .msg .who{font-size:10px;color:var(--sub);margin-bottom:2px}
+  .bub{background:#fff;border-radius:12px;padding:8px 11px;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .msg.me{margin-left:auto}.msg.me .bub{background:var(--green);color:#fff}.msg.me .who{text-align:right}
+  .thread-open{display:inline-flex;align-items:center;gap:6px;margin-top:6px;background:var(--green-light);color:var(--green);border-radius:999px;padding:4px 10px;font-size:11px;font-weight:800;border:none;font-family:inherit}
+  .thread{margin-top:8px;border-left:3px solid var(--green);background:#fff;border-radius:0 12px 12px 0;padding:10px 12px}
+  .thread .th-title{font-size:12px;font-weight:900;color:var(--green);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .tline{display:flex;gap:8px;margin-bottom:8px}
+  .tline .tav{width:24px;height:24px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+  .tline .tb{font-size:12px}.tline .tn{font-size:10px;color:var(--sub)}
+  .tag{display:inline-block;font-size:10px;font-weight:800;border-radius:999px;padding:2px 8px;background:var(--green-light);color:var(--green);margin-left:4px}
+  .tag.req{background:#FBEEDD;color:var(--orange)}
+  .disclaim{background:#FFF6E6;border:1px solid #F2D89B;border-radius:14px;padding:12px;font-size:11px;color:#8a6d1f;margin-top:16px}
+  .note{font-size:10px;color:var(--muted);text-align:center;margin:14px 0 10px}
+</style>
+</head>
+<body>
+<div class="hero">
+  <div style="font-size:28px">🏆</div>
+  <h1>コンペ運営機能コンセプト</h1>
+  <p>組分け・スタート時間・配車スレッド</p>
+  <div class="pill">操作できるモックです（本番未反映）</div>
+</div>
+
+<div class="wrap">
+
+  <!-- 組分け -->
+  <div class="sec">
+    <span class="sec-tag">🏌️ ① 組分け & スタート時間</span>
+    <h2>指でスライドして組を編成</h2>
+    <div class="lead">メンバーを<b>長押し〜ドラッグ</b>で別の組へ移動。シャッフルで自動振り分けも。各組のスタート時間も設定できます。</div>
+
+    <div class="toolbar">
+      <button class="btn" id="shuffle">🔀 シャッフル</button>
+      <button class="btn ghost" id="addGroup">＋ 組を追加</button>
+      <span class="cnt" id="summary"></span>
+    </div>
+
+    <div id="groups"></div>
+    <div class="hint">※ カードを指でつまんで、好きな組へスライドしてください（PCはドラッグ）。</div>
+  </div>
+
+  <!-- 配車スレッド -->
+  <div class="sec">
+    <span class="sec-tag">💬 ② グループチャット内スレッド（配車相談）</span>
+    <h2>チャットの中に、相談スレッドを立てる</h2>
+    <div class="lead">本流のチャットを邪魔せず、「配車」など特定の話題だけスレッドにまとめられます。</div>
+    <div class="card">
+      <div class="chat">
+        <div class="msg"><div class="who">🧑 たく（幹事）</div><div class="bub">日曜のコンペよろしく！集合7:30です🏌️</div></div>
+        <div class="msg me"><div class="who">あなた</div><div class="bub">了解です！配車どうします？</div></div>
+        <div class="msg">
+          <div class="who">🧑 たく（幹事）</div>
+          <div class="bub">配車の相談はこのスレッドでまとめましょう👇</div>
+          <button class="thread-open" onclick="document.getElementById('th').style.display=(document.getElementById('th').style.display==='none'?'block':'none')">🚗 配車相談 ・ 4件 ›</button>
+          <div class="thread" id="th">
+            <div class="th-title">🚗 配車相談スレッド</div>
+            <div class="tline"><div class="tav">🙂</div><div><div class="tb">みなとみらい駅でピックアップ希望です<span class="tag req">希望</span></div><div class="tn">えみ ・ 2分前</div></div></div>
+            <div class="tline"><div class="tav">🧔</div><div><div class="tb">車出せます！3人まで乗れます<span class="tag">配車OK</span></div><div class="tn">ゆうき ・ 1分前</div></div></div>
+            <div class="tline"><div class="tav">🧑</div><div><div class="tb">ゆうきさん、えみさんと自分をピックアップお願いできますか？</div><div class="tn">たく ・ たった今</div></div></div>
+            <div class="tline"><div class="tav">🧔</div><div><div class="tb">OK！7:00にみなとみらい駅集合で🚗</div><div class="tn">ゆうき ・ たった今</div></div></div>
+            <div style="display:flex;gap:6px;margin-top:6px">
+              <input placeholder="スレッドに返信…" style="flex:1;border:1.5px solid var(--border);border-radius:999px;padding:7px 12px;font-size:12px;font-family:inherit;background:var(--bg)" />
+              <button class="btn" style="padding:7px 12px">送信</button>
+            </div>
+          </div>
+        </div>
+        <div class="msg"><div class="who">🧑 たく（幹事）</div><div class="bub">スコア表は当日配ります〜</div></div>
+      </div>
+      <div class="hint" style="margin-top:8px">「🚗 配車相談」をタップでスレッドを開閉できます（本流チャットは流れていきます）。</div>
+    </div>
+  </div>
+
+  <div class="disclaim">※ これは方向性確認用のモックです。組分けは実際にドラッグ＆シャッフルできますが、保存はされません。配車スレッドは見た目のサンプルです。「この方向でOK」「ここを変えたい」をいただければ本実装します。</div>
+  <div class="note">ゴルトモ コンペ機能コンセプト ・ プレビュー</div>
+</div>
+
+<script>
+(function(){
+  var MEMBERS = ['たく','えみ','ゆうき','みき','しょう','かな','りく','あや','けん','まい','だい','ゆい'];
+  var EMO = ['🧑','🙂','🧔','👩','😎','💁','🧑‍🦱','👧','🧓','👱‍♀️','🧑‍🦰','👩‍🦱'];
+  var TIMES = ['7:00','7:08','7:16','7:24','7:32','7:40','7:48'];
+  var groupsEl = document.getElementById('groups');
+  var groupCount = 3;
+
+  function timeSelect(idx){
+    var s='<select class="group-time">';
+    for(var i=0;i<TIMES.length;i++){ s+='<option '+(i===idx?'selected':'')+'>'+TIMES[i]+'</option>'; }
+    return s+'</select>';
+  }
+  function render(distribution){
+    groupsEl.innerHTML='';
+    for(var g=0;g<groupCount;g++){
+      var box=document.createElement('div');
+      box.className='group'; box.dataset.g=g;
+      box.innerHTML='<div class="group-head"><span class="group-title">組'+(g+1)+' <span class="cnt">('+distribution[g].length+'/4)</span></span>'+timeSelect(g)+'</div><div class="members"></div>';
+      var mc=box.querySelector('.members');
+      distribution[g].forEach(function(mi){ mc.appendChild(makeCard(mi)); });
+      groupsEl.appendChild(box);
+    }
+    updateSummary();
+  }
+  function makeCard(mi){
+    var d=document.createElement('div'); d.className='m'; d.dataset.mi=mi;
+    d.innerHTML='<span class="grip">⠿</span><span class="av">'+EMO[mi%EMO.length]+'</span><span>'+MEMBERS[mi%MEMBERS.length]+'</span>';
+    attachDrag(d); return d;
+  }
+  function updateSummary(){
+    document.getElementById('summary').textContent = MEMBERS.length+'人 / '+groupCount+'組';
+  }
+
+  // initial distribution: fill groups of 4
+  function initialDist(){
+    var dist=[]; for(var g=0;g<groupCount;g++) dist.push([]);
+    for(var i=0;i<MEMBERS.length;i++){ dist[Math.floor(i/4)%groupCount].push(i); }
+    return dist;
+  }
+  function currentDist(){
+    var dist=[]; var boxes=groupsEl.querySelectorAll('.group');
+    boxes.forEach(function(b){ var arr=[]; b.querySelectorAll('.m').forEach(function(m){arr.push(parseInt(m.dataset.mi))}); dist.push(arr); });
+    return dist;
+  }
+  function shuffle(){
+    var ids=MEMBERS.map(function(_,i){return i;});
+    for(var i=ids.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=ids[i];ids[i]=ids[j];ids[j]=t;}
+    var dist=[]; for(var g=0;g<groupCount;g++) dist.push([]);
+    ids.forEach(function(id,i){ dist[i%groupCount].push(id); });
+    render(dist);
+  }
+
+  // ---- pointer drag & drop ----
+  var drag=null;
+  function attachDrag(card){
+    card.addEventListener('pointerdown',function(e){
+      e.preventDefault();
+      var rect=card.getBoundingClientRect();
+      drag={card:card, ghost:null, ox:e.clientX-rect.left, oy:e.clientY-rect.top};
+      var gh=document.createElement('div'); gh.className='ghostcard'; gh.innerHTML=card.innerHTML;
+      gh.style.width=rect.width+'px'; document.body.appendChild(gh); drag.ghost=gh;
+      moveGhost(e.clientX,e.clientY); card.classList.add('dragging');
+      card.setPointerCapture(e.pointerId);
+    });
+    card.addEventListener('pointermove',function(e){
+      if(!drag) return; e.preventDefault();
+      moveGhost(e.clientX,e.clientY); highlight(e.clientX,e.clientY);
+    });
+    card.addEventListener('pointerup',function(e){
+      if(!drag) return; e.preventDefault();
+      var g=groupUnder(e.clientX,e.clientY);
+      if(g){ g.querySelector('.members').appendChild(drag.card); }
+      cleanup();
+      // refresh counts
+      var dist=currentDist(); render(dist);
+    });
+    card.addEventListener('pointercancel',cleanup);
+  }
+  function moveGhost(x,y){ if(drag&&drag.ghost){ drag.ghost.style.left=(x-drag.ox)+'px'; drag.ghost.style.top=(y-drag.oy)+'px'; } }
+  function groupUnder(x,y){ if(drag&&drag.ghost) drag.ghost.style.display='none'; var el=document.elementFromPoint(x,y); if(drag&&drag.ghost) drag.ghost.style.display=''; return el?el.closest('.group'):null; }
+  function highlight(x,y){ var g=groupUnder(x,y); groupsEl.querySelectorAll('.group').forEach(function(b){ b.classList.toggle('over', b===g); }); }
+  function cleanup(){ if(!drag) return; if(drag.ghost) drag.ghost.remove(); drag.card.classList.remove('dragging'); groupsEl.querySelectorAll('.group').forEach(function(b){b.classList.remove('over')}); drag=null; }
+
+  document.getElementById('shuffle').addEventListener('click',shuffle);
+  document.getElementById('addGroup').addEventListener('click',function(){ if(groupCount<6){ groupCount++; render(padDist(currentDist())); } });
+  function padDist(dist){ while(dist.length<groupCount) dist.push([]); return dist; }
+
+  render(initialDist());
+})();
+</script>
+</body>
+</html>
