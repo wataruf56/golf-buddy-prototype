@@ -5,12 +5,35 @@ import { pushTo, liffUrl } from '@/lib/linePush';
 import { webPushText } from '@/lib/webPush';
 import { isNotifyEnabled } from '@/lib/notifyPrefs';
 
+// Anonymity-friendly age bucket (same as /api/users/[id]).
+function ageBucket(age: number | undefined): string {
+  if (typeof age !== 'number' || age <= 0) return '';
+  if (age >= 40) return '40+';
+  if (age >= 35) return '35-40';
+  if (age >= 30) return '30-35';
+  if (age >= 25) return '25-30';
+  if (age >= 20) return '20-25';
+  return '〜20';
+}
+
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const userId = url.searchParams.get('userId');
   if (!userId) return NextResponse.json({ reviews: [] });
   const reviews = await db.listReviewsForUser(userId);
-  return NextResponse.json({ reviews });
+  // Enrich with the reviewer's anonymised demographics (age bucket + gender),
+  // exactly like /api/users/[id], so the mypage review list matches the
+  // profile page. Never expose reviewerId / displayName — reviews stay anon.
+  const reviewerIds = Array.from(new Set(reviews.map((r) => r.reviewerId).filter(Boolean)));
+  const reviewers = await db.listUsers(reviewerIds);
+  const byId: Record<string, { ageBucket: string; gender?: string }> = {};
+  for (const u of reviewers) byId[u.id] = { ageBucket: ageBucket(u.age), gender: u.gender };
+  const enriched = reviews.map((r) => ({
+    ...r,
+    reviewerId: '',
+    reviewer: byId[r.reviewerId] || { ageBucket: '', gender: undefined },
+  }));
+  return NextResponse.json({ reviews: enriched });
 }
 
 export async function POST(req: NextRequest) {

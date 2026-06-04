@@ -206,10 +206,22 @@ export default function MyPage() {
           <div className="px-4 pb-4">
           {myReviews.length === 0 ? (
             <div className="text-xs text-muted py-3 text-center">まだレビューがありません</div>
-          ) : myReviews.map((rv) => (
+          ) : myReviews.map((rv) => {
+            const demo = (rv as any).reviewer as { ageBucket?: string; gender?: string } | undefined;
+            const genderLabel = demo?.gender === 'male' ? '👨 男性'
+              : demo?.gender === 'female' ? '👩 女性' : null;
+            return (
             <div key={rv.id} className="p-2.5 bg-bg rounded-[10px] mb-2">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[11px] text-muted">匿名レビュー</span>
+              <div className="flex justify-between items-center mb-1 gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] text-muted font-bold">匿名レビュー</span>
+                  {demo?.ageBucket && (
+                    <span className="text-[10px] font-bold px-1.5 py-[1px] rounded-full bg-card text-sub border border-border">{demo.ageBucket}歳</span>
+                  )}
+                  {genderLabel && (
+                    <span className={`text-[10px] font-bold px-1.5 py-[1px] rounded-full ${demo?.gender === 'male' ? 'bg-blue-light text-blue' : 'bg-pink-100 text-pink-600'}`}>{genderLabel}</span>
+                  )}
+                </div>
                 <span className="text-[13px] text-yellow">{'★'.repeat(rv.stars)}{'☆'.repeat(5 - rv.stars)}</span>
               </div>
               {rv.tags && rv.tags.length > 0 && (
@@ -223,7 +235,8 @@ export default function MyPage() {
               )}
               {rv.comment && <div className="text-[13px] mt-1.5">{rv.comment}</div>}
             </div>
-          ))}
+            );
+          })}
           </div>
         </details>
 
