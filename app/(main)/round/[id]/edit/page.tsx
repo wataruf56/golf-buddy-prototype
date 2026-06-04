@@ -1,0 +1,322 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { allAreas } from '@/lib/mockData';
+import { BEGINNER_FRIENDLY_SCORES } from '@/lib/roundEligibility';
+import { store, useStore } from '@/lib/store';
+import { toast } from '@/components/Toast';
+import type { Round } from '@/lib/types';
+import { cn } from '@/lib/utils';
+
+export default function EditRoundPage() {
+  const params = useParams<{ id: string }>();
+  const router = useRouter();
+  const meId = useStore((s) => s.meId);
+  const storeRound = useStore((s) => s.rounds.find((r) => r.id === params.id));
+
+  const [round, setRound] = useState<Round | null>(storeRound || null);
+  const [loadState, setLoadState] = useState<'idle' | 'loading' | 'notfound' | 'forbidden'>('idle');
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // form state
+  const [title, setTitle] = useState('');
+  const [courseName, setCourseName] = useState('');
+  const [date, setDate] = useState('');
+  const [startTime, setStartTime] = useState('8:00');
+  const [area, setArea] = useState('');
+  const [dateType, setDateType] = useState<'fixed' | 'range'>('fixed');
+  const [dateRange, setDateRange] = useState('');
+  const [maxSpots, setMaxSpots] = useState(4);
+  const [price, setPrice] = useState('');
+  const [beginnerOnly, setBeginnerOnly] = useState(false);
+  const [genderCondition, setGenderCondition] = useState<'any' | 'male' | 'female'>('any');
+  const [description, setDescription] = useState('');
+
+  // Pull the round directly if it isn't in the store (e.g. cold load on edit URL).
+  useEffect(() => {
+    if (storeRound) { setRound(storeRound); return; }
+    if (round || !params.id) return;
+    let cancelled = false;
+    setLoadState('loading');
+    (async () => {
+      try {
+        const res = await fetch(`/api/rounds/${encodeURIComponent(params.id)}`, { cache: 'no-store' });
+        if (cancelled) return;
+        if (res.status === 404) { setLoadState('notfound'); return; }
+        if (!res.ok) { setLoadState('notfound'); return; }
+        const d = await res.json();
+        setRound(d.round);
+        setLoadState('idle');
+      } catch { if (!cancelled) setLoadState('notfound'); }
+    })();
+    return () => { cancelled = true; };
+  }, [params.id, storeRound, round]);
+
+  // Initialise the form once the round is known.
+  useEffect(() => {
+    if (!round) return;
+    setTitle(round.title || '');
+    setCourseName(round.courseName || '');
+    setDate(round.date || '');
+    setStartTime(round.startTime || '8:00');
+    setArea(round.area || '');
+    setDateType(round.dateType === 'range' ? 'range' : 'fixed');
+    setDateRange(round.dateRange || '');
+    setMaxSpots(round.maxSpots || 4);
+    setPrice(round.price || '');
+    setBeginnerOnly(!!round.beginnerOnly);
+    setGenderCondition(round.genderCondition || 'any');
+    setDescription(round.description || '');
+  }, [round]);
+
+  const isConfirmed = round?.type === 'confirmed';
+  const isComp = maxSpots >= 5;
+  const currentCount = round?.currentCount || 1;
+  const spotsRange = Array.from({ length: 49 }, (_, i) => i + 2).filter((n) => n >= currentCount);
+  const timeSlots: string[] = [];
+  for (let h = 6; h <= 14; h++) {
+    for (let m = 0; m < 60; m += 5) timeSlots.push(`${h}:${String(m).padStart(2, '0')}`);
+  }
+
+  // Guard: only the host may edit.
+  if (round && meId && round.hostId !== meId) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full px-8 text-center">
+        <div className="text-4xl mb-3">🔒</div>
+        <div className="text-base font-black mb-2">主催者のみ編集できます</div>
+        <button onClick={() => router.push(`/round/${params.id}`)} className="mt-4 px-5 py-2.5 bg-green text-white rounded-xl text-sm font-bold">募集の詳細へ戻る</button>
+      </div>
+    );
+  }
+  if (loadState === 'notfound') {
+    return <div className="p-5 text-sub">募集が見つかりません</div>;
+  }
+  if (!round) {
+    return <div className="p-5 text-sub">読み込み中...</div>;
+  }
+  if (round.status === 'completed') {
+    return (
+      <div className="flex flex-col items-center justify-center h-full px-8 text-center">
+        <div className="text-4xl mb-3">✅</div>
+        <div className="text-base font-black mb-2">完了した募集は編集できません</div>
+        <button onClick={() => router.push(`/round/${params.id}`)} className="mt-4 px-5 py-2.5 bg-green text-white rounded-xl text-sm font-bold">募集の詳細へ戻る</button>
+      </div>
+    );
+  }
+
+  async function save() {
+    setSaving(true);
+    const patch: Partial<Round> = {
+      title: title || round!.title,
+      maxSpots,
+      price: price || '',
+      beginnerOnly,
+      genderCondition,
+      description: description || '',
+    };
+    if (isConfirmed) {
+      patch.courseName = courseName;
+      patch.dateType = 'fixed';
+      patch.date = date;
+      patch.startTime = startTime;
+    } else {
+      patch.area = area;
+      patch.dateType = dateType;
+      patch.date = dateType === 'fixed' ? date : '';
+      patch.dateRange = dateType === 'range' ? dateRange : '';
+    }
+    try {
+      await store.editRound(params.id, patch);
+      toast('投稿を更新しました');
+      router.push(`/round/${params.id}`);
+    } catch (e) {
+      toast('失敗: ' + (e as Error).message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function remove() {
+    setDeleting(true);
+    try {
+      await store.deleteRound(params.id);
+      toast('投稿を削除しました');
+      router.push('/home');
+    } catch (e) {
+      toast('失敗: ' + (e as Error).message, 'error');
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="px-5 pt-3">
+        <button onClick={() => router.push(`/round/${params.id}`)} className="text-sm text-blue font-semibold">← 募集の詳細へ</button>
+      </div>
+      <div className="px-5 pt-2 pb-4 text-2xl font-black">✏️ 投稿を編集</div>
+
+      <div className="px-5">
+        <div className="bg-card rounded-card p-5 shadow-card">
+          <Field label="タイトル">
+            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="例: 初心者歓迎！のんびりラウンド" className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+          </Field>
+
+          {isConfirmed ? (
+            <>
+              <Field label="ゴルフ場名" required>
+                <input value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="例: 湘南カントリークラブ" className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+              </Field>
+              <Field label="プレー日" required>
+                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+              </Field>
+              <Field label="スタート時間" required>
+                <select value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none">
+                  {timeSlots.map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </Field>
+              <Field label="プレー費の目安">
+                <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="例: ¥8,000〜" className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+              </Field>
+            </>
+          ) : (
+            <>
+              <Field label="エリア" required>
+                <select value={area} onChange={(e) => setArea(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none">
+                  <option value="">選択してください</option>
+                  {allAreas.map((a) => <option key={a}>{a}</option>)}
+                </select>
+              </Field>
+              <Field label="日程指定方法" required>
+                <div className="flex gap-2 mb-2.5">
+                  <button onClick={() => setDateType('fixed')} className={cn('flex-1 py-2.5 text-sm font-bold rounded-[10px] border-[1.5px]', dateType === 'fixed' ? 'border-green bg-green-light text-green' : 'border-border bg-card text-text')}>📅 日付指定</button>
+                  <button onClick={() => setDateType('range')} className={cn('flex-1 py-2.5 text-sm font-bold rounded-[10px] border-[1.5px]', dateType === 'range' ? 'border-green bg-green-light text-green' : 'border-border bg-card text-text')}>📆 期間で希望</button>
+                </div>
+                {dateType === 'fixed' ? (
+                  <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+                ) : (
+                  <input value={dateRange} onChange={(e) => setDateRange(e.target.value)} placeholder="例: 5月の土日 / 5/10〜5/25のどこか" className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+                )}
+              </Field>
+              <Field label="予算の目安">
+                <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="例: ¥6,000〜8,000" className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+              </Field>
+            </>
+          )}
+
+          <Field label="募集人数" required hint={`（${currentCount}〜50人）`}>
+            <select
+              value={maxSpots}
+              onChange={(e) => setMaxSpots(parseInt(e.target.value) || currentCount)}
+              className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
+            >
+              {spotsRange.map((n) => (
+                <option key={n} value={n}>{n}人</option>
+              ))}
+            </select>
+            {currentCount > 1 && (
+              <div className="mt-1.5 text-[11px] text-muted">すでに{currentCount}人が参加しているため、それ未満には変更できません</div>
+            )}
+            {isComp && (
+              <div className="mt-2 px-3 py-2.5 bg-orange-light rounded-lg text-xs text-orange font-bold">
+                🏆 5人以上はコンペ・イベント扱いになります
+              </div>
+            )}
+          </Field>
+
+          <Field label="参加条件 - レベル">
+            <div className="flex gap-1.5 flex-wrap">
+              <button
+                onClick={() => setBeginnerOnly(false)}
+                className={cn('px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px]', !beginnerOnly ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub')}
+              >誰でも・初心者OK</button>
+              <button
+                onClick={() => setBeginnerOnly(true)}
+                className={cn('px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px]', beginnerOnly ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub')}
+              >初心者のみ</button>
+            </div>
+            {beginnerOnly && (
+              <div className="mt-2 px-3 py-2 bg-bg rounded-lg text-[11px] text-sub leading-relaxed">
+                スコア帯 <b>{BEGINNER_FRIENDLY_SCORES.join(' / ')}</b> の人だけ参加申込できます。
+              </div>
+            )}
+          </Field>
+
+          <Field label="参加条件 - 性別">
+            <div className="flex gap-1.5 flex-wrap">
+              <button
+                onClick={() => setGenderCondition('any')}
+                className={cn('px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px]', genderCondition === 'any' ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub')}
+              >男女OK</button>
+              <button
+                onClick={() => setGenderCondition('male')}
+                className={cn('px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px]', genderCondition === 'male' ? 'bg-blue-light border-blue text-blue' : 'bg-bg border-border text-sub')}
+              >👨 男性のみ</button>
+              <button
+                onClick={() => setGenderCondition('female')}
+                className={cn('px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px]', genderCondition === 'female' ? 'bg-pink-100 border-pink-400 text-pink-600' : 'bg-bg border-border text-sub')}
+              >👩 女性のみ</button>
+            </div>
+          </Field>
+
+          <Field label="ひとこと">
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={200} placeholder="募集の趣旨や雰囲気を伝えましょう（200文字以内）" className="w-full h-20 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-none" />
+          </Field>
+
+          <button
+            onClick={save}
+            disabled={saving}
+            className={cn('w-full py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50', isComp ? 'bg-orange' : 'bg-green')}
+          >
+            {saving ? '保存中...' : '変更を保存する'}
+          </button>
+        </div>
+
+        {/* Danger zone — delete the post */}
+        <div className="bg-card rounded-card p-5 shadow-card mt-4 border border-red/30">
+          <div className="text-[13px] font-bold text-red mb-1">投稿の削除</div>
+          <div className="text-[11px] text-sub leading-relaxed mb-3">
+            削除すると、この募集と参加者・チャットの内容がすべて消えます。元に戻せません。
+          </div>
+          {!confirmDelete ? (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="w-full py-3 bg-card border-[1.5px] border-red text-red rounded-xl text-sm font-bold"
+            >🗑️ この投稿を削除する</button>
+          ) : (
+            <div className="space-y-2">
+              <div className="text-[12px] font-bold text-red text-center">本当に削除しますか？</div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  disabled={deleting}
+                  className="flex-1 py-3 bg-bg text-sub rounded-xl text-sm font-bold disabled:opacity-50"
+                >キャンセル</button>
+                <button
+                  onClick={remove}
+                  disabled={deleting}
+                  className="flex-1 py-3 bg-red text-white rounded-xl text-sm font-bold disabled:opacity-50"
+                >{deleting ? '削除中...' : '削除する'}</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="h-8" />
+    </>
+  );
+}
+
+function Field({ label, required, hint, children }: { label: string; required?: boolean; hint?: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-4">
+      <label className="block text-xs font-bold text-sub mb-1.5">
+        {label} {required && <span className="text-red">*</span>}
+        {hint && <span className="text-muted font-medium">{hint}</span>}
+      </label>
+      {children}
+    </div>
+  );
+}

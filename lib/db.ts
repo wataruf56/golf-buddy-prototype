@@ -14,6 +14,7 @@ export interface DB {
   getRound(id: string): Promise<Round | null>;
   createRound(round: Omit<Round, 'id'>): Promise<Round>;
   updateRound(id: string, patch: Partial<Round>): Promise<void>;
+  deleteRound(id: string): Promise<void>;
   joinRound(id: string, userId: string): Promise<Round>;
   approveApplicant(id: string, userId: string): Promise<Round>;
   rejectApplicant(id: string, userId: string): Promise<Round>;
@@ -96,6 +97,11 @@ class MemoryDB implements DB {
   async updateRound(id: string, patch: Partial<Round>) {
     const r = this.rounds.find((x) => x.id === id);
     if (r) Object.assign(r, patch);
+  }
+  async deleteRound(id: string) {
+    this.rounds = this.rounds.filter((x) => x.id !== id);
+    this.roundChats.delete(id);
+    this.roundThreads.delete(id);
   }
   async joinRound(id: string, userId: string) {
     const r = this.rounds.find((x) => x.id === id);
@@ -373,6 +379,21 @@ class FirestoreDB implements DB {
     const clean: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(patch)) if (v !== undefined) clean[k] = v;
     await this.fs.collection('rounds').doc(id).set(clean, { merge: true });
+  }
+  async deleteRound(id: string) {
+    const ref = this.fs.collection('rounds').doc(id);
+    // Best-effort cleanup of chat + thread subcollections, then the doc itself.
+    for (const sub of ['chat', 'threads']) {
+      try {
+        const snap = await ref.collection(sub).limit(500).get();
+        if (!snap.empty) {
+          const batch = this.fs.batch();
+          snap.docs.forEach((d: any) => batch.delete(d.ref));
+          await batch.commit();
+        }
+      } catch (e) { console.error(`[deleteRound] sub ${sub} cleanup failed (non-fatal)`, e); }
+    }
+    await ref.delete();
   }
   async joinRound(id: string, userId: string) {
     const ref = this.fs.collection('rounds').doc(id);

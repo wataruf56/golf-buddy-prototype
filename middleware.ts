@@ -36,6 +36,8 @@ function shouldRequireAppAuth(path: string): boolean {
   // Round group chat is participant-only → always require login (the API also
   // enforces participant membership).
   if (/^\/round\/[^/]+\/chat(\/|$)/.test(path)) return true;
+  // Round edit is host-only → require login (the API also enforces host).
+  if (/^\/round\/[^/]+\/edit(\/|$)/.test(path)) return true;
   return APP_PROTECTED_PREFIXES.some((p) => path === p || path.startsWith(p + '/'));
 }
 

@@ -145,6 +145,19 @@ export const store = {
     return round;
   },
 
+  editRound: async (roundId: string, patch: Partial<Round>) => {
+    const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}`, {
+      method: 'PATCH', body: JSON.stringify(patch),
+    });
+    setState({ rounds: state.rounds.map((r) => (r.id === roundId ? round : r)) });
+    return round;
+  },
+
+  deleteRound: async (roundId: string) => {
+    await api(`/api/rounds/${roundId}`, { method: 'DELETE' });
+    setState({ rounds: state.rounds.filter((r) => r.id !== roundId) });
+  },
+
   joinRound: async (roundId: string) => {
     const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/join`, { method: 'POST' });
     setState({ rounds: state.rounds.map((r) => (r.id === roundId ? round : r)) });

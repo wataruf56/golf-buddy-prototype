@@ -532,6 +532,14 @@ export default function RoundDetailPage() {
                 ラウンド完了
               </button>
             )}
+            {round.status !== 'completed' && (
+              <button
+                onClick={() => router.push(`/round/${round.id}/edit`)}
+                className="w-full py-3 bg-card border-[1.5px] border-green text-green rounded-xl text-sm font-bold flex items-center justify-center gap-2"
+              >
+                ✏️ 投稿を編集する
+              </button>
+            )}
             <button onClick={close} className="w-full py-3 bg-bg text-sub rounded-xl text-sm font-bold">募集を閉じる</button>
           </div>
         ) : isApproved ? (
