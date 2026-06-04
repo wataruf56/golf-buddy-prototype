@@ -98,6 +98,15 @@ export type Round = {
   // Used by the interest-deadline reminder to avoid double-sending. Unset
   // = never sent.
   interestDeadlineSentAt?: number;
+  // コンペの組分け（主催者が編集）。各組のスタート時間とメンバー。未割り当ての
+  // 参加者はどの組にも入っていない人として扱う。
+  groups?: RoundGroup[];
+};
+
+export type RoundGroup = {
+  id: string;
+  startTime?: string;
+  memberIds: string[];
 };
 
 export type Review = {
@@ -128,6 +137,17 @@ export type Message = {
   text: string;
   createdAt: number;
   read: boolean;
+  // For round group chat: which thread this message belongs to. Undefined/empty
+  // = the main (本流) chat. Set = a named sub-thread (e.g. 配車相談).
+  threadId?: string;
+};
+
+// A named sub-thread inside a round's group chat (e.g. 「🚗 配車相談」).
+export type RoundThread = {
+  id: string;
+  name: string;
+  createdBy: string;
+  createdAt: number;
 };
 
 export type Chat = {

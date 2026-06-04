@@ -1,13 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { toast } from '@/components/Toast';
 import { markRoundChatSeen } from '@/lib/useUnread';
-import type { Message } from '@/lib/types';
+import type { Message, RoundThread } from '@/lib/types';
 
 export default function RoundChatPage() {
   const params = useParams<{ id: string }>();
@@ -16,6 +16,8 @@ export default function RoundChatPage() {
   const round = useStore((s) => s.rounds.find((r) => r.id === params.id));
   const users = useStore((s) => s.users);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [threads, setThreads] = useState<RoundThread[]>([]);
+  const [activeThread, setActiveThread] = useState<string | null>(null); // null = main chat
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -26,9 +28,8 @@ export default function RoundChatPage() {
       if (!res.ok) throw new Error(`${res.status}`);
       const d = await res.json();
       setMessages(d.messages || []);
-    } catch (e) {
-      // silent
-    }
+      setThreads(d.threads || []);
+    } catch { /* silent */ }
   }
 
   useEffect(() => {
@@ -39,9 +40,17 @@ export default function RoundChatPage() {
     return () => clearInterval(interval);
   }, [params.id]);
 
+  // Messages for the current view (main = no threadId; thread = matching threadId).
+  const shown = useMemo(
+    () => messages.filter((m) => (activeThread ? m.threadId === activeThread : !m.threadId)),
+    [messages, activeThread],
+  );
+  const countFor = (tid: string) => messages.filter((m) => m.threadId === tid).length;
+  const activeThreadObj = threads.find((t) => t.id === activeThread);
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages.length]);
+  }, [shown.length, activeThread]);
 
   async function send() {
     if (!text.trim()) return;
@@ -52,13 +61,10 @@ export default function RoundChatPage() {
       const res = await fetch(`/api/rounds/${params.id}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: t }),
+        body: JSON.stringify({ text: t, threadId: activeThread || undefined }),
         cache: 'no-store',
       });
-      if (!res.ok) {
-        const detail = await res.text();
-        throw new Error(`${res.status} ${detail.slice(0, 100)}`);
-      }
+      if (!res.ok) { const detail = await res.text(); throw new Error(`${res.status} ${detail.slice(0, 100)}`); }
       const d = await res.json();
       setMessages((prev) => [...prev, d.message]);
     } catch (e) {
@@ -68,35 +74,86 @@ export default function RoundChatPage() {
     }
   }
 
+  async function createThread() {
+    const name = (typeof window !== 'undefined') ? window.prompt('スレッド名を入力（例：🚗 配車相談）') : '';
+    if (!name || !name.trim()) return;
+    try {
+      const res = await fetch(`/api/rounds/${params.id}/threads`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim() }), cache: 'no-store',
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      const d = await res.json();
+      setThreads((prev) => [...prev, d.thread]);
+      setActiveThread(d.thread.id);
+    } catch (e) { toast('作成失敗: ' + (e as Error).message, 'error'); }
+  }
+
   if (!round) return <div className="p-5 text-sub">読み込み中...</div>;
 
   return (
     <div className="flex flex-col h-full">
+      {/* Header */}
       <div className="flex items-center gap-3 px-5 py-3 border-b border-border bg-card flex-shrink-0 sticky top-0 z-10">
-        <button onClick={() => router.push(`/round/${params.id}`)} className="text-xl text-blue">←</button>
-        <Link href={`/round/${params.id}`} className="flex-1 min-w-0">
-          <div className="text-[15px] font-bold truncate">💬 {round.title}</div>
-          <div className="text-[11px] text-sub truncate">タップで募集詳細 ・ 参加者全員のグループチャット</div>
-        </Link>
-        <span className="text-muted text-sm">›</span>
+        {activeThread ? (
+          <>
+            <button onClick={() => setActiveThread(null)} className="text-blue text-sm font-bold">← 戻る</button>
+            <div className="flex-1 min-w-0">
+              <div className="text-[15px] font-bold truncate">{activeThreadObj?.name || 'スレッド'}</div>
+              <div className="text-[11px] text-sub truncate">スレッド ・ グループチャットに戻るには「戻る」</div>
+            </div>
+          </>
+        ) : (
+          <>
+            <button onClick={() => router.push(`/round/${params.id}`)} className="text-xl text-blue">←</button>
+            <Link href={`/round/${params.id}`} className="flex-1 min-w-0">
+              <div className="text-[15px] font-bold truncate">💬 {round.title}</div>
+              <div className="text-[11px] text-sub truncate">タップで募集詳細 ・ 参加者全員のグループチャット</div>
+            </Link>
+          </>
+        )}
       </div>
 
+      {/* Thread bar — only in main view */}
+      {!activeThread && (
+        <div className="bg-card border-b border-border px-4 py-2 flex-shrink-0">
+          <div className="text-[10px] font-bold text-sub mb-1.5 flex items-center justify-between">
+            <span>📌 スレッド</span><span className="text-muted">{threads.length}件</span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-0.5">
+            {threads.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setActiveThread(t.id)}
+                className="flex-shrink-0 inline-flex items-center gap-1.5 bg-green-light text-green rounded-full px-3 py-1.5 text-[12px] font-bold"
+              >
+                {t.name}
+                <span className="bg-green text-white rounded-full text-[9px] px-1.5 py-px">{countFor(t.id)}</span>
+              </button>
+            ))}
+            <button
+              onClick={createThread}
+              className="flex-shrink-0 inline-flex items-center gap-1 bg-card border-[1.5px] border-dashed border-green text-green rounded-full px-3 py-1.5 text-[12px] font-bold"
+            >＋ 作成</button>
+          </div>
+        </div>
+      )}
+
+      {/* Messages */}
       <div ref={scrollRef} className="flex-1 px-5 py-4 flex flex-col gap-2.5 overflow-y-auto">
-        {messages.length === 0 && (
+        {shown.length === 0 && (
           <div className="text-center my-10 text-sub text-sm">
-            🏌️ ラウンドについて話しましょう<br />
+            {activeThread ? '🧵 このスレッドの最初の投稿を書きましょう' : '🏌️ ラウンドについて話しましょう'}<br />
             <span className="text-[11px] text-muted">最初のメッセージを送ってみましょう</span>
           </div>
         )}
-        {messages.map((m) => {
+        {shown.map((m) => {
           const mine = m.senderId === meId;
           const sender = users.find((u) => u.id === m.senderId);
           return (
             <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'} gap-2`}>
               {!mine && sender && (
-                <Link href={`/profile/${sender.id}`}>
-                  <Avatar user={sender} size={28} emojiSize={14} />
-                </Link>
+                <Link href={`/profile/${sender.id}`}><Avatar user={sender} size={28} emojiSize={14} /></Link>
               )}
               <div className="flex flex-col max-w-[75%]">
                 {!mine && sender && (
@@ -117,12 +174,13 @@ export default function RoundChatPage() {
         })}
       </div>
 
+      {/* Composer */}
       <div className="flex gap-2 px-4 py-3 pb-7 bg-card border-t border-border flex-shrink-0">
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
-          placeholder="メッセージを入力..."
+          placeholder={activeThread ? `「${activeThreadObj?.name || 'スレッド'}」に返信...` : 'メッセージを入力...'}
           className="flex-1 px-4 py-2.5 border-[1.5px] border-border rounded-full text-sm outline-none bg-bg"
         />
         <button onClick={send} disabled={sending} className="px-4 py-2.5 bg-green text-white rounded-full text-[13px] font-bold disabled:opacity-50">送信</button>

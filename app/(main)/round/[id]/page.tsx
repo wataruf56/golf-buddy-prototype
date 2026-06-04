@@ -10,6 +10,7 @@ import { track } from '@/lib/telemetry';
 import { chatIdFor, formatDate } from '@/lib/utils';
 import { levelConditionLabel } from '@/lib/roundEligibility';
 import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
+import { GroupAssignment } from '@/components/GroupAssignment';
 import type { Round, User } from '@/lib/types';
 
 // Brand launch URL — handled by middleware, redirects to liff.line.me/{id}
@@ -508,6 +509,14 @@ export default function RoundDetailPage() {
           </>
         )}
       </div>
+
+      {/* 組分け・スタート時間 — competition rounds. Host edits (drag & drop),
+          participants see it read-only. */}
+      {isComp && (isHost || isApproved) && (
+        <div className="mt-3">
+          <GroupAssignment round={round} users={users as User[]} isHost={isHost} />
+        </div>
+      )}
 
       {/* Score entry — visible to any participant once the round is marked
           completed. The host triggers completion via the ラウンド完了 button

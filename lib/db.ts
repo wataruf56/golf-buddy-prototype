@@ -2,7 +2,7 @@ import 'server-only';
 import { isDemoMode } from './demoMode';
 import { getAdminDb } from './firebase';
 import { mockUsers, mockRounds, mockReviews, mockChats } from './mockData';
-import type { Chat, Message, PendingReview, Review, Round, User } from './types';
+import type { Chat, Message, PendingReview, Review, Round, RoundThread, User } from './types';
 
 export interface DB {
   getUser(id: string): Promise<User | null>;
@@ -27,9 +27,11 @@ export interface DB {
   // Host invites a user. Returns the updated round and whether newly invited.
   inviteToRound(id: string, userId: string): Promise<{ round: Round; added: boolean }>;
 
-  // Round group chat
+  // Round group chat (messages may belong to a named thread via threadId)
   listRoundMessages(roundId: string): Promise<Message[]>;
-  addRoundMessage(roundId: string, senderId: string, text: string): Promise<Message>;
+  addRoundMessage(roundId: string, senderId: string, text: string, threadId?: string): Promise<Message>;
+  listRoundThreads(roundId: string): Promise<RoundThread[]>;
+  createRoundThread(roundId: string, name: string, userId: string): Promise<RoundThread>;
 
   listReviewsForUser(revieweeId: string): Promise<Review[]>;
   listReviewsByUser(reviewerId: string): Promise<Review[]>;
@@ -55,6 +57,7 @@ class MemoryDB implements DB {
   private pending: PendingReview[] = [];
   private chats: Chat[] = JSON.parse(JSON.stringify(mockChats)) as Chat[];
   private roundChats: Map<string, Message[]> = new Map();
+  private roundThreads: Map<string, RoundThread[]> = new Map();
 
   async getUser(id: string) { return this.users.find((u) => u.id === id) || null; }
   async upsertUser(u: Partial<User> & { id: string }) {
@@ -264,12 +267,22 @@ class MemoryDB implements DB {
   async listRoundMessages(roundId: string) {
     return [...(this.roundChats.get(roundId) || [])];
   }
-  async addRoundMessage(roundId: string, senderId: string, text: string) {
-    const msg: Message = { id: `rm_${Date.now()}_${Math.random().toString(36).slice(2,8)}`, senderId, text, createdAt: Date.now(), read: false };
+  async addRoundMessage(roundId: string, senderId: string, text: string, threadId?: string) {
+    const msg: Message = { id: `rm_${Date.now()}_${Math.random().toString(36).slice(2,8)}`, senderId, text, createdAt: Date.now(), read: false, ...(threadId ? { threadId } : {}) };
     const arr = this.roundChats.get(roundId) || [];
     arr.push(msg);
     this.roundChats.set(roundId, arr);
     return msg;
+  }
+  async listRoundThreads(roundId: string) {
+    return [...(this.roundThreads.get(roundId) || [])].sort((a, b) => a.createdAt - b.createdAt);
+  }
+  async createRoundThread(roundId: string, name: string, userId: string) {
+    const t: RoundThread = { id: `th_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, name, createdBy: userId, createdAt: Date.now() };
+    const arr = this.roundThreads.get(roundId) || [];
+    arr.push(t);
+    this.roundThreads.set(roundId, arr);
+    return t;
   }
 }
 
@@ -676,10 +689,28 @@ class FirestoreDB implements DB {
       return [];
     }
   }
-  async addRoundMessage(roundId: string, senderId: string, text: string) {
+  async addRoundMessage(roundId: string, senderId: string, text: string, threadId?: string) {
     const now = Date.now();
-    const ref = await this.fs.collection('rounds').doc(roundId).collection('chat').add({ senderId, text, createdAt: now, read: false });
-    return { id: ref.id, senderId, text, createdAt: now, read: false };
+    const data: any = { senderId, text, createdAt: now, read: false };
+    if (threadId) data.threadId = threadId;
+    const ref = await this.fs.collection('rounds').doc(roundId).collection('chat').add(data);
+    return { id: ref.id, senderId, text, createdAt: now, read: false, ...(threadId ? { threadId } : {}) };
+  }
+  async listRoundThreads(roundId: string) {
+    try {
+      const snap = await this.fs.collection('rounds').doc(roundId).collection('threads').limit(100).get();
+      const list = snap.docs.map((d: any) => ({ id: d.id, ...d.data() })) as RoundThread[];
+      list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+      return list;
+    } catch (e) {
+      console.error('[listRoundThreads] failed', e);
+      return [];
+    }
+  }
+  async createRoundThread(roundId: string, name: string, userId: string) {
+    const now = Date.now();
+    const ref = await this.fs.collection('rounds').doc(roundId).collection('threads').add({ name, createdBy: userId, createdAt: now });
+    return { id: ref.id, name, createdBy: userId, createdAt: now };
   }
 }
 

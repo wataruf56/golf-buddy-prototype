@@ -19,8 +19,11 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   if (!round) return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStore });
   const allowed = round.hostId === meId || (round.applicantIds || []).includes(meId);
   if (!allowed) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
-  const messages = await db.listRoundMessages(params.id);
-  return NextResponse.json({ messages, round }, { headers: noStore });
+  const [messages, threads] = await Promise.all([
+    db.listRoundMessages(params.id),
+    db.listRoundThreads(params.id),
+  ]);
+  return NextResponse.json({ messages, threads, round }, { headers: noStore });
 }
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
@@ -34,10 +37,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!round) return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStore });
   const allowed = round.hostId === meId || (round.applicantIds || []).includes(meId);
   if (!allowed) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
-  const { text } = await req.json();
+  const reqBody = await req.json();
+  const { text } = reqBody;
+  const threadId = reqBody?.threadId ? String(reqBody.threadId) : undefined;
   if (!text || !String(text).trim()) return NextResponse.json({ error: 'empty' }, { status: 400, headers: noStore });
   const trimmed = String(text).trim();
-  const message = await db.addRoundMessage(params.id, meId, trimmed);
+  const message = await db.addRoundMessage(params.id, meId, trimmed, threadId);
   // Notify other participants. A user mentioned via "@名前" gets a mention
   // notification (gated on their "mention" pref); everyone else gets the
   // general round-chat notification (gated on "roundChat", off by default).
