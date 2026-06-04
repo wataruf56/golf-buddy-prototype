@@ -7,29 +7,52 @@ import { useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { toast } from '@/components/Toast';
 import { markRoundChatSeen } from '@/lib/useUnread';
-import type { Message, RoundThread } from '@/lib/types';
+import type { Message, Round, RoundThread } from '@/lib/types';
+
+// Branded launch URL (handled in middleware → LIFF). Lets us share a friendly
+// goltomo.com/app link that deep-links to this group chat after login.
+const SHARE_BASE = 'https://goltomo.com/app';
 
 export default function RoundChatPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const meId = useStore((s) => s.meId);
-  const round = useStore((s) => s.rounds.find((r) => r.id === params.id));
+  const storeRound = useStore((s) => s.rounds.find((r) => r.id === params.id));
   const users = useStore((s) => s.users);
+  const [fetchedRound, setFetchedRound] = useState<Round | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [threads, setThreads] = useState<RoundThread[]>([]);
   const [activeThread, setActiveThread] = useState<string | null>(null); // null = main chat
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [denied, setDenied] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const round = storeRound || fetchedRound;
 
   async function load() {
     try {
       const res = await fetch(`/api/rounds/${params.id}/chat`, { cache: 'no-store' });
+      if (res.status === 403) { setDenied(true); setLoaded(true); return; }
       if (!res.ok) throw new Error(`${res.status}`);
       const d = await res.json();
       setMessages(d.messages || []);
       setThreads(d.threads || []);
-    } catch { /* silent */ }
+      if (d.round) setFetchedRound(d.round);
+      setDenied(false);
+      setLoaded(true);
+    } catch { /* silent (keep last good state) */ }
+  }
+
+  async function shareChat() {
+    const url = `${SHARE_BASE}?to=${encodeURIComponent(`/round/${params.id}/chat`)}`;
+    const text = `💬 ${round?.title || 'ラウンド'} のグループチャット`;
+    const w = window as any;
+    if (w.navigator?.share) {
+      try { await w.navigator.share({ title: 'ゴルトモ グループチャット', text, url }); return; } catch { /* fall through */ }
+    }
+    try { await navigator.clipboard.writeText(url); toast('リンクをコピーしました'); }
+    catch { window.prompt('このリンクをコピーして共有してください', url); }
   }
 
   useEffect(() => {
@@ -89,7 +112,21 @@ export default function RoundChatPage() {
     } catch (e) { toast('作成失敗: ' + (e as Error).message, 'error'); }
   }
 
-  if (!round) return <div className="p-5 text-sub">読み込み中...</div>;
+  if (denied) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full px-8 text-center">
+        <div className="text-4xl mb-3">🔒</div>
+        <div className="text-base font-black mb-2">参加者専用のグループチャットです</div>
+        <div className="text-[13px] text-sub leading-relaxed mb-5">
+          このグループチャットは、ラウンドに参加している人だけが閲覧できます。
+        </div>
+        <button onClick={() => router.push(`/round/${params.id}`)} className="px-5 py-2.5 bg-green text-white rounded-xl text-sm font-bold">
+          募集の詳細を見る
+        </button>
+      </div>
+    );
+  }
+  if (!round) return <div className="p-5 text-sub">{loaded ? '見つかりません' : '読み込み中...'}</div>;
 
   return (
     <div className="flex flex-col h-full">
@@ -110,6 +147,13 @@ export default function RoundChatPage() {
               <div className="text-[15px] font-bold truncate">💬 {round.title}</div>
               <div className="text-[11px] text-sub truncate">タップで募集詳細 ・ 参加者全員のグループチャット</div>
             </Link>
+            <button
+              onClick={shareChat}
+              className="flex-shrink-0 px-3 py-1.5 bg-bg border-[1.5px] border-border rounded-full text-xs font-bold flex items-center gap-1"
+              aria-label="このグループチャットを共有"
+            >
+              <span>🔗</span><span>共有</span>
+            </button>
           </>
         )}
       </div>
