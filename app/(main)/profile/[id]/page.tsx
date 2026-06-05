@@ -7,7 +7,7 @@ import { useStore, getMe } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { toast } from '@/components/Toast';
 import type { Review, User } from '@/lib/types';
-import { chatIdFor } from '@/lib/utils';
+import { chatIdFor, formatRating, carLabel } from '@/lib/utils';
 
 export default function ProfilePage() {
   const params = useParams<{ id: string }>();
@@ -108,13 +108,13 @@ export default function ProfilePage() {
           <Avatar user={user} size={72} emojiSize={36} />
         </div>
         <div className="text-xl font-black">{user.displayName}</div>
-        <div className="text-[13px] text-sub mt-1">{user.age}歳 ・ {user.area}</div>
+        <div className="text-[13px] text-sub mt-1">{user.age}歳 ・ {user.area}{carLabel(user.car) ? ' ・ ' + carLabel(user.car) : ''}</div>
       </div>
 
       <div className="flex gap-2 mb-5">
         <div className="flex-1 bg-card rounded-xl p-3.5 text-center shadow-card">
-          <div className="text-2xl font-black text-green">★{user.reviewAvg}</div>
-          <div className="text-[10px] text-muted mt-0.5">{user.reviewCount}件のレビュー</div>
+          <div className={`font-black text-green ${user.reviewCount ? 'text-2xl' : 'text-lg pt-1'}`}>{user.reviewCount ? `★${formatRating(user.reviewAvg)}` : '🆕 初参加'}</div>
+          <div className="text-[10px] text-muted mt-0.5">{user.reviewCount ? `${user.reviewCount}件のレビュー` : 'まだレビューがありません'}</div>
         </div>
         <div className="flex-1 bg-card rounded-xl p-3.5 text-center shadow-card">
           <div className="text-2xl font-black text-blue">{user.scoreRange}</div>

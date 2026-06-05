@@ -6,7 +6,7 @@ import { Avatar } from '@/components/Avatar';
 import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
 import { useUnreadCounts } from '@/lib/useUnread';
 import { useStore, store } from '@/lib/store';
-import { formatDate } from '@/lib/utils';
+import { formatDate, ratingLabel } from '@/lib/utils';
 import { levelConditionLabel } from '@/lib/roundEligibility';
 
 export function RoundCard({ round, host }: { round: Round; host?: User }) {
@@ -122,7 +122,7 @@ export function RoundCard({ round, host }: { round: Round; host?: User }) {
         <div className="flex items-center gap-2 pt-2.5 border-t border-border">
           <Avatar user={host} size={28} />
           <div className="text-xs font-semibold">{host.displayName}</div>
-          <div className="text-[11px] text-muted">★{host.reviewAvg}（{host.reviewCount}件）</div>
+          <div className="text-[11px] text-muted">{ratingLabel(host, { count: true })}</div>
         </div>
       ) : null}
     </Link>

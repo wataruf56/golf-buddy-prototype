@@ -155,7 +155,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Stat value={me.reviewAvg.toFixed(1)} label="レビュー平均" color="text-green" />
+            <Stat value={me.reviewCount ? me.reviewAvg.toFixed(1) : '初参加'} label="レビュー平均" color="text-green" />
             <Stat value={String(Math.max(me.roundCount || 0, myCompletedRoundCount))} label="ラウンド回数" color="text-blue" />
             <Stat value={String(buddyCount)} label="ゴル友" color="text-orange" />
           </div>

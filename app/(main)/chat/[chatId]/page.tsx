@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { store, useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
+import { ratingLabel } from '@/lib/utils';
 
 export default function ChatPage() {
   const params = useParams<{ chatId: string }>();
@@ -59,7 +60,7 @@ export default function ChatPage() {
           <Avatar user={other} size={36} />
           <div className="flex-1 min-w-0">
             <div className="text-[15px] font-bold truncate">{other.displayName}</div>
-            <div className="text-[11px] text-sub truncate">タップでプロフィール ・ ★{other.reviewAvg}{other.scoreRange ? ' ・ ' + other.scoreRange : ''}</div>
+            <div className="text-[11px] text-sub truncate">タップでプロフィール ・ {ratingLabel(other)}{other.scoreRange ? ' ・ ' + other.scoreRange : ''}</div>
           </div>
           <span className="text-muted text-sm">›</span>
         </Link>

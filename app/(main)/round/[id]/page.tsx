@@ -7,7 +7,7 @@ import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { Avatar } from '@/components/Avatar';
 import { track } from '@/lib/telemetry';
-import { chatIdFor, formatDate } from '@/lib/utils';
+import { chatIdFor, formatDate, ratingLabel, carLabel } from '@/lib/utils';
 import { levelConditionLabel } from '@/lib/roundEligibility';
 import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
 import { GroupAssignment } from '@/components/GroupAssignment';
@@ -422,7 +422,7 @@ export default function RoundDetailPage() {
                 <Avatar user={host} size={44} />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-bold truncate">{host.displayName}</div>
-                  <div className="text-[11px] text-sub truncate">{describeUser(host)} ・ ★{host.reviewAvg}（{host.reviewCount}件）{host.scoreRange ? ' ・ ' + host.scoreRange : ''}</div>
+                  <div className="text-[11px] text-sub truncate">{describeUser(host)} ・ {ratingLabel(host, { count: true })}{host.scoreRange ? ' ・ ' + host.scoreRange : ''}</div>
                 </div>
               </Link>
               {!isHost && (
@@ -450,7 +450,7 @@ export default function RoundDetailPage() {
                     {isHost && participantNames[u.id] && (
                       <div className="text-[10px] text-green font-bold">📋 {participantNames[u.id]}</div>
                     )}
-                    <div className="text-[10px] text-sub">{describeUser(u)} ・ ★{u.reviewAvg}</div>
+                    <div className="text-[10px] text-sub">{describeUser(u)} ・ {ratingLabel(u)}</div>
                   </div>
                 </Link>
                 {!isHost && u.id !== meId && (
@@ -480,7 +480,7 @@ export default function RoundDetailPage() {
                     {participantNames[u.id] && (
                       <div className="text-[10px] text-green font-bold">📋 {participantNames[u.id]}</div>
                     )}
-                    <div className="text-[10px] text-sub">{describeUser(u)} ・ ★{u.reviewAvg}（{u.reviewCount}件）</div>
+                    <div className="text-[10px] text-sub">{describeUser(u)} ・ {ratingLabel(u, { count: true })}</div>
                   </div>
                 </Link>
                 <Link href={`/chat/${chatIdFor(meId, u.id)}?other=${u.id}`} className="px-2.5 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
@@ -501,7 +501,7 @@ export default function RoundDetailPage() {
                   <Avatar user={u} size={36} />
                   <div className="flex-1 min-w-0">
                     <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
-                    <div className="text-[10px] text-sub">{describeUser(u)} ・ ★{u.reviewAvg}</div>
+                    <div className="text-[10px] text-sub">{describeUser(u)} ・ {ratingLabel(u)}</div>
                   </div>
                 </Link>
                 <span className="text-[10px] text-sub font-bold flex-shrink-0">招待済み</span>
@@ -621,7 +621,7 @@ export default function RoundDetailPage() {
                     <Avatar user={u} size={36} />
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
-                      <div className="text-[10px] text-sub">{describeUser(u)} ・ ★{u.reviewAvg}</div>
+                      <div className="text-[10px] text-sub">{describeUser(u)} ・ {ratingLabel(u)}</div>
                     </div>
                   </Link>
                   {st === 'joined' ? (
@@ -651,7 +651,7 @@ export default function RoundDetailPage() {
                     <Avatar user={u} size={36} />
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
-                      <div className="text-[10px] text-sub">{describeUser(u)} ・ ★{u.reviewAvg}</div>
+                      <div className="text-[10px] text-sub">{describeUser(u)} ・ {ratingLabel(u)}</div>
                     </div>
                   </Link>
                   {/* Host can invite interested people straight from this list. */}
@@ -804,11 +804,13 @@ function ScoreEntryCard({ round, host, applicants }: {
 }
 
 function describeUser(u: import('@/lib/types').User): string {
-  // Compact "性別 ・ 年齢" line shown next to a participant's name.
+  // Compact "性別 ・ 年齢 ・ 車の有無" line shown next to a participant's name.
   const parts: string[] = [];
   if (u.gender === 'male') parts.push('👨 男性');
   else if (u.gender === 'female') parts.push('👩 女性');
   if (typeof u.age === 'number' && u.age > 0) parts.push(`${u.age}歳`);
+  const car = carLabel(u.car);
+  if (car) parts.push(car);
   return parts.join(' ・ ') || '未設定';
 }
 

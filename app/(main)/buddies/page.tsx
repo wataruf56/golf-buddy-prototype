@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useStore, getMe } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
-import { chatIdFor } from '@/lib/utils';
+import { chatIdFor, ratingLabel } from '@/lib/utils';
 
 export default function BuddiesPage() {
   const meId = useStore((s) => s.meId);
@@ -51,7 +51,7 @@ export default function BuddiesPage() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[15px] font-bold">{other.displayName}</span>
-                      <span className="text-[11px] text-green font-bold">★{other.reviewAvg}</span>
+                      <span className="text-[11px] text-green font-bold">{ratingLabel(other)}</span>
                     </div>
                     <div className="text-[10px] text-muted mt-0.5">タップでプロフィール</div>
                   </div>

@@ -11,7 +11,7 @@ import { AppUpdateButton } from '@/components/AppUpdateButton';
 import { PracticeCalendar } from '@/components/swing/PracticeCalendar';
 import { track } from '@/lib/telemetry';
 import type { Review } from '@/lib/types';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatRating } from '@/lib/utils';
 
 const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 const BOT_BASIC_ID = process.env.NEXT_PUBLIC_LINE_BOT_BASIC_ID || '';
@@ -136,7 +136,7 @@ export default function MyPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Stat value={`★${me.reviewAvg}`} label="平均レビュー" color="text-green" />
+            <Stat value={me.reviewCount ? `★${formatRating(me.reviewAvg)}` : '初参加'} label="平均レビュー" color="text-green" />
             <Stat value={`${Math.max(me.roundCount || 0, myCompletedRoundCount)}回`} label="ラウンド" />
             <Stat value={`${buddyCount}人`} label="ゴル友" color="text-orange" />
             <Stat value={`${myHostedRounds.length}回`} label="募集" />
