@@ -7,6 +7,13 @@ const nextConfig = {
   // Emit a self-contained server bundle (.next/standalone) so we can run the
   // app in a small Docker container on Cloud Run. No effect on Vercel.
   output: 'standalone',
+  // Clean URL for the ゴルフ性格診断 (GOLMOTI) static LP in /public.
+  // /golmoti → public/golmoti.html
+  async rewrites() {
+    return [
+      { source: '/golmoti', destination: '/golmoti.html' },
+    ];
+  },
 };
 
 module.exports = nextConfig;

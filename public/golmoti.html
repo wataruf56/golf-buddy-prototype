@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#F4E8CE" />
+<title>ゴルフ性格診断 GOLMOTI（ゴルモチ）— 16タイプであなたのゴルフ人格がわかる</title>
+<meta property="og:title" content="ゴルフ性格診断 GOLMOTI — 16タイプ診断">
+<meta property="og:description" content="12の質問で、あなたのゴルフ人格を16タイプで診断。同じタイプの仲間とつながろう。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  :root{--paper:#F4E8CE;--orange:#E8643C;--teal:#2A8C82;--mustard:#E8A93C;--ink:#33271B;--cream:#FBF3E0;--green:#5BA86A;--red:#C0392B}
+  html{scroll-behavior:smooth}
+  body{font-family:'Zen Maru Gothic',sans-serif;background:var(--paper);color:var(--ink);line-height:1.7;overflow-x:hidden;font-weight:500}
+  .wrap{max-width:480px;margin:0 auto;background:var(--paper);position:relative;overflow:hidden}
+  .wrap::before{content:"";position:fixed;inset:0;max-width:480px;left:50%;transform:translateX(-50%);z-index:99;pointer-events:none;opacity:.45;background-image:radial-gradient(circle,rgba(51,39,27,.16) 1px,transparent 1.4px);background-size:7px 7px;mix-blend-mode:multiply}
+  .baloo{font-family:'Baloo 2',cursive}
+  .top{display:flex;align-items:center;justify-content:space-between;padding:16px 20px}
+  .logo{display:flex;align-items:center;gap:8px;font-weight:900;font-size:19px}
+  .logo .m{width:34px;height:34px;background:var(--orange);color:var(--cream);border-radius:50%;display:grid;place-items:center;font-size:17px;border:2.5px solid var(--ink)}
+  .free{background:var(--mustard);font-weight:900;font-size:12px;padding:7px 13px;border-radius:999px;border:2.5px solid var(--ink)}
+  /* hero */
+  .hero{padding:18px 22px 30px;text-align:center;position:relative}
+  .sun{position:absolute;top:6px;right:-40px;width:150px;height:150px;border-radius:50%;background:repeating-conic-gradient(var(--mustard) 0 12deg,transparent 12deg 24deg);opacity:.4;z-index:0;animation:spin 60s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+  .hero>*{position:relative;z-index:1}
+  .kicker{display:inline-block;background:var(--teal);color:var(--cream);font-weight:900;font-size:12px;padding:6px 14px;border-radius:999px;border:2.5px solid var(--ink);margin-bottom:16px;transform:rotate(-2deg)}
+  .brand{font-family:'Baloo 2';font-weight:800;font-size:46px;line-height:1;letter-spacing:.02em;color:var(--orange);text-shadow:3px 3px 0 var(--ink);margin-bottom:4px}
+  .brandsub{font-weight:900;font-size:15px;margin-bottom:14px}
+  .hh{font-weight:900;font-size:26px;line-height:1.4;margin-bottom:12px}
+  .hh .hl{background:var(--mustard);padding:0 7px;border-radius:5px;box-shadow:2px 2px 0 var(--ink)}
+  .hsub{font-size:13.5px;font-weight:700;color:#6b5440;margin-bottom:14px}
+  .meta16{display:flex;gap:8px;justify-content:center;margin-bottom:6px}
+  .meta16 .chip{background:var(--cream);border:2px solid var(--ink);border-radius:999px;font-weight:900;font-size:11px;padding:5px 11px}
+  .sd{margin-top:14px;font-weight:900;font-size:12px;color:#8a7256}.sd .ar{display:block;font-size:22px;color:var(--orange);animation:down 1.6s ease-in-out infinite}@keyframes down{0%,100%{transform:translateY(0)}50%{transform:translateY(7px)}}
+  /* axis preview */
+  .axwrap{padding:6px 22px 8px}
+  .axhead{text-align:center;font-weight:900;font-size:13px;color:#8a7256;margin-bottom:10px}
+  .axrow{display:flex;align-items:center;justify-content:space-between;background:var(--cream);border:2.5px solid var(--ink);border-radius:12px;padding:10px 14px;margin-bottom:8px;font-weight:900;font-size:13px;box-shadow:3px 3px 0 var(--ink)}
+  .axrow .mid{font-size:11px;color:#b3a489}
+  /* style selector */
+  .stylebar{margin:0 16px 4px;background:var(--cream);border:2.5px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--ink);padding:12px}
+  .stylebar .sl{display:block;text-align:center;font-weight:900;font-size:11.5px;color:#8a7256;letter-spacing:.06em;margin-bottom:9px}
+  .stylebar .sopts{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+  .stylebar button{font-family:inherit;font-weight:900;font-size:11px;line-height:1.25;padding:9px 4px;border:2px solid var(--ink);border-radius:10px;background:var(--paper);color:var(--ink);cursor:pointer;transition:transform .1s}
+  .stylebar button:active{transform:scale(.96)}
+  .stylebar button.on{background:var(--mustard)}
+  /* quiz */
+  .quiz{margin:10px 16px 0;background:var(--cream);border:2.5px solid var(--ink);border-radius:22px;box-shadow:6px 6px 0 var(--ink);padding:22px 18px}
+  .quiz .prog{display:flex;gap:4px;justify-content:center;margin-bottom:12px;flex-wrap:wrap}
+  .quiz .prog i{width:18px;height:6px;border-radius:99px;background:#e0d2b3;border:1.5px solid var(--ink)}
+  .quiz .prog i.on{background:var(--mustard)}
+  .quiz .qnum{text-align:center;font-weight:900;font-size:12px;color:#8a7256;letter-spacing:.08em}
+  .quiz .qtext{text-align:center;font-weight:900;font-size:18px;line-height:1.5;margin:6px 0 16px}
+  .opts{display:flex;flex-direction:column;gap:10px}
+  .opt{display:flex;align-items:center;gap:12px;background:var(--paper);border:2.5px solid var(--ink);border-radius:14px;padding:13px 15px;font-weight:700;font-size:14px;cursor:pointer;transition:transform .1s,box-shadow .1s;box-shadow:3px 3px 0 var(--ink);text-align:left;width:100%}
+  .opt:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+  .opt .e{font-size:21px;flex-shrink:0}
+  .qback{display:block;margin:14px auto 0;font-size:12px;font-weight:900;color:#8a7256;background:none;border:none;cursor:pointer}
+  .calc{text-align:center;padding:30px 10px}
+  .calc .spin{width:54px;height:54px;border:6px solid #e0d2b3;border-top-color:var(--orange);border-radius:50%;margin:0 auto 16px;animation:rot 1s linear infinite}@keyframes rot{to{transform:rotate(360deg)}}
+  .calc p{font-weight:900;font-size:15px;color:#8a7256}
+  /* result */
+  .result{padding:0}
+  .rcard{background:var(--ink);color:var(--cream);border-radius:20px;padding:26px 22px;text-align:center;position:relative;overflow:hidden}
+  .rcard .rk{font-weight:900;font-size:11px;letter-spacing:.14em;color:var(--mustard);margin-bottom:10px}
+  .rcard .remoji{font-size:74px;line-height:1}
+  .rcard .rcode{font-family:'Baloo 2';font-weight:800;font-size:22px;letter-spacing:.14em;color:var(--mustard);margin-top:4px}
+  .rcard .rname{font-weight:900;font-size:27px;margin:2px 0 6px}
+  .rcard .rtag{font-size:13px;font-weight:700;color:rgba(251,243,224,.82)}
+  .rdesc{background:var(--cream);border:2.5px solid var(--ink);border-radius:16px;padding:18px;margin:14px 16px 0;font-size:13.5px;font-weight:700;color:#4a3a2c;box-shadow:5px 5px 0 var(--ink)}
+  .axbars{margin:16px 16px 0;background:var(--cream);border:2.5px solid var(--ink);border-radius:16px;padding:18px;box-shadow:5px 5px 0 var(--ink)}
+  .axbars h4{font-weight:900;font-size:13px;text-align:center;color:#8a7256;margin-bottom:14px}
+  .abar{margin-bottom:14px}
+  .abar .lab{display:flex;justify-content:space-between;font-weight:900;font-size:12px;margin-bottom:5px}
+  .abar .lab .dim{color:var(--ink);opacity:.4}.abar .lab .on{color:var(--orange)}
+  .abar .track{position:relative;height:12px;background:#e7d9bb;border:2px solid var(--ink);border-radius:99px}
+  .abar .fill{position:absolute;top:0;bottom:0;left:0;background:var(--mustard);border-radius:99px}
+  .abar .dot{position:absolute;top:50%;width:18px;height:18px;border-radius:50%;background:var(--orange);border:2.5px solid var(--ink);transform:translate(-50%,-50%)}
+  .kw{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin:14px 16px 0}
+  .kw span{background:var(--teal);color:var(--cream);font-weight:900;font-size:12px;padding:5px 12px;border-radius:999px;border:2px solid var(--ink)}
+  .panel{margin:16px 16px 0;background:var(--cream);border:2.5px solid var(--ink);border-radius:16px;padding:18px;box-shadow:5px 5px 0 var(--ink)}
+  .panel .pt{font-weight:900;font-size:13px;color:#8a7256;margin-bottom:10px;letter-spacing:.04em}
+  .panel ul{list-style:none}.panel li{font-size:13.5px;font-weight:700;margin-bottom:7px;padding-left:4px}.panel li b{color:var(--ink)}
+  .match{display:flex;align-items:center;gap:14px}
+  .match .pe{font-size:44px}.match .pinfo .pn{font-weight:900;font-size:16px}.match .pinfo .pc{font-size:11px;font-weight:900;color:#8a7256;letter-spacing:.1em}
+  .share{display:flex;gap:10px;margin:16px 16px 0}
+  .sbtn{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;background:var(--cream);border:2.5px solid var(--ink);border-radius:14px;padding:13px;font-weight:900;font-size:13px;box-shadow:3px 3px 0 var(--ink);cursor:pointer;transition:transform .1s,box-shadow .1s}
+  .sbtn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+  .again{display:block;margin:14px auto 0;font-size:12px;font-weight:900;color:#8a7256;background:none;border:none;cursor:pointer;text-decoration:underline}
+  /* CTA */
+  .cta{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--orange);color:var(--cream);font-weight:900;font-size:18px;padding:19px;border:2.5px solid var(--ink);border-radius:16px;box-shadow:5px 5px 0 var(--ink);cursor:pointer;text-decoration:none;transition:transform .12s,box-shadow .12s}
+  .cta:active{transform:translate(5px,5px);box-shadow:0 0 0 var(--ink)}
+  .cta .li{width:26px;height:26px;background:var(--cream);color:var(--orange);border-radius:7px;display:grid;place-items:center;font-weight:900;font-size:14px;border:2px solid var(--ink)}
+  .cta-note{font-size:12px;font-weight:700;color:#8a7256;margin-top:12px;text-align:center}
+  .ctawrap{margin:18px 16px 0}
+  /* sections */
+  section{padding:46px 0}
+  .chap{display:flex;align-items:center;gap:12px;padding:0 22px;margin-bottom:16px}
+  .chap .no{flex-shrink:0;width:44px;height:44px;border-radius:50%;background:var(--ink);color:var(--cream);display:grid;place-items:center;font-family:'Baloo 2';font-weight:800;font-size:20px;border:2.5px solid var(--ink)}
+  .chap .lb{font-weight:900;font-size:10.5px;letter-spacing:.14em;color:#8a7256}.chap .tt{font-weight:900;font-size:13px}
+  .h2{font-weight:900;font-size:25px;line-height:1.4;text-align:center;padding:0 22px;margin-bottom:20px}
+  /* 16 type catalog */
+  .grid16{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:0 18px}
+  .tcard{background:var(--cream);border:2.5px solid var(--ink);border-radius:14px;padding:12px 10px;text-align:center;box-shadow:3px 3px 0 var(--ink);cursor:pointer;font-family:inherit;transition:transform .1s,box-shadow .1s}
+  .tcard:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+  .tcard .e{font-size:30px;line-height:1}.tcard .c{font-family:'Baloo 2';font-weight:800;font-size:12px;letter-spacing:.1em;color:#8a7256;margin-top:2px}
+  .tcard .n{font-weight:900;font-size:12.5px;margin-top:1px;line-height:1.3}
+  .tcard.me{background:var(--mustard);box-shadow:3px 3px 0 var(--ink),0 0 0 3px var(--orange)}
+  /* feature 3 */
+  .feat{display:flex;gap:14px;padding:18px;background:var(--cream);border:2.5px solid var(--ink);border-radius:16px;box-shadow:5px 5px 0 var(--ink);margin:0 22px 14px}
+  .feat .ico{flex-shrink:0;width:52px;height:52px;border-radius:14px;display:grid;place-items:center;font-size:26px;border:2.5px solid var(--ink)}
+  .feat.g .ico{background:#CDE6D3}.feat.b .ico{background:#CFE6E4}.feat.p .ico{background:#F6D6C5}
+  .feat h3{font-weight:900;font-size:16px;margin-bottom:3px}.feat p{font-size:12.5px;font-weight:700;color:#5e4c3a}
+  .final{margin:30px 16px 0;background:var(--mustard);border:2.5px solid var(--ink);border-radius:24px;box-shadow:7px 7px 0 var(--ink);padding:38px 26px;text-align:center}
+  .final .be{font-size:48px;display:block;margin-bottom:8px}.final h2{font-weight:900;font-size:25px;line-height:1.4;margin-bottom:10px}.final p{font-size:13px;font-weight:700;color:#6b5440;margin-bottom:20px}
+  footer{padding:30px 22px 50px;text-align:center;font-weight:700;font-size:12px;color:#8a7256}footer .fl{font-weight:900;font-size:18px;color:var(--ink);margin-bottom:6px}
+  .dev{margin-top:14px;font-size:11px;color:#b3a489;background:none;border:none;cursor:pointer;text-decoration:underline}
+  /* type detail bottom-sheet */
+  .tmodal{position:fixed;inset:0;max-width:480px;left:50%;transform:translateX(-50%);background:rgba(51,39,27,.55);z-index:150;display:none;align-items:flex-end}
+  .tmodal.show{display:flex}
+  .sheet{background:var(--paper);width:100%;border-radius:24px 24px 0 0;border-top:3px solid var(--ink);padding:26px 22px 34px;position:relative;animation:sheetUp .25s ease}
+  @keyframes sheetUp{from{transform:translateY(50px);opacity:.3}to{transform:none;opacity:1}}
+  .tclose{position:absolute;top:12px;right:14px;width:34px;height:34px;border-radius:50%;border:2.5px solid var(--ink);background:var(--cream);font-weight:900;font-size:18px;cursor:pointer;line-height:1}
+  .tm-e{font-size:58px;text-align:center;line-height:1}
+  .tm-code{font-family:'Baloo 2';font-weight:800;font-size:17px;letter-spacing:.14em;color:#8a7256;text-align:center;margin-top:4px}
+  .tm-name{font-weight:900;font-size:23px;text-align:center;margin:2px 0 6px}
+  .tm-tag{font-size:13px;font-weight:700;color:#6b5440;text-align:center;margin-bottom:14px}
+  .tm-axis{text-align:center;font-weight:900;font-size:12px;color:var(--teal);margin-bottom:12px}
+  .tm-desc{background:var(--cream);border:2.5px solid var(--ink);border-radius:14px;padding:15px;font-size:13.5px;font-weight:700;color:#4a3a2c;box-shadow:4px 4px 0 var(--ink)}
+  .tm-kw{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:14px}
+  .tm-kw span{background:var(--teal);color:var(--cream);font-weight:900;font-size:11px;padding:4px 10px;border-radius:999px;border:2px solid var(--ink)}
+  /* detail fields (強み/弱み/あるある/おすすめ) */
+  .dfx{margin-top:14px;display:flex;flex-direction:column;gap:9px}
+  .dfrow{display:flex;gap:10px;align-items:flex-start}
+  .dfk{flex-shrink:0;width:84px;font-weight:900;font-size:11px;padding:4px 6px;border-radius:8px;text-align:center;border:2px solid var(--ink)}
+  .df-s{background:#DCF0DC;color:#2f5e3a}.df-w{background:#FBE0D6;color:#b34a2c}.df-a{background:#FFEFC2;color:#8a6a1e}.df-o{background:#D8EFEC;color:#1f6d63}
+  .dfv{font-size:13px;font-weight:700;color:#4a3a2c;line-height:1.5;padding-top:3px}
+  .aishou{display:flex;gap:10px;margin-top:14px}
+  .ai{flex:1;border:2.5px solid var(--ink);border-radius:14px;padding:12px 8px;text-align:center}
+  .ai.ok{background:#DCF0DC}.ai.ng{background:#FBE6DE}
+  .ai .ail{font-weight:900;font-size:11px;margin-bottom:4px}.ai.ok .ail{color:#2f5e3a}.ai.ng .ail{color:#b34a2c}
+  .ai .aie{font-size:30px;line-height:1}.ai .ain{font-weight:900;font-size:12.5px;margin-top:3px;line-height:1.3}
+  .ai .aic{font-family:'Baloo 2';font-weight:800;font-size:10px;letter-spacing:.1em;color:#8a7256;margin-top:2px}
+  #dbg{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;max-height:55vh;overflow:auto;background:#1e1813;color:#bfe;z-index:200;padding:14px;font-size:11px;line-height:1.5;display:none;border-top:3px solid var(--mustard)}
+  #dbg.show{display:block}#dbg h4{color:var(--mustard);font-size:12px;margin-bottom:6px;display:flex;justify-content:space-between}#dbg pre{white-space:pre-wrap;word-break:break-all;font-family:ui-monospace,monospace}#dbg .x{color:#fff;background:#c0392b;border:none;border-radius:6px;padding:2px 8px;font-weight:900;cursor:pointer}
+  .reveal{opacity:0;transform:translateY(22px);transition:opacity .55s ease,transform .55s cubic-bezier(.2,.8,.2,1.05)}.reveal.in{opacity:1;transform:none}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><div class="logo"><span class="m">⛳</span> ゴルトモ</div><div class="free">いますぐ無料</div></div>
+
+  <!-- HERO (diagnosis as a destination) -->
+  <header class="hero">
+    <div class="sun"></div>
+    <div class="kicker">⛳ ゴルフ性格診断</div>
+    <div class="brand">GOLMOTI</div>
+    <div class="brandsub">ゴルモチ — ゴルフ版16タイプ診断</div>
+    <div class="hh">かんたんな質問で、<br><span class="hl">あなたのゴルフ人格</span>が<br>まるわかり。</div>
+    <p class="hsub">4つの軸で診断する、あなたの“ゴルフタイプ”は16種類のどれ？</p>
+    <div class="meta16"><span class="chip">⏱ 30秒〜</span><span class="chip" id="qcount">全12問</span><span class="chip">16タイプ</span></div>
+    <div class="sd">診断スタート<span class="ar">↓</span></div>
+  </header>
+
+  <!-- axis preview -->
+  <div class="axwrap">
+    <div class="axhead">― 4つの軸で診断 ―</div>
+    <div class="axrow reveal"><span>🔥 ガチ<b>(G)</b></span><span class="mid">vs</span><span><b>(E)</b>エンジョイ 😎</span></div>
+    <div class="axrow reveal"><span>🎉 ワイワイ<b>(W)</b></span><span class="mid">vs</span><span><b>(M)</b>マイペース 🧘</span></div>
+    <div class="axrow reveal"><span>⚔️ 攻め<b>(S)</b></span><span class="mid">vs</span><span><b>(K)</b>堅実 🛡️</span></div>
+    <div class="axrow reveal"><span>📈 探求<b>(T)</b></span><span class="mid">vs</span><span><b>(I)</b>今満喫 🌴</span></div>
+  </div>
+
+  <!-- 出題スタイル切り替え -->
+  <div class="stylebar">
+    <span class="sl">🎚 出題スタイルを選べます</span>
+    <div class="sopts">
+      <button data-style="full" class="on">じっくり<br>12問</button>
+      <button data-style="quick">サクッと<br>2択8問</button>
+      <button data-style="keyword">キーワード<br>8問</button>
+      <button data-style="mini">最速<br>4問</button>
+    </div>
+  </div>
+
+  <!-- QUIZ -->
+  <div class="quiz" id="quiz">
+    <div id="qbox"></div>
+    <div id="calcbox" class="calc hidden"><div class="spin"></div><p>あなたのゴルフタイプを<br>診断中…</p></div>
+  </div>
+
+  <!-- RESULT (injected) -->
+  <div id="resultwrap" class="hidden"></div>
+
+  <!-- 16 type catalog -->
+  <section id="catalog">
+    <div class="chap"><div class="no">★</div><div><div class="lb">16 TYPES</div><div class="tt">ゴルフ16タイプ図鑑</div></div></div>
+    <div class="h2">あなたは、<br>どのタイプ？</div>
+    <p style="text-align:center;font-size:12.5px;font-weight:700;color:#8a7256;margin:-10px 22px 18px">👆 タップで各タイプの解説が見られます</p>
+    <div class="grid16" id="grid16"></div>
+  </section>
+
+  <!-- product features -->
+  <section style="padding-top:10px">
+    <div class="chap"><div class="no">⛳</div><div><div class="lb">GOLTOMO</div><div class="tt">診断のあとは、仲間と回ろう</div></div></div>
+    <div class="h2">同じタイプの仲間と、<br>つながれる。</div>
+    <div class="feat g reveal"><div class="ico">🤝</div><div><h3>ゴル友が見つかる</h3><p>世代・エリア・レベル、そしてタイプの近い仲間とマッチング。</p></div></div>
+    <div class="feat b reveal"><div class="ico">💬</div><div><h3>みんなで盛り上がる</h3><p>グループチャットで連絡もスムーズ。コンペやイベントも開ける。</p></div></div>
+    <div class="feat p reveal"><div class="ico">⭐</div><div><h3>レビューで安心</h3><p>相互レビューで信頼が見える。初対面でも気楽に回れる。</p></div></div>
+  </section>
+
+  <!-- final -->
+  <div class="final reveal">
+    <span class="be">⛳</span>
+    <h2>あなたのゴルフタイプ、<br>仲間に教えよう。</h2>
+    <p>登録は無料・3秒。同じ熱量の仲間と、次の週末へ。</p>
+    <a class="cta" href="#" data-cta="final" style="background:var(--orange);color:var(--cream)"><span class="li" style="background:var(--cream);color:var(--orange)">L</span>LINEで無料ではじめる</a>
+  </div>
+
+  <footer>
+    <div class="fl">⛳ ゴルトモ / GOLMOTI</div>同世代のゴルフ仲間マッチングアプリ<br>© 2026 Goltomo
+    <br><button class="dev" id="devBtn">診断ログを表示（開発用）</button>
+  </footer>
+</div>
+
+<div id="tmodal" class="tmodal"><div class="sheet">
+  <button class="tclose" id="tClose">×</button>
+  <div id="tbody"></div>
+</div></div>
+
+<div id="dbg"><h4><span>📊 収集中の診断データ（このブラウザ内）</span><button class="x" id="dbgClose">閉じる</button></h4><pre id="dbgPre"></pre></div>
+
+<script>
+  /* ===== データ収集（裏側送信＋ローカル保存） ===== */
+  const ENDPOINT='https://app.goltomo.com/api/lp/quiz';
+  const LSKEY='golmotiEvents';
+  function uid(){try{if(crypto&&crypto.randomUUID)return crypto.randomUUID();}catch(e){}return 's_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);}
+  let SESSION=sessionStorage.getItem('golmotiSession'); if(!SESSION){SESSION=uid();sessionStorage.setItem('golmotiSession',SESSION);}
+  function track(event,extra){
+    const p=Object.assign({sessionId:SESSION,event,quiz:'golmoti',style:STYLE,page:location.pathname,ref:document.referrer||''},extra||{});
+    try{const a=JSON.parse(localStorage.getItem(LSKEY)||'[]');a.push(Object.assign({clientTs:Date.now()},p));localStorage.setItem(LSKEY,JSON.stringify(a.slice(-200)));}catch(e){}
+    console.log('[golmoti]',p);
+    try{const b=new Blob([JSON.stringify(p)],{type:'text/plain'});if(navigator.sendBeacon&&navigator.sendBeacon(ENDPOINT,b))return;}catch(e){}
+    try{fetch(ENDPOINT,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(p),keepalive:true,mode:'no-cors'}).catch(()=>{});}catch(e){}
+  }
+
+  /* ===== 4軸の定義 ===== */
+  // axis key, 左pole(code,label,emoji,説明,キーワード), 右pole(...)
+  const AX={
+    A:{left:{c:'G',l:'ガチ',e:'🔥',d:'結果にこだわる本気派',k:'#結果重視'}, right:{c:'E',l:'エンジョイ',e:'😎',d:'楽しさを最優先するエンジョイ派',k:'#エンジョイ'}},
+    B:{left:{c:'W',l:'ワイワイ',e:'🎉',d:'仲間とワイワイ回るのが好き',k:'#社交的'}, right:{c:'M',l:'マイペース',e:'🧘',d:'自分のペースを大切にする',k:'#マイペース'}},
+    C:{left:{c:'S',l:'攻め',e:'⚔️',d:'果敢に攻めるアグレッシブ',k:'#攻めの一打'}, right:{c:'K',l:'堅実',e:'🛡️',d:'堅実に刻むセーフティ',k:'#堅実'}},
+    D:{left:{c:'T',l:'探求',e:'📈',d:'もっと上手くなりたい探求心',k:'#向上心'}, right:{c:'I',l:'今満喫',e:'🌴',d:'今この一打を味わう',k:'#今を楽しむ'}},
+  };
+  const AXORDER=['A','B','C','D'];
+
+  /* ===== 16タイプの愛称（コード→ニックネーム） ===== */
+  const NICK={
+    GWST:{e:'🐯',n:'ピン一直線・攻め込み派',t:'旗を直接狙う、チームを引っ張る攻撃型'},
+    GWSI:{e:'🔥',n:'とにかく飛ばしたい派',t:'飛ばして魅せる、ノリ重視の一発屋'},
+    GWKT:{e:'🧠',n:'計算して刻む派',t:'考えて刻む、計算ずくの堅実家'},
+    GWKI:{e:'🎉',n:'手堅くパー拾い派',t:'手堅くパーを拾う、場の主役'},
+    GMST:{e:'🦅',n:'黙って高み狙い派',t:'一人黙々と高みを狙う攻撃型'},
+    GMSI:{e:'⚡',n:'一発逆転ねらい派',t:'ハマれば爆発、リスク上等の勝負師'},
+    GMKT:{e:'🎯',n:'黙々スコアメイク派',t:'コツコツ刻む寡黙な職人'},
+    GMKI:{e:'🧘',n:'ブレずに安全運転派',t:'動じず安全運転、自分のゴルフを貫く'},
+    EWST:{e:'🚀',n:'楽しく攻めて伸びる派',t:'楽しみながらどんどん攻める伸び盛り'},
+    EWSI:{e:'🎊',n:'ノリで振り回す派',t:'明るく振り回す、陽気なムードメーカー'},
+    EWKT:{e:'🌱',n:'みんなでコツコツ上達派',t:'仲間と楽しく、堅実に成長する'},
+    EWKI:{e:'🍻',n:'スコアより笑顔派',t:'スコアより笑顔、ゴルフの宴会部長'},
+    EMST:{e:'🐺',n:'自由きまま攻め派',t:'一人で気ままに攻めて楽しむ'},
+    EMSI:{e:'🎈',n:'気分で大胆ショット派',t:'気分屋だけど一打は大胆'},
+    EMKT:{e:'🦉',n:'コツコツ自分磨き派',t:'マイペースに安全に腕を磨く'},
+    EMKI:{e:'☘️',n:'のんびりフェアウェイ散歩派',t:'自然体でゴルフそのものを味わう'},
+  };
+
+  /* ===== 各タイプの詳細（強み・弱み・あるある・おすすめの回り方） ===== */
+  const DETAIL={
+    GWST:{s:'勝負所で迷わず攻め、仲間も引っ張るリーダー気質。',w:'攻めすぎて大叩きしてしまうことも。',a:'「ここは攻めでしょ！」が口グセ。',o:'同じ本気度の仲間とガチ競技ラウンドへ。'},
+    GWSI:{s:'豪快なショットで場を沸かせる飛ばし屋。',w:'飛距離欲が先行してOB連発しがち。',a:'ドラコンだけは絶対に譲らない。',o:'ワイワイ系コンペで飛ばし自慢を。'},
+    GWKT:{s:'状況を読んで賢く刻む戦略家。',w:'慎重すぎてチャンスを逃すことも。',a:'番手選びにやたら時間をかける。',o:'作戦を語り合える仲間とラウンド。'},
+    GWKI:{s:'大崩れしない安定感と明るいムード。',w:'守りに入りがちでベスト更新は遠め。',a:'パーで満足、ボギーも全然OK。',o:'気楽な仲間と楽しくスコアメイク。'},
+    GMST:{s:'自分と向き合い高い目標に挑む努力家。',w:'一人で抱え込みやすい。',a:'ラウンド後はいつも一人反省会。',o:'同レベルの向上心メンバーと切磋琢磨。'},
+    GMSI:{s:'ここ一番の集中力と一発の魅力。',w:'ムラが大きくスコアが安定しない。',a:'ナイスショットの記憶で生きている。',o:'勝負を楽しめる少人数ラウンドで。'},
+    GMKT:{s:'淡々とスコアを積み上げる職人。',w:'寡黙で輪に入りにくいことも。',a:'スコア分析アプリが何よりの趣味。',o:'静かに集中できる少人数ラウンドへ。'},
+    GMKI:{s:'崩れない安定感、頼れる存在。',w:'冒険せず伸び悩みがち。',a:'信条は「とりあえずフェアウェイ」。',o:'落ち着いた仲間とマイペースに。'},
+    EWST:{s:'楽しみながらぐんぐん上達する伸び盛り。',w:'ノリで攻めてミスも出やすい。',a:'失敗も「ナイスチャレンジ！」。',o:'明るく上達したい仲間とラウンド。'},
+    EWSI:{s:'場の空気を最高に盛り上げる太陽。',w:'スコアは二の次になりがち。',a:'OBすらも笑いに変える。',o:'エンジョイ重視のワイワイ募集へ。'},
+    EWKT:{s:'仲間と楽しく着実に伸びるタイプ。',w:'周りに合わせすぎることも。',a:'みんなで上達報告するのが楽しい。',o:'初心者歓迎のゆる練・ラウンドで。'},
+    EWKI:{s:'いるだけで場が和むムードメーカー。',w:'スコアへの執着はほぼゼロ。',a:'ラウンドより打ち上げが本番。',o:'笑って回れるエンジョイ仲間と。'},
+    EMST:{s:'自分流を貫き、気ままに攻める。',w:'マイルールで周りと差が出ることも。',a:'気分でクラブ選択がコロコロ変わる。',o:'自由に楽しめる少人数ラウンドへ。'},
+    EMSI:{s:'ハマると大胆で爽快な一打が出る。',w:'気分の波がそのままスコアに出る。',a:'調子の良し悪しが顔に出がち。',o:'気楽な相手と気分よくラウンド。'},
+    EMKT:{s:'一人でコツコツ確実に上達する。',w:'控えめで自分から誘いにくい。',a:'実は練習量がこっそり多い。',o:'マイペースを尊重し合える仲間と。'},
+    EMKI:{s:'自然体でゴルフそのものを愛でる。',w:'向上心は薄めで現状維持になりがち。',a:'景色やコーヒーが何よりの楽しみ。',o:'のんびり回れるゆる募集で。'},
+  };
+
+  /* ===== 出題セット。option: {e,t, ax,pole,w} ===== */
+  /* じっくり版：各軸3問・全12問 */
+  const QS_FULL=[
+    // 軸A：目的（G/E）
+    {q:'スコアが崩れてきた。心の中は？', opts:[
+      {e:'🔥',t:'原因を分析して立て直す。むしろ燃える',ax:'A',pole:'G',w:2},
+      {e:'😤',t:'集中し直してベストを目指す',ax:'A',pole:'G',w:1},
+      {e:'🌳',t:'切り替えて景色や会話を楽しむ',ax:'A',pole:'E',w:1},
+      {e:'😆',t:'スコアはもういい、笑って楽しむ',ax:'A',pole:'E',w:2},
+    ]},
+    {q:'ラウンドの“いい日”って？', opts:[
+      {e:'🏆',t:'ベストスコアを更新できた日',ax:'A',pole:'G',w:2},
+      {e:'📈',t:'課題を一つクリアできた日',ax:'A',pole:'G',w:1},
+      {e:'☀️',t:'天気よく気持ちよく回れた日',ax:'A',pole:'E',w:1},
+      {e:'🍻',t:'メンバーと盛り上がれた日',ax:'A',pole:'E',w:2},
+    ]},
+    {q:'練習場では？', opts:[
+      {e:'🎯',t:'課題を決めて黙々と打ち込む',ax:'A',pole:'G',w:2},
+      {e:'🧐',t:'たまにスイングをチェックする',ax:'A',pole:'G',w:1},
+      {e:'🙂',t:'気が向いたときに行く程度',ax:'A',pole:'E',w:1},
+      {e:'🏌️',t:'練習より本番でしょ！',ax:'A',pole:'E',w:2},
+    ]},
+    // 軸B：社交（P/S）
+    {q:'理想のラウンドの人数は？', opts:[
+      {e:'🎉',t:'大人数でワイワイ',ax:'B',pole:'W',w:2},
+      {e:'👥',t:'4人くらいがちょうどいい',ax:'B',pole:'W',w:1},
+      {e:'👤',t:'2〜3人で静かに',ax:'B',pole:'M',w:1},
+      {e:'🧍',t:'一人でも全然平気',ax:'B',pole:'M',w:2},
+    ]},
+    {q:'ラウンドのあとは？', opts:[
+      {e:'🍻',t:'みんなで打ち上げ必須！',ax:'B',pole:'W',w:2},
+      {e:'🍵',t:'軽くお茶して解散',ax:'B',pole:'W',w:1},
+      {e:'🚗',t:'さくっと帰る派',ax:'B',pole:'M',w:1},
+      {e:'😌',t:'余韻を一人で味わう',ax:'B',pole:'M',w:2},
+    ]},
+    {q:'知らない人とのラウンドは？', opts:[
+      {e:'✨',t:'新しい出会い大歓迎！',ax:'B',pole:'W',w:2},
+      {e:'🙂',t:'気が合えば楽しい',ax:'B',pole:'W',w:1},
+      {e:'🤔',t:'ちょっと気をつかう',ax:'B',pole:'M',w:1},
+      {e:'🛡️',t:'できれば慣れた人がいい',ax:'B',pole:'M',w:2},
+    ]},
+    // 軸C：攻め方（A/C）
+    {q:'池越え200ヤード。どうする？', opts:[
+      {e:'🔥',t:'迷わずドライバーで攻める',ax:'C',pole:'S',w:2},
+      {e:'😏',t:'いけそうなら攻める',ax:'C',pole:'S',w:1},
+      {e:'🤏',t:'刻んで安全策',ax:'C',pole:'K',w:1},
+      {e:'🧱',t:'無理せず確実に置く',ax:'C',pole:'K',w:2},
+    ]},
+    {q:'あなたのゴルフを一言で？', opts:[
+      {e:'🎢',t:'当たれば飛ぶ、ムラもある',ax:'C',pole:'S',w:2},
+      {e:'⚡',t:'攻めの姿勢が身上',ax:'C',pole:'S',w:1},
+      {e:'📏',t:'大きなミスが少ない',ax:'C',pole:'K',w:1},
+      {e:'🧘',t:'とにかく安定重視',ax:'C',pole:'K',w:2},
+    ]},
+    {q:'ピンは手前の池の奥。狙いは？', opts:[
+      {e:'🎯',t:'ピンをデッドに狙う',ax:'C',pole:'S',w:2},
+      {e:'🙂',t:'ピン方向に強気で',ax:'C',pole:'S',w:1},
+      {e:'🟢',t:'グリーンセンター狙い',ax:'C',pole:'K',w:1},
+      {e:'🛟',t:'花道に安全に',ax:'C',pole:'K',w:2},
+    ]},
+    // 軸D：向上心（K/N）
+    {q:'ゴルフのモチベーションは？', opts:[
+      {e:'📚',t:'もっと上手くなりたい！',ax:'D',pole:'T',w:2},
+      {e:'📈',t:'少しずつ成長したい',ax:'D',pole:'T',w:1},
+      {e:'😊',t:'今を楽しめれば十分',ax:'D',pole:'I',w:1},
+      {e:'🌴',t:'上達より娯楽！',ax:'D',pole:'I',w:2},
+    ]},
+    {q:'レッスンやスイング動画は？', opts:[
+      {e:'🤓',t:'よく見て研究する',ax:'D',pole:'T',w:2},
+      {e:'👀',t:'たまに参考にする',ax:'D',pole:'T',w:1},
+      {e:'🤷',t:'あまり見ない',ax:'D',pole:'I',w:1},
+      {e:'🙅',t:'感覚でやる派',ax:'D',pole:'I',w:2},
+    ]},
+    {q:'5年後の理想のゴルフ像は？', opts:[
+      {e:'🏆',t:'シングルを目指してる',ax:'D',pole:'T',w:2},
+      {e:'⛳',t:'着実にスコアを縮めたい',ax:'D',pole:'T',w:1},
+      {e:'😄',t:'変わらず楽しんでいたい',ax:'D',pole:'I',w:1},
+      {e:'🍹',t:'のんびり趣味で続けたい',ax:'D',pole:'I',w:2},
+    ]},
+  ];
+
+  /* サクッと2択：各軸2問・全8問（即決でテンポよく） */
+  const QS_QUICK=[
+    {q:'ゴルフは…',opts:[{e:'🔥',t:'勝ちにこだわりたい',ax:'A',pole:'G',w:2},{e:'😎',t:'楽しめればOK',ax:'A',pole:'E',w:2}]},
+    {q:'うれしいのは…',opts:[{e:'📈',t:'スコア更新',ax:'A',pole:'G',w:2},{e:'🍻',t:'みんなで盛り上がる',ax:'A',pole:'E',w:2}]},
+    {q:'回るなら…',opts:[{e:'🎉',t:'大人数でワイワイ',ax:'B',pole:'W',w:2},{e:'🧘',t:'少人数でマイペース',ax:'B',pole:'M',w:2}]},
+    {q:'知らない人とは…',opts:[{e:'✨',t:'ウェルカム！',ax:'B',pole:'W',w:2},{e:'🛡️',t:'慣れた人がいい',ax:'B',pole:'M',w:2}]},
+    {q:'池越え、どうする？',opts:[{e:'⚔️',t:'攻める',ax:'C',pole:'S',w:2},{e:'🧱',t:'刻む',ax:'C',pole:'K',w:2}]},
+    {q:'自分のゴルフは…',opts:[{e:'🎢',t:'一発ロマン',ax:'C',pole:'S',w:2},{e:'📏',t:'安定重視',ax:'C',pole:'K',w:2}]},
+    {q:'上達は…',opts:[{e:'📚',t:'もっと上手くなりたい',ax:'D',pole:'T',w:2},{e:'🌴',t:'今のままで楽しい',ax:'D',pole:'I',w:2}]},
+    {q:'練習・動画は…',opts:[{e:'🤓',t:'研究する',ax:'D',pole:'T',w:2},{e:'🙅',t:'感覚派',ax:'D',pole:'I',w:2}]},
+  ];
+
+  /* キーワード4択：各軸2問・全8問（短い単語でパッと選ぶ） */
+  const QS_KEYWORD=[
+    {q:'目的を一言で？',opts:[{e:'🔥',t:'ガチ',ax:'A',pole:'G',w:2},{e:'😤',t:'そこそこ本気',ax:'A',pole:'G',w:1},{e:'🙂',t:'ゆるめ',ax:'A',pole:'E',w:1},{e:'🌴',t:'娯楽',ax:'A',pole:'E',w:2}]},
+    {q:'スコアへの本気度は？',opts:[{e:'🏆',t:'命がけ',ax:'A',pole:'G',w:2},{e:'📈',t:'気にする',ax:'A',pole:'G',w:1},{e:'😌',t:'ほどほど',ax:'A',pole:'E',w:1},{e:'🤷',t:'気にしない',ax:'A',pole:'E',w:2}]},
+    {q:'好きな人数は？',opts:[{e:'🎉',t:'大人数',ax:'B',pole:'W',w:2},{e:'👥',t:'4人',ax:'B',pole:'W',w:1},{e:'👤',t:'2〜3人',ax:'B',pole:'M',w:1},{e:'🧍',t:'一人',ax:'B',pole:'M',w:2}]},
+    {q:'ラウンド後は？',opts:[{e:'🍻',t:'打ち上げ',ax:'B',pole:'W',w:2},{e:'🍵',t:'お茶',ax:'B',pole:'W',w:1},{e:'🚗',t:'即帰宅',ax:'B',pole:'M',w:1},{e:'😌',t:'一人で余韻',ax:'B',pole:'M',w:2}]},
+    {q:'プレーは？',opts:[{e:'⚔️',t:'攻め',ax:'C',pole:'S',w:2},{e:'😏',t:'やや攻め',ax:'C',pole:'S',w:1},{e:'🤏',t:'やや堅実',ax:'C',pole:'K',w:1},{e:'🧱',t:'堅実',ax:'C',pole:'K',w:2}]},
+    {q:'狙いは？',opts:[{e:'🎯',t:'ピン',ax:'C',pole:'S',w:2},{e:'🙂',t:'ピン方向',ax:'C',pole:'S',w:1},{e:'🟢',t:'センター',ax:'C',pole:'K',w:1},{e:'🛟',t:'花道',ax:'C',pole:'K',w:2}]},
+    {q:'向上心は？',opts:[{e:'📚',t:'探求',ax:'D',pole:'T',w:2},{e:'👀',t:'やや研究',ax:'D',pole:'T',w:1},{e:'😊',t:'今を楽しむ',ax:'D',pole:'I',w:1},{e:'🍹',t:'のんびり',ax:'D',pole:'I',w:2}]},
+    {q:'5年後は？',opts:[{e:'🏆',t:'シングル',ax:'D',pole:'T',w:2},{e:'⛳',t:'スコアUP',ax:'D',pole:'T',w:1},{e:'😄',t:'今のまま',ax:'D',pole:'I',w:1},{e:'🌊',t:'ゆるく継続',ax:'D',pole:'I',w:2}]},
+  ];
+
+  /* 4問だけ：各軸1問・4段階（最速。1問で軸が決まる） */
+  const QS_MINI=[
+    {q:'ゴルフへの向き合い方は？',opts:[{e:'🔥',t:'ガチで勝ちにいく',ax:'A',pole:'G',w:2},{e:'😤',t:'スコアは気にする',ax:'A',pole:'G',w:1},{e:'🙂',t:'まあ楽しめれば',ax:'A',pole:'E',w:1},{e:'🌴',t:'完全に娯楽',ax:'A',pole:'E',w:2}]},
+    {q:'誰と回りたい？',opts:[{e:'🎉',t:'大人数でワイワイ',ax:'B',pole:'W',w:2},{e:'👥',t:'仲間と数人で',ax:'B',pole:'W',w:1},{e:'👤',t:'少人数で静かに',ax:'B',pole:'M',w:1},{e:'🧍',t:'一人が気楽',ax:'B',pole:'M',w:2}]},
+    {q:'プレースタイルは？',opts:[{e:'⚔️',t:'とことん攻める',ax:'C',pole:'S',w:2},{e:'😏',t:'チャンスは攻める',ax:'C',pole:'S',w:1},{e:'🤏',t:'基本は刻む',ax:'C',pole:'K',w:1},{e:'🧱',t:'徹底して堅実',ax:'C',pole:'K',w:2}]},
+    {q:'上達への意欲は？',opts:[{e:'📚',t:'本気で上手くなりたい',ax:'D',pole:'T',w:2},{e:'📈',t:'少しずつ伸ばしたい',ax:'D',pole:'T',w:1},{e:'😊',t:'今を楽しめれば',ax:'D',pole:'I',w:1},{e:'🍹',t:'のんびり趣味で',ax:'D',pole:'I',w:2}]},
+  ];
+
+  const QS_SETS={ full:QS_FULL, quick:QS_QUICK, keyword:QS_KEYWORD, mini:QS_MINI };
+  const STYLE_LABEL={ full:'じっくり12問', quick:'サクッと2択8問', keyword:'キーワード8問', mini:'4問だけ' };
+  let STYLE='full';
+  let QS=QS_SETS[STYLE];
+
+  /* ===== state ===== */
+  let step=0; const ans=[];
+  const qbox=document.getElementById('qbox'), calcbox=document.getElementById('calcbox');
+  const quiz=document.getElementById('quiz'), resultwrap=document.getElementById('resultwrap');
+
+  function renderQ(){
+    const cur=QS[step]; qbox.classList.remove('hidden');
+    qbox.innerHTML=`
+      <div class="prog">${QS.map((_,i)=>`<i class="${i<=step?'on':''}"></i>`).join('')}</div>
+      <div class="qnum">Q${step+1} / ${QS.length}</div>
+      <div class="qtext">${cur.q}</div>
+      <div class="opts">${cur.opts.map((o,i)=>`<button class="opt" data-i="${i}"><span class="e">${o.e}</span><span>${o.t}</span></button>`).join('')}</div>
+      ${step>0?'<button class="qback" id="qback">← 前の質問にもどる</button>':''}`;
+    qbox.querySelectorAll('.opt').forEach(b=>b.addEventListener('click',()=>{
+      const o=cur.opts[+b.dataset.i];
+      ans[step]={qi:step+1, ax:o.ax, pole:o.pole, w:o.w, t:o.t};
+      track('answer',{qid:'q'+(step+1), optionId:o.ax+o.pole+o.w, optionLabel:o.t, step:step+1, total:QS.length});
+      step++;
+      if(step<QS.length) renderQ(); else showCalc();
+    }));
+    const bk=document.getElementById('qback'); if(bk) bk.addEventListener('click',()=>{step--;renderQ();});
+  }
+  function showCalc(){ qbox.classList.add('hidden'); calcbox.classList.remove('hidden'); setTimeout(()=>{calcbox.classList.add('hidden'); quiz.classList.add('hidden'); showResult();},1700); }
+
+  function computeCode(){
+    const score={A:0,B:0,C:0,D:0}; // 正=左pole, 負=右pole
+    ans.forEach(a=>{ const left=AX[a.ax].left.c; score[a.ax]+= (a.pole===left? a.w : -a.w); });
+    let code=''; const pos={};
+    AXORDER.forEach(ax=>{
+      const s=score[ax]; const isLeft = s>=0; code += isLeft?AX[ax].left.c:AX[ax].right.c;
+      // bar percent: -6..+6 → 右0% 左100%（左poleが強いほど左寄り）
+      pos[ax]={score:s, leftPct: Math.round(((s+6)/12)*100)};
+    });
+    return {code,pos};
+  }
+
+  function showResult(){
+    const {code,pos}=computeCode();
+    const nk=NICK[code]||{e:'⛳',n:'ゴルファー',t:''};
+    const pattern=ans.map((a,i)=>`q${i+1}:${a.ax}${a.pole}${a.w}`);
+    track('complete',{resultType:code, pattern, total:QS.length});
+
+    // 持ち味（各軸の選ばれたpole説明）
+    const traits=AXORDER.map(ax=>{ const isLeft=pos[ax].score>=0; return isLeft?AX[ax].left:AX[ax].right; });
+    // キーワード
+    const kws=traits.map(t=>t.k);
+    // 相性◎：社交軸(B)を反転（補い合う）
+    const partnerCode=code.split('').map((ch,i)=>{ const ax=AXORDER[i]; if(ax==='B'){ return ch===AX.B.left.c?AX.B.right.c:AX.B.left.c; } return ch; }).join('');
+    const pk=NICK[partnerCode]||{e:'⛳',n:'ゴルファー'};
+    // ゴルトモの楽しみ方
+    const recs=[];
+    recs.push( code[1]===AX.B.left.c ? '<b>コンペ・グループチャット</b>でワイワイ盛り上がろう' : '<b>少人数のゆるい募集</b>で、自分のペースでつながろう');
+    recs.push( code[0]===AX.A.left.c ? '<b>同じくらい本気の仲間</b>とスコアを競い合おう' : '<b>「初心者歓迎・エンジョイ」募集</b>で気楽に楽しもう');
+    recs.push( code[3]===AX.D.left.c ? '<b>上達意欲の高い仲間</b>と切磋琢磨しよう' : '<b>のんびり回れる仲間</b>と、今を楽しもう');
+
+    const axBar=(ax)=>{
+      const L=AX[ax].left,R=AX[ax].right,p=pos[ax].leftPct,isLeft=pos[ax].score>=0;
+      return `<div class="abar">
+        <div class="lab"><span class="${isLeft?'on':'dim'}">${L.e} ${L.l}(${L.c})</span><span class="${!isLeft?'on':'dim'}">(${R.c})${R.l} ${R.e}</span></div>
+        <div class="track"><div class="fill" style="width:${p}%"></div><div class="dot" style="left:${p}%"></div></div>
+      </div>`;
+    };
+
+    resultwrap.classList.remove('hidden');
+    resultwrap.innerHTML=`
+      <section style="padding-top:8px">
+      <div class="result">
+        <div class="rcard">
+          <div class="rk">― あなたのゴルフタイプは ―</div>
+          <div class="remoji">${nk.e}</div>
+          <div class="rcode">${code}</div>
+          <div class="rname">${nk.n}</div>
+          <div class="rtag">${nk.t}</div>
+        </div>
+        <div class="rdesc">${traits[0].d}で、${traits[2].d}。${traits[1].d}、${traits[3].d}タイプです。</div>
+        <div class="kw">${kws.map(k=>`<span>${k}</span>`).join('')}</div>
+        <div class="axbars">
+          <h4>あなたの4軸バランス</h4>
+          ${AXORDER.map(axBar).join('')}
+        </div>
+        <div class="panel" style="padding-top:14px">
+          <div class="pt">📖 あなたの取扱説明書</div>
+          ${detailFieldsHTML(code)}
+        </div>
+        <div class="panel">
+          <div class="pt">⛳ ゴルトモでの楽しみ方</div>
+          <ul>${recs.map(r=>`<li>・${r}</li>`).join('')}</ul>
+        </div>
+        <div class="share">
+          <button class="sbtn" id="imgShareBtn">📷 画像でシェア</button>
+          <button class="sbtn" id="imgSaveBtn">💾 画像を保存</button>
+        </div>
+        <div class="share" style="margin-top:10px">
+          <button class="sbtn" id="shareBtn">📤 テキストでシェア</button>
+          <button class="sbtn" id="copyBtn">🔗 リンクをコピー</button>
+        </div>
+        <div class="ctawrap">
+          <a class="cta" href="#" data-cta="result"><span class="li">L</span>同じ熱量の仲間を探す（無料）</a>
+          <p class="cta-note">LINEで3秒・めんどうな入力なし</p>
+        </div>
+        <button class="again" id="again">もう一度診断する</button>
+      </div>
+      </section>`;
+
+    // mark me in catalog
+    document.querySelectorAll('.tcard').forEach(c=>c.classList.toggle('me', c.dataset.code===code));
+
+    const shareText=`私のゴルフタイプは【${nk.e}${nk.n}（${code}）】でした！あなたは？ #ゴルトモ #GOLMOTI`;
+    const shareUrl=location.href.split('#')[0];
+    document.getElementById('shareBtn').addEventListener('click',async()=>{
+      track('share',{resultType:code, where:'native'});
+      if(navigator.share){ try{await navigator.share({title:'ゴルフ性格診断 GOLMOTI',text:shareText,url:shareUrl});}catch(e){} }
+      else { try{await navigator.clipboard.writeText(shareText+' '+shareUrl);alert('結果をコピーしました！');}catch(e){prompt('コピーしてシェアしてください',shareText+' '+shareUrl);} }
+    });
+    document.getElementById('copyBtn').addEventListener('click',async()=>{
+      track('share',{resultType:code, where:'copy'});
+      try{await navigator.clipboard.writeText(shareUrl);alert('リンクをコピーしました！');}catch(e){prompt('コピーしてください',shareUrl);}
+    });
+    document.getElementById('imgShareBtn').addEventListener('click',()=>shareCard(code,'share'));
+    document.getElementById('imgSaveBtn').addEventListener('click',()=>shareCard(code,'save'));
+    document.getElementById('again').addEventListener('click',()=>{ step=0; ans.length=0; resultwrap.classList.add('hidden'); resultwrap.innerHTML=''; quiz.classList.remove('hidden'); calcbox.classList.add('hidden'); quiz.scrollIntoView({behavior:'smooth'}); track('start',{total:QS.length}); renderQ(); });
+    bindCTA();
+    resultwrap.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+
+  function bindCTA(){
+    document.querySelectorAll('.cta[data-cta]').forEach(el=>{ if(el._b)return; el._b=true; el.addEventListener('click',()=>track('cta',{where:el.dataset.cta})); });
+  }
+
+  /* ===== タイプ説明の合成（コード→プレースタイル解説） ===== */
+  function poleOf(ax,letter){ return AX[ax].left.c===letter?AX[ax].left:AX[ax].right; }
+  function flip(code,axKey){ const i=AXORDER.indexOf(axKey); const ax=AX[axKey]; const cur=code[i]; const nx=(cur===ax.left.c?ax.right.c:ax.left.c); return code.slice(0,i)+nx+code.slice(i+1); }
+  // 相性◎：社交軸(B)だけ逆＝価値観・プレースタイルが近く、社交性を補い合う
+  function matchGood(code){ return flip(code,'B'); }
+  // 相性△：目的(A)と向上心(D)が逆＝本気度・上達観が噛み合いにくい
+  function matchBad(code){ return flip(flip(code,'A'),'D'); }
+  function describeType(code){
+    const nk=NICK[code]||{e:'⛳',n:'ゴルファー',t:''};
+    const tr=AXORDER.map((ax,i)=>poleOf(ax,code[i]));
+    const desc=`${tr[0].d}で、${tr[2].d}。${tr[1].d}、${tr[3].d}タイプ。`;
+    const axisLine=AXORDER.map((ax,i)=>`${tr[i].e}${tr[i].l}(${code[i]})`).join(' ・ ');
+    const kws=tr.map(t=>t.k);
+    return {nk,tr,desc,kws,axisLine};
+  }
+  // 強み/弱み/あるある/おすすめ＋相性 のHTML（結果・モーダル共通）
+  function detailFieldsHTML(code){
+    const d=DETAIL[code]||{s:'',w:'',a:'',o:''};
+    const g=matchGood(code), b=matchBad(code), gk=NICK[g]||{e:'⛳',n:''}, bk=NICK[b]||{e:'⛳',n:''};
+    return `
+      <div class="dfx">
+        <div class="dfrow"><span class="dfk df-s">💪 強み</span><span class="dfv">${d.s}</span></div>
+        <div class="dfrow"><span class="dfk df-w">⚠️ 弱み</span><span class="dfv">${d.w}</span></div>
+        <div class="dfrow"><span class="dfk df-a">😅 あるある</span><span class="dfv">${d.a}</span></div>
+        <div class="dfrow"><span class="dfk df-o">⛳ おすすめ</span><span class="dfv">${d.o}</span></div>
+      </div>
+      <div class="aishou">
+        <div class="ai ok"><div class="ail">相性◎</div><div class="aie">${gk.e}</div><div class="ain">${gk.n}</div><div class="aic">${g}</div></div>
+        <div class="ai ng"><div class="ail">相性△</div><div class="aie">${bk.e}</div><div class="ain">${bk.n}</div><div class="aic">${b}</div></div>
+      </div>`;
+  }
+
+  /* ===== タイプ詳細モーダル ===== */
+  function openType(code){
+    const {nk,desc,kws,axisLine}=describeType(code);
+    document.getElementById('tbody').innerHTML=`
+      <div class="tm-e">${nk.e}</div>
+      <div class="tm-code">${code}</div>
+      <div class="tm-name">${nk.n}</div>
+      <div class="tm-tag">${nk.t}</div>
+      <div class="tm-axis">${axisLine}</div>
+      <div class="tm-desc">${desc}</div>
+      <div class="tm-kw">${kws.map(k=>`<span>${k}</span>`).join('')}</div>
+      ${detailFieldsHTML(code)}
+      <div class="share" style="margin-top:16px">
+        <button class="sbtn" data-imgshare="${code}">📷 画像でシェア</button>
+        <button class="sbtn" data-imgsave="${code}">💾 画像を保存</button>
+      </div>`;
+    document.querySelector('[data-imgshare="'+code+'"]').addEventListener('click',()=>shareCard(code,'share'));
+    document.querySelector('[data-imgsave="'+code+'"]').addEventListener('click',()=>shareCard(code,'save'));
+    document.getElementById('tmodal').classList.add('show');
+    track('typeView',{resultType:code});
+  }
+  const tmodal=document.getElementById('tmodal');
+  document.getElementById('tClose').addEventListener('click',()=>tmodal.classList.remove('show'));
+  tmodal.addEventListener('click',(e)=>{ if(e.target===tmodal) tmodal.classList.remove('show'); });
+
+  /* ===== シェア画像（Canvasで結果カードを生成） ===== */
+  function roundRect(x,a,b,w,h,r){x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w,b,a+w,b+h,r);x.arcTo(a+w,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w,b,r);x.closePath();}
+  function wrapCenter(x,text,cx,y,maxW,lh){const ch=[...String(text)];let line='',yy=y;for(const c of ch){const t=line+c;if(x.measureText(t).width>maxW&&line){x.fillText(line,cx,yy);line=c;yy+=lh;}else line=t;}if(line)x.fillText(line,cx,yy);return yy;}
+  function wrapLeft(x,text,lx,y,maxW,lh){const ch=[...String(text)];let line='',yy=y;for(const c of ch){const t=line+c;if(x.measureText(t).width>maxW&&line){x.fillText(line,lx,yy);line=c;yy+=lh;}else line=t;}if(line)x.fillText(line,lx,yy);return yy;}
+  async function drawCard(code){
+    const {nk,tr,desc}=describeType(code);
+    try{ if(document.fonts){ await document.fonts.load('900 60px "Zen Maru Gothic"'); await document.fonts.load('800 78px "Baloo 2"'); await document.fonts.ready; } }catch(e){}
+    const W=1080,H=1350,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+    x.fillStyle='#F4E8CE';x.fillRect(0,0,W,H);
+    x.fillStyle='rgba(51,39,27,0.05)';for(let yy=24;yy<H;yy+=28)for(let xx=24;xx<W;xx+=28){x.beginPath();x.arc(xx,yy,2.2,0,7);x.fill();}
+    x.strokeStyle='#33271B';x.lineWidth=14;x.strokeRect(40,40,W-80,H-80);
+    x.textAlign='center';
+    x.fillStyle='#2A8C82';roundRect(x,W/2-230,104,460,66,33);x.fill();
+    x.fillStyle='#FBF3E0';x.font='800 32px "Zen Maru Gothic",sans-serif';x.fillText('⛳ ゴルフ性格診断',W/2,148);
+    x.fillStyle='#E8643C';x.font='800 80px "Baloo 2",sans-serif';x.fillText('GOLMOTI',W/2,256);
+    x.font='180px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';x.fillText(nk.e,W/2,460);
+    x.fillStyle='#8a7256';x.font='800 46px "Baloo 2",sans-serif';x.fillText(code,W/2,540);
+    x.fillStyle='#33271B';x.font='900 60px "Zen Maru Gothic",sans-serif';
+    let ny=wrapCenter(x,nk.n,W/2,620,W-180,72);
+    x.fillStyle='#6b5440';x.font='700 30px "Zen Maru Gothic",sans-serif';
+    ny=wrapCenter(x,nk.t,W/2,ny+50,W-220,42);
+    // pole chips 2x2
+    const chips=tr.map(t=>`${t.e}${t.l}`);const cw=400,chh=80,gap=26,sx=W/2-cw-gap/2,sy=ny+50;
+    chips.forEach((txt,i)=>{const col=i%2,row=Math.floor(i/2);const cx=sx+col*(cw+gap),cy=sy+row*(chh+gap);
+      x.fillStyle='#FBF3E0';x.strokeStyle='#33271B';x.lineWidth=5;roundRect(x,cx,cy,cw,chh,22);x.fill();x.stroke();
+      x.fillStyle='#33271B';x.font='800 34px "Zen Maru Gothic",sans-serif';x.textAlign='center';x.fillText(txt,cx+cw/2,cy+chh/2+12);
+    });
+    const dby=sy+2*(chh+gap)+20;
+    x.fillStyle='#FBF3E0';x.strokeStyle='#33271B';x.lineWidth=6;roundRect(x,80,dby,W-160,180,24);x.fill();x.stroke();
+    x.fillStyle='#4a3a2c';x.font='700 31px "Zen Maru Gothic",sans-serif';x.textAlign='left';
+    wrapLeft(x,desc,116,dby+58,W-232,46);
+    x.textAlign='center';x.fillStyle='#8a7256';x.font='700 27px "Zen Maru Gothic",sans-serif';
+    x.fillText('あなたのゴルフタイプは？ #ゴルトモ #GOLMOTI',W/2,H-86);
+    return c;
+  }
+  async function shareCard(code,mode){
+    track('share',{resultType:code, where:'image-'+mode});
+    let blob; try{ const cv=await drawCard(code); blob=await new Promise(r=>cv.toBlob(r,'image/png')); }catch(e){ console.warn('card fail',e); }
+    if(!blob){ alert('画像の生成に失敗しました'); return; }
+    const file=new File([blob],`golmoti_${code}.png`,{type:'image/png'});
+    const {nk}=describeType(code);
+    const text=`私のゴルフタイプは【${nk.e}${nk.n}（${code}）】！あなたは？ #ゴルトモ #GOLMOTI`;
+    if(mode==='share' && navigator.canShare && navigator.canShare({files:[file]})){
+      try{ await navigator.share({files:[file], text, title:'ゴルフ性格診断 GOLMOTI'}); return; }
+      catch(e){ if(e&&e.name==='AbortError') return; }
+    }
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`golmoti_${code}.png`;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  }
+
+  /* ===== 16タイプ図鑑（タップで解説） ===== */
+  (function(){
+    const g=document.getElementById('grid16');
+    Object.keys(NICK).forEach(code=>{ const t=NICK[code];
+      const d=document.createElement('button'); d.className='tcard'; d.dataset.code=code;
+      d.innerHTML=`<div class="e">${t.e}</div><div class="c">${code}</div><div class="n">${t.n}</div>`;
+      d.addEventListener('click',()=>openType(code));
+      g.appendChild(d);
+    });
+  })();
+
+  /* ===== 出題スタイル切り替え ===== */
+  function setStyle(key){
+    if(!QS_SETS[key]) return;
+    STYLE=key; QS=QS_SETS[key];
+    document.querySelectorAll('.stylebar button').forEach(b=>b.classList.toggle('on', b.dataset.style===key));
+    const cc=document.getElementById('qcount'); if(cc) cc.textContent='全'+QS.length+'問';
+    step=0; ans.length=0;
+    resultwrap.classList.add('hidden'); resultwrap.innerHTML='';
+    calcbox.classList.add('hidden'); quiz.classList.remove('hidden');
+    track('start',{total:QS.length});
+    renderQ();
+    quiz.scrollIntoView({behavior:'smooth',block:'center'});
+  }
+  document.querySelectorAll('.stylebar button').forEach(b=>b.addEventListener('click',()=>setStyle(b.dataset.style)));
+
+  /* ===== init ===== */
+  track('start',{total:QS.length});
+  renderQ();
+  bindCTA();
+
+  /* dev panel */
+  const dbg=document.getElementById('dbg'),dbgPre=document.getElementById('dbgPre');
+  document.getElementById('devBtn').addEventListener('click',()=>{const a=JSON.parse(localStorage.getItem(LSKEY)||'[]');dbgPre.textContent=JSON.stringify(a,null,2)||'(まだありません)';dbg.classList.add('show');});
+  document.getElementById('dbgClose').addEventListener('click',()=>dbg.classList.remove('show'));
+
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.12});
+  document.querySelectorAll('.reveal').forEach((el,i)=>{el.style.transitionDelay=(i%3*60)+'ms';io.observe(el)});
+</script>
+</body>
+</html>
