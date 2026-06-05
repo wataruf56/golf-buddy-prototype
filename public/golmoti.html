@@ -233,7 +233,7 @@
     <span class="be">⛳</span>
     <h2>あなたのゴルフタイプ、<br>仲間に教えよう。</h2>
     <p>登録は無料・3秒。同じ熱量の仲間と、次の週末へ。</p>
-    <a class="cta" href="#" data-cta="final" style="background:var(--orange);color:var(--cream)"><span class="li" style="background:var(--cream);color:var(--orange)">L</span>LINEで無料ではじめる</a>
+    <a class="cta" href="https://goltomo.com/app" data-cta="final" style="background:var(--orange);color:var(--cream)"><span class="li" style="background:var(--cream);color:var(--orange)">L</span>LINEで無料ではじめる</a>
   </div>
 
   <footer>
@@ -309,50 +309,57 @@
   };
 
   /* ===== 動物マスコット（独自SVGアイコン／フラット・MBId風テイスト） ===== */
-  function bgRect(c){return '<rect x="3" y="3" width="114" height="114" rx="30" fill="'+c+'"/>';}
+  function bgRect(c){return '<rect x="3" y="3" width="114" height="118" rx="30" fill="'+c+'"/>';}
   function EYE(lx,rx,y){return `<circle cx="${lx}" cy="${y}" r="7" fill="#fff"/><circle cx="${rx}" cy="${y}" r="7" fill="#fff"/><circle cx="${lx+1}" cy="${y+1}" r="3.6" fill="#2a2018"/><circle cx="${rx-1}" cy="${y+1}" r="3.6" fill="#2a2018"/><circle cx="${lx+2.4}" cy="${y-1.4}" r="1.3" fill="#fff"/><circle cx="${rx+0.4}" cy="${y-1.4}" r="1.3" fill="#fff"/>`;}
+  function tLong(c){return `<path d="M84 96 q24 4 26 -14" stroke="${c}" stroke-width="7" fill="none" stroke-linecap="round"/>`;}
+  function tBush(c,t){return `<ellipse cx="96" cy="90" rx="12" ry="9" transform="rotate(25 96 90)" fill="${c}"/>`+(t?`<ellipse cx="105" cy="80" rx="6" ry="6" fill="${t}"/>`:'');}
+  function tTuft(c){return tLong(c)+`<circle cx="110" cy="80" r="6" fill="#C8721E"/>`;}
+  function tFlat(c){return `<ellipse cx="92" cy="108" rx="15" ry="7" fill="${c}"/>`;}
+  function tCurl(c){return `<path d="M84 92 q22 -2 17 -22 q-3 -10 -11 -7" stroke="${c}" stroke-width="6" fill="none" stroke-linecap="round"/>`;}
+  function tSmall(c){return `<circle cx="89" cy="98" r="6" fill="${c}"/>`;}
   function mammal(o){
-    const eF=o.earFill||o.fur, inner=o.earInner, ear=o.ear;
+    const fur=o.fur, eF=o.earFill||fur, inner=o.earInner, ear=o.ear;
     let ears='';
-    if(ear==='pointy') ears=`<path d="M41 46 L31 15 L59 40 Z" fill="${eF}"/><path d="M79 46 L89 15 L61 40 Z" fill="${eF}"/>`+(inner?`<path d="M43 42 L37 24 L53 39 Z" fill="${inner}"/><path d="M77 42 L83 24 L67 39 Z" fill="${inner}"/>`:'');
-    else if(ear==='round') ears=`<circle cx="38" cy="35" r="14" fill="${eF}"/><circle cx="82" cy="35" r="14" fill="${eF}"/>`+(inner?`<circle cx="38" cy="35" r="7" fill="${inner}"/><circle cx="82" cy="35" r="7" fill="${inner}"/>`:'');
-    else if(ear==='floppy') ears=`<ellipse cx="32" cy="55" rx="12" ry="22" fill="${eF}"/><ellipse cx="88" cy="55" rx="12" ry="22" fill="${eF}"/>`;
-    else if(ear==='tiny') ears=`<circle cx="43" cy="36" r="9" fill="${eF}"/><circle cx="77" cy="36" r="9" fill="${eF}"/>`+(inner?`<circle cx="43" cy="36" r="4.5" fill="${inner}"/><circle cx="77" cy="36" r="4.5" fill="${inner}"/>`:'');
-    const muz=o.muzzle?`<ellipse cx="60" cy="79" rx="19" ry="13" fill="${o.muzzle}"/>`:'';
-    const eyes=o.eyes||EYE(48,72,60);
-    const nose=o.noseHide?'':`<ellipse cx="60" cy="74" rx="5.5" ry="4" fill="${o.nose||'#33271B'}"/>`;
-    return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">${bgRect(o.bg)}${o.before||''}${ears}<circle cx="60" cy="63" r="37" fill="${o.fur}"/>${muz}${o.after||''}${eyes}${nose}${o.front||''}</svg>`;
+    if(ear==='pointy') ears=`<path d="M45 30 L37 8 L59 26 Z" fill="${eF}"/><path d="M75 30 L83 8 L61 26 Z" fill="${eF}"/>`+(inner?`<path d="M47 27 L42 15 L55 25 Z" fill="${inner}"/><path d="M73 27 L78 15 L65 25 Z" fill="${inner}"/>`:'');
+    else if(ear==='round') ears=`<circle cx="42" cy="24" r="11" fill="${eF}"/><circle cx="78" cy="24" r="11" fill="${eF}"/>`+(inner?`<circle cx="42" cy="24" r="5.5" fill="${inner}"/><circle cx="78" cy="24" r="5.5" fill="${inner}"/>`:'');
+    else if(ear==='floppy') ears=`<ellipse cx="38" cy="40" rx="10" ry="18" fill="${eF}"/><ellipse cx="82" cy="40" rx="10" ry="18" fill="${eF}"/>`;
+    else if(ear==='tiny') ears=`<circle cx="46" cy="26" r="7" fill="${eF}"/><circle cx="74" cy="26" r="7" fill="${eF}"/>`+(inner?`<circle cx="46" cy="26" r="3.5" fill="${inner}"/><circle cx="74" cy="26" r="3.5" fill="${inner}"/>`:'');
+    const body=`<ellipse cx="35" cy="84" rx="7" ry="11" fill="${fur}"/><ellipse cx="85" cy="84" rx="7" ry="11" fill="${fur}"/><ellipse cx="49" cy="113" rx="9" ry="6" fill="${fur}"/><ellipse cx="71" cy="113" rx="9" ry="6" fill="${fur}"/><ellipse cx="60" cy="92" rx="27" ry="22" fill="${fur}"/>`+(o.belly?`<ellipse cx="60" cy="96" rx="15" ry="15" fill="${o.belly}"/>`:'');
+    const muz=o.muzzle?`<ellipse cx="60" cy="53" rx="13" ry="9" fill="${o.muzzle}"/>`:'';
+    const eyes=o.eyes||`<circle cx="50" cy="44" r="5.4" fill="#fff"/><circle cx="70" cy="44" r="5.4" fill="#fff"/><circle cx="51" cy="45" r="2.9" fill="#2a2018"/><circle cx="69" cy="45" r="2.9" fill="#2a2018"/><circle cx="52.3" cy="43" r="1.1" fill="#fff"/><circle cx="70.3" cy="43" r="1.1" fill="#fff"/>`;
+    const nose=o.noseHide?'':`<ellipse cx="60" cy="50" rx="4.4" ry="3.2" fill="${o.nose||'#33271B'}"/>`;
+    return `<svg viewBox="0 0 120 124" xmlns="http://www.w3.org/2000/svg">${bgRect(o.bg)}${o.tail||''}${body}${o.before||''}${ears}<circle cx="60" cy="46" r="26" fill="${fur}"/>${muz}${o.after||''}${eyes}${nose}${o.front||''}</svg>`;
   }
-  function maneRing(c){let s='<g fill="'+c+'">';for(let i=0;i<12;i++){const a=i/12*6.2832;s+='<circle cx="'+(60+Math.cos(a)*45).toFixed(1)+'" cy="'+(63+Math.sin(a)*45).toFixed(1)+'" r="11"/>';}return s+'</g>';}
-  function bird(o){return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">${bgRect(o.bg)}<circle cx="60" cy="66" r="37" fill="${o.body}"/><path d="M26 58 Q60 16 94 58 Q88 74 60 74 Q32 74 26 58 Z" fill="${o.head}"/>${EYE(49,71,52)}<path d="M52 60 H68 L62 73 Q60 77 58 73 Z" fill="${o.beak}"/></svg>`;}
-  function owl(o){return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">${bgRect(o.bg)}<path d="M32 32 L42 12 L50 34 Z" fill="${o.body}"/><path d="M88 32 L78 12 L70 34 Z" fill="${o.body}"/><ellipse cx="60" cy="66" rx="38" ry="40" fill="${o.body}"/><circle cx="46" cy="56" r="17" fill="${o.face}"/><circle cx="74" cy="56" r="17" fill="${o.face}"/><circle cx="46" cy="56" r="10" fill="#fff"/><circle cx="74" cy="56" r="10" fill="#fff"/><circle cx="46" cy="57" r="5.5" fill="#2a2018"/><circle cx="74" cy="57" r="5.5" fill="#2a2018"/><circle cx="48" cy="55" r="1.8" fill="#fff"/><circle cx="76" cy="55" r="1.8" fill="#fff"/><path d="M60 64 l-6 8 h12 z" fill="${o.beak}"/></svg>`;}
-  function turtle(o){return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">${bgRect(o.bg)}<g fill="${o.head}"><circle cx="30" cy="78" r="9"/><circle cx="90" cy="78" r="9"/><circle cx="44" cy="92" r="8"/><circle cx="76" cy="92" r="8"/></g><circle cx="60" cy="34" r="15" fill="${o.head}"/>${EYE(54,66,32)}<circle cx="60" cy="70" r="34" fill="${o.shell}"/><polygon points="60,52 74,62 69,78 51,78 46,62" fill="${o.shellDark}"/><g stroke="${o.shellDark}" stroke-width="3" fill="none"><path d="M60 52 V40"/><path d="M74 62 L86 56"/><path d="M69 78 L78 88"/><path d="M51 78 L42 88"/><path d="M46 62 L34 56"/></g></svg>`;}
-  function dolphin(o){return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">${bgRect(o.bg)}<path d="M66 38 Q80 24 86 40 Q80 42 74 46 Z" fill="${o.body}"/><path d="M28 84 Q26 50 64 44 Q98 40 96 62 Q95 68 88 66 Q66 62 52 76 Q42 88 32 88 Q26 88 28 84 Z" fill="${o.body}"/><path d="M40 80 Q54 74 66 78 Q52 64 40 80 Z" fill="${o.belly}"/><circle cx="80" cy="56" r="4.6" fill="#fff"/><circle cx="80" cy="56" r="2.6" fill="#2a2018"/><path d="M86 62 Q91 64 95 61" stroke="#2a2018" stroke-width="2" fill="none" stroke-linecap="round"/></svg>`;}
+  function maneRing(c){let s='<g fill="'+c+'">';for(let i=0;i<12;i++){const a=i/12*6.2832;s+='<circle cx="'+(60+Math.cos(a)*31).toFixed(1)+'" cy="'+(46+Math.sin(a)*31).toFixed(1)+'" r="9"/>';}return s+'</g>';}
+  function bird(o){return `<svg viewBox="0 0 120 124" xmlns="http://www.w3.org/2000/svg">${bgRect(o.bg)}<ellipse cx="34" cy="86" rx="9" ry="14" fill="${o.body}"/><ellipse cx="86" cy="86" rx="9" ry="14" fill="${o.body}"/><ellipse cx="49" cy="114" rx="8" ry="5" fill="${o.beak}"/><ellipse cx="71" cy="114" rx="8" ry="5" fill="${o.beak}"/><ellipse cx="60" cy="90" rx="26" ry="22" fill="${o.body}"/><circle cx="60" cy="44" r="26" fill="${o.body}"/><path d="M35 48 Q60 12 85 48 Q85 64 60 66 Q35 64 35 48 Z" fill="${o.head}"/>${EYE(50,70,42)}<path d="M53 50 H67 L61 61 Q60 64 59 61 Z" fill="${o.beak}"/></svg>`;}
+  function owl(o){return `<svg viewBox="0 0 120 124" xmlns="http://www.w3.org/2000/svg">${bgRect(o.bg)}<ellipse cx="49" cy="114" rx="8" ry="5" fill="${o.beak}"/><ellipse cx="71" cy="114" rx="8" ry="5" fill="${o.beak}"/><path d="M34 36 L44 14 L52 38 Z" fill="${o.body}"/><path d="M86 36 L76 14 L68 38 Z" fill="${o.body}"/><ellipse cx="60" cy="72" rx="34" ry="40" fill="${o.body}"/><circle cx="48" cy="56" r="15" fill="${o.face}"/><circle cx="72" cy="56" r="15" fill="${o.face}"/><circle cx="48" cy="56" r="9" fill="#fff"/><circle cx="72" cy="56" r="9" fill="#fff"/><circle cx="48" cy="57" r="5" fill="#2a2018"/><circle cx="72" cy="57" r="5" fill="#2a2018"/><circle cx="50" cy="55" r="1.6" fill="#fff"/><circle cx="74" cy="55" r="1.6" fill="#fff"/><path d="M60 62 l-5 7 h10 z" fill="${o.beak}"/></svg>`;}
+  function turtle(o){return `<svg viewBox="0 0 120 124" xmlns="http://www.w3.org/2000/svg">${bgRect(o.bg)}<g fill="${o.head}"><ellipse cx="32" cy="92" rx="9" ry="7"/><ellipse cx="88" cy="92" rx="9" ry="7"/><ellipse cx="46" cy="112" rx="9" ry="7"/><ellipse cx="74" cy="112" rx="9" ry="7"/></g><circle cx="60" cy="40" r="16" fill="${o.head}"/>${EYE(54,66,38)}<ellipse cx="60" cy="84" rx="36" ry="30" fill="${o.shell}"/><polygon points="60,64 78,76 71,96 49,96 42,76" fill="${o.shellDark}"/><g stroke="${o.shellDark}" stroke-width="3" fill="none"><path d="M60 64 V54"/><path d="M78 76 L92 70"/><path d="M71 96 L80 108"/><path d="M49 96 L40 108"/><path d="M42 76 L28 70"/></g></svg>`;}
+  function dolphin(o){return `<svg viewBox="0 0 120 124" xmlns="http://www.w3.org/2000/svg">${bgRect(o.bg)}<path d="M58 40 Q72 24 80 40 Q73 44 66 48 Z" fill="${o.body}"/><path d="M24 96 Q20 54 60 46 Q100 42 98 66 Q97 74 88 72 Q64 66 50 84 Q40 98 30 98 Q22 98 24 96 Z" fill="${o.body}"/><path d="M22 96 Q34 90 44 96 Q34 80 22 96 Z" fill="${o.body}"/><path d="M36 86 Q54 80 70 86 Q54 66 36 86 Z" fill="${o.belly}"/><circle cx="80" cy="60" r="4.8" fill="#fff"/><circle cx="80" cy="60" r="2.8" fill="#2a2018"/><path d="M86 66 Q92 68 97 64" stroke="#2a2018" stroke-width="2" fill="none" stroke-linecap="round"/></svg>`;}
 
-  const STRIPES=`<path d="M60 27 l-5 12 h10 z" fill="#6b4420"/><path d="M41 42 q5 6 2 13" stroke="#6b4420" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M79 42 q-5 6 -2 13" stroke="#6b4420" stroke-width="3" fill="none" stroke-linecap="round"/>`;
-  const SPOTS=`<g fill="#6b4420" opacity=".75"><circle cx="44" cy="46" r="3"/><circle cx="76" cy="46" r="3"/><circle cx="51" cy="38" r="2.3"/><circle cx="69" cy="38" r="2.3"/><circle cx="40" cy="68" r="2.6"/><circle cx="80" cy="68" r="2.6"/></g>`;
-  const WHISK=`<g stroke="#9aa0a8" stroke-width="2" stroke-linecap="round"><line x1="42" y1="76" x2="22" y2="72"/><line x1="42" y1="80" x2="22" y2="82"/><line x1="78" y1="76" x2="98" y2="72"/><line x1="78" y1="80" x2="98" y2="82"/></g>`;
-  const TEETH=`<rect x="55" y="80" width="10" height="12" rx="2" fill="#fff" stroke="#d8c9a8" stroke-width="1"/><line x1="60" y1="80" x2="60" y2="92" stroke="#d8c9a8" stroke-width="1.4"/>`;
-  const BLUSH=`<circle cx="38" cy="74" r="6" fill="#F4A28C" opacity=".7"/><circle cx="82" cy="74" r="6" fill="#F4A28C" opacity=".7"/>`;
-  const SLEEPY=`<ellipse cx="48" cy="60" rx="11" ry="9" fill="#6b6456"/><ellipse cx="72" cy="60" rx="11" ry="9" fill="#6b6456"/><path d="M42 61 q6 5 12 0" stroke="#2a2018" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M66 61 q6 5 12 0" stroke="#2a2018" stroke-width="2.4" fill="none" stroke-linecap="round"/>`;
+  const STRIPES=`<path d="M60 23 l-4 9 h8 z" fill="#6b4420"/><path d="M45 36 q4 5 1 11" stroke="#6b4420" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M75 36 q-4 5 -1 11" stroke="#6b4420" stroke-width="2.6" fill="none" stroke-linecap="round"/>`;
+  const SPOTS=`<g fill="#6b4420" opacity=".7"><circle cx="46" cy="34" r="2.6"/><circle cx="74" cy="34" r="2.6"/><circle cx="42" cy="50" r="2.3"/><circle cx="78" cy="50" r="2.3"/><circle cx="50" cy="92" r="3"/><circle cx="70" cy="92" r="3"/><circle cx="60" cy="100" r="2.6"/></g>`;
+  const WHISK=`<g stroke="#9aa0a8" stroke-width="1.8" stroke-linecap="round"><line x1="48" y1="52" x2="30" y2="48"/><line x1="48" y1="55" x2="30" y2="58"/><line x1="72" y1="52" x2="90" y2="48"/><line x1="72" y1="55" x2="90" y2="58"/></g>`;
+  const TEETH=`<rect x="56" y="56" width="8" height="9" rx="2" fill="#fff" stroke="#d8c9a8" stroke-width="1"/><line x1="60" y1="56" x2="60" y2="65" stroke="#d8c9a8" stroke-width="1.2"/>`;
+  const BLUSH=`<circle cx="44" cy="53" r="5" fill="#F4A28C" opacity=".7"/><circle cx="76" cy="53" r="5" fill="#F4A28C" opacity=".7"/>`;
+  const SLEEPY=`<ellipse cx="50" cy="45" rx="9" ry="7" fill="#6b6456"/><ellipse cx="70" cy="45" rx="9" ry="7" fill="#6b6456"/><path d="M45 45 q5 4 10 0" stroke="#2a2018" stroke-width="2.2" fill="none" stroke-linecap="round"/><path d="M65 45 q5 4 10 0" stroke="#2a2018" stroke-width="2.2" fill="none" stroke-linecap="round"/>`;
 
   const MAS={
-    GWST: mammal({bg:'#FFE3BF',fur:'#F2933A',ear:'pointy',earInner:'#FFF',muzzle:'#FFF3E0',after:STRIPES}),
-    GWSI: mammal({bg:'#FFEDCB',fur:'#E8A93C',ear:'round',muzzle:'#FBE6C2',before:maneRing('#C8721E')}),
-    GWKT: mammal({bg:'#FFE0D2',fur:'#E8643C',ear:'pointy',earInner:'#FFF',muzzle:'#FFF6EF'}),
-    GWKI: mammal({bg:'#ECDCC4',fur:'#C08A50',ear:'floppy',muzzle:'#EAD6B8'}),
+    GWST: mammal({bg:'#FFE3BF',fur:'#F2933A',ear:'pointy',earInner:'#FFF',muzzle:'#FFF3E0',belly:'#FFF3E0',after:STRIPES,tail:tLong('#F2933A')}),
+    GWSI: mammal({bg:'#FFEDCB',fur:'#E8A93C',ear:'round',muzzle:'#FBE6C2',before:maneRing('#C8721E'),tail:tTuft('#E8A93C')}),
+    GWKT: mammal({bg:'#FFE0D2',fur:'#E8643C',ear:'pointy',earInner:'#FFF',muzzle:'#FFF6EF',belly:'#FFF6EF',tail:tBush('#E8643C','#FFF6EF')}),
+    GWKI: mammal({bg:'#ECDCC4',fur:'#C08A50',ear:'floppy',muzzle:'#EAD6B8',belly:'#EAD6B8',tail:tSmall('#C08A50')}),
     GMST: bird({bg:'#CFE6E4',body:'#7A6A55',head:'#F4F1E7',beak:'#E8A93C'}),
-    GMSI: mammal({bg:'#FFF1C8',fur:'#E6B84E',ear:'round',earInner:'#FFF',muzzle:'#FBEFD0',after:SPOTS}),
+    GMSI: mammal({bg:'#FFF1C8',fur:'#E6B84E',ear:'round',earInner:'#FFF',muzzle:'#FBEFD0',after:SPOTS,tail:tLong('#E6B84E')}),
     GMKT: owl({bg:'#D9E7D2',body:'#8A6A45',face:'#D9C29A',beak:'#E8A93C'}),
     GMKI: turtle({bg:'#CFE7DA',shell:'#3E8E5A',shellDark:'#2E6E44',head:'#86C091'}),
     EWST: dolphin({bg:'#CFE6F4',body:'#56A6C9',belly:'#EAF6FB'}),
-    EWSI: mammal({bg:'#ECDCC4',fur:'#8A5A33',ear:'round',earInner:'#D8B488',muzzle:'#D8B488'}),
-    EWKT: mammal({bg:'#ECDCC4',fur:'#9A6A3C',ear:'tiny',muzzle:'#C49A6A',front:TEETH}),
-    EWKI: mammal({bg:'#ECDCC4',fur:'#7E5C3C',ear:'round',muzzle:'#C9A87A'}),
-    EMST: mammal({bg:'#DDE1E7',fur:'#8A93A0',ear:'pointy',earInner:'#C9CED6',muzzle:'#C9CED6'}),
-    EMSI: mammal({bg:'#FFE0E8',fur:'#AEB4BC',ear:'pointy',earInner:'#FFD7E0',muzzle:'#EDEFF2',front:WHISK}),
-    EMKT: mammal({bg:'#FFE9CF',fur:'#E8C49A',ear:'tiny',earInner:'#FBD9C0',muzzle:'#FBEAD6',front:BLUSH}),
-    EMKI: mammal({bg:'#DDD8C8',fur:'#9A9486',muzzle:'#C7C2B2',eyes:SLEEPY}),
+    EWSI: mammal({bg:'#ECDCC4',fur:'#8A5A33',ear:'round',earFill:'#8A5A33',earInner:'#D8B488',muzzle:'#D8B488',belly:'#D8B488',tail:tCurl('#8A5A33')}),
+    EWKT: mammal({bg:'#ECDCC4',fur:'#9A6A3C',ear:'tiny',muzzle:'#C49A6A',front:TEETH,tail:tFlat('#7A5230')}),
+    EWKI: mammal({bg:'#ECDCC4',fur:'#7E5C3C',ear:'round',muzzle:'#C9A87A',belly:'#C9A87A',tail:tSmall('#7E5C3C')}),
+    EMST: mammal({bg:'#DDE1E7',fur:'#8A93A0',ear:'pointy',earInner:'#C9CED6',muzzle:'#C9CED6',belly:'#C9CED6',tail:tBush('#8A93A0','#C9CED6')}),
+    EMSI: mammal({bg:'#FFE0E8',fur:'#AEB4BC',ear:'pointy',earInner:'#FFD7E0',muzzle:'#EDEFF2',belly:'#EDEFF2',front:WHISK,tail:tLong('#AEB4BC')}),
+    EMKT: mammal({bg:'#FFE9CF',fur:'#E8C49A',ear:'tiny',earInner:'#FBD9C0',muzzle:'#FBEAD6',belly:'#FBEAD6',front:BLUSH,tail:tSmall('#E8C49A')}),
+    EMKI: mammal({bg:'#DDD8C8',fur:'#9A9486',ear:'round',muzzle:'#C7C2B2',belly:'#C7C2B2',eyes:SLEEPY,tail:tSmall('#9A9486')}),
   };
   function mascotHTML(code,cls){ return '<span class="mascot '+(cls||'')+'">'+(MAS[code]||'')+'</span>'; }
   function mascotImg(code){ return new Promise(res=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>res(null); img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(MAS[code]||''); }); }
@@ -572,7 +579,7 @@
           <button class="sbtn" id="copyBtn">🔗 リンクをコピー</button>
         </div>
         <div class="ctawrap">
-          <a class="cta" href="#" data-cta="result"><span class="li">L</span>同じ熱量の仲間を探す（無料）</a>
+          <a class="cta" href="https://goltomo.com/app" data-cta="result"><span class="li">L</span>同じ熱量の仲間を探す（無料）</a>
           <p class="cta-note">LINEで3秒・めんどうな入力なし</p>
         </div>
         <button class="again" id="again">もう一度診断する</button>
@@ -681,7 +688,7 @@
     x.fillStyle='#2A8C82';roundRect(x,W/2-230,104,460,66,33);x.fill();
     x.fillStyle='#FBF3E0';x.font='800 32px "Zen Maru Gothic",sans-serif';x.fillText('⛳ ゴルフ性格診断',W/2,148);
     x.fillStyle='#E8643C';x.font='800 80px "Baloo 2",sans-serif';x.fillText('GOLMOTI',W/2,256);
-    const mimg=await mascotImg(code); if(mimg){ x.drawImage(mimg, (W-300)/2, 250, 300, 300); }
+    const mimg=await mascotImg(code); if(mimg){ x.drawImage(mimg, (W-300)/2, 246, 300, 310); }
     else { x.font='180px sans-serif'; x.fillText(nk.e,W/2,470); }
     x.fillStyle='#8a7256';x.font='800 42px "Baloo 2",sans-serif';x.fillText(code+'  ・  '+nk.an,W/2,600);
     x.fillStyle='#33271B';x.font='900 60px "Zen Maru Gothic",sans-serif';
