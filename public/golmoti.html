@@ -121,10 +121,10 @@
   /* type detail bottom-sheet */
   .tmodal{position:fixed;inset:0;max-width:480px;left:50%;transform:translateX(-50%);background:rgba(51,39,27,.55);z-index:150;display:none;align-items:flex-end}
   .tmodal.show{display:flex}
-  .sheet{background:var(--paper);width:100%;border-radius:24px 24px 0 0;border-top:3px solid var(--ink);padding:26px 22px 34px;position:relative;animation:sheetUp .25s ease}
+  .sheet{background:var(--paper);width:100%;border-radius:24px 24px 0 0;border-top:3px solid var(--ink);padding:22px 20px 28px;position:relative;animation:sheetUp .25s ease;max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
   @keyframes sheetUp{from{transform:translateY(50px);opacity:.3}to{transform:none;opacity:1}}
   .tclose{position:absolute;top:12px;right:14px;width:34px;height:34px;border-radius:50%;border:2.5px solid var(--ink);background:var(--cream);font-weight:900;font-size:18px;cursor:pointer;line-height:1}
-  .tm-e{font-size:58px;text-align:center;line-height:1}
+  .tm-e{font-size:52px;text-align:center;line-height:1}
   .tm-code{font-family:'Baloo 2';font-weight:800;font-size:17px;letter-spacing:.14em;color:#8a7256;text-align:center;margin-top:4px}
   .tm-name{font-weight:900;font-size:23px;text-align:center;margin:2px 0 6px}
   .tm-tag{font-size:13px;font-weight:700;color:#6b5440;text-align:center;margin-bottom:14px}
@@ -133,8 +133,8 @@
   .tm-kw{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:14px}
   .tm-kw span{background:var(--teal);color:var(--cream);font-weight:900;font-size:11px;padding:4px 10px;border-radius:999px;border:2px solid var(--ink)}
   /* detail fields (強み/弱み/あるある/おすすめ) */
-  .dfx{margin-top:14px;display:flex;flex-direction:column;gap:9px}
-  .dfrow{display:flex;gap:10px;align-items:flex-start}
+  .dfx{margin-top:12px;display:flex;flex-direction:column;gap:7px}
+  .dfrow{display:flex;gap:9px;align-items:flex-start}
   .dfk{flex-shrink:0;width:84px;font-weight:900;font-size:11px;padding:4px 6px;border-radius:8px;text-align:center;border:2px solid var(--ink)}
   .df-s{background:#DCF0DC;color:#2f5e3a}.df-w{background:#FBE0D6;color:#b34a2c}.df-a{background:#FFEFC2;color:#8a6a1e}.df-o{background:#D8EFEC;color:#1f6d63}
   .dfv{font-size:13px;font-weight:700;color:#4a3a2c;line-height:1.5;padding-top:3px}
@@ -166,15 +166,6 @@
     <div class="sd">診断スタート<span class="ar">↓</span></div>
   </header>
 
-  <!-- axis preview -->
-  <div class="axwrap">
-    <div class="axhead">― 4つの軸で診断 ―</div>
-    <div class="axrow reveal"><span>🔥 ガチ<b>(G)</b></span><span class="mid">vs</span><span><b>(E)</b>エンジョイ 😎</span></div>
-    <div class="axrow reveal"><span>🎉 ワイワイ<b>(W)</b></span><span class="mid">vs</span><span><b>(M)</b>マイペース 🧘</span></div>
-    <div class="axrow reveal"><span>⚔️ 攻め<b>(S)</b></span><span class="mid">vs</span><span><b>(K)</b>堅実 🛡️</span></div>
-    <div class="axrow reveal"><span>📈 探求<b>(T)</b></span><span class="mid">vs</span><span><b>(I)</b>今満喫 🌴</span></div>
-  </div>
-
   <!-- 出題スタイル切り替え -->
   <div class="stylebar">
     <span class="sl">🎚 出題スタイルを選べます</span>
@@ -194,6 +185,18 @@
 
   <!-- RESULT (injected) -->
   <div id="resultwrap" class="hidden"></div>
+
+  <!-- axis explanation（診断のあとに、軸の説明） -->
+  <section class="axexplain">
+    <div class="chap"><div class="no">📐</div><div><div class="lb">ABOUT</div><div class="tt">この診断の4つの軸</div></div></div>
+    <div class="h2">4つの軸 ×<br>頭文字で16タイプ</div>
+    <div class="axwrap">
+      <div class="axrow reveal"><span>🔥 ガチ<b>(G)</b></span><span class="mid">vs</span><span><b>(E)</b>エンジョイ 😎</span></div>
+      <div class="axrow reveal"><span>🎉 ワイワイ<b>(W)</b></span><span class="mid">vs</span><span><b>(M)</b>マイペース 🧘</span></div>
+      <div class="axrow reveal"><span>⚔️ 攻め<b>(S)</b></span><span class="mid">vs</span><span><b>(K)</b>堅実 🛡️</span></div>
+      <div class="axrow reveal"><span>📈 探求<b>(T)</b></span><span class="mid">vs</span><span><b>(I)</b>今満喫 🌴</span></div>
+    </div>
+  </section>
 
   <!-- 16 type catalog -->
   <section id="catalog">
@@ -259,22 +262,22 @@
 
   /* ===== 16タイプの愛称（コード→ニックネーム） ===== */
   const NICK={
-    GWST:{e:'🐯',n:'ピン一直線・攻め込み派',t:'旗を直接狙う、チームを引っ張る攻撃型'},
-    GWSI:{e:'🔥',n:'とにかく飛ばしたい派',t:'飛ばして魅せる、ノリ重視の一発屋'},
-    GWKT:{e:'🧠',n:'計算して刻む派',t:'考えて刻む、計算ずくの堅実家'},
-    GWKI:{e:'🎉',n:'手堅くパー拾い派',t:'手堅くパーを拾う、場の主役'},
-    GMST:{e:'🦅',n:'黙って高み狙い派',t:'一人黙々と高みを狙う攻撃型'},
-    GMSI:{e:'⚡',n:'一発逆転ねらい派',t:'ハマれば爆発、リスク上等の勝負師'},
-    GMKT:{e:'🎯',n:'黙々スコアメイク派',t:'コツコツ刻む寡黙な職人'},
-    GMKI:{e:'🧘',n:'ブレずに安全運転派',t:'動じず安全運転、自分のゴルフを貫く'},
-    EWST:{e:'🚀',n:'楽しく攻めて伸びる派',t:'楽しみながらどんどん攻める伸び盛り'},
-    EWSI:{e:'🎊',n:'ノリで振り回す派',t:'明るく振り回す、陽気なムードメーカー'},
-    EWKT:{e:'🌱',n:'みんなでコツコツ上達派',t:'仲間と楽しく、堅実に成長する'},
-    EWKI:{e:'🍻',n:'スコアより笑顔派',t:'スコアより笑顔、ゴルフの宴会部長'},
-    EMST:{e:'🐺',n:'自由きまま攻め派',t:'一人で気ままに攻めて楽しむ'},
-    EMSI:{e:'🎈',n:'気分で大胆ショット派',t:'気分屋だけど一打は大胆'},
-    EMKT:{e:'🦉',n:'コツコツ自分磨き派',t:'マイペースに安全に腕を磨く'},
-    EMKI:{e:'☘️',n:'のんびりフェアウェイ散歩派',t:'自然体でゴルフそのものを味わう'},
+    GWST:{e:'🐯',n:'ピン一直線・攻め込み派',t:'旗を直接狙う、チームを引っ張る攻撃型',an:'トラ'},
+    GWSI:{e:'🦁',n:'とにかく飛ばしたい派',t:'飛ばして魅せる、ノリ重視の一発屋',an:'ライオン'},
+    GWKT:{e:'🦊',n:'計算して刻む派',t:'考えて刻む、計算ずくの堅実家',an:'キツネ'},
+    GWKI:{e:'🐶',n:'手堅くパー拾い派',t:'手堅くパーを拾う、場の主役',an:'イヌ'},
+    GMST:{e:'🦅',n:'黙って高み狙い派',t:'一人黙々と高みを狙う攻撃型',an:'ワシ'},
+    GMSI:{e:'🐆',n:'一発逆転ねらい派',t:'ハマれば爆発、リスク上等の勝負師',an:'ヒョウ'},
+    GMKT:{e:'🦉',n:'黙々スコアメイク派',t:'コツコツ刻む寡黙な職人',an:'フクロウ'},
+    GMKI:{e:'🐢',n:'ブレずに安全運転派',t:'動じず安全運転、自分のゴルフを貫く',an:'カメ'},
+    EWST:{e:'🐬',n:'楽しく攻めて伸びる派',t:'楽しみながらどんどん攻める伸び盛り',an:'イルカ'},
+    EWSI:{e:'🐵',n:'ノリで振り回す派',t:'明るく振り回す、陽気なムードメーカー',an:'サル'},
+    EWKT:{e:'🦫',n:'みんなでコツコツ上達派',t:'仲間と楽しく、堅実に成長する',an:'ビーバー'},
+    EWKI:{e:'🐻',n:'スコアより笑顔派',t:'スコアより笑顔、ゴルフの宴会部長',an:'クマ'},
+    EMST:{e:'🐺',n:'自由きまま攻め派',t:'一人で気ままに攻めて楽しむ',an:'オオカミ'},
+    EMSI:{e:'🐱',n:'気分で大胆ショット派',t:'気分屋だけど一打は大胆',an:'ネコ'},
+    EMKT:{e:'🐹',n:'コツコツ自分磨き派',t:'マイペースに安全に腕を磨く',an:'ハムスター'},
+    EMKI:{e:'🦥',n:'のんびりフェアウェイ散歩派',t:'自然体でゴルフそのものを味わう',an:'ナマケモノ'},
   };
 
   /* ===== 各タイプの詳細（強み・弱み・あるある・おすすめの回り方） ===== */
@@ -485,7 +488,7 @@
         <div class="rcard">
           <div class="rk">― あなたのゴルフタイプは ―</div>
           <div class="remoji">${nk.e}</div>
-          <div class="rcode">${code}</div>
+          <div class="rcode">${code} ・ ${nk.an}</div>
           <div class="rname">${nk.n}</div>
           <div class="rtag">${nk.t}</div>
         </div>
@@ -581,14 +584,13 @@
     const {nk,desc,kws,axisLine}=describeType(code);
     document.getElementById('tbody').innerHTML=`
       <div class="tm-e">${nk.e}</div>
-      <div class="tm-code">${code}</div>
+      <div class="tm-code">${code} ・ ${nk.an}</div>
       <div class="tm-name">${nk.n}</div>
       <div class="tm-tag">${nk.t}</div>
       <div class="tm-axis">${axisLine}</div>
       <div class="tm-desc">${desc}</div>
-      <div class="tm-kw">${kws.map(k=>`<span>${k}</span>`).join('')}</div>
       ${detailFieldsHTML(code)}
-      <div class="share" style="margin-top:16px">
+      <div class="share" style="margin-top:14px">
         <button class="sbtn" data-imgshare="${code}">📷 画像でシェア</button>
         <button class="sbtn" data-imgsave="${code}">💾 画像を保存</button>
       </div>`;
@@ -617,7 +619,7 @@
     x.fillStyle='#FBF3E0';x.font='800 32px "Zen Maru Gothic",sans-serif';x.fillText('⛳ ゴルフ性格診断',W/2,148);
     x.fillStyle='#E8643C';x.font='800 80px "Baloo 2",sans-serif';x.fillText('GOLMOTI',W/2,256);
     x.font='180px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';x.fillText(nk.e,W/2,460);
-    x.fillStyle='#8a7256';x.font='800 46px "Baloo 2",sans-serif';x.fillText(code,W/2,540);
+    x.fillStyle='#8a7256';x.font='800 42px "Baloo 2",sans-serif';x.fillText(code+'  ・  '+nk.an,W/2,540);
     x.fillStyle='#33271B';x.font='900 60px "Zen Maru Gothic",sans-serif';
     let ny=wrapCenter(x,nk.n,W/2,620,W-180,72);
     x.fillStyle='#6b5440';x.font='700 30px "Zen Maru Gothic",sans-serif';
