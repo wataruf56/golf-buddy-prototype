@@ -183,17 +183,6 @@
     <div class="sd">診断スタート<span class="ar">↓</span></div>
   </header>
 
-  <!-- 出題スタイル切り替え -->
-  <div class="stylebar">
-    <span class="sl">🎚 出題スタイルを選べます</span>
-    <div class="sopts">
-      <button data-style="full" class="on">じっくり<br>12問</button>
-      <button data-style="quick">サクッと<br>2択8問</button>
-      <button data-style="keyword">キーワード<br>8問</button>
-      <button data-style="mini">最速<br>4問</button>
-    </div>
-  </div>
-
   <!-- QUIZ -->
   <div class="quiz" id="quiz">
     <div id="qbox"></div>
@@ -236,11 +225,8 @@
 
   <footer>
     <div class="fl">⛳ ゴルトモ / GOLMOTI</div>同世代のラウンド仲間を探すアプリ<br>© 2026 Goltomo
-    <br><button class="dev" id="devBtn">診断ログを表示（開発用）</button>
   </footer>
 </div>
-
-<div id="dbg"><h4><span>📊 収集中の診断データ（このブラウザ内）</span><button class="x" id="dbgClose">閉じる</button></h4><pre id="dbgPre"></pre></div>
 
 <script>
   /* ===== データ収集（裏側送信＋ローカル保存） ===== */
@@ -516,11 +502,19 @@
     return {code,pos};
   }
 
-  function showResult(){
-    const {code,pos}=computeCode();
+  function showResult(forcedCode){
+    // forcedCode あり＝共有リンク（?type=XXXX）からの結果閲覧（未利用・未ログインでも見られる）
+    const shared = !!(forcedCode && NICK[forcedCode]);
+    let code, pos;
+    if(shared){
+      code=forcedCode; pos={};
+      AXORDER.forEach((ax)=>{ const isLeft=code[AXORDER.indexOf(ax)]===AX[ax].left.c; const s=isLeft?5:-5; pos[ax]={score:s, leftPct:Math.round(((s+6)/12)*100)}; });
+    } else {
+      const r=computeCode(); code=r.code; pos=r.pos;
+    }
     const nk=NICK[code]||{e:'⛳',n:'ゴルファー',t:''};
-    const pattern=ans.map((a,i)=>`q${i+1}:${a.ax}${a.pole}${a.w}`);
-    track('complete',{resultType:code, pattern, total:QS.length});
+    if(shared){ track('viewShared',{resultType:code}); }
+    else { const pattern=ans.map((a,i)=>`q${i+1}:${a.ax}${a.pole}${a.w}`); track('complete',{resultType:code, pattern, total:QS.length}); }
 
     // 持ち味（各軸の選ばれたpole説明）
     const traits=AXORDER.map(ax=>{ const isLeft=pos[ax].score>=0; return isLeft?AX[ax].left:AX[ax].right; });
@@ -573,30 +567,27 @@
           <button class="sbtn" id="imgSaveBtn">💾 画像を保存</button>
         </div>
         <div class="share" style="margin-top:10px">
-          <button class="sbtn" id="shareBtn">📤 テキストでシェア</button>
-          <button class="sbtn" id="copyBtn">🔗 リンクをコピー</button>
+          <button class="sbtn" id="copyBtn" style="flex:1">🔗 結果のリンクをコピー</button>
         </div>
-        <button class="again" id="again">もう一度診断する</button>
+        ${shared
+          ? `<a class="again" id="startMine" data-cta="startMine" href="${LP_URL}" style="display:block;text-align:center;text-decoration:none">🏌️ あなたも無料で診断する</a>`
+          : `<button class="again" id="again">もう一度診断する</button>`}
       </div>
       </section>`;
 
     // mark me in catalog
     document.querySelectorAll('.tcard').forEach(c=>c.classList.toggle('me', c.dataset.code===code));
 
-    const shareText=`私のゴルフタイプは【${nk.e}${nk.n}（${code}）】でした！あなたは？ #ゴルトモ #GOLMOTI`;
-    const shareUrl=location.href.split('#')[0];
-    document.getElementById('shareBtn').addEventListener('click',async()=>{
-      track('share',{resultType:code, where:'native'});
-      if(navigator.share){ try{await navigator.share({title:'ゴルフ性格診断 GOLMOTI',text:shareText,url:shareUrl});}catch(e){} }
-      else { try{await navigator.clipboard.writeText(shareText+' '+shareUrl);alert('結果をコピーしました！');}catch(e){prompt('コピーしてシェアしてください',shareText+' '+shareUrl);} }
-    });
+    // 結果のリンクは型コード付き。受け取った側はアプリ未利用でも結果を見られる（?type=XXXX）
+    const shareUrl=location.origin+location.pathname+'?type='+code;
     document.getElementById('copyBtn').addEventListener('click',async()=>{
       track('share',{resultType:code, where:'copy'});
-      try{await navigator.clipboard.writeText(shareUrl);alert('リンクをコピーしました！');}catch(e){prompt('コピーしてください',shareUrl);}
+      try{await navigator.clipboard.writeText(shareUrl);alert('結果のリンクをコピーしました！\n相手はアプリ未登録でも結果を見られます。');}catch(e){prompt('コピーしてください',shareUrl);}
     });
     document.getElementById('imgShareBtn').addEventListener('click',()=>shareCard(code,'share'));
     document.getElementById('imgSaveBtn').addEventListener('click',()=>shareCard(code,'save'));
-    document.getElementById('again').addEventListener('click',()=>{ step=0; ans.length=0; resultwrap.classList.add('hidden'); resultwrap.innerHTML=''; quiz.classList.remove('hidden'); calcbox.classList.add('hidden'); quiz.scrollIntoView({behavior:'smooth'}); track('start',{total:QS.length}); renderQ(); });
+    const againBtn=document.getElementById('again');
+    if(againBtn) againBtn.addEventListener('click',()=>{ step=0; ans.length=0; resultwrap.classList.add('hidden'); resultwrap.innerHTML=''; quiz.classList.remove('hidden'); calcbox.classList.add('hidden'); quiz.scrollIntoView({behavior:'smooth'}); track('start',{total:QS.length}); renderQ(); });
     bindCTA();
     resultwrap.scrollIntoView({behavior:'smooth',block:'start'});
   }
@@ -673,8 +664,9 @@
   function wrapLeft(x,text,lx,y,maxW,lh){const ch=[...String(text)];let line='',yy=y;for(const c of ch){const t=line+c;if(x.measureText(t).width>maxW&&line){x.fillText(line,lx,yy);line=c;yy+=lh;}else line=t;}if(line)x.fillText(line,lx,yy);return yy;}
   async function drawCard(code){
     const {nk,tr,desc}=describeType(code);
+    const d=(typeof DETAIL!=='undefined' && DETAIL[code])?DETAIL[code]:{s:'',w:'',a:'',o:''};
     try{ if(document.fonts){ await document.fonts.load('900 60px "Zen Maru Gothic"'); await document.fonts.load('800 78px "Baloo 2"'); await document.fonts.ready; } }catch(e){}
-    const W=1080,H=1350,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+    const W=1080,H=2000,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
     x.fillStyle='#F4E8CE';x.fillRect(0,0,W,H);
     x.fillStyle='rgba(51,39,27,0.05)';for(let yy=24;yy<H;yy+=28)for(let xx=24;xx<W;xx+=28){x.beginPath();x.arc(xx,yy,2.2,0,7);x.fill();}
     x.strokeStyle='#33271B';x.lineWidth=14;x.strokeRect(40,40,W-80,H-80);
@@ -696,11 +688,22 @@
       x.fillStyle='#33271B';x.font='800 34px "Zen Maru Gothic",sans-serif';x.textAlign='center';x.fillText(txt,cx+cw/2,cy+chh/2+12);
     });
     const dby=sy+2*(chh+gap)+20;
-    x.fillStyle='#FBF3E0';x.strokeStyle='#33271B';x.lineWidth=6;roundRect(x,80,dby,W-160,180,24);x.fill();x.stroke();
+    x.fillStyle='#FBF3E0';x.strokeStyle='#33271B';x.lineWidth=6;roundRect(x,80,dby,W-160,168,24);x.fill();x.stroke();
     x.fillStyle='#4a3a2c';x.font='700 31px "Zen Maru Gothic",sans-serif';x.textAlign='left';
-    wrapLeft(x,desc,116,dby+58,W-232,46);
+    wrapLeft(x,desc,116,dby+56,W-232,46);
+    // 取扱説明書（強み／弱み／あるある／おすすめ）＝結果の続きまで保存
+    let yy=dby+168+70;
+    x.textAlign='center';x.fillStyle='#2A8C82';x.font='800 36px "Zen Maru Gothic",sans-serif';
+    x.fillText('📖 あなたの取扱説明書',W/2,yy);
+    const fields=[['💪 強み',d.s,'#2A8C82'],['⚠️ 弱み',d.w,'#C0563A'],['😅 あるある',d.a,'#B8841F'],['⛳ おすすめ',d.o,'#2A6FCC']];
+    fields.forEach(([lab,val,col])=>{
+      yy+=48; x.textAlign='left';
+      x.fillStyle=col;x.font='800 29px "Zen Maru Gothic",sans-serif';x.fillText(lab,92,yy);
+      x.fillStyle='#4a3a2c';x.font='600 28px "Zen Maru Gothic",sans-serif';
+      yy=wrapLeft(x,val||'—',92,yy+40,W-184,40)+16;
+    });
     x.textAlign='center';x.fillStyle='#8a7256';x.font='700 27px "Zen Maru Gothic",sans-serif';
-    x.fillText('あなたのゴルフタイプは？ #ゴルトモ #GOLMOTI',W/2,H-86);
+    x.fillText('あなたのゴルフタイプは？ #ゴルトモ #GOLMOTI',W/2,H-72);
     return c;
   }
   async function shareCard(code,mode){
@@ -729,30 +732,27 @@
     });
   })();
 
-  /* ===== 出題スタイル切り替え ===== */
-  function setStyle(key){
-    if(!QS_SETS[key]) return;
-    STYLE=key; QS=QS_SETS[key];
-    document.querySelectorAll('.stylebar button').forEach(b=>b.classList.toggle('on', b.dataset.style===key));
-    const cc=document.getElementById('qcount'); if(cc) cc.textContent='全'+QS.length+'問';
-    step=0; ans.length=0;
-    resultwrap.classList.add('hidden'); resultwrap.innerHTML='';
-    calcbox.classList.add('hidden'); quiz.classList.remove('hidden');
+  /* ===== init（出題スタイルは固定：常に12問） ===== */
+  // 紹介LP：未ログイン/新規が共有結果から「自分も診断する」を押した時の遷移先
+  const LP_URL='/';
+  // 共有リンク（?type=XXXX または #XXXX）があれば、その結果を直接表示（アプリ未利用・未ログインでも閲覧可）
+  function getSharedCode(){
+    try{
+      const u=new URL(location.href);
+      const c=(u.searchParams.get('type')||location.hash.replace('#','')||'').toUpperCase().trim();
+      return (c && NICK[c]) ? c : '';
+    }catch(e){ return ''; }
+  }
+  const SHARED=getSharedCode();
+  if(SHARED){
+    const hero=document.querySelector('.hero'); if(hero) hero.style.display='none';
+    quiz.classList.add('hidden');
+    showResult(SHARED);
+  } else {
     track('start',{total:QS.length});
     renderQ();
-    quiz.scrollIntoView({behavior:'smooth',block:'center'});
+    bindCTA();
   }
-  document.querySelectorAll('.stylebar button').forEach(b=>b.addEventListener('click',()=>setStyle(b.dataset.style)));
-
-  /* ===== init ===== */
-  track('start',{total:QS.length});
-  renderQ();
-  bindCTA();
-
-  /* dev panel */
-  const dbg=document.getElementById('dbg'),dbgPre=document.getElementById('dbgPre');
-  document.getElementById('devBtn').addEventListener('click',()=>{const a=JSON.parse(localStorage.getItem(LSKEY)||'[]');dbgPre.textContent=JSON.stringify(a,null,2)||'(まだありません)';dbg.classList.add('show');});
-  document.getElementById('dbgClose').addEventListener('click',()=>dbg.classList.remove('show'));
 
   const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.12});
   document.querySelectorAll('.reveal').forEach((el,i)=>{el.style.transitionDelay=(i%3*60)+'ms';io.observe(el)});
