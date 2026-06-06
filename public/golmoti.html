@@ -128,6 +128,12 @@
   .final{margin:30px 16px 0;background:var(--mustard);border:2.5px solid var(--ink);border-radius:24px;box-shadow:7px 7px 0 var(--ink);padding:38px 26px;text-align:center}
   .final .be{font-size:48px;display:block;margin-bottom:8px}.final h2{font-weight:900;font-size:25px;line-height:1.4;margin-bottom:10px}.final p{font-size:13px;font-weight:700;color:#6b5440;margin-bottom:20px}
   footer{padding:30px 22px 50px;text-align:center;font-weight:700;font-size:12px;color:#8a7256}footer .fl{font-weight:900;font-size:18px;color:var(--ink);margin-bottom:6px}
+  /* スクロールしても常に画面最下部に固定されるCTA */
+  .wrap{padding-bottom:92px}
+  .stickybar{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;z-index:120;padding:10px 14px calc(12px + env(safe-area-inset-bottom));background:var(--paper);border-top:3px solid var(--ink)}
+  .stickybar a{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--orange);color:var(--cream);font-weight:900;font-size:16px;padding:15px;border:2.5px solid var(--ink);border-radius:14px;box-shadow:4px 4px 0 var(--ink);text-decoration:none;transition:transform .12s,box-shadow .12s}
+  .stickybar a:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
+  .stickybar .li{width:24px;height:24px;background:var(--cream);color:var(--orange);border-radius:7px;display:grid;place-items:center;font-weight:900;font-size:13px;border:2px solid var(--ink)}
   .dev{margin-top:14px;font-size:11px;color:#b3a489;background:none;border:none;cursor:pointer;text-decoration:underline}
   /* type detail bottom-sheet */
   .tmodal{position:fixed;inset:0;max-width:480px;left:50%;transform:translateX(-50%);background:rgba(51,39,27,.55);z-index:150;display:none;align-items:flex-end}
@@ -223,7 +229,7 @@
   <section style="padding-top:10px">
     <div class="chap"><div class="no">⛳</div><div><div class="lb">GOLTOMO</div><div class="tt">診断のあとは、仲間と回ろう</div></div></div>
     <div class="h2">同じタイプの仲間と、<br>つながれる。</div>
-    <div class="feat g reveal"><div class="ico">🤝</div><div><h3>ゴル友が見つかる</h3><p>世代・エリア・レベル、そしてタイプの近い仲間とマッチング。</p></div></div>
+    <div class="feat g reveal"><div class="ico">🤝</div><div><h3>ラウンド仲間が見つかる</h3><p>世代・エリア・レベル、そしてタイプの近いラウンド仲間と出会える。</p></div></div>
     <div class="feat b reveal"><div class="ico">💬</div><div><h3>みんなで盛り上がる</h3><p>グループチャットで連絡もスムーズ。コンペやイベントも開ける。</p></div></div>
     <div class="feat p reveal"><div class="ico">⭐</div><div><h3>レビューで安心</h3><p>相互レビューで信頼が見える。初対面でも気楽に回れる。</p></div></div>
   </section>
@@ -237,9 +243,14 @@
   </div>
 
   <footer>
-    <div class="fl">⛳ ゴルトモ / GOLMOTI</div>同世代のゴルフ仲間マッチングアプリ<br>© 2026 Goltomo
+    <div class="fl">⛳ ゴルトモ / GOLMOTI</div>同世代のラウンド仲間を探すアプリ<br>© 2026 Goltomo
     <br><button class="dev" id="devBtn">診断ログを表示（開発用）</button>
   </footer>
+</div>
+
+<!-- 画面下に常時固定するCTA（スマホで常に表示） -->
+<div class="stickybar">
+  <a href="https://goltomo.com/app" data-cta="sticky"><span class="li">L</span>LINEで無料ではじめる</a>
 </div>
 
 <div id="dbg"><h4><span>📊 収集中の診断データ（このブラウザ内）</span><button class="x" id="dbgClose">閉じる</button></h4><pre id="dbgPre"></pre></div>
@@ -608,7 +619,7 @@
   }
 
   function bindCTA(){
-    document.querySelectorAll('.cta[data-cta]').forEach(el=>{ if(el._b)return; el._b=true; el.addEventListener('click',()=>track('cta',{where:el.dataset.cta})); });
+    document.querySelectorAll('[data-cta]').forEach(el=>{ if(el._b)return; el._b=true; el.addEventListener('click',()=>track('cta',{where:el.dataset.cta})); });
   }
 
   /* ===== タイプ説明の合成（コード→プレースタイル解説） ===== */
