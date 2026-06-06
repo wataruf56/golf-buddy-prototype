@@ -5,10 +5,15 @@
 * { box-sizing: border-box; }
 
 html, body {
-  font-family: 'Noto Sans JP', 'DM Sans', sans-serif;
+  font-family: 'Zen Maru Gothic', 'Noto Sans JP', sans-serif;
   color: #1E3A30;
-  background: #cdded5;
+  background: #a9c7bb;
+  font-weight: 500;
+  line-height: 1.6;
 }
+
+/* 数字・英字アクセント（モックCの Baloo 2） */
+.font-num { font-family: 'Baloo 2', 'Zen Maru Gothic', sans-serif; }
 
 @media (max-width: 500px) {
   body { background: #E7F2EC; }
@@ -28,3 +33,20 @@ html, body {
 
 input, textarea, select { font-family: inherit; }
 button { font-family: inherit; cursor: pointer; }
+
+/* === モックC（ティールポップ／ネオブルータリズム）の作りを全カードへ ===
+   shadow-card は色トークン card と名前衝突し影色が上書きされるため、
+   ここで box-shadow を強制し、併せて太い濃枠を付与する。 */
+.shadow-card {
+  box-shadow: 4px 4px 0 #1E3A30 !important;
+  border: 2px solid #1E3A30;
+}
+.shadow-lg {
+  box-shadow: 6px 6px 0 #1E3A30 !important;
+  border: 2px solid #1E3A30;
+}
+/* 押下時にカチッと沈む（ハードシャドウのポップ感） */
+button.shadow-card:active, a.shadow-card:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 #1E3A30 !important;
+}

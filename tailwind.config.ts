@@ -11,7 +11,10 @@ const config: Config = {
         // === レトロ・ティール配色（モックCの色合いを本体に採用。色のみ変更） ===
         bg: '#E7F2EC',
         card: '#FBF7EC',
-        border: '#D8E6DD',
+        // ネオブルータリズム調：枠線は濃いインク色（モックCの作り）
+        border: '#1E3A30',
+        // 内部の薄い区切り線が必要な箇所用に淡色も残す
+        hair: '#D8E6DD',
         text: '#1E3A30',
         sub: '#5E7A6C',
         muted: '#9DB3A8',
@@ -24,15 +27,21 @@ const config: Config = {
         yellow: { DEFAULT: '#E8A93C', light: '#FBF0D6' },
       },
       fontFamily: {
-        sans: ['Noto Sans JP', 'DM Sans', 'sans-serif'],
-        mono: ['DM Sans', 'sans-serif'],
+        // モックC：本文は丸ゴシック、数字・アクセントは Baloo 2
+        sans: ['Zen Maru Gothic', 'Noto Sans JP', 'sans-serif'],
+        mono: ['Baloo 2', 'Zen Maru Gothic', 'sans-serif'],
+      },
+      borderWidth: {
+        // 既定の枠線を太く（ポップ/ブルータリズム調）
+        DEFAULT: '2px',
       },
       borderRadius: {
-        card: '16px',
+        card: '18px',
       },
       boxShadow: {
-        card: '0 2px 12px rgba(0,0,0,0.06)',
-        lg: '0 8px 32px rgba(0,0,0,0.10)',
+        // ハードシャドウ（ぼかし無し・カチッとずらす）
+        card: '4px 4px 0 #1E3A30',
+        lg: '6px 6px 0 #1E3A30',
       },
       animation: {
         slideUp: 'slideUp 0.3s ease',
