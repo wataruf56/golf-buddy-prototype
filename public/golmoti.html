@@ -129,7 +129,7 @@
   .final .be{font-size:48px;display:block;margin-bottom:8px}.final h2{font-weight:900;font-size:25px;line-height:1.4;margin-bottom:10px}.final p{font-size:13px;font-weight:700;color:#6b5440;margin-bottom:20px}
   footer{padding:30px 22px 50px;text-align:center;font-weight:700;font-size:12px;color:#8a7256}footer .fl{font-weight:900;font-size:18px;color:var(--ink);margin-bottom:6px}
   /* スクロールしても常に画面最下部に固定されるCTA */
-  .wrap{padding-bottom:92px}
+  .wrap{padding-bottom:28px}
   .stickybar{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;z-index:120;padding:10px 14px calc(12px + env(safe-area-inset-bottom));background:var(--paper);border-top:3px solid var(--ink)}
   .stickybar a{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--orange);color:var(--cream);font-weight:900;font-size:16px;padding:15px;border:2.5px solid var(--ink);border-radius:14px;box-shadow:4px 4px 0 var(--ink);text-decoration:none;transition:transform .12s,box-shadow .12s}
   .stickybar a:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
@@ -169,7 +169,7 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><div class="logo"><span class="m">⛳</span> ゴルトモ</div><div class="free">いますぐ無料</div></div>
+  <div class="top"><div class="logo"><span class="m">⛳</span> ゴルトモ</div></div>
 
   <!-- HERO (diagnosis as a destination) -->
   <header class="hero">
@@ -234,23 +234,10 @@
     <div class="feat p reveal"><div class="ico">⭐</div><div><h3>レビューで安心</h3><p>相互レビューで信頼が見える。初対面でも気楽に回れる。</p></div></div>
   </section>
 
-  <!-- final -->
-  <div class="final reveal">
-    <span class="be">⛳</span>
-    <h2>あなたのゴルフタイプ、<br>仲間に教えよう。</h2>
-    <p>登録は無料・3秒。同じ熱量の仲間と、次の週末へ。</p>
-    <a class="cta" href="https://goltomo.com/app" data-cta="final" style="background:var(--orange);color:var(--cream)"><span class="li" style="background:var(--cream);color:var(--orange)">L</span>LINEで無料ではじめる</a>
-  </div>
-
   <footer>
     <div class="fl">⛳ ゴルトモ / GOLMOTI</div>同世代のラウンド仲間を探すアプリ<br>© 2026 Goltomo
     <br><button class="dev" id="devBtn">診断ログを表示（開発用）</button>
   </footer>
-</div>
-
-<!-- 画面下に常時固定するCTA（スマホで常に表示） -->
-<div class="stickybar">
-  <a href="https://goltomo.com/app" data-cta="sticky"><span class="li">L</span>LINEで無料ではじめる</a>
 </div>
 
 <div id="dbg"><h4><span>📊 収集中の診断データ（このブラウザ内）</span><button class="x" id="dbgClose">閉じる</button></h4><pre id="dbgPre"></pre></div>
@@ -588,10 +575,6 @@
         <div class="share" style="margin-top:10px">
           <button class="sbtn" id="shareBtn">📤 テキストでシェア</button>
           <button class="sbtn" id="copyBtn">🔗 リンクをコピー</button>
-        </div>
-        <div class="ctawrap">
-          <a class="cta" href="https://goltomo.com/app" data-cta="result"><span class="li">L</span>同じ熱量の仲間を探す（無料）</a>
-          <p class="cta-note">LINEで3秒・めんどうな入力なし</p>
         </div>
         <button class="again" id="again">もう一度診断する</button>
       </div>
