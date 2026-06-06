@@ -14,7 +14,7 @@ export async function GET() {
     me = await db.upsertUser({
       id: meId,
       displayName: isDemoMode ? 'Wataru' : 'ゴルファー',
-      avatar: '⛳', color: '#2D8C4E',
+      avatar: '⛳', color: '#2A8C82',
       age: 0, area: '', scoreRange: '', playStyle: '', frequency: '',
       reviewAvg: 0, reviewCount: 0, roundCount: 0, buddyCount: 0,
     });

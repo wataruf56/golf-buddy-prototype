@@ -95,10 +95,10 @@ export function SwingProgress({ swings }: { swings: SwingDoc[] }) {
           })}
           {pts.length >= 2 && <polygon points={area} fill="url(#swgrad)" />}
           {pts.length >= 2 && (
-            <polyline points={line} fill="none" stroke="#2D8C4E" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+            <polyline points={line} fill="none" stroke="#2A8C82" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
           )}
           {pts.map((p, i) => (
-            <circle key={i} cx={p.x} cy={p.y} r={i === pts.length - 1 ? 5 : 3} fill="#2D8C4E" />
+            <circle key={i} cx={p.x} cy={p.y} r={i === pts.length - 1 ? 5 : 3} fill="#2A8C82" />
           ))}
           <text x={padX} y={H - 6} fontSize="9" fill="#9aa7a0">{scored.length}回の解析</text>
           <text x={W - padX} y={H - 6} fontSize="9" fill="#9aa7a0" textAnchor="end">最新</text>

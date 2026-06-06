@@ -88,8 +88,8 @@ export default function LandingPage() {
               <line x1="10" y1="28" x2="310" y2="28" stroke="#e7ece9" />
               <line x1="10" y1="62" x2="310" y2="62" stroke="#e7ece9" />
               <polygon points="10,90 70,82 130,70 190,56 250,46 310,34 310,100 10,100" fill="url(#lpgrad)" />
-              <polyline points="10,90 70,82 130,70 190,56 250,46 310,34" fill="none" stroke="#2D8C4E" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx="310" cy="34" r="5" fill="#2D8C4E" />
+              <polyline points="10,90 70,82 130,70 190,56 250,46 310,34" fill="none" stroke="#2A8C82" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="310" cy="34" r="5" fill="#2A8C82" />
             </svg>
             <div className="mt-3 flex flex-col gap-2">
               {[

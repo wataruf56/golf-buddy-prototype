@@ -10,7 +10,7 @@ export function Avatar({
   emojiSize?: number;
 }) {
   const fontSize = emojiSize ?? Math.round(size * 0.5);
-  const bg = user?.color ? `${user.color}22` : '#E8F5ED';
+  const bg = user?.color ? `${user.color}22` : '#DCEFEA';
   if (user?.avatarUrl) {
     return (
       <img

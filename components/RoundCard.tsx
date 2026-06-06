@@ -35,7 +35,7 @@ export function RoundCard({ round, host }: { round: Round; host?: User }) {
     <Link
       href={`/round/${round.id}`}
       className="block bg-card rounded-card p-4 mb-2.5 shadow-card cursor-pointer"
-      style={isComp ? { borderLeft: '4px solid #E67E22' } : undefined}
+      style={isComp ? { borderLeft: '4px solid #E8643C' } : undefined}
     >
       {(round.isOfficial || isComp || (round.pendingApplicantIds || []).length > 0 || hasUnread) && (
         <div className="flex items-center gap-1.5 mb-2.5 flex-wrap">

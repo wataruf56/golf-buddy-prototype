@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
         displayName,
         avatar: '⛳',
         avatarUrl: picture,
-        color: '#2D8C4E',
+        color: '#2A8C82',
         age: 0,
         area: '',
         scoreRange: '',

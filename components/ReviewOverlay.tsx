@@ -70,7 +70,7 @@ export function ReviewOverlay() {
               key={n}
               onClick={() => setStars(n)}
               className="text-4xl"
-              style={{ color: n <= stars ? '#F4C542' : '#E8E6E1' }}
+              style={{ color: n <= stars ? '#E8A93C' : '#E8E6E1' }}
             >
               {n <= stars ? '★' : '☆'}
             </button>

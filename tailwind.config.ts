@@ -8,17 +8,20 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        bg: '#FAFAF8',
-        card: '#FFFFFF',
-        border: '#E8E6E1',
-        text: '#1A1A1A',
-        sub: '#6B6B6B',
-        muted: '#A0A0A0',
-        green: { DEFAULT: '#2D8C4E', light: '#E8F5ED', dark: '#1E6B38' },
+        // === レトロ・ティール配色（モックCの色合いを本体に採用。色のみ変更） ===
+        bg: '#E7F2EC',
+        card: '#FBF7EC',
+        border: '#D8E6DD',
+        text: '#1E3A30',
+        sub: '#5E7A6C',
+        muted: '#9DB3A8',
+        // 主役カラー（旧green=ブランド）→ ティール
+        green: { DEFAULT: '#2A8C82', light: '#DCEFEA', dark: '#1F6D63' },
         blue: { DEFAULT: '#3478F6', light: '#EBF2FF' },
-        orange: { DEFAULT: '#E67E22', light: '#FFF3E6' },
+        // アクセント
+        orange: { DEFAULT: '#E8643C', light: '#FCE6DD' },
         red: { DEFAULT: '#E74C3C', light: '#FDEDEC' },
-        yellow: { DEFAULT: '#F4C542', light: '#FFF9E6' },
+        yellow: { DEFAULT: '#E8A93C', light: '#FBF0D6' },
       },
       fontFamily: {
         sans: ['Noto Sans JP', 'DM Sans', 'sans-serif'],
