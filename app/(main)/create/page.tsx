@@ -27,15 +27,43 @@ export default function CreatePage() {
   const [area, setArea] = useState('');
   const [dateType, setDateType] = useState<DateType>('fixed');
   const [dateRange, setDateRange] = useState('');
+  // maxSpots = 自分を含めた合計人数。募集枠 = maxSpots - 1 をさらに性別で内訳。
   const [maxSpots, setMaxSpots] = useState(4);
+  const [spotsMale, setSpotsMale] = useState(0);
+  const [spotsFemale, setSpotsFemale] = useState(0);
   const [price, setPrice] = useState('');
   // Replaced free-form levelCondition string with two structured selectors.
   const [beginnerOnly, setBeginnerOnly] = useState<boolean>(false);
-  const [genderCondition, setGenderCondition] = useState<'any' | 'male' | 'female'>('any');
   const [description, setDescription] = useState('');
 
   const isComp = maxSpots >= 5;
-  const spotsRange = Array.from({ length: 49 }, (_, i) => i + 2); // 2..50
+  const MIN_TOTAL = 2, MAX_TOTAL = 50;
+  const slots = Math.max(0, maxSpots - 1);        // 自分以外の募集枠
+  const spotsAny = Math.max(0, slots - spotsMale - spotsFemale); // どちらでもOK（自動）
+
+  // 合計人数の増減（募集枠が縮むときは内訳を自動で詰める）
+  function changeTotal(delta: number) {
+    const next = Math.max(MIN_TOTAL, Math.min(MAX_TOTAL, maxSpots + delta));
+    const nextSlots = next - 1;
+    const m = Math.min(spotsMale, nextSlots);
+    const f = Math.min(spotsFemale, Math.max(0, nextSlots - m));
+    setMaxSpots(next);
+    setSpotsMale(m);
+    setSpotsFemale(f);
+  }
+  // 男女の手動増減（合計枠を超えないようにクランプ）
+  function changeMale(delta: number) {
+    setSpotsMale((m) => Math.max(0, Math.min(m + delta, slots - spotsFemale)));
+  }
+  function changeFemale(delta: number) {
+    setSpotsFemale((f) => Math.max(0, Math.min(f + delta, slots - spotsMale)));
+  }
+  // 後方互換用の性別条件を内訳から導出（単一性別のみ厳格ゲート）
+  function deriveGenderCondition(): 'any' | 'male' | 'female' {
+    if (spotsAny === 0 && spotsFemale === 0 && spotsMale > 0) return 'male';
+    if (spotsAny === 0 && spotsMale === 0 && spotsFemale > 0) return 'female';
+    return 'any';
+  }
   const timeSlots: string[] = [];
   for (let h = 6; h <= 14; h++) {
     for (let m = 0; m < 60; m += 5) timeSlots.push(`${h}:${String(m).padStart(2, '0')}`);
@@ -57,9 +85,12 @@ export default function CreatePage() {
       dateRange: type === 'flexible' && dateType === 'range' ? dateRange : undefined,
       startTime: type === 'confirmed' ? startTime : undefined,
       maxSpots,
+      spotsMale,
+      spotsFemale,
+      spotsAny,
       price: price || undefined,
       beginnerOnly,
-      genderCondition,
+      genderCondition: deriveGenderCondition(),
       description: description || undefined,
       // Admin-only: request publishing under the ゴルトモ公式 identity. Server
       // re-validates the caller is actually an admin before honoring this.
@@ -213,20 +244,39 @@ export default function CreatePage() {
           )}
 
           <Field label="募集人数" required hint="（2〜50人）">
-            <select
-              value={maxSpots}
-              onChange={(e) => setMaxSpots(parseInt(e.target.value) || 2)}
-              className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
-            >
-              {spotsRange.map((n) => (
-                <option key={n} value={n}>{n}人</option>
-              ))}
-            </select>
+            <div className="flex items-center gap-3">
+              <Stepper value={maxSpots} onMinus={() => changeTotal(-1)} onPlus={() => changeTotal(1)} minusDisabled={maxSpots <= MIN_TOTAL} plusDisabled={maxSpots >= MAX_TOTAL} suffix="人" />
+            </div>
+            <div className="mt-1.5 px-3 py-2 bg-green-light rounded-lg text-[11px] text-green font-bold flex items-center gap-1.5">
+              👤 主催者（あなた）を含めた人数です
+            </div>
+            <div className="mt-1.5 text-xs font-bold text-sub">うち、あなた以外の募集枠：<b className="text-green">{slots}人</b></div>
             {isComp && (
               <div className="mt-2 px-3 py-2.5 bg-orange-light rounded-lg text-xs text-orange font-bold">
                 🏆 5人以上はコンペ・イベント扱いになります
               </div>
             )}
+          </Field>
+
+          <Field label="性別ごとの募集内訳" hint={`（募集枠 ${slots}人）`}>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-black text-blue flex items-center gap-1.5">👨 男性</span>
+                <Stepper sm value={spotsMale} onMinus={() => changeMale(-1)} onPlus={() => changeMale(1)} minusDisabled={spotsMale <= 0} plusDisabled={spotsMale + spotsFemale >= slots} />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-black text-pink-600 flex items-center gap-1.5">👩 女性</span>
+                <Stepper sm value={spotsFemale} onMinus={() => changeFemale(-1)} onPlus={() => changeFemale(1)} minusDisabled={spotsFemale <= 0} plusDisabled={spotsMale + spotsFemale >= slots} />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-black text-sub flex items-center gap-1.5">🙆 どちらでもOK</span>
+                <span className="flex items-center gap-2"><span className="text-[10px] font-bold text-muted">自動</span><span className="text-lg font-black font-mono w-8 text-center">{spotsAny}</span></span>
+              </div>
+            </div>
+            <div className="mt-2.5 px-3 py-2 bg-bg rounded-lg text-[11px] font-bold text-sub">
+              募集枠 {slots}人 ＝ 男性{spotsMale}・女性{spotsFemale}・どちらでも{spotsAny}
+              <span className="block text-[10px] text-muted font-medium mt-0.5">「どちらでもOK」は残り枠から自動計算されます</span>
+            </div>
           </Field>
 
           <Field label="参加条件 - レベル">
@@ -248,22 +298,6 @@ export default function CreatePage() {
             )}
           </Field>
 
-          <Field label="参加条件 - 性別">
-            <div className="flex gap-1.5 flex-wrap">
-              <button
-                onClick={() => setGenderCondition('any')}
-                className={cn('px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px]', genderCondition === 'any' ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub')}
-              >男女OK</button>
-              <button
-                onClick={() => setGenderCondition('male')}
-                className={cn('px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px]', genderCondition === 'male' ? 'bg-blue-light border-blue text-blue' : 'bg-bg border-border text-sub')}
-              >👨 男性のみ</button>
-              <button
-                onClick={() => setGenderCondition('female')}
-                className={cn('px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px]', genderCondition === 'female' ? 'bg-pink-100 border-pink-400 text-pink-600' : 'bg-bg border-border text-sub')}
-              >👩 女性のみ</button>
-            </div>
-          </Field>
 
           <Field label="ひとこと">
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={200} placeholder="募集の趣旨や雰囲気を伝えましょう（200文字以内）" className="w-full h-20 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-none" />
@@ -279,6 +313,25 @@ export default function CreatePage() {
       </div>
       <div className="h-5" />
     </>
+  );
+}
+
+function Stepper({ value, onMinus, onPlus, minusDisabled, plusDisabled, suffix, sm }: {
+  value: number; onMinus: () => void; onPlus: () => void;
+  minusDisabled?: boolean; plusDisabled?: boolean; suffix?: string; sm?: boolean;
+}) {
+  const btn = cn(
+    'flex items-center justify-center font-black border-border bg-card text-text disabled:text-muted disabled:bg-bg',
+    sm ? 'w-10 h-10 text-lg' : 'w-12 h-12 text-xl'
+  );
+  return (
+    <div className="inline-flex items-center border-2 border-border rounded-xl overflow-hidden bg-bg">
+      <button type="button" onClick={onMinus} disabled={minusDisabled} className={cn(btn, 'border-r-2')}>−</button>
+      <div className={cn('text-center font-mono font-black', sm ? 'min-w-[44px] text-lg' : 'min-w-[60px] text-xl')}>
+        {value}{suffix && <span className="text-xs font-bold ml-0.5">{suffix}</span>}
+      </div>
+      <button type="button" onClick={onPlus} disabled={plusDisabled} className={cn(btn, 'border-l-2')}>＋</button>
+    </div>
   );
 }
 

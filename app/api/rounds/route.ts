@@ -23,8 +23,28 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const cohort = getCohort(me?.age) || undefined;
   const beginnerOnly = !!body.beginnerOnly;
+
+  // 性別ごとの募集内訳。指定があればそれを正とし、maxSpots（＝主催者1＋募集枠）を再計算する。
+  // 旧クライアント（内訳なし）は maxSpots をそのまま使い、全枠を「どちらでもOK」とみなす。
+  const clampN = (v: any) => Math.max(0, Math.min(49, Math.floor(Number(v) || 0)));
+  const hasBreakdown = ['spotsMale', 'spotsFemale', 'spotsAny'].some((k) => k in body);
+  let spotsMale = clampN(body.spotsMale);
+  let spotsFemale = clampN(body.spotsFemale);
+  let spotsAny = clampN(body.spotsAny);
+  let maxSpots: number;
+  if (hasBreakdown) {
+    let slots = spotsMale + spotsFemale + spotsAny;
+    if (slots < 1) { spotsAny = 1; slots = 1; } // 最低1枠
+    maxSpots = Math.min(50, slots + 1);
+  } else {
+    maxSpots = Math.max(2, Math.min(50, Number(body.maxSpots) || 2));
+    spotsMale = 0; spotsFemale = 0; spotsAny = maxSpots - 1;
+  }
+  // 後方互換の性別条件をサーバー側で内訳から導出（単一性別のみ厳格ゲート）
   const genderCondition: 'any' | 'male' | 'female' =
-    body.genderCondition === 'male' || body.genderCondition === 'female' ? body.genderCondition : 'any';
+    spotsAny === 0 && spotsFemale === 0 && spotsMale > 0 ? 'male'
+    : spotsAny === 0 && spotsMale === 0 && spotsFemale > 0 ? 'female'
+    : 'any';
   const round: Omit<Round, 'id'> = {
     hostId: meId,
     hostCohort: cohort,
@@ -36,7 +56,10 @@ export async function POST(req: NextRequest) {
     date: body.date,
     dateRange: body.dateRange,
     startTime: body.startTime,
-    maxSpots: Math.max(1, Math.min(50, Number(body.maxSpots) || 1)),
+    maxSpots,
+    spotsMale,
+    spotsFemale,
+    spotsAny,
     currentCount: 1,
     applicantIds: [],
     price: body.price,
@@ -47,7 +70,7 @@ export async function POST(req: NextRequest) {
     levelCondition: levelConditionLabel({ beginnerOnly, genderCondition, levelCondition: '' }),
     description: body.description,
     status: 'open',
-    isCompetition: (Number(body.maxSpots) || 1) >= 5,
+    isCompetition: maxSpots >= 5,
     // "ゴルトモ公式" は管理者（福田渉）のみが選択可能。クライアントの申告は
     // 信用せず、サーバー側で管理者であることを再検証してから true にする。
     isOfficial: !!body.asOfficial && isAdminUserId(meId),

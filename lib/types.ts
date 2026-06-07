@@ -61,7 +61,13 @@ export type Round = {
   date?: string;
   dateRange?: string;
   startTime?: string;
+  // maxSpots = 主催者(1) + 募集枠。つまり「自分を含めた合計人数」。
   maxSpots: number;
+  // 募集枠（＝maxSpots-1）の性別内訳。未設定の旧データは「すべてどちらでもOK」とみなす。
+  // spotsMale + spotsFemale + spotsAny = maxSpots - 1。
+  spotsMale?: number;   // 男性の募集枠
+  spotsFemale?: number; // 女性の募集枠
+  spotsAny?: number;    // どちらでもOKの募集枠
   currentCount: number;
   applicantIds: string[];
   pendingApplicantIds?: string[];
