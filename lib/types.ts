@@ -12,6 +12,8 @@ export type User = {
   scoreRange: string;
   playStyle: string;
   frequency: string;
+  // ゴルフ性格診断「GOLMOTI」の16タイプコード（例: 'GWST'）。未診断なら未設定。
+  golmotiType?: string;
   avatar: string;
   avatarUrl?: string;
   color: string;

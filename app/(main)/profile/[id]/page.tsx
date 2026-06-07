@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useStore, getMe } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
+import { GolmotiBadge } from '@/components/GolmotiBadge';
 import { toast } from '@/components/Toast';
 import type { Review, User } from '@/lib/types';
 import { chatIdFor, formatRating, carLabel } from '@/lib/utils';
@@ -109,6 +110,11 @@ export default function ProfilePage() {
         </div>
         <div className="text-xl font-black">{user.displayName}</div>
         <div className="text-[13px] text-sub mt-1">{user.age}歳 ・ {user.area}{carLabel(user.car) ? ' ・ ' + carLabel(user.car) : ''}</div>
+        {user.golmotiType && (
+          <div className="mt-2.5 flex justify-center">
+            <GolmotiBadge code={user.golmotiType} link />
+          </div>
+        )}
       </div>
 
       <div className="flex gap-2 mb-5">

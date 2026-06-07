@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { getMe, store, useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
+import { GolmotiBadge } from '@/components/GolmotiBadge';
 import { NotifySettings } from '@/components/NotifySettings';
 import { AppUpdateButton } from '@/components/AppUpdateButton';
 import { PracticeCalendar } from '@/components/swing/PracticeCalendar';
@@ -133,6 +134,11 @@ export default function MyPage() {
               <div className="text-xs text-sub">
                 {[me.area || null, me.playStyle || null, me.frequency || null].filter(Boolean).join(' ・ ') || 'プロフィールを編集してください'}
               </div>
+              {me.golmotiType && (
+                <div className="mt-2">
+                  <GolmotiBadge code={me.golmotiType} link />
+                </div>
+              )}
             </div>
           </div>
           <div className="flex gap-2">

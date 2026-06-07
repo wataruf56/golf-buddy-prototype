@@ -7,6 +7,7 @@ import { toast } from '@/components/Toast';
 import { Avatar } from '@/components/Avatar';
 import { track } from '@/lib/telemetry';
 import { allAreas } from '@/lib/mockData';
+import { GOLMOTI_TYPES } from '@/lib/golmoti';
 import type { Gender, CarStatus, ScoreEntry } from '@/lib/types';
 
 const playStyles = [
@@ -66,6 +67,7 @@ export default function ProfileEditPage() {
   const [area, setArea] = useState('');
   const [scoreRange, setScoreRange] = useState('');
   const [playStyle, setPlayStyle] = useState('');
+  const [golmotiType, setGolmotiType] = useState('');
   const [frequency, setFrequency] = useState('');
   const [recentScores, setRecentScores] = useState<ScoreEntry[]>([]);
   const [golfHistory, setGolfHistory] = useState('');
@@ -88,6 +90,7 @@ export default function ProfileEditPage() {
     setArea(me.area || '');
     setScoreRange(me.scoreRange || '');
     setPlayStyle(me.playStyle || '');
+    setGolmotiType(me.golmotiType || '');
     setFrequency(me.frequency || '');
     setRecentScores(Array.isArray(me.recentScores) ? me.recentScores : []);
     setGolfHistory(me.golfHistory || '');
@@ -164,6 +167,7 @@ export default function ProfileEditPage() {
         car: (car || undefined) as CarStatus | undefined,
         bio,
         area, scoreRange, playStyle, frequency, avatar,
+        golmotiType: golmotiType || '',
         avatarUrl: avatarUrl || '',
         recentScores: cleanedScores,
         golfHistory,
@@ -341,6 +345,22 @@ export default function ProfileEditPage() {
               <button key={s} onClick={() => setPlayStyle(playStyle === s ? '' : s)} className={`px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px] ${playStyle === s ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub'}`}>{s}</button>
             ))}
           </div>
+        </Field>
+
+        <Field label="ゴルフ診断タイプ（GOLMOTI）" hint="（任意）">
+          <select
+            value={golmotiType}
+            onChange={(e) => setGolmotiType(e.target.value)}
+            className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
+          >
+            <option value="">未設定</option>
+            {GOLMOTI_TYPES.map((t) => (
+              <option key={t.code} value={t.code}>{t.emoji} {t.name}（{t.code}）</option>
+            ))}
+          </select>
+          <a href="/golmoti" className="inline-block mt-2 text-[11px] font-bold text-green underline">
+            まだの人は無料診断でチェック →
+          </a>
         </Field>
 
         <Field label="プレー頻度" hint="（任意）">
