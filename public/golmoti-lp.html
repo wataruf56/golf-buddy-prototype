@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#F4E8CE" />
+<title>ゴルフ性格診断 GOLMOTI — 紹介LP（試作）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Baloo+2:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  :root{--paper:#F4E8CE;--card:#FBF3E0;--ink:#33271B;--sub:#8a7256;--orange:#E8643C;--teal:#2A8C82;--mustard:#E8A93C;--cream:#FBF3E0;--green:#5BA86A;--line:#06C755}
+  html{scroll-behavior:smooth}
+  body{font-family:'Zen Maru Gothic',sans-serif;background:var(--paper);color:var(--ink);line-height:1.7;overflow-x:hidden;font-weight:500}
+  .wrap{max-width:480px;margin:0 auto;background:var(--paper);position:relative;overflow:hidden;padding-bottom:92px;background-image:radial-gradient(circle,rgba(51,39,27,.05) 1px,transparent 1.4px);background-size:8px 8px}
+  .baloo{font-family:'Baloo 2',cursive}
+  .top{display:flex;align-items:center;justify-content:space-between;padding:14px 18px}
+  .logo{display:flex;align-items:center;gap:8px;font-weight:900;font-size:19px}
+  .logo .m{width:34px;height:34px;background:var(--orange);color:var(--cream);border-radius:50%;display:grid;place-items:center;font-size:17px;border:2.5px solid var(--ink)}
+  .free{background:var(--mustard);font-weight:900;font-size:12px;padding:7px 13px;border-radius:999px;border:2.5px solid var(--ink)}
+  /* hero */
+  .hero{padding:14px 22px 30px;text-align:center;position:relative}
+  .kicker{display:inline-block;background:var(--teal);color:var(--cream);font-weight:900;font-size:12px;padding:6px 14px;border-radius:999px;border:2.5px solid var(--ink);margin-bottom:14px;transform:rotate(-2deg)}
+  .brand{font-family:'Baloo 2';font-weight:800;font-size:44px;line-height:1;color:var(--orange);text-shadow:3px 3px 0 var(--ink);margin-bottom:4px}
+  .brandsub{font-weight:900;font-size:14px;margin-bottom:16px}
+  .hh{font-weight:900;font-size:30px;line-height:1.35;margin-bottom:14px}
+  .hh .hl{background:var(--mustard);padding:0 7px;border-radius:6px;box-shadow:2px 2px 0 var(--ink)}
+  .heroface{display:flex;gap:6px;justify-content:center;margin:14px 0}
+  .heroface .mascot{width:62px;height:62px}
+  .hsub{font-size:14px;font-weight:700;color:var(--sub);max-width:30ch;margin:6px auto 0}
+  .metarow{display:flex;gap:8px;justify-content:center;margin-top:14px}
+  .metarow .chip{background:var(--card);border:2px solid var(--ink);border-radius:999px;font-weight:900;font-size:11px;padding:5px 11px}
+  /* sections */
+  section{padding:40px 22px}
+  .secttl{font-weight:900;font-size:23px;text-align:center;line-height:1.4;margin-bottom:6px}
+  .seclead{font-size:13px;font-weight:700;color:var(--sub);text-align:center;margin-bottom:22px}
+  /* axes */
+  .axrow{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:2.5px solid var(--ink);border-radius:12px;padding:11px 14px;margin-bottom:9px;font-weight:900;font-size:13.5px;box-shadow:3px 3px 0 var(--ink)}
+  .axrow .mid{font-size:11px;color:#b3a489}
+  /* 16 grid */
+  .grid16{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  .tcard{background:var(--card);border:2.5px solid var(--ink);border-radius:14px;padding:10px 8px;text-align:center;box-shadow:3px 3px 0 var(--ink)}
+  .tcard .mascot{width:54px;height:54px;margin:0 auto}
+  .tcard .c{font-family:'Baloo 2';font-weight:800;font-size:11px;letter-spacing:.08em;color:#8a7256;margin-top:3px}
+  .tcard .n{font-weight:900;font-size:12px;margin-top:1px;line-height:1.3}
+  /* sample result */
+  .samp{background:var(--ink);color:var(--cream);border-radius:20px;padding:22px;text-align:center;box-shadow:5px 5px 0 rgba(51,39,27,.4)}
+  .samp .lbl{font-weight:900;font-size:11px;letter-spacing:.14em;color:var(--mustard);margin-bottom:8px}
+  .samp .mascot{width:104px;height:104px;margin:0 auto}
+  .samp .code{font-family:'Baloo 2';font-weight:800;font-size:16px;letter-spacing:.1em;color:var(--mustard);margin-top:4px}
+  .samp .nm{font-weight:900;font-size:22px;margin:2px 0 5px}
+  .samp .tg{font-size:12.5px;font-weight:700;color:rgba(251,243,224,.82);margin-bottom:14px}
+  .abar{margin:0 6px 10px;text-align:left}
+  .abar .lab{display:flex;justify-content:space-between;font-weight:900;font-size:11px;margin-bottom:4px;color:rgba(251,243,224,.9)}
+  .abar .track{position:relative;height:11px;background:#4a3a2c;border:2px solid var(--cream);border-radius:99px}
+  .abar .fill{position:absolute;top:0;bottom:0;left:0;background:var(--mustard);border-radius:99px}
+  .abar .dot{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;background:var(--orange);border:2.5px solid var(--cream);transform:translate(-50%,-50%)}
+  .matchchip{display:flex;align-items:center;gap:10px;justify-content:center;background:#2c4339;border:2px solid var(--cream);border-radius:14px;padding:10px;margin-top:6px}
+  .matchchip .mascot{width:44px;height:44px}
+  .matchchip .mt{text-align:left}.matchchip .ml{font-size:10px;font-weight:900;color:var(--green)}.matchchip .mn{font-weight:900;font-size:13px}
+  /* steps */
+  .step{display:flex;gap:14px;align-items:center;background:var(--card);border:2.5px solid var(--ink);border-radius:16px;padding:15px;box-shadow:4px 4px 0 var(--ink);margin-bottom:13px}
+  .step .n{flex-shrink:0;width:42px;height:42px;border-radius:50%;background:var(--mustard);border:2.5px solid var(--ink);display:grid;place-items:center;font-family:'Baloo 2';font-weight:800;font-size:20px}
+  .step h4{font-weight:900;font-size:15px}.step p{font-size:12.5px;font-weight:700;color:var(--sub)}
+  /* final */
+  .final{margin:10px 16px 0;background:var(--mustard);border:2.5px solid var(--ink);border-radius:24px;box-shadow:7px 7px 0 var(--ink);padding:40px 26px;text-align:center}
+  .final .be{font-size:48px;display:block;margin-bottom:8px}
+  .final h2{font-weight:900;font-size:25px;line-height:1.4;margin-bottom:10px}
+  .final p{font-size:13px;font-weight:700;color:#6b5440;margin-bottom:20px}
+  .cta{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--line);color:#fff;font-weight:900;font-size:17px;padding:16px;border:2.5px solid var(--ink);border-radius:14px;box-shadow:4px 4px 0 var(--ink);cursor:pointer;text-decoration:none}
+  .cta .li{width:24px;height:24px;background:#fff;color:var(--line);border-radius:7px;display:grid;place-items:center;font-weight:900;font-size:13px;border:2px solid var(--ink)}
+  .cta-note{font-size:11.5px;font-weight:700;color:#8a7256;text-align:center;margin-top:10px}
+  footer{padding:30px 22px 40px;text-align:center;font-weight:700;font-size:12px;color:var(--sub)}footer .fl{font-weight:900;font-size:18px;color:var(--ink);margin-bottom:6px}
+  /* sticky */
+  .stickybar{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;z-index:120;padding:10px 14px calc(12px + env(safe-area-inset-bottom));background:var(--paper);border-top:3px solid var(--ink)}
+  .stickybar a{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--line);color:#fff;font-weight:900;font-size:16px;padding:15px;border:2.5px solid var(--ink);border-radius:14px;box-shadow:4px 4px 0 var(--ink);text-decoration:none}
+  .stickybar .li{width:24px;height:24px;background:#fff;color:var(--line);border-radius:7px;display:grid;place-items:center;font-weight:900;font-size:13px;border:2px solid var(--ink)}
+  .mascot{display:inline-block;line-height:0}.mascot svg{display:block;width:100%;height:100%}
+  .reveal{opacity:0;transform:translateY(20px);transition:opacity .5s,transform .5s cubic-bezier(.2,.8,.2,1.05)}.reveal.in{opacity:1;transform:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><div class="logo"><span class="m">⛳</span> ゴルトモ</div><div class="free">無料</div></div>
+
+  <header class="hero">
+    <div class="kicker">⛳ ゴルフ性格診断・新登場</div>
+    <div class="brand">GOLMOTI</div>
+    <div class="brandsub">ゴルモチ — ゴルフ版16タイプ診断</div>
+    <div class="hh">あなたの<br><span class="hl">ゴルフタイプ</span>、<br>知ってる？</div>
+    <div class="heroface" id="heroface"></div>
+    <p class="hsub">1分・無料。12の質問で、あなたのゴルフ人格が16タイプでわかる。</p>
+    <div class="metarow"><span class="chip">⏱ 約1分</span><span class="chip">全12問</span><span class="chip">16タイプ</span></div>
+  </header>
+
+  <!-- 何がわかる -->
+  <section>
+    <div class="secttl">4つの軸で<br>あなたを診断</div>
+    <div class="seclead">プレースタイル・社交性・攻め方・向上心からタイプを判定</div>
+    <div class="axrow reveal"><span>🔥 ガチ</span><span class="mid">vs</span><span>エンジョイ 😎</span></div>
+    <div class="axrow reveal"><span>🎉 ワイワイ</span><span class="mid">vs</span><span>マイペース 🧘</span></div>
+    <div class="axrow reveal"><span>⚔️ 攻め</span><span class="mid">vs</span><span>堅実 🛡️</span></div>
+    <div class="axrow reveal"><span>📈 探求</span><span class="mid">vs</span><span>今を満喫 🌴</span></div>
+  </section>
+
+  <!-- 16タイプ図鑑 -->
+  <section style="padding-top:6px">
+    <div class="secttl">ぜんぶで<br>16タイプ</div>
+    <div class="seclead">あなたはどの動物？</div>
+    <div class="grid16" id="grid16"></div>
+  </section>
+
+  <!-- 結果イメージ -->
+  <section style="padding-top:6px">
+    <div class="secttl">こんな結果が<br>出ます</div>
+    <div class="seclead">タイプ・4軸バランス・相性まで一目でわかる</div>
+    <div class="samp" id="sample"></div>
+  </section>
+
+  <!-- はじめ方 -->
+  <section style="padding-top:6px">
+    <div class="secttl">はじめ方</div>
+    <div class="seclead">無料・登録かんたん</div>
+    <div class="step reveal"><div class="n">1</div><div><h4>「無料で始める」をタップ</h4><p>LINEで友だち追加するだけ</p></div></div>
+    <div class="step reveal"><div class="n">2</div><div><h4>1分で診断</h4><p>12の質問に答えてタイプ判定</p></div></div>
+    <div class="step reveal"><div class="n">3</div><div><h4>仲間とつながる</h4><p>同じ熱量のラウンド仲間を探せる</p></div></div>
+  </section>
+
+  <div class="final reveal">
+    <span class="be">⛳</span>
+    <h2>まずは無料で<br>診断してみる？</h2>
+    <p>あなたのゴルフタイプ、1分でわかります。</p>
+    <a class="cta" href="https://lin.ee/h6hse4O"><span class="li">L</span>無料で始める</a>
+    <p class="cta-note" style="margin-top:12px">LINE公式アカウントから診断スタート</p>
+  </div>
+
+  <footer><div class="fl">⛳ ゴルトモ / GOLMOTI</div>同世代のラウンド仲間を探すアプリ<br>© 2026 Goltomo</footer>
+</div>
+
+<div class="stickybar"><a href="https://lin.ee/h6hse4O"><span class="li">L</span>無料で始める</a></div>
+
+<script>
+  /* ===== 軸・タイプ・動物マスコット（本体LPから流用） ===== */
+  const AX={
+    A:{left:{c:'G',l:'ガチ'}, right:{c:'E',l:'エンジョイ'}},
+    B:{left:{c:'W',l:'ワイワイ'}, right:{c:'M',l:'マイペース'}},
+    C:{left:{c:'S',l:'攻め'}, right:{c:'K',l:'堅実'}},
+    D:{left:{c:'T',l:'探求'}, right:{c:'I',l:'今満喫'}},
+  };
+  const NICK={
+    GWST:{n:'ピン一直線・攻め込み派',t:'旗を直接狙う、チームを引っ張る攻撃型',an:'トラ'},
+    GWSI:{n:'とにかく飛ばしたい派',an:'ライオン'},GWKT:{n:'計算して刻む派',an:'キツネ'},GWKI:{n:'手堅くパー拾い派',an:'イヌ'},
+    GMST:{n:'黙って高み狙い派',an:'ワシ'},GMSI:{n:'一発逆転ねらい派',an:'ヒョウ'},GMKT:{n:'黙々スコアメイク派',an:'フクロウ'},GMKI:{n:'ブレずに安全運転派',an:'カメ'},
+    EWST:{n:'楽しく攻めて伸びる派',an:'イルカ'},EWSI:{n:'ノリで振り回す派',an:'サル'},EWKT:{n:'みんなでコツコツ上達派',an:'ビーバー'},EWKI:{n:'スコアより笑顔派',an:'クマ'},
+    EMST:{n:'自由きまま攻め派',an:'オオカミ'},EMSI:{n:'気分で大胆ショット派',an:'ネコ'},EMKT:{n:'コツコツ自分磨き派',an:'ハムスター'},EMKI:{n:'のんびりフェアウェイ散歩派',an:'ナマケモノ'},
+  };
+  function bgRect(c){return '<rect x="3" y="3" width="114" height="118" rx="30" fill="'+c+'"/>';}
+  function EYE(lx,rx,y){return `<circle cx="${lx}" cy="${y}" r="7" fill="#fff"/><circle cx="${rx}" cy="${y}" r="7" fill="#fff"/><circle cx="${lx+1}" cy="${y+1}" r="3.6" fill="#2a2018"/><circle cx="${rx-1}" cy="${y+1}" r="3.6" fill="#2a2018"/><circle cx="${lx+2.4}" cy="${y-1.4}" r="1.3" fill="#fff"/><circle cx="${rx+0.4}" cy="${y-1.4}" r="1.3" fill="#fff"/>`;}
+  function tLong(c){return `<path d="M84 96 q24 4 26 -14" stroke="${c}" stroke-width="7" fill="none" stroke-linecap="round"/>`;}
+  function tBush(c,t){return `<ellipse cx="96" cy="90" rx="12" ry="9" transform="rotate(25 96 90)" fill="${c}"/>`+(t?`<ellipse cx="105" cy="80" rx="6" ry="6" fill="${t}"/>`:'');}
+  function tTuft(c){return tLong(c)+`<circle cx="110" cy="80" r="6" fill="#C8721E"/>`;}
+  function tFlat(c){return `<ellipse cx="92" cy="108" rx="15" ry="7" fill="${c}"/>`;}
+  function tCurl(c){return `<path d="M84 92 q22 -2 17 -22 q-3 -10 -11 -7" stroke="${c}" stroke-width="6" fill="none" stroke-linecap="round"/>`;}
+  function tSmall(c){return `<circle cx="89" cy="98" r="6" fill="${c}"/>`;}
+  function mammal(o){
+    const fur=o.fur, eF=o.earFill||fur, inner=o.earInner, ear=o.ear;
+    let ears='';
+    if(ear==='pointy') ears=`<path d="M45 30 L37 8 L59 26 Z" fill="${eF}"/><path d="M75 30 L83 8 L61 26 Z" fill="${eF}"/>`+(inner?`<path d="M47 27 L42 15 L55 25 Z" fill="${inner}"/><path d="M73 27 L78 15 L65 25 Z" fill="${inner}"/>`:'');
+    else if(ear==='round') ears=`<circle cx="42" cy="24" r="11" fill="${eF}"/><circle cx="78" cy="24" r="11" fill="${eF}"/>`+(inner?`<circle cx="42" cy="24" r="5.5" fill="${inner}"/><circle cx="78" cy="24" r="5.5" fill="${inner}"/>`:'');
+    else if(ear==='floppy') ears=`<ellipse cx="38" cy="40" rx="10" ry="18" fill="${eF}"/><ellipse cx="82" cy="40" rx="10" ry="18" fill="${eF}"/>`;
+    else if(ear==='tiny') ears=`<circle cx="46" cy="26" r="7" fill="${eF}"/><circle cx="74" cy="26" r="7" fill="${eF}"/>`+(inner?`<circle cx="46" cy="26" r="3.5" fill="${inner}"/><circle cx="74" cy="26" r="3.5" fill="${inner}"/>`:'');
+    const body=`<ellipse cx="35" cy="84" rx="7" ry="11" fill="${fur}"/><ellipse cx="85" cy="84" rx="7" ry="11" fill="${fur}"/><ellipse cx="49" cy="113" rx="9" ry="6" fill="${fur}"/><ellipse cx="71" cy="113" rx="9" ry="6" fill="${fur}"/><ellipse cx="60" cy="92" rx="27" ry="22" fill="${fur}"/>`+(o.belly?`<ellipse cx="60" cy="96" rx="15" ry="15" fill="${o.belly}"/>`:'');
+    const muz=o.muzzle?`<ellipse cx="60" cy="53" rx="13" ry="9" fill="${o.muzzle}"/>`:'';
+    const eyes=o.eyes||`<circle cx="50" cy="44" r="5.4" fill="#fff"/><circle cx="70" cy="44" r="5.4" fill="#fff"/><circle cx="51" cy="45" r="2.9" fill="#2a2018"/><circle cx="69" cy="45" r="2.9" fill="#2a2018"/><circle cx="52.3" cy="43" r="1.1" fill="#fff"/><circle cx="70.3" cy="43" r="1.1" fill="#fff"/>`;
+    const nose=o.noseHide?'':`<ellipse cx="60" cy="50" rx="4.4" ry="3.2" fill="${o.nose||'#33271B'}"/>`;
+    return `<svg viewBox="0 0 120 124" xmlns="http://www.w3.org/2000/svg">${bgRect(o.bg)}${o.tail||''}${body}${o.before||''}${ears}<circle cx="60" cy="46" r="26" fill="${fur}"/>${muz}${o.after||''}${eyes}${nose}${o.front||''}</svg>`;
+  }
+  function maneRing(c){let s='<g fill="'+c+'">';for(let i=0;i<12;i++){const a=i/12*6.2832;s+='<circle cx="'+(60+Math.cos(a)*31).toFixed(1)+'" cy="'+(46+Math.sin(a)*31).toFixed(1)+'" r="9"/>';}return s+'</g>';}
+  function bird(o){return `<svg viewBox="0 0 120 124" xmlns="http://www.w3.org/2000/svg">${bgRect(o.bg)}<ellipse cx="34" cy="86" rx="9" ry="14" fill="${o.body}"/><ellipse cx="86" cy="86" rx="9" ry="14" fill="${o.body}"/><ellipse cx="49" cy="114" rx="8" ry="5" fill="${o.beak}"/><ellipse cx="71" cy="114" rx="8" ry="5" fill="${o.beak}"/><ellipse cx="60" cy="90" rx="26" ry="22" fill="${o.body}"/><circle cx="60" cy="44" r="26" fill="${o.body}"/><path d="M35 48 Q60 12 85 48 Q85 64 60 66 Q35 64 35 48 Z" fill="${o.head}"/>${EYE(50,70,42)}<path d="M53 50 H67 L61 61 Q60 64 59 61 Z" fill="${o.beak}"/></svg>`;}
+  function owl(o){return `<svg viewBox="0 0 120 124" xmlns="http://www.w3.org/2000/svg">${bgRect(o.bg)}<ellipse cx="49" cy="114" rx="8" ry="5" fill="${o.beak}"/><ellipse cx="71" cy="114" rx="8" ry="5" fill="${o.beak}"/><path d="M34 36 L44 14 L52 38 Z" fill="${o.body}"/><path d="M86 36 L76 14 L68 38 Z" fill="${o.body}"/><ellipse cx="60" cy="72" rx="34" ry="40" fill="${o.body}"/><circle cx="48" cy="56" r="15" fill="${o.face}"/><circle cx="72" cy="56" r="15" fill="${o.face}"/><circle cx="48" cy="56" r="9" fill="#fff"/><circle cx="72" cy="56" r="9" fill="#fff"/><circle cx="48" cy="57" r="5" fill="#2a2018"/><circle cx="72" cy="57" r="5" fill="#2a2018"/><circle cx="50" cy="55" r="1.6" fill="#fff"/><circle cx="74" cy="55" r="1.6" fill="#fff"/><path d="M60 62 l-5 7 h10 z" fill="${o.beak}"/></svg>`;}
+  function turtle(o){return `<svg viewBox="0 0 120 124" xmlns="http://www.w3.org/2000/svg">${bgRect(o.bg)}<g fill="${o.head}"><ellipse cx="32" cy="92" rx="9" ry="7"/><ellipse cx="88" cy="92" rx="9" ry="7"/><ellipse cx="46" cy="112" rx="9" ry="7"/><ellipse cx="74" cy="112" rx="9" ry="7"/></g><circle cx="60" cy="40" r="16" fill="${o.head}"/>${EYE(54,66,38)}<ellipse cx="60" cy="84" rx="36" ry="30" fill="${o.shell}"/><polygon points="60,64 78,76 71,96 49,96 42,76" fill="${o.shellDark}"/><g stroke="${o.shellDark}" stroke-width="3" fill="none"><path d="M60 64 V54"/><path d="M78 76 L92 70"/><path d="M71 96 L80 108"/><path d="M49 96 L40 108"/><path d="M42 76 L28 70"/></g></svg>`;}
+  function dolphin(o){return `<svg viewBox="0 0 120 124" xmlns="http://www.w3.org/2000/svg">${bgRect(o.bg)}<path d="M58 40 Q72 24 80 40 Q73 44 66 48 Z" fill="${o.body}"/><path d="M24 96 Q20 54 60 46 Q100 42 98 66 Q97 74 88 72 Q64 66 50 84 Q40 98 30 98 Q22 98 24 96 Z" fill="${o.body}"/><path d="M22 96 Q34 90 44 96 Q34 80 22 96 Z" fill="${o.body}"/><path d="M36 86 Q54 80 70 86 Q54 66 36 86 Z" fill="${o.belly}"/><circle cx="80" cy="60" r="4.8" fill="#fff"/><circle cx="80" cy="60" r="2.8" fill="#2a2018"/><path d="M86 66 Q92 68 97 64" stroke="#2a2018" stroke-width="2" fill="none" stroke-linecap="round"/></svg>`;}
+  const STRIPES=`<path d="M60 23 l-4 9 h8 z" fill="#6b4420"/><path d="M45 36 q4 5 1 11" stroke="#6b4420" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M75 36 q-4 5 -1 11" stroke="#6b4420" stroke-width="2.6" fill="none" stroke-linecap="round"/>`;
+  const SPOTS=`<g fill="#6b4420" opacity=".7"><circle cx="46" cy="34" r="2.6"/><circle cx="74" cy="34" r="2.6"/><circle cx="42" cy="50" r="2.3"/><circle cx="78" cy="50" r="2.3"/><circle cx="50" cy="92" r="3"/><circle cx="70" cy="92" r="3"/><circle cx="60" cy="100" r="2.6"/></g>`;
+  const WHISK=`<g stroke="#9aa0a8" stroke-width="1.8" stroke-linecap="round"><line x1="48" y1="52" x2="30" y2="48"/><line x1="48" y1="55" x2="30" y2="58"/><line x1="72" y1="52" x2="90" y2="48"/><line x1="72" y1="55" x2="90" y2="58"/></g>`;
+  const TEETH=`<rect x="56" y="56" width="8" height="9" rx="2" fill="#fff" stroke="#d8c9a8" stroke-width="1"/><line x1="60" y1="56" x2="60" y2="65" stroke="#d8c9a8" stroke-width="1.2"/>`;
+  const BLUSH=`<circle cx="44" cy="53" r="5" fill="#F4A28C" opacity=".7"/><circle cx="76" cy="53" r="5" fill="#F4A28C" opacity=".7"/>`;
+  const SLEEPY=`<ellipse cx="50" cy="45" rx="9" ry="7" fill="#6b6456"/><ellipse cx="70" cy="45" rx="9" ry="7" fill="#6b6456"/><path d="M45 45 q5 4 10 0" stroke="#2a2018" stroke-width="2.2" fill="none" stroke-linecap="round"/><path d="M65 45 q5 4 10 0" stroke="#2a2018" stroke-width="2.2" fill="none" stroke-linecap="round"/>`;
+  const MAS={
+    GWST: mammal({bg:'#FFE3BF',fur:'#F2933A',ear:'pointy',earInner:'#FFF',muzzle:'#FFF3E0',belly:'#FFF3E0',after:STRIPES,tail:tLong('#F2933A')}),
+    GWSI: mammal({bg:'#FFEDCB',fur:'#E8A93C',ear:'round',muzzle:'#FBE6C2',before:maneRing('#C8721E'),tail:tTuft('#E8A93C')}),
+    GWKT: mammal({bg:'#FFE0D2',fur:'#E8643C',ear:'pointy',earInner:'#FFF',muzzle:'#FFF6EF',belly:'#FFF6EF',tail:tBush('#E8643C','#FFF6EF')}),
+    GWKI: mammal({bg:'#ECDCC4',fur:'#C08A50',ear:'floppy',muzzle:'#EAD6B8',belly:'#EAD6B8',tail:tSmall('#C08A50')}),
+    GMST: bird({bg:'#CFE6E4',body:'#7A6A55',head:'#F4F1E7',beak:'#E8A93C'}),
+    GMSI: mammal({bg:'#FFF1C8',fur:'#E6B84E',ear:'round',earInner:'#FFF',muzzle:'#FBEFD0',after:SPOTS,tail:tLong('#E6B84E')}),
+    GMKT: owl({bg:'#D9E7D2',body:'#8A6A45',face:'#D9C29A',beak:'#E8A93C'}),
+    GMKI: turtle({bg:'#CFE7DA',shell:'#3E8E5A',shellDark:'#2E6E44',head:'#86C091'}),
+    EWST: dolphin({bg:'#CFE6F4',body:'#56A6C9',belly:'#EAF6FB'}),
+    EWSI: mammal({bg:'#ECDCC4',fur:'#8A5A33',ear:'round',earFill:'#8A5A33',earInner:'#D8B488',muzzle:'#D8B488',belly:'#D8B488',tail:tCurl('#8A5A33')}),
+    EWKT: mammal({bg:'#ECDCC4',fur:'#9A6A3C',ear:'tiny',muzzle:'#C49A6A',front:TEETH,tail:tFlat('#7A5230')}),
+    EWKI: mammal({bg:'#ECDCC4',fur:'#7E5C3C',ear:'round',muzzle:'#C9A87A',belly:'#C9A87A',tail:tSmall('#7E5C3C')}),
+    EMST: mammal({bg:'#DDE1E7',fur:'#8A93A0',ear:'pointy',earInner:'#C9CED6',muzzle:'#C9CED6',belly:'#C9CED6',tail:tBush('#8A93A0','#C9CED6')}),
+    EMSI: mammal({bg:'#FFE0E8',fur:'#AEB4BC',ear:'pointy',earInner:'#FFD7E0',muzzle:'#EDEFF2',belly:'#EDEFF2',front:WHISK,tail:tLong('#AEB4BC')}),
+    EMKT: mammal({bg:'#FFE9CF',fur:'#E8C49A',ear:'tiny',earInner:'#FBD9C0',muzzle:'#FBEAD6',belly:'#FBEAD6',front:BLUSH,tail:tSmall('#E8C49A')}),
+    EMKI: mammal({bg:'#DDD8C8',fur:'#9A9486',ear:'round',muzzle:'#C7C2B2',belly:'#C7C2B2',eyes:SLEEPY,tail:tSmall('#9A9486')}),
+  };
+  function mascotHTML(code,cls){ return '<span class="mascot '+(cls||'')+'">'+(MAS[code]||'')+'</span>'; }
+
+  /* ヒーローの動物（4体） */
+  document.getElementById('heroface').innerHTML=['GWST','EWST','GMKT','EMKI'].map(c=>mascotHTML(c)).join('');
+
+  /* 16タイプ図鑑 */
+  document.getElementById('grid16').innerHTML=Object.keys(NICK).map(code=>{
+    const t=NICK[code];
+    return `<div class="tcard">${mascotHTML(code)}<div class="c">${code}</div><div class="n">${t.n}</div></div>`;
+  }).join('');
+
+  /* 結果イメージ（サンプル：GWST トラ） */
+  (function(){
+    const code='GWST', nk=NICK[code];
+    const bars=[['A',82],['B',74],['C',86],['D',70]]; // 左poleが強いサンプル
+    const barHTML=bars.map(([ax,p])=>{
+      const L=AX[ax].left, R=AX[ax].right;
+      return `<div class="abar"><div class="lab"><span>${L.l}</span><span>${R.l}</span></div>
+        <div class="track"><div class="fill" style="width:${p}%"></div><div class="dot" style="left:${p}%"></div></div></div>`;
+    }).join('');
+    const partner='GMST', pk=NICK[partner];
+    document.getElementById('sample').innerHTML=`
+      <div class="lbl">― 診断結果のイメージ ―</div>
+      ${mascotHTML(code,'rmsc')}
+      <div class="code">${code} ・ ${nk.an}</div>
+      <div class="nm">${nk.n}</div>
+      <div class="tg">${nk.t}</div>
+      ${barHTML}
+      <div class="matchchip">${mascotHTML(partner)}<div class="mt"><div class="ml">相性◎</div><div class="mn">${pk.n}</div></div></div>`;
+    document.querySelector('#sample .mascot').classList.add('rmsc');
+  })();
+
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.13});
+  document.querySelectorAll('.reveal').forEach((el,i)=>{el.style.transitionDelay=(i%3*60)+'ms';io.observe(el)});
+</script>
+</body>
+</html>

@@ -12,6 +12,8 @@ const nextConfig = {
   async rewrites() {
     return [
       { source: '/golmoti', destination: '/golmoti.html' },
+      // 診断の紹介専用LP（共有結果の「あなたも診断する」遷移先）
+      { source: '/golmoti-lp', destination: '/golmoti-lp.html' },
     ];
   },
 };

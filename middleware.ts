@@ -53,7 +53,7 @@ export default async function middleware(req: NextRequest) {
 
   // -------- LP host (goltomo.com / www.goltomo.com) --------
   if (LP_HOSTS.has(host)) {
-    if (path.startsWith('/legal') || path === '/lp' || path.startsWith('/lp/') || path.startsWith('/icons/') || path === '/manifest.json' || path === '/favicon.ico' || path === '/golmoti' || path === '/golmoti.html') {
+    if (path.startsWith('/legal') || path === '/lp' || path.startsWith('/lp/') || path.startsWith('/icons/') || path === '/manifest.json' || path === '/favicon.ico' || path === '/golmoti' || path === '/golmoti.html' || path === '/golmoti-lp' || path === '/golmoti-lp.html') {
       return NextResponse.next();
     }
     // Branded launch URL: goltomo.com/app → LIFF entry. Lets us share a

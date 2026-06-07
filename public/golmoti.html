@@ -97,6 +97,9 @@
   .sbtn{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;background:var(--cream);border:2.5px solid var(--ink);border-radius:14px;padding:13px;font-weight:900;font-size:13px;box-shadow:3px 3px 0 var(--ink);cursor:pointer;transition:transform .1s,box-shadow .1s}
   .sbtn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
   .again{display:block;margin:14px auto 0;font-size:12px;font-weight:900;color:#8a7256;background:none;border:none;cursor:pointer;text-decoration:underline}
+  /* 共有結果ビューの大きめCTA（→ 紹介LP） */
+  .bigcta{display:flex;align-items:center;justify-content:center;gap:8px;margin:18px 0 4px;width:100%;background:var(--orange);color:var(--cream);font-weight:900;font-size:17px;padding:18px;border:3px solid var(--ink);border-radius:16px;box-shadow:5px 5px 0 var(--ink);text-decoration:none;transition:transform .1s,box-shadow .1s}
+  .bigcta:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--ink)}
   /* CTA */
   .cta{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--orange);color:var(--cream);font-weight:900;font-size:18px;padding:19px;border:2.5px solid var(--ink);border-radius:16px;box-shadow:5px 5px 0 var(--ink);cursor:pointer;text-decoration:none;transition:transform .12s,box-shadow .12s}
   .cta:active{transform:translate(5px,5px);box-shadow:0 0 0 var(--ink)}
@@ -129,13 +132,7 @@
   .final .be{font-size:48px;display:block;margin-bottom:8px}.final h2{font-weight:900;font-size:25px;line-height:1.4;margin-bottom:10px}.final p{font-size:13px;font-weight:700;color:#6b5440;margin-bottom:20px}
   footer{padding:30px 22px 50px;text-align:center;font-weight:700;font-size:12px;color:#8a7256}footer .fl{font-weight:900;font-size:18px;color:var(--ink);margin-bottom:6px}
   /* スクロールしても常に画面最下部に固定されるCTA */
-  .wrap{padding-bottom:96px}
-  /* アプリ共通の下タブ（他ページと同じ常設ナビ・モックC配色） */
-  .apptab{position:fixed;left:50%;transform:translateX(-50%);bottom:0;z-index:200;width:100%;max-width:480px;display:flex;align-items:stretch;background:var(--cream);border-top:2px solid var(--ink);padding:6px 2px calc(8px + env(safe-area-inset-bottom))}
-  .apptab .at{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-decoration:none;color:#9DB3A8;font-size:10px;font-weight:700;position:relative}
-  .apptab .at svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-  .apptab .at.on{color:var(--teal)}
-  .apptab .at.on span{font-weight:900}
+  .wrap{padding-bottom:28px}
   .stickybar{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;z-index:120;padding:10px 14px calc(12px + env(safe-area-inset-bottom));background:var(--paper);border-top:3px solid var(--ink)}
   .stickybar a{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--orange);color:var(--cream);font-weight:900;font-size:16px;padding:15px;border:2.5px solid var(--ink);border-radius:14px;box-shadow:4px 4px 0 var(--ink);text-decoration:none;transition:transform .12s,box-shadow .12s}
   .stickybar a:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
@@ -222,16 +219,6 @@
   </footer>
 </div>
 
-<!-- アプリ共通の下タブ（他ページと同様に常時表示） -->
-<nav class="apptab" aria-label="メインナビ">
-  <a class="at" href="/home"><svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg><span>ホーム</span></a>
-  <a class="at" href="/search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span>さがす</span></a>
-  <a class="at" href="/swing"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><span>スイング</span></a>
-  <a class="at" href="/create"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg><span>募集</span></a>
-  <a class="at" href="/buddies"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>ゴル友</span></a>
-  <a class="at on" href="/golmoti"><svg viewBox="0 0 24 24"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.13-1.58a.5.5 0 0 1 0-.97L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.14 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0z"/></svg><span>診断</span></a>
-  <a class="at" href="/mypage"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg><span>マイ</span></a>
-</nav>
 
 <script>
   /* ===== データ収集（裏側送信＋ローカル保存） ===== */
@@ -351,7 +338,6 @@
     EMKI: mammal({bg:'#DDD8C8',fur:'#9A9486',ear:'round',muzzle:'#C7C2B2',belly:'#C7C2B2',eyes:SLEEPY,tail:tSmall('#9A9486')}),
   };
   function mascotHTML(code,cls){ return '<span class="mascot '+(cls||'')+'">'+(MAS[code]||'')+'</span>'; }
-  function mascotImg(code){ return new Promise(res=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>res(null); img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(MAS[code]||''); }); }
 
   /* ===== 出題セット。option: {e,t, ax,pole,w} ===== */
   /* じっくり版：各軸3問・全12問 */
@@ -568,14 +554,10 @@
           <ul>${recs.map(r=>`<li>・${r}</li>`).join('')}</ul>
         </div>
         <div class="share">
-          <button class="sbtn" id="imgShareBtn">📷 画像でシェア</button>
-          <button class="sbtn" id="imgSaveBtn">💾 画像を保存</button>
-        </div>
-        <div class="share" style="margin-top:10px">
-          <button class="sbtn" id="copyBtn" style="flex:1">🔗 結果のリンクをコピー</button>
+          <button class="sbtn" id="shareBtn" style="flex:1">📤 結果をシェアする</button>
         </div>
         ${shared
-          ? `<a class="again" id="startMine" data-cta="startMine" href="${LP_URL}" style="display:block;text-align:center;text-decoration:none">🏌️ あなたも無料で診断する</a>`
+          ? `<a class="bigcta" id="startMine" data-cta="startMine" href="${LP_URL}">🏌️ あなたも無料で診断する</a>`
           : `<button class="again" id="again">もう一度診断する</button>`}
       </div>
       </section>`;
@@ -583,14 +565,19 @@
     // mark me in catalog
     document.querySelectorAll('.tcard').forEach(c=>c.classList.toggle('me', c.dataset.code===code));
 
-    // 結果のリンクは型コード付き。受け取った側はアプリ未利用でも結果を見られる（?type=XXXX）
+    // 結果のリンクは型コード付き。受け取った側はアプリ未利用・未ログインでも結果を見られる（?type=XXXX）
     const shareUrl=location.origin+location.pathname+'?type='+code;
-    document.getElementById('copyBtn').addEventListener('click',async()=>{
-      track('share',{resultType:code, where:'copy'});
-      try{await navigator.clipboard.writeText(shareUrl);alert('結果のリンクをコピーしました！\n相手はアプリ未登録でも結果を見られます。');}catch(e){prompt('コピーしてください',shareUrl);}
+    const shareText=`私のゴルフタイプは【${nk.e}${nk.n}（${code}）】！あなたは？ #ゴルトモ #GOLMOTI`;
+    document.getElementById('shareBtn').addEventListener('click',async()=>{
+      track('share',{resultType:code, where:'sheet'});
+      // iPhone等のネイティブ共有シート（LINE/AirDrop等）を起動。非対応はコピーにフォールバック。
+      if(navigator.share){
+        try{ await navigator.share({title:'ゴルフ性格診断 GOLMOTI', text:shareText, url:shareUrl}); return; }
+        catch(e){ if(e&&e.name==='AbortError') return; }
+      }
+      try{ await navigator.clipboard.writeText(shareUrl); alert('結果のリンクをコピーしました！'); }
+      catch(e){ prompt('コピーしてください',shareUrl); }
     });
-    document.getElementById('imgShareBtn').addEventListener('click',()=>shareCard(code,'share'));
-    document.getElementById('imgSaveBtn').addEventListener('click',()=>shareCard(code,'save'));
     const againBtn=document.getElementById('again');
     if(againBtn) againBtn.addEventListener('click',()=>{ step=0; ans.length=0; resultwrap.classList.add('hidden'); resultwrap.innerHTML=''; quiz.classList.remove('hidden'); calcbox.classList.add('hidden'); quiz.scrollIntoView({behavior:'smooth'}); track('start',{total:QS.length}); renderQ(); });
     bindCTA();
@@ -645,14 +632,8 @@
       <div class="tm-tag">${nk.t}</div>
       <div class="tm-axis">${axisLine}</div>
       <div class="tm-desc">${desc}</div>
-      ${detailFieldsHTML(code)}
-      <div class="share" style="margin-top:14px">
-        <button class="sbtn" data-imgshare="1">📷 画像でシェア</button>
-        <button class="sbtn" data-imgsave="1">💾 画像を保存</button>
-      </div>`;
+      ${detailFieldsHTML(code)}`;
     el.classList.remove('hidden');
-    el.querySelector('[data-imgshare]').addEventListener('click',()=>shareCard(code,'share'));
-    el.querySelector('[data-imgsave]').addEventListener('click',()=>shareCard(code,'save'));
     el.querySelector('[data-tdclose]').addEventListener('click',()=>{
       el.classList.add('hidden'); el.innerHTML='';
       document.querySelectorAll('.tcard').forEach(c=>c.classList.remove('sel'));
@@ -661,69 +642,6 @@
     document.querySelectorAll('.tcard').forEach(c=>c.classList.toggle('sel', c.dataset.code===code));
     track('typeView',{resultType:code});
     el.scrollIntoView({behavior:'smooth',block:'start'});
-  }
-
-  /* ===== シェア画像（Canvasで結果カードを生成） ===== */
-  function roundRect(x,a,b,w,h,r){x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w,b,a+w,b+h,r);x.arcTo(a+w,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w,b,r);x.closePath();}
-  function wrapCenter(x,text,cx,y,maxW,lh){const ch=[...String(text)];let line='',yy=y;for(const c of ch){const t=line+c;if(x.measureText(t).width>maxW&&line){x.fillText(line,cx,yy);line=c;yy+=lh;}else line=t;}if(line)x.fillText(line,cx,yy);return yy;}
-  function wrapLeft(x,text,lx,y,maxW,lh){const ch=[...String(text)];let line='',yy=y;for(const c of ch){const t=line+c;if(x.measureText(t).width>maxW&&line){x.fillText(line,lx,yy);line=c;yy+=lh;}else line=t;}if(line)x.fillText(line,lx,yy);return yy;}
-  async function drawCard(code){
-    const {nk,tr,desc}=describeType(code);
-    const d=(typeof DETAIL!=='undefined' && DETAIL[code])?DETAIL[code]:{s:'',w:'',a:'',o:''};
-    try{ if(document.fonts){ await document.fonts.load('900 60px "Zen Maru Gothic"'); await document.fonts.load('800 78px "Baloo 2"'); await document.fonts.ready; } }catch(e){}
-    const W=1080,H=2000,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
-    x.fillStyle='#F4E8CE';x.fillRect(0,0,W,H);
-    x.fillStyle='rgba(51,39,27,0.05)';for(let yy=24;yy<H;yy+=28)for(let xx=24;xx<W;xx+=28){x.beginPath();x.arc(xx,yy,2.2,0,7);x.fill();}
-    x.strokeStyle='#33271B';x.lineWidth=14;x.strokeRect(40,40,W-80,H-80);
-    x.textAlign='center';
-    x.fillStyle='#2A8C82';roundRect(x,W/2-230,104,460,66,33);x.fill();
-    x.fillStyle='#FBF3E0';x.font='800 32px "Zen Maru Gothic",sans-serif';x.fillText('⛳ ゴルフ性格診断',W/2,148);
-    x.fillStyle='#E8643C';x.font='800 80px "Baloo 2",sans-serif';x.fillText('GOLMOTI',W/2,256);
-    const mimg=await mascotImg(code); if(mimg){ x.drawImage(mimg, (W-300)/2, 246, 300, 310); }
-    else { x.font='180px sans-serif'; x.fillText(nk.e,W/2,470); }
-    x.fillStyle='#8a7256';x.font='800 42px "Baloo 2",sans-serif';x.fillText(code+'  ・  '+nk.an,W/2,600);
-    x.fillStyle='#33271B';x.font='900 60px "Zen Maru Gothic",sans-serif';
-    let ny=wrapCenter(x,nk.n,W/2,662,W-180,72);
-    x.fillStyle='#6b5440';x.font='700 30px "Zen Maru Gothic",sans-serif';
-    ny=wrapCenter(x,nk.t,W/2,ny+50,W-220,42);
-    // pole chips 2x2
-    const chips=tr.map(t=>`${t.e}${t.l}`);const cw=400,chh=80,gap=26,sx=W/2-cw-gap/2,sy=ny+50;
-    chips.forEach((txt,i)=>{const col=i%2,row=Math.floor(i/2);const cx=sx+col*(cw+gap),cy=sy+row*(chh+gap);
-      x.fillStyle='#FBF3E0';x.strokeStyle='#33271B';x.lineWidth=5;roundRect(x,cx,cy,cw,chh,22);x.fill();x.stroke();
-      x.fillStyle='#33271B';x.font='800 34px "Zen Maru Gothic",sans-serif';x.textAlign='center';x.fillText(txt,cx+cw/2,cy+chh/2+12);
-    });
-    const dby=sy+2*(chh+gap)+20;
-    x.fillStyle='#FBF3E0';x.strokeStyle='#33271B';x.lineWidth=6;roundRect(x,80,dby,W-160,168,24);x.fill();x.stroke();
-    x.fillStyle='#4a3a2c';x.font='700 31px "Zen Maru Gothic",sans-serif';x.textAlign='left';
-    wrapLeft(x,desc,116,dby+56,W-232,46);
-    // 取扱説明書（強み／弱み／あるある／おすすめ）＝結果の続きまで保存
-    let yy=dby+168+70;
-    x.textAlign='center';x.fillStyle='#2A8C82';x.font='800 36px "Zen Maru Gothic",sans-serif';
-    x.fillText('📖 あなたの取扱説明書',W/2,yy);
-    const fields=[['💪 強み',d.s,'#2A8C82'],['⚠️ 弱み',d.w,'#C0563A'],['😅 あるある',d.a,'#B8841F'],['⛳ おすすめ',d.o,'#2A6FCC']];
-    fields.forEach(([lab,val,col])=>{
-      yy+=48; x.textAlign='left';
-      x.fillStyle=col;x.font='800 29px "Zen Maru Gothic",sans-serif';x.fillText(lab,92,yy);
-      x.fillStyle='#4a3a2c';x.font='600 28px "Zen Maru Gothic",sans-serif';
-      yy=wrapLeft(x,val||'—',92,yy+40,W-184,40)+16;
-    });
-    x.textAlign='center';x.fillStyle='#8a7256';x.font='700 27px "Zen Maru Gothic",sans-serif';
-    x.fillText('あなたのゴルフタイプは？ #ゴルトモ #GOLMOTI',W/2,H-72);
-    return c;
-  }
-  async function shareCard(code,mode){
-    track('share',{resultType:code, where:'image-'+mode});
-    let blob; try{ const cv=await drawCard(code); blob=await new Promise(r=>cv.toBlob(r,'image/png')); }catch(e){ console.warn('card fail',e); }
-    if(!blob){ alert('画像の生成に失敗しました'); return; }
-    const file=new File([blob],`golmoti_${code}.png`,{type:'image/png'});
-    const {nk}=describeType(code);
-    const text=`私のゴルフタイプは【${nk.e}${nk.n}（${code}）】！あなたは？ #ゴルトモ #GOLMOTI`;
-    if(mode==='share' && navigator.canShare && navigator.canShare({files:[file]})){
-      try{ await navigator.share({files:[file], text, title:'ゴルフ性格診断 GOLMOTI'}); return; }
-      catch(e){ if(e&&e.name==='AbortError') return; }
-    }
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`golmoti_${code}.png`;document.body.appendChild(a);a.click();a.remove();
-    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
   }
 
   /* ===== 16タイプ図鑑（タップで解説） ===== */
@@ -739,7 +657,7 @@
 
   /* ===== init（出題スタイルは固定：常に12問） ===== */
   // 紹介LP：未ログイン/新規が共有結果から「自分も診断する」を押した時の遷移先
-  const LP_URL='/';
+  const LP_URL='/golmoti-lp';
   // 共有リンク（?type=XXXX または #XXXX）があれば、その結果を直接表示（アプリ未利用・未ログインでも閲覧可）
   function getSharedCode(){
     try{
