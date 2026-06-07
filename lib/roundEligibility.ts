@@ -8,7 +8,7 @@
 // We keep these here as plain functions (no DB calls) so server and client
 // can apply identical logic.
 
-import type { Round, User } from './types';
+import type { Round, User, Gender } from './types';
 
 // Score ranges considered "beginner / high score" — allowed when beginnerOnly
 // is true. Anything outside this set (e.g. 90台 / 80台) means the user is
@@ -56,6 +56,36 @@ export function checkRoundEligibility(round: Round, user: User | null | undefine
   }
 
   return { ok: true };
+}
+
+// 性別ごとの募集枠（spotsMale/Female/Any）に空きがあるかの純チェック。
+// approvedGenders = すでに承認済みの参加者（主催者を除く）の性別配列。
+// g = これから加わる人の性別。バケツ割り当て：男性→男性枠（あふれたら どちらでも枠）、
+// 女性→女性枠（あふれたら どちらでも枠）、未設定→どちらでも枠のみ。
+// 内訳が未設定の旧データ（全部0）は per-gender 制限なしとして true を返す（合計枠は別途maxSpotsで担保）。
+export function canGenderJoin(
+  round: Round,
+  approvedGenders: Array<Gender | undefined>,
+  g: Gender | undefined,
+): boolean {
+  const sm = round.spotsMale || 0;
+  const sf = round.spotsFemale || 0;
+  const sa = round.spotsAny || 0;
+  if (sm === 0 && sf === 0 && sa === 0) return true; // 旧データ／内訳なし
+  let male = 0, female = 0, other = 0;
+  for (const x of [...approvedGenders, g]) {
+    if (x === 'male') male++;
+    else if (x === 'female') female++;
+    else other++;
+  }
+  const anyUsed = Math.max(0, male - sm) + Math.max(0, female - sf) + other;
+  return anyUsed <= sa;
+}
+
+// 満員時のメッセージ（gは加わろうとした人の性別）。
+export function genderFullMessage(g: Gender | undefined): string {
+  const label = g === 'male' ? '男性' : g === 'female' ? '女性' : 'この性別';
+  return `このラウンドの${label}の募集枠は満員です。`;
 }
 
 /** Display label derived from beginnerOnly + genderCondition. Falls back to

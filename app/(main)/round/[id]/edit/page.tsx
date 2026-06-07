@@ -8,6 +8,7 @@ import { store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import type { Round } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { Stepper } from '@/components/Stepper';
 
 export default function EditRoundPage() {
   const params = useParams<{ id: string }>();
@@ -30,9 +31,10 @@ export default function EditRoundPage() {
   const [dateType, setDateType] = useState<'fixed' | 'range'>('fixed');
   const [dateRange, setDateRange] = useState('');
   const [maxSpots, setMaxSpots] = useState(4);
+  const [spotsMale, setSpotsMale] = useState(0);
+  const [spotsFemale, setSpotsFemale] = useState(0);
   const [price, setPrice] = useState('');
   const [beginnerOnly, setBeginnerOnly] = useState(false);
-  const [genderCondition, setGenderCondition] = useState<'any' | 'male' | 'female'>('any');
   const [description, setDescription] = useState('');
 
   // Pull the round directly if it isn't in the store (e.g. cold load on edit URL).
@@ -66,16 +68,44 @@ export default function EditRoundPage() {
     setDateType(round.dateType === 'range' ? 'range' : 'fixed');
     setDateRange(round.dateRange || '');
     setMaxSpots(round.maxSpots || 4);
+    // 内訳の初期化。旧データ（内訳なし）は genderCondition から移行。
+    const recruited = Math.max(0, (round.maxSpots || 1) - 1);
+    if (round.spotsMale != null || round.spotsFemale != null || round.spotsAny != null) {
+      setSpotsMale(round.spotsMale || 0);
+      setSpotsFemale(round.spotsFemale || 0);
+    } else if (round.genderCondition === 'male') {
+      setSpotsMale(recruited); setSpotsFemale(0);
+    } else if (round.genderCondition === 'female') {
+      setSpotsMale(0); setSpotsFemale(recruited);
+    } else {
+      setSpotsMale(0); setSpotsFemale(0);
+    }
     setPrice(round.price || '');
     setBeginnerOnly(!!round.beginnerOnly);
-    setGenderCondition(round.genderCondition || 'any');
     setDescription(round.description || '');
   }, [round]);
 
   const isConfirmed = round?.type === 'confirmed';
   const isComp = maxSpots >= 5;
   const currentCount = round?.currentCount || 1;
-  const spotsRange = Array.from({ length: 49 }, (_, i) => i + 2).filter((n) => n >= currentCount);
+  const MIN_TOTAL = Math.max(2, currentCount); // すでに参加している人数未満にはできない
+  const MAX_TOTAL = 50;
+  const slots = Math.max(0, maxSpots - 1);
+  const spotsAny = Math.max(0, slots - spotsMale - spotsFemale);
+  function changeTotal(delta: number) {
+    const next = Math.max(MIN_TOTAL, Math.min(MAX_TOTAL, maxSpots + delta));
+    const nextSlots = next - 1;
+    const m = Math.min(spotsMale, nextSlots);
+    const f = Math.min(spotsFemale, Math.max(0, nextSlots - m));
+    setMaxSpots(next); setSpotsMale(m); setSpotsFemale(f);
+  }
+  function changeMale(delta: number) { setSpotsMale((m) => Math.max(0, Math.min(m + delta, slots - spotsFemale))); }
+  function changeFemale(delta: number) { setSpotsFemale((f) => Math.max(0, Math.min(f + delta, slots - spotsMale))); }
+  function deriveGenderCondition(): 'any' | 'male' | 'female' {
+    if (spotsAny === 0 && spotsFemale === 0 && spotsMale > 0) return 'male';
+    if (spotsAny === 0 && spotsMale === 0 && spotsFemale > 0) return 'female';
+    return 'any';
+  }
   const timeSlots: string[] = [];
   for (let h = 6; h <= 14; h++) {
     for (let m = 0; m < 60; m += 5) timeSlots.push(`${h}:${String(m).padStart(2, '0')}`);
@@ -112,9 +142,12 @@ export default function EditRoundPage() {
     const patch: Partial<Round> = {
       title: title || round!.title,
       maxSpots,
+      spotsMale,
+      spotsFemale,
+      spotsAny,
       price: price || '',
       beginnerOnly,
-      genderCondition,
+      genderCondition: deriveGenderCondition(),
       description: description || '',
     };
     if (isConfirmed) {
@@ -206,16 +239,10 @@ export default function EditRoundPage() {
             </>
           )}
 
-          <Field label="募集人数" required hint={`（${currentCount}〜50人）`}>
-            <select
-              value={maxSpots}
-              onChange={(e) => setMaxSpots(parseInt(e.target.value) || currentCount)}
-              className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
-            >
-              {spotsRange.map((n) => (
-                <option key={n} value={n}>{n}人</option>
-              ))}
-            </select>
+          <Field label="募集人数" required hint={`（${MIN_TOTAL}〜50人）`}>
+            <Stepper value={maxSpots} onMinus={() => changeTotal(-1)} onPlus={() => changeTotal(1)} minusDisabled={maxSpots <= MIN_TOTAL} plusDisabled={maxSpots >= MAX_TOTAL} suffix="人" />
+            <div className="mt-1.5 px-3 py-2 bg-green-light rounded-lg text-[11px] text-green font-bold">👤 主催者（あなた）を含めた人数です</div>
+            <div className="mt-1.5 text-xs font-bold text-sub">うち、あなた以外の募集枠：<b className="text-green">{slots}人</b></div>
             {currentCount > 1 && (
               <div className="mt-1.5 text-[11px] text-muted">すでに{currentCount}人が参加しているため、それ未満には変更できません</div>
             )}
@@ -224,6 +251,27 @@ export default function EditRoundPage() {
                 🏆 5人以上はコンペ・イベント扱いになります
               </div>
             )}
+          </Field>
+
+          <Field label="性別ごとの募集内訳" hint={`（募集枠 ${slots}人）`}>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-black text-blue">👨 男性</span>
+                <Stepper sm value={spotsMale} onMinus={() => changeMale(-1)} onPlus={() => changeMale(1)} minusDisabled={spotsMale <= 0} plusDisabled={spotsMale + spotsFemale >= slots} />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-black text-pink-600">👩 女性</span>
+                <Stepper sm value={spotsFemale} onMinus={() => changeFemale(-1)} onPlus={() => changeFemale(1)} minusDisabled={spotsFemale <= 0} plusDisabled={spotsMale + spotsFemale >= slots} />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-black text-sub">🙆 どちらでもOK</span>
+                <span className="flex items-center gap-2"><span className="text-[10px] font-bold text-muted">自動</span><span className="text-lg font-black font-mono w-8 text-center">{spotsAny}</span></span>
+              </div>
+            </div>
+            <div className="mt-2.5 px-3 py-2 bg-bg rounded-lg text-[11px] font-bold text-sub">
+              募集枠 {slots}人 ＝ 男性{spotsMale}・女性{spotsFemale}・どちらでも{spotsAny}
+              <span className="block text-[10px] text-muted font-medium mt-0.5">「どちらでもOK」は残り枠から自動計算されます</span>
+            </div>
           </Field>
 
           <Field label="参加条件 - レベル">
@@ -244,22 +292,6 @@ export default function EditRoundPage() {
             )}
           </Field>
 
-          <Field label="参加条件 - 性別">
-            <div className="flex gap-1.5 flex-wrap">
-              <button
-                onClick={() => setGenderCondition('any')}
-                className={cn('px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px]', genderCondition === 'any' ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub')}
-              >男女OK</button>
-              <button
-                onClick={() => setGenderCondition('male')}
-                className={cn('px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px]', genderCondition === 'male' ? 'bg-blue-light border-blue text-blue' : 'bg-bg border-border text-sub')}
-              >👨 男性のみ</button>
-              <button
-                onClick={() => setGenderCondition('female')}
-                className={cn('px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px]', genderCondition === 'female' ? 'bg-pink-100 border-pink-400 text-pink-600' : 'bg-bg border-border text-sub')}
-              >👩 女性のみ</button>
-            </div>
-          </Field>
 
           <Field label="ひとこと">
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={200} placeholder="募集の趣旨や雰囲気を伝えましょう（200文字以内）" className="w-full h-20 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-none" />

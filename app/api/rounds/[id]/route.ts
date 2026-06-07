@@ -64,25 +64,48 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   let beginnerOnly = round.beginnerOnly;
   let genderCondition = round.genderCondition || 'any';
   if (has('beginnerOnly')) { beginnerOnly = !!body.beginnerOnly; patch.beginnerOnly = beginnerOnly; }
-  if (has('genderCondition')) {
-    genderCondition = body.genderCondition === 'male' || body.genderCondition === 'female' ? body.genderCondition : 'any';
-    patch.genderCondition = genderCondition;
-  }
-  if (has('beginnerOnly') || has('genderCondition')) {
-    patch.levelCondition = levelConditionLabel({ beginnerOnly, genderCondition, levelCondition: '' });
-  }
 
-  if (has('maxSpots')) {
-    const next = Math.max(1, Math.min(50, Number(body.maxSpots) || round.maxSpots));
-    // Can't shrink below the number of people already in (host + approved).
-    if (next < (round.currentCount || 1)) {
+  const hasBreakdown = ['spotsMale', 'spotsFemale', 'spotsAny'].some((k) => has(k));
+  if (hasBreakdown) {
+    // 性別内訳を正として maxSpots・genderCondition を再計算。
+    const clampN = (v: any, fb = 0) => Math.max(0, Math.min(49, Math.floor(Number(v ?? fb) || 0)));
+    const sm = clampN(body.spotsMale, round.spotsMale);
+    const sf = clampN(body.spotsFemale, round.spotsFemale);
+    let sa = clampN(body.spotsAny, round.spotsAny);
+    let slots = sm + sf + sa;
+    if (slots < 1) { sa = 1; slots = 1; }
+    const nextMax = Math.min(50, slots + 1);
+    if (nextMax < (round.currentCount || 1)) {
       return NextResponse.json(
         { error: 'too_small', message: `すでに${round.currentCount}人が参加しているため、それ未満にはできません` },
         { status: 400, headers: noStore },
       );
     }
-    patch.maxSpots = next;
-    patch.isCompetition = next >= 5;
+    patch.spotsMale = sm; patch.spotsFemale = sf; patch.spotsAny = sa;
+    patch.maxSpots = nextMax; patch.isCompetition = nextMax >= 5;
+    genderCondition = sa === 0 && sf === 0 && sm > 0 ? 'male'
+      : sa === 0 && sm === 0 && sf > 0 ? 'female' : 'any';
+    patch.genderCondition = genderCondition;
+  } else {
+    if (has('genderCondition')) {
+      genderCondition = body.genderCondition === 'male' || body.genderCondition === 'female' ? body.genderCondition : 'any';
+      patch.genderCondition = genderCondition;
+    }
+    if (has('maxSpots')) {
+      const next = Math.max(1, Math.min(50, Number(body.maxSpots) || round.maxSpots));
+      // Can't shrink below the number of people already in (host + approved).
+      if (next < (round.currentCount || 1)) {
+        return NextResponse.json(
+          { error: 'too_small', message: `すでに${round.currentCount}人が参加しているため、それ未満にはできません` },
+          { status: 400, headers: noStore },
+        );
+      }
+      patch.maxSpots = next;
+      patch.isCompetition = next >= 5;
+    }
+  }
+  if (has('beginnerOnly') || hasBreakdown || has('genderCondition')) {
+    patch.levelCondition = levelConditionLabel({ beginnerOnly, genderCondition, levelCondition: '' });
   }
 
   try {

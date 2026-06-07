@@ -5,7 +5,7 @@ import { pushTo, liffUrl } from '@/lib/linePush';
 import { webPushText } from '@/lib/webPush';
 import { isNotifyEnabled } from '@/lib/notifyPrefs';
 import { isMatchingAllowedByAge, getCohort } from '@/lib/ageGate';
-import { checkRoundEligibility } from '@/lib/roundEligibility';
+import { checkRoundEligibility, canGenderJoin, genderFullMessage } from '@/lib/roundEligibility';
 
 export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
   const meId = await getMeId();
@@ -35,6 +35,16 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   const elig = checkRoundEligibility(existing, me || undefined);
   if (!elig.ok) {
     return NextResponse.json({ error: elig.code, message: elig.message }, { status: 403 });
+  }
+
+  // 性別ごとの募集枠ガード：承認済み参加者（主催者を除く）の性別を集計し、
+  // 申込者の性別の枠（＋どちらでも枠）に空きがあるかを確認する。
+  {
+    const approved = await Promise.all((existing.applicantIds || []).map((id) => db.getUser(id)));
+    const approvedGenders = approved.map((u) => u?.gender);
+    if (!canGenderJoin(existing, approvedGenders, me?.gender)) {
+      return NextResponse.json({ error: 'gender_full', message: genderFullMessage(me?.gender) }, { status: 403 });
+    }
   }
 
   const round = await db.joinRound(params.id, meId);
