@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { RoundCard } from '@/components/RoundCard';
-import { allAreas, levelOptions } from '@/lib/mockData';
+import { allAreas } from '@/lib/mockData';
 import { useStore } from '@/lib/store';
 import type { Round } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -11,16 +11,19 @@ type Period = 'all' | 'upcoming' | 'past' | 'thisWeek' | 'thisMonth';
 type CourseFilter = 'all' | 'confirmed' | 'flexible';
 type ScaleFilter = 'all' | 'normal' | 'comp';
 type StatusFilter = 'all' | 'open' | 'closed' | 'completed';
+type GenderFilter = 'all' | 'male' | 'female' | 'mixed';
 type SortBy = 'date' | 'createdAt';
 
 type Filters = {
-  course: CourseFilter; scale: ScaleFilter; level: string; area: string;
+  course: CourseFilter; scale: ScaleFilter; gender: GenderFilter; area: string;
   period: Period; status: StatusFilter; hasSpots: boolean; priceMax: string;
   keyword: string; sortBy: SortBy;
 };
+// 初期状態：詳細フィルターは閉じ、「募集中」かつ「今日以降」のみ表示。
+// 過去の日付は period='past'（または全期間）を選んだ時だけ表示される。
 const defaultFilters: Filters = {
-  course: 'all', scale: 'all', level: 'all', area: 'all',
-  period: 'all', status: 'all', hasSpots: false, priceMax: '',
+  course: 'all', scale: 'all', gender: 'all', area: 'all',
+  period: 'upcoming', status: 'open', hasSpots: false, priceMax: '',
   keyword: '', sortBy: 'createdAt',
 };
 
@@ -43,12 +46,12 @@ export default function SearchPage() {
   // Draft = what's in the form. Applied = what actually filters the list.
   const [draft, setDraft] = useState<Filters>(defaultFilters);
   const [applied, setApplied] = useState<Filters>(defaultFilters);
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false); // 初期は詳細フィルターを閉じる
 
   // Convenience getters for applied filters (used by matches/sort below)
   const filterCourse = applied.course;
   const filterScale = applied.scale;
-  const filterLevel = applied.level;
+  const filterGender = applied.gender;
   const filterArea = applied.area;
   const filterPeriod = applied.period;
   const filterStatus = applied.status;
@@ -75,8 +78,11 @@ export default function SearchPage() {
     // Scale
     if (filterScale === 'normal' && r.maxSpots >= 5) return false;
     if (filterScale === 'comp' && r.maxSpots < 5) return false;
-    // Level
-    if (filterLevel !== 'all' && r.levelCondition !== filterLevel) return false;
+    // Gender（募集の性別：男性のみ / 女性のみ / 男女混合）
+    if (filterGender !== 'all') {
+      const gc = r.genderCondition || 'any';
+      if (filterGender === 'mixed' ? gc !== 'any' : gc !== filterGender) return false;
+    }
     // Area
     if (filterArea !== 'all') {
       const inArea = r.area === filterArea || r.courseName?.includes(filterArea);
@@ -133,14 +139,14 @@ export default function SearchPage() {
     }
     return list;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rounds, filterCourse, filterScale, filterLevel, filterArea, filterPeriod, filterStatus, filterHasSpots, filterPriceMax, keyword, sortBy]);
+  }, [rounds, filterCourse, filterScale, filterGender, filterArea, filterPeriod, filterStatus, filterHasSpots, filterPriceMax, keyword, sortBy]);
 
   const filteredUndecided = useMemo(() => {
     if (filterPeriod === 'past' || filterPeriod === 'thisWeek' || filterPeriod === 'thisMonth') return [];
     return rounds.filter((r) => matches(r) && !r.date)
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rounds, filterCourse, filterScale, filterLevel, filterArea, filterPeriod, filterStatus, filterHasSpots, filterPriceMax, keyword]);
+  }, [rounds, filterCourse, filterScale, filterGender, filterArea, filterPeriod, filterStatus, filterHasSpots, filterPriceMax, keyword]);
 
   const total = filteredFixed.length + filteredUndecided.length;
 
@@ -250,11 +256,16 @@ export default function SearchPage() {
               />
             </FilterGroup>
 
-            <FilterGroup label="レベル">
+            <FilterGroup label="募集の性別">
               <Chips
-                options={[{ id: 'all', label: '全て' }, ...levelOptions.map((l) => ({ id: l, label: l }))]}
-                value={draft.level}
-                onChange={(v) => patch('level', v)}
+                options={[
+                  { id: 'all', label: '全て' },
+                  { id: 'male', label: '👨 男性募集' },
+                  { id: 'female', label: '👩 女性募集' },
+                  { id: 'mixed', label: '男女混合' },
+                ]}
+                value={draft.gender}
+                onChange={(v) => patch('gender', v as GenderFilter)}
                 color="blue"
               />
             </FilterGroup>
