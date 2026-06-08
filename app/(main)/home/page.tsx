@@ -30,7 +30,7 @@ export default function HomePage() {
   // Capture the "last read" timestamp ONCE on mount so unread highlights stay
   // stable while the user is looking at the list (we mark-read in the bg below).
   const readAtRef = useRef<number>(me.notifReadAt || 0);
-  const [showAllNotifs, setShowAllNotifs] = useState(false);
+  const [showNotifModal, setShowNotifModal] = useState(false);
   const [showAddBot, setShowAddBot] = useState(false);
   // Mark the お知らせ inbox read shortly after viewing the home screen.
   useEffect(() => {
@@ -79,9 +79,45 @@ export default function HomePage() {
   const buddyIdsCount = useStore((s) => s.buddyIds.length);
   const buddyCount = Math.max(me.buddyCount || 0, buddyIdsCount);
 
+  // 未読（このホーム表示の開始時点より新しい通知）。上部のインライン表示はこれがある時だけ。
+  const unread = notifications.filter((n) => n.createdAt > readAtRef.current);
+
+  function renderNotif(n: typeof notifications[number]) {
+    const isUnread = n.createdAt > readAtRef.current;
+    const body = (
+      <div className={`flex items-start gap-2.5 px-4 py-3 border-t border-border ${isUnread ? 'bg-green-light/40' : ''}`}>
+        <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${isUnread ? 'bg-green' : 'bg-transparent'}`} />
+        <div className="flex-1 min-w-0">
+          <div className={`text-[13px] leading-snug ${isUnread ? 'font-bold text-text' : 'text-sub'}`}>{n.text}</div>
+          <div className="text-[10px] text-muted mt-0.5">{relTime(n.createdAt)}</div>
+        </div>
+        {n.link && <span className="text-muted text-sm mt-0.5">›</span>}
+      </div>
+    );
+    return n.link ? (
+      <button key={n.id} onClick={() => { setShowNotifModal(false); router.push(n.link!); }} className="block w-full text-left">{body}</button>
+    ) : (
+      <div key={n.id}>{body}</div>
+    );
+  }
+
   return (
     <>
-      <div className="px-5 pt-2 pb-4 text-2xl font-black tracking-tight">ホーム</div>
+      <div className="px-5 pt-2 pb-4 flex items-center justify-between">
+        <span className="text-2xl font-black tracking-tight">ホーム</span>
+        <button
+          onClick={() => setShowNotifModal(true)}
+          className="relative w-10 h-10 rounded-full bg-card border-2 border-border flex items-center justify-center"
+          aria-label="お知らせ"
+        >
+          <span className="text-lg leading-none">🔔</span>
+          {unread.length > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 bg-red text-white text-[10px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 border-2 border-card">
+              {unread.length > 9 ? '9+' : unread.length}
+            </span>
+          )}
+        </button>
+      </div>
 
       <HomeUpdateCard />
 
@@ -162,45 +198,20 @@ export default function HomePage() {
         </div>
       </div>
 
-      {notifications.length > 0 && (
+      {/* 未読がある時だけ、上部にインライン表示。既読・過去はベルから確認。 */}
+      {unread.length > 0 && (
         <div className="px-5 pb-3">
-          <div className="bg-card rounded-card shadow-card overflow-hidden">
+          <div className="bg-card rounded-card shadow-card overflow-hidden border-2 border-green">
             <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
               <div className="text-base font-black flex items-center gap-1.5">
-                🔔 お知らせ
+                🔔 新着のお知らせ
+                <span className="text-[11px] font-black text-white bg-red px-2 py-0.5 rounded-full leading-none">{unread.length}</span>
               </div>
-              <div className="text-[11px] text-muted">通知はここにも届きます</div>
+              <button onClick={() => setShowNotifModal(true)} className="text-[11px] font-bold text-blue">すべて見る</button>
             </div>
             <div>
-              {(showAllNotifs ? notifications : notifications.slice(0, 5)).map((n) => {
-                const unread = n.createdAt > readAtRef.current;
-                const body = (
-                  <div className={`flex items-start gap-2.5 px-4 py-3 border-t border-border ${unread ? 'bg-green-light/40' : ''}`}>
-                    {unread
-                      ? <span className="mt-1.5 w-2 h-2 rounded-full bg-green flex-shrink-0" />
-                      : <span className="mt-1.5 w-2 h-2 rounded-full bg-transparent flex-shrink-0" />}
-                    <div className="flex-1 min-w-0">
-                      <div className={`text-[13px] leading-snug ${unread ? 'font-bold text-text' : 'text-sub'}`}>{n.text}</div>
-                      <div className="text-[10px] text-muted mt-0.5">{relTime(n.createdAt)}</div>
-                    </div>
-                    {n.link && <span className="text-muted text-sm mt-0.5">›</span>}
-                  </div>
-                );
-                return n.link ? (
-                  <button key={n.id} onClick={() => router.push(n.link!)} className="block w-full text-left">{body}</button>
-                ) : (
-                  <div key={n.id}>{body}</div>
-                );
-              })}
+              {unread.slice(0, 5).map((n) => renderNotif(n))}
             </div>
-            {notifications.length > 5 && (
-              <button
-                onClick={() => setShowAllNotifs((v) => !v)}
-                className="w-full py-2.5 text-[12px] font-bold text-blue border-t border-border"
-              >
-                {showAllNotifs ? '閉じる' : `すべて表示（${notifications.length}件）`}
-              </button>
-            )}
           </div>
         </div>
       )}
@@ -250,6 +261,31 @@ export default function HomePage() {
         </div>
       )}
       <div className="h-5" />
+
+      {/* ベルから開く全件パネル（既読・過去も確認できる） */}
+      {showNotifModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center"
+          onClick={() => setShowNotifModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-card w-full max-w-[480px] max-h-[78vh] rounded-t-2xl flex flex-col shadow-lg overflow-hidden"
+          >
+            <div className="flex items-center justify-between px-4 py-3.5 border-b-2 border-border">
+              <div className="text-base font-black flex items-center gap-1.5">🔔 お知らせ</div>
+              <button onClick={() => setShowNotifModal(false)} className="text-muted text-2xl leading-none px-1" aria-label="閉じる">×</button>
+            </div>
+            <div className="overflow-y-auto">
+              {notifications.length === 0 ? (
+                <div className="p-10 text-center text-sm text-muted">お知らせはまだありません</div>
+              ) : (
+                notifications.map((n) => renderNotif(n))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
