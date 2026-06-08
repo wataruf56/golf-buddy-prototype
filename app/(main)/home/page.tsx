@@ -265,24 +265,29 @@ export default function HomePage() {
       {/* ベルから開く全件パネル（既読・過去も確認できる） */}
       {showNotifModal && (
         <div
-          className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center"
+          className="absolute inset-0 z-[100] bg-black/50 flex items-center justify-center p-5 backdrop-blur-sm"
           onClick={() => setShowNotifModal(false)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-card w-full max-w-[480px] max-h-[78vh] rounded-t-2xl flex flex-col shadow-lg overflow-hidden"
+            className="bg-card w-full max-w-[360px] max-h-[70vh] rounded-card flex flex-col shadow-lg overflow-hidden border-2 border-border"
           >
-            <div className="flex items-center justify-between px-4 py-3.5 border-b-2 border-border">
+            <div className="flex items-center justify-between px-4 py-3.5 border-b-2 border-border flex-shrink-0">
               <div className="text-base font-black flex items-center gap-1.5">🔔 お知らせ</div>
               <button onClick={() => setShowNotifModal(false)} className="text-muted text-2xl leading-none px-1" aria-label="閉じる">×</button>
             </div>
-            <div className="overflow-y-auto">
+            <div className="overflow-y-auto flex-1">
               {notifications.length === 0 ? (
                 <div className="p-10 text-center text-sm text-muted">お知らせはまだありません</div>
               ) : (
                 notifications.map((n) => renderNotif(n))
               )}
             </div>
+            {notifications.length > 0 && unread.length === 0 && (
+              <div className="px-4 py-2.5 text-center text-[11px] text-muted border-t border-border flex-shrink-0">
+                ✓ 未読のお知らせはありません
+              </div>
+            )}
           </div>
         </div>
       )}
