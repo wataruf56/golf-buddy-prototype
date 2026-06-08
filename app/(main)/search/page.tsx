@@ -9,21 +9,20 @@ import { cn } from '@/lib/utils';
 
 type Period = 'all' | 'upcoming' | 'past' | 'thisWeek' | 'thisMonth';
 type CourseFilter = 'all' | 'confirmed' | 'flexible';
-type ScaleFilter = 'all' | 'normal' | 'comp';
 type StatusFilter = 'all' | 'open' | 'closed' | 'completed';
 type GenderFilter = 'all' | 'male' | 'female' | 'mixed';
 type SortBy = 'date' | 'createdAt';
 
 type Filters = {
-  course: CourseFilter; scale: ScaleFilter; gender: GenderFilter; area: string;
-  period: Period; status: StatusFilter; hasSpots: boolean; priceMax: string;
+  course: CourseFilter; compOnly: boolean; gender: GenderFilter; area: string;
+  period: Period; status: StatusFilter; hasSpots: boolean; beginnerOnly: boolean; priceMax: string;
   keyword: string; sortBy: SortBy;
 };
 // 初期状態：詳細フィルターは閉じ、「募集中」かつ「今日以降」のみ表示。
 // 過去の日付は period='past'（または全期間）を選んだ時だけ表示される。
 const defaultFilters: Filters = {
-  course: 'all', scale: 'all', gender: 'all', area: 'all',
-  period: 'upcoming', status: 'open', hasSpots: false, priceMax: '',
+  course: 'all', compOnly: false, gender: 'all', area: 'all',
+  period: 'upcoming', status: 'open', hasSpots: false, beginnerOnly: false, priceMax: '',
   keyword: '', sortBy: 'createdAt',
 };
 
@@ -50,8 +49,9 @@ export default function SearchPage() {
 
   // Convenience getters for applied filters (used by matches/sort below)
   const filterCourse = applied.course;
-  const filterScale = applied.scale;
+  const filterCompOnly = applied.compOnly;
   const filterGender = applied.gender;
+  const filterBeginnerOnly = applied.beginnerOnly;
   const filterArea = applied.area;
   const filterPeriod = applied.period;
   const filterStatus = applied.status;
@@ -76,12 +76,20 @@ export default function SearchPage() {
     // Course type
     if (filterCourse !== 'all' && r.type !== filterCourse) return false;
     // Scale
-    if (filterScale === 'normal' && r.maxSpots >= 5) return false;
-    if (filterScale === 'comp' && r.maxSpots < 5) return false;
+    if (filterCompOnly && r.maxSpots < 5) return false;
+    // 初心者歓迎（初心者OKの募集のみ）
+    if (filterBeginnerOnly && !r.beginnerOnly) return false;
     // Gender（募集の性別：男性のみ / 女性のみ / 男女混合）
     if (filterGender !== 'all') {
+      // 「その性別の枠がある募集」で判定（〜のみ ではない）。
+      const sm = r.spotsMale || 0, sf = r.spotsFemale || 0, sa = r.spotsAny || 0;
+      const has = sm > 0 || sf > 0 || sa > 0;
       const gc = r.genderCondition || 'any';
-      if (filterGender === 'mixed' ? gc !== 'any' : gc !== filterGender) return false;
+      const ok =
+        filterGender === 'male'   ? (has ? sm > 0 : gc !== 'female')
+        : filterGender === 'female' ? (has ? sf > 0 : gc !== 'male')
+        : /* mixed */                 (has ? sa > 0 : gc === 'any');
+      if (!ok) return false;
     }
     // Area
     if (filterArea !== 'all') {
@@ -139,14 +147,14 @@ export default function SearchPage() {
     }
     return list;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rounds, filterCourse, filterScale, filterGender, filterArea, filterPeriod, filterStatus, filterHasSpots, filterPriceMax, keyword, sortBy]);
+  }, [rounds, filterCourse, filterCompOnly, filterGender, filterBeginnerOnly, filterArea, filterPeriod, filterStatus, filterHasSpots, filterPriceMax, keyword, sortBy]);
 
   const filteredUndecided = useMemo(() => {
     if (filterPeriod === 'past' || filterPeriod === 'thisWeek' || filterPeriod === 'thisMonth') return [];
     return rounds.filter((r) => matches(r) && !r.date)
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rounds, filterCourse, filterScale, filterGender, filterArea, filterPeriod, filterStatus, filterHasSpots, filterPriceMax, keyword]);
+  }, [rounds, filterCourse, filterCompOnly, filterGender, filterBeginnerOnly, filterArea, filterPeriod, filterStatus, filterHasSpots, filterPriceMax, keyword]);
 
   const total = filteredFixed.length + filteredUndecided.length;
 
@@ -243,19 +251,6 @@ export default function SearchPage() {
               />
             </FilterGroup>
 
-            <FilterGroup label="募集タイプ">
-              <Chips
-                options={[
-                  { id: 'all', label: '全て' },
-                  { id: 'normal', label: '通常 1〜4人' },
-                  { id: 'comp', label: '🏆 コンペ 5人〜' },
-                ]}
-                value={draft.scale}
-                onChange={(v) => patch('scale', v as ScaleFilter)}
-                color="orange"
-              />
-            </FilterGroup>
-
             <FilterGroup label="募集の性別">
               <Chips
                 options={[
@@ -278,6 +273,20 @@ export default function SearchPage() {
                     draft.hasSpots ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub')}
                 >
                   ✓ 空きありのみ
+                </button>
+                <button
+                  onClick={() => patch('compOnly', !draft.compOnly)}
+                  className={cn('px-3.5 py-1.5 rounded-full text-xs font-bold border-[1.5px]',
+                    draft.compOnly ? 'bg-orange-light border-orange text-orange' : 'bg-bg border-border text-sub')}
+                >
+                  🏆 コンペのみ
+                </button>
+                <button
+                  onClick={() => patch('beginnerOnly', !draft.beginnerOnly)}
+                  className={cn('px-3.5 py-1.5 rounded-full text-xs font-bold border-[1.5px]',
+                    draft.beginnerOnly ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub')}
+                >
+                  🔰 初心者歓迎
                 </button>
               </div>
             </FilterGroup>
