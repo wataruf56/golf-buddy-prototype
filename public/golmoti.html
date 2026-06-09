@@ -41,8 +41,8 @@
   .axrow{display:flex;align-items:center;justify-content:space-between;background:var(--cream);border:2.5px solid var(--ink);border-radius:12px;padding:10px 14px;margin-bottom:8px;font-weight:900;font-size:13px;box-shadow:3px 3px 0 var(--ink)}
   .axrow .mid{font-size:11px;color:#b3a489}
   /* animal mascots (custom SVG icons) */
-  .mascot{display:inline-block;line-height:0}
-  .mascot svg{display:block;width:100%;height:100%}
+  .mascot{display:block;object-fit:contain}
+  img.mascot{margin:0 auto}
   .m-cat{width:48px;height:48px;margin:0 auto}
   .m-res{width:104px;height:104px;margin:0 auto}
   .m-modal{width:92px;height:92px;margin:0 auto}
@@ -131,17 +131,12 @@
   .final{margin:30px 16px 0;background:var(--mustard);border:2.5px solid var(--ink);border-radius:24px;box-shadow:7px 7px 0 var(--ink);padding:38px 26px;text-align:center}
   .final .be{font-size:48px;display:block;margin-bottom:8px}.final h2{font-weight:900;font-size:25px;line-height:1.4;margin-bottom:10px}.final p{font-size:13px;font-weight:700;color:#6b5440;margin-bottom:20px}
   footer{padding:30px 22px 50px;text-align:center;font-weight:700;font-size:12px;color:#8a7256}footer .fl{font-weight:900;font-size:18px;color:var(--ink);margin-bottom:6px}
-  /* スクロールしても常に画面最下部に固定されるCTA */
+  /* 画面最下部に常時固定するCTA（LINE友だち追加） */
   .wrap{padding-bottom:96px}
-  /* アプリ共通の下タブ（診断中＝ログイン前提なので常時表示。結果画面のみ非表示） */
-  .apptab{position:fixed;left:50%;transform:translateX(-50%);bottom:0;z-index:200;width:100%;max-width:480px;display:flex;align-items:stretch;background:var(--cream);border-top:2px solid var(--ink);padding:6px 2px calc(8px + env(safe-area-inset-bottom))}
-  .apptab .at{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-decoration:none;color:#9DB3A8;font-size:10px;font-weight:700;position:relative}
-  .apptab .at svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-  .apptab .at.on{color:var(--teal)}
-  .apptab .at.on span{font-weight:900}
-  /* 結果表示中（自分の結果・共有結果）はタブを隠す */
-  body.noTabs .apptab{display:none}
-  body.noTabs .wrap{padding-bottom:28px}
+  .findbar{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;z-index:200;padding:10px 14px calc(12px + env(safe-area-inset-bottom));background:var(--paper);border-top:3px solid var(--ink)}
+  .findbar a{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--teal);color:var(--cream);font-weight:900;font-size:16px;padding:15px;border:2.5px solid var(--ink);border-radius:14px;box-shadow:4px 4px 0 var(--ink);text-decoration:none;transition:transform .12s,box-shadow .12s}
+  .findbar a:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
+  .findbar .li{width:24px;height:24px;background:var(--cream);color:var(--teal);border-radius:7px;display:grid;place-items:center;font-weight:900;font-size:13px;border:2px solid var(--ink)}
   .stickybar{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;z-index:120;padding:10px 14px calc(12px + env(safe-area-inset-bottom));background:var(--paper);border-top:3px solid var(--ink)}
   .stickybar a{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--orange);color:var(--cream);font-weight:900;font-size:16px;padding:15px;border:2.5px solid var(--ink);border-radius:14px;box-shadow:4px 4px 0 var(--ink);text-decoration:none;transition:transform .12s,box-shadow .12s}
   .stickybar a:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
@@ -208,7 +203,7 @@
     <div class="axwrap">
       <div class="axrow reveal"><span>🔥 ガチ<b>(G)</b></span><span class="mid">vs</span><span><b>(E)</b>エンジョイ 😎</span></div>
       <div class="axrow reveal"><span>🎉 ワイワイ<b>(W)</b></span><span class="mid">vs</span><span><b>(M)</b>マイペース 🧘</span></div>
-      <div class="axrow reveal"><span>⚔️ 攻め<b>(S)</b></span><span class="mid">vs</span><span><b>(K)</b>堅実 🛡️</span></div>
+      <div class="axrow reveal"><span>🚀 飛距離<b>(P)</b></span><span class="mid">vs</span><span><b>(K)</b>技巧 🎯</span></div>
       <div class="axrow reveal"><span>📈 探求<b>(T)</b></span><span class="mid">vs</span><span><b>(I)</b>今満喫 🌴</span></div>
     </div>
   </section>
@@ -228,16 +223,10 @@
   </footer>
 </div>
 
-<!-- アプリ共通の下タブ（診断中は常時表示／結果画面では body.noTabs で非表示） -->
-<nav class="apptab" aria-label="メインナビ">
-  <a class="at" href="/home"><svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg><span>ホーム</span></a>
-  <a class="at" href="/search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span>さがす</span></a>
-  <a class="at" href="/swing"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><span>スイング</span></a>
-  <a class="at" href="/create"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg><span>募集</span></a>
-  <a class="at" href="/buddies"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>ゴル友</span></a>
-  <a class="at on" href="/golmoti"><svg viewBox="0 0 24 24"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.13-1.58a.5.5 0 0 1 0-.97L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.14 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0z"/></svg><span>診断</span></a>
-  <a class="at" href="/mypage"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg><span>マイ</span></a>
-</nav>
+<!-- 固定CTAバー：LINEで友だち追加（ゴルフ仲間探し） -->
+<div class="findbar">
+  <a href="https://lin.ee/h6hse4O" data-cta="findfriends"><span class="li">L</span>ゴルフをする友達を探す</a>
+</div>
 
 <script>
   /* ===== データ収集（裏側送信＋ローカル保存） ===== */
@@ -258,49 +247,49 @@
   const AX={
     A:{left:{c:'G',l:'ガチ',e:'🔥',d:'結果にこだわる本気派',k:'#結果重視'}, right:{c:'E',l:'エンジョイ',e:'😎',d:'楽しさを最優先するエンジョイ派',k:'#エンジョイ'}},
     B:{left:{c:'W',l:'ワイワイ',e:'🎉',d:'仲間とワイワイ回るのが好き',k:'#社交的'}, right:{c:'M',l:'マイペース',e:'🧘',d:'自分のペースを大切にする',k:'#マイペース'}},
-    C:{left:{c:'S',l:'攻め',e:'⚔️',d:'果敢に攻めるアグレッシブ',k:'#攻めの一打'}, right:{c:'K',l:'堅実',e:'🛡️',d:'堅実に刻むセーフティ',k:'#堅実'}},
+    C:{left:{c:'P',l:'飛距離',e:'🚀',d:'飛距離で攻めるパワー型',k:'#飛距離'}, right:{c:'K',l:'技巧',e:'🎯',d:'小技と正確性の技巧型',k:'#技巧'}},
     D:{left:{c:'T',l:'探求',e:'📈',d:'もっと上手くなりたい探求心',k:'#向上心'}, right:{c:'I',l:'今満喫',e:'🌴',d:'今この一打を味わう',k:'#今を楽しむ'}},
   };
   const AXORDER=['A','B','C','D'];
 
   /* ===== 16タイプの愛称（コード→ニックネーム） ===== */
   const NICK={
-    GWST:{e:'🐯',n:'ピン一直線・攻め込み派',t:'旗を直接狙う、チームを引っ張る攻撃型',an:'トラ'},
-    GWSI:{e:'🦁',n:'とにかく飛ばしたい派',t:'飛ばして魅せる、ノリ重視の一発屋',an:'ライオン'},
-    GWKT:{e:'🦊',n:'計算して刻む派',t:'考えて刻む、計算ずくの堅実家',an:'キツネ'},
-    GWKI:{e:'🐶',n:'手堅くパー拾い派',t:'手堅くパーを拾う、場の主役',an:'イヌ'},
-    GMST:{e:'🦅',n:'黙って高み狙い派',t:'一人黙々と高みを狙う攻撃型',an:'ワシ'},
-    GMSI:{e:'🐆',n:'一発逆転ねらい派',t:'ハマれば爆発、リスク上等の勝負師',an:'ヒョウ'},
-    GMKT:{e:'🦉',n:'黙々スコアメイク派',t:'コツコツ刻む寡黙な職人',an:'フクロウ'},
-    GMKI:{e:'🐢',n:'ブレずに安全運転派',t:'動じず安全運転、自分のゴルフを貫く',an:'カメ'},
-    EWST:{e:'🐬',n:'楽しく攻めて伸びる派',t:'楽しみながらどんどん攻める伸び盛り',an:'イルカ'},
-    EWSI:{e:'🐵',n:'ノリで振り回す派',t:'明るく振り回す、陽気なムードメーカー',an:'サル'},
-    EWKT:{e:'🦫',n:'みんなでコツコツ上達派',t:'仲間と楽しく、堅実に成長する',an:'ビーバー'},
-    EWKI:{e:'🐻',n:'スコアより笑顔派',t:'スコアより笑顔、ゴルフの宴会部長',an:'クマ'},
-    EMST:{e:'🐺',n:'自由きまま攻め派',t:'一人で気ままに攻めて楽しむ',an:'オオカミ'},
-    EMSI:{e:'🐱',n:'気分で大胆ショット派',t:'気分屋だけど一打は大胆',an:'ネコ'},
-    EMKT:{e:'🐹',n:'コツコツ自分磨き派',t:'マイペースに安全に腕を磨く',an:'ハムスター'},
-    EMKI:{e:'🦥',n:'のんびりフェアウェイ散歩派',t:'自然体でゴルフそのものを味わう',an:'ナマケモノ'},
+    GWPT:{e:'🐯',n:'ぶっ飛ばしエース派',t:'飛距離で魅せてチームを引っ張る本気屋',an:'トラ'},
+    GWPI:{e:'🦁',n:'一発ロマン砲派',t:'飛距離とノリで魅せる、その場全力の主役',an:'ライオン'},
+    GWKT:{e:'🐶',n:'みんなで堅実・上達派',t:'仲間と楽しみつつ着実に積み上げる相棒',an:'イヌ'},
+    GWKI:{e:'🦊',n:'賢く立ち回り派',t:'小技と機転で楽しく結果も拾う知恵袋',an:'キツネ'},
+    GMPT:{e:'🦅',n:'孤高の飛ばし屋派',t:'黙々と高みを狙う飛距離特化の求道者',an:'ワシ'},
+    GMPI:{e:'🐆',n:'一撃必殺ハンター派',t:'静かに狙い、ハマれば爆発する勝負師',an:'ヒョウ'},
+    GMKT:{e:'🐢',n:'コツコツ精密派',t:'ブレずに刻んで積み上げる堅実な努力家',an:'カメ'},
+    GMKI:{e:'🦉',n:'黙々マイゴルフ派',t:'自分の型を貫く寡黙な職人',an:'フクロウ'},
+    EWPT:{e:'🐬',n:'楽しく伸びる飛ばし派',t:'笑顔で飛ばし、楽しみながら上達する伸び盛り',an:'イルカ'},
+    EWPI:{e:'🐵',n:'ノリ全開ドカン派',t:'ノリと勢いで振り回す陽気なムードメーカー',an:'サル'},
+    EWKT:{e:'🦫',n:'みんなでコツコツ派',t:'仲間と和気あいあい、着実に上手くなる働き者',an:'ビーバー'},
+    EWKI:{e:'🐻',n:'スコアより笑顔派',t:'スコアより笑顔、みんなで楽しむ宴会部長',an:'クマ'},
+    EMPT:{e:'🐺',n:'自由きまま飛ばし派',t:'一匹狼で気ままに飛ばし、こっそり上達する',an:'オオカミ'},
+    EMPI:{e:'🐱',n:'気分で大胆ショット派',t:'気分屋だけど一打は大胆な自由人',an:'ネコ'},
+    EMKT:{e:'🐹',n:'コツコツ自分磨き派',t:'マイペースに安全に腕を磨くがんばり屋',an:'ハムスター'},
+    EMKI:{e:'🦥',n:'のんびりフェアウェイ散歩派',t:'自然体でゴルフそのものを味わう癒し系',an:'ナマケモノ'},
   };
 
   /* ===== 各タイプの詳細（強み・弱み・あるある・おすすめの回り方） ===== */
   const DETAIL={
-    GWST:{s:'勝負所で迷わず攻め、仲間も引っ張るリーダー気質。',w:'攻めすぎて大叩きしてしまうことも。',a:'「ここは攻めでしょ！」が口グセ。',o:'同じ本気度の仲間とガチ競技ラウンドへ。'},
-    GWSI:{s:'豪快なショットで場を沸かせる飛ばし屋。',w:'飛距離欲が先行してOB連発しがち。',a:'ドラコンだけは絶対に譲らない。',o:'ワイワイ系コンペで飛ばし自慢を。'},
-    GWKT:{s:'状況を読んで賢く刻む戦略家。',w:'慎重すぎてチャンスを逃すことも。',a:'番手選びにやたら時間をかける。',o:'作戦を語り合える仲間とラウンド。'},
-    GWKI:{s:'大崩れしない安定感と明るいムード。',w:'守りに入りがちでベスト更新は遠め。',a:'パーで満足、ボギーも全然OK。',o:'気楽な仲間と楽しくスコアメイク。'},
-    GMST:{s:'自分と向き合い高い目標に挑む努力家。',w:'一人で抱え込みやすい。',a:'ラウンド後はいつも一人反省会。',o:'同レベルの向上心メンバーと切磋琢磨。'},
-    GMSI:{s:'ここ一番の集中力と一発の魅力。',w:'ムラが大きくスコアが安定しない。',a:'ナイスショットの記憶で生きている。',o:'勝負を楽しめる少人数ラウンドで。'},
-    GMKT:{s:'淡々とスコアを積み上げる職人。',w:'寡黙で輪に入りにくいことも。',a:'スコア分析アプリが何よりの趣味。',o:'静かに集中できる少人数ラウンドへ。'},
-    GMKI:{s:'崩れない安定感、頼れる存在。',w:'冒険せず伸び悩みがち。',a:'信条は「とりあえずフェアウェイ」。',o:'落ち着いた仲間とマイペースに。'},
-    EWST:{s:'楽しみながらぐんぐん上達する伸び盛り。',w:'ノリで攻めてミスも出やすい。',a:'失敗も「ナイスチャレンジ！」。',o:'明るく上達したい仲間とラウンド。'},
-    EWSI:{s:'場の空気を最高に盛り上げる太陽。',w:'スコアは二の次になりがち。',a:'OBすらも笑いに変える。',o:'エンジョイ重視のワイワイ募集へ。'},
-    EWKT:{s:'仲間と楽しく着実に伸びるタイプ。',w:'周りに合わせすぎることも。',a:'みんなで上達報告するのが楽しい。',o:'初心者歓迎のゆる練・ラウンドで。'},
-    EWKI:{s:'いるだけで場が和むムードメーカー。',w:'スコアへの執着はほぼゼロ。',a:'ラウンドより打ち上げが本番。',o:'笑って回れるエンジョイ仲間と。'},
-    EMST:{s:'自分流を貫き、気ままに攻める。',w:'マイルールで周りと差が出ることも。',a:'気分でクラブ選択がコロコロ変わる。',o:'自由に楽しめる少人数ラウンドへ。'},
-    EMSI:{s:'ハマると大胆で爽快な一打が出る。',w:'気分の波がそのままスコアに出る。',a:'調子の良し悪しが顔に出がち。',o:'気楽な相手と気分よくラウンド。'},
-    EMKT:{s:'一人でコツコツ確実に上達する。',w:'控えめで自分から誘いにくい。',a:'実は練習量がこっそり多い。',o:'マイペースを尊重し合える仲間と。'},
-    EMKI:{s:'自然体でゴルフそのものを愛でる。',w:'向上心は薄めで現状維持になりがち。',a:'景色やコーヒーが何よりの楽しみ。',o:'のんびり回れるゆる募集で。'},
+    GWPT:{s:'豪快な飛距離と、場を盛り上げるムードメーカー力。',w:'熱くなって攻めすぎ、大叩きすることも。',a:'「ナイショ！」を一番大きい声で言う。',o:'コンペで主役に。飛ばし屋同士で競うと燃える。'},
+    GWPI:{s:'当たれば爆発する飛距離と盛り上げ番長ぶり。',w:'ムラっ気があり、安定感は二の次。',a:'ドラコンだけは絶対に獲りにいく。',o:'ワイワイ系イベントで飛ばし自慢を。'},
+    GWKT:{s:'安定感と面倒見の良さ。スコアもまとめる。',w:'周りを気にして自分のプレーが疎かに。',a:'いつの間にか幹事を任されている。',o:'気の合う仲間とグループ定期ラウンド。'},
+    GWKI:{s:'コースマネジメントと空気を読む力。',w:'そつなさゆえ、熱量が見えにくい。',a:'大叩きせず、いつの間にか好スコア。',o:'仲間と気楽なコンペで実力発揮。'},
+    GMPT:{s:'飛距離への探究心と高い集中力。',w:'自分の世界に入り込みやすい。',a:'練習場で延々とドライバーを打ち込む。',o:'少人数で記録更新を狙うラウンドへ。'},
+    GMPI:{s:'瞬発力と、決め所での一発の飛距離。',w:'気分の波が大きくムラが出る。',a:'いい一発を一日中語っていられる。',o:'自分のペースで攻められるラウンドで。'},
+    GMKT:{s:'大崩れしない安定と、地道な継続力。',w:'慎重すぎて攻め所を逃すことも。',a:'パター練習が何より好き。',o:'スコア管理しながら一人/少人数で。'},
+    GMKI:{s:'自分のリズムを崩さない安定感。',w:'マイペースすぎて周りと温度差。',a:'無言で淡々と good score を出す。',o:'静かに回れる落ち着いた仲間と。'},
+    EWPT:{s:'明るさと成長意欲を両立する伸び盛り。',w:'楽しさ優先で詰めが甘くなることも。',a:'上達もスコアも「楽しい！」で片付く。',o:'ワイワイ仲間とラウンド＆練習。'},
+    EWPI:{s:'場を明るくする力と思い切りの良さ。',w:'大叩きしても気にしない（良くも悪くも）。',a:'池ポチャもネタにして大笑い。',o:'気楽なエンジョイコンペで盛り上げ役に。'},
+    EWKT:{s:'コツコツ続ける継続力と協調性。',w:'のんびりで決定力に欠けることも。',a:'みんなのボール探しを率先して手伝う。',o:'初心者歓迎の和やかラウンドで。'},
+    EWKI:{s:'楽しい場づくりの天才で、包容力抜群。',w:'上達への本気度はやや控えめ。',a:'打ち上げの仕切りは任せろ。',o:'イベント・コンペの幹事役で輝く。'},
+    EMPT:{s:'マイペースな探究心と伸びる飛距離。',w:'群れず、誘いに乗りにくい。',a:'一人予約でふらっと回りに行く。',o:'少人数の気楽なラウンドで。'},
+    EMPI:{s:'ハマった時の大胆さと爽快な一打。',w:'気分次第でムラが大きい。',a:'乗らない日はさっさと終わらせる。',o:'縛りのない自由なラウンドで気分よく。'},
+    EMKT:{s:'地道な努力と崩れない安定感。',w:'控えめで自分からは誘いにくい。',a:'実は練習量がこっそり一番多い。',o:'マイペースを尊重し合える仲間と。'},
+    EMKI:{s:'動じない穏やかさで、場をふっと和ます。',w:'向上心は薄めで現状維持になりがち。',a:'景色とお弁当が一番の楽しみ。',o:'のんびり回れるゆる募集で。'},
   };
 
   /* ===== 動物マスコット（独自SVGアイコン／フラット・MBId風テイスト） ===== */
@@ -356,17 +345,17 @@
     EMKT: mammal({bg:'#FFE9CF',fur:'#E8C49A',ear:'tiny',earInner:'#FBD9C0',muzzle:'#FBEAD6',belly:'#FBEAD6',front:BLUSH,tail:tSmall('#E8C49A')}),
     EMKI: mammal({bg:'#DDD8C8',fur:'#9A9486',ear:'round',muzzle:'#C7C2B2',belly:'#C7C2B2',eyes:SLEEPY,tail:tSmall('#9A9486')}),
   };
-  function mascotHTML(code,cls){ return '<span class="mascot '+(cls||'')+'">'+(MAS[code]||'')+'</span>'; }
+  function mascotHTML(code,cls){ return '<img class="mascot '+(cls||'')+'" src="/golmoti-chars/'+code+'.png" alt="" loading="lazy">'; }
 
   /* ===== 出題セット。option: {e,t, ax,pole,w} ===== */
   /* じっくり版：各軸3問・全12問 */
   const QS_FULL=[
-    // 軸A：目的（G/E）
-    {q:'スコアが崩れてきた。心の中は？', opts:[
-      {e:'🔥',t:'原因を分析して立て直す。むしろ燃える',ax:'A',pole:'G',w:2},
-      {e:'😤',t:'集中し直してベストを目指す',ax:'A',pole:'G',w:1},
-      {e:'🌳',t:'切り替えて景色や会話を楽しむ',ax:'A',pole:'E',w:1},
-      {e:'😆',t:'スコアはもういい、笑って楽しむ',ax:'A',pole:'E',w:2},
+    // 軸A：目的（ガチG / エンジョイE）
+    {q:'ゴルフ場に行く一番の楽しみは？', opts:[
+      {e:'🏆',t:'ベストスコアを更新すること',ax:'A',pole:'G',w:2},
+      {e:'📊',t:'目標のスコアでまとめること',ax:'A',pole:'G',w:1},
+      {e:'✨',t:'ナイスショットを決める快感',ax:'A',pole:'E',w:1},
+      {e:'🍺',t:'お酒を飲むこと',ax:'A',pole:'E',w:2},
     ]},
     {q:'ラウンドの“いい日”って？', opts:[
       {e:'🏆',t:'ベストスコアを更新できた日',ax:'A',pole:'G',w:2},
@@ -375,23 +364,23 @@
       {e:'🍻',t:'メンバーと盛り上がれた日',ax:'A',pole:'E',w:2},
     ]},
     {q:'練習場では？', opts:[
-      {e:'🎯',t:'課題を決めて黙々と打ち込む',ax:'A',pole:'G',w:2},
-      {e:'🧐',t:'たまにスイングをチェックする',ax:'A',pole:'G',w:1},
-      {e:'🙂',t:'気が向いたときに行く程度',ax:'A',pole:'E',w:1},
-      {e:'🏌️',t:'練習より本番でしょ！',ax:'A',pole:'E',w:2},
+      {e:'🎯',t:'苦手なクラブを中心に練習する',ax:'A',pole:'G',w:2},
+      {e:'🙂',t:'軽くスイングを確認しながら打つ',ax:'A',pole:'G',w:1},
+      {e:'😋',t:'好きなクラブで気持ちよく打つ',ax:'A',pole:'E',w:1},
+      {e:'😌',t:'何も考えず、思いっきり振って気分転換',ax:'A',pole:'E',w:2},
     ]},
-    // 軸B：社交（P/S）
+    // 軸B：社交（ワイワイW / マイペースM）
     {q:'理想のラウンドの人数は？', opts:[
       {e:'🎉',t:'大人数でワイワイ',ax:'B',pole:'W',w:2},
       {e:'👥',t:'4人くらいがちょうどいい',ax:'B',pole:'W',w:1},
       {e:'👤',t:'2〜3人で静かに',ax:'B',pole:'M',w:1},
       {e:'🧍',t:'一人でも全然平気',ax:'B',pole:'M',w:2},
     ]},
-    {q:'ラウンドのあとは？', opts:[
-      {e:'🍻',t:'みんなで打ち上げ必須！',ax:'B',pole:'W',w:2},
-      {e:'🍵',t:'軽くお茶して解散',ax:'B',pole:'W',w:1},
-      {e:'🚗',t:'さくっと帰る派',ax:'B',pole:'M',w:1},
-      {e:'😌',t:'余韻を一人で味わう',ax:'B',pole:'M',w:2},
+    {q:'コンペやゴルフイベントは？', opts:[
+      {e:'🎉',t:'大好き！大人数の場は盛り上がる',ax:'B',pole:'W',w:2},
+      {e:'🙆',t:'誘われたら積極的に参加する',ax:'B',pole:'W',w:1},
+      {e:'🤔',t:'たまになら。普段は少人数がいい',ax:'B',pole:'M',w:1},
+      {e:'🧘',t:'できれば避けたい。気心知れた人と静かに',ax:'B',pole:'M',w:2},
     ]},
     {q:'知らない人とのラウンドは？', opts:[
       {e:'✨',t:'新しい出会い大歓迎！',ax:'B',pole:'W',w:2},
@@ -399,43 +388,43 @@
       {e:'🤔',t:'ちょっと気をつかう',ax:'B',pole:'M',w:1},
       {e:'🛡️',t:'できれば慣れた人がいい',ax:'B',pole:'M',w:2},
     ]},
-    // 軸C：攻め方（A/C）
-    {q:'池越え200ヤード。どうする？', opts:[
-      {e:'🔥',t:'迷わずドライバーで攻める',ax:'C',pole:'S',w:2},
-      {e:'😏',t:'いけそうなら攻める',ax:'C',pole:'S',w:1},
-      {e:'🤏',t:'刻んで安全策',ax:'C',pole:'K',w:1},
-      {e:'🧱',t:'無理せず確実に置く',ax:'C',pole:'K',w:2},
+    // 軸C：持ち味（飛距離P / 技巧K）
+    {q:'憧れるゴルファーは？', opts:[
+      {e:'🚀',t:'豪快に飛ばすパワーヒッター',ax:'C',pole:'P',w:2},
+      {e:'💪',t:'力強いロングヒッター',ax:'C',pole:'P',w:1},
+      {e:'🎯',t:'正確無比なショットメーカー',ax:'C',pole:'K',w:1},
+      {e:'🪄',t:'小技の魔術師・アプローチ巧者',ax:'C',pole:'K',w:2},
     ]},
-    {q:'あなたのゴルフを一言で？', opts:[
-      {e:'🎢',t:'当たれば飛ぶ、ムラもある',ax:'C',pole:'S',w:2},
-      {e:'⚡',t:'攻めの姿勢が身上',ax:'C',pole:'S',w:1},
-      {e:'📏',t:'大きなミスが少ない',ax:'C',pole:'K',w:1},
-      {e:'🧘',t:'とにかく安定重視',ax:'C',pole:'K',w:2},
+    {q:'もっと伸ばしたいのは？', opts:[
+      {e:'🚀',t:'ドライバーの飛距離',ax:'C',pole:'P',w:2},
+      {e:'⛳',t:'アイアンの飛距離',ax:'C',pole:'P',w:1},
+      {e:'🎯',t:'アイアンの正確性',ax:'C',pole:'K',w:1},
+      {e:'🪄',t:'アプローチ・パターの技術',ax:'C',pole:'K',w:2},
     ]},
-    {q:'ピンは手前の池の奥。狙いは？', opts:[
-      {e:'🎯',t:'ピンをデッドに狙う',ax:'C',pole:'S',w:2},
-      {e:'🙂',t:'ピン方向に強気で',ax:'C',pole:'S',w:1},
-      {e:'🟢',t:'グリーンセンター狙い',ax:'C',pole:'K',w:1},
-      {e:'🛟',t:'花道に安全に',ax:'C',pole:'K',w:2},
+    {q:'スコアを作るなら、どっち寄り？', opts:[
+      {e:'🚀',t:'とにかく飛ばして攻め切る',ax:'C',pole:'P',w:2},
+      {e:'🏌️',t:'飛距離を活かして有利な位置から',ax:'C',pole:'P',w:1},
+      {e:'🧩',t:'正確なマネジメントで刻む',ax:'C',pole:'K',w:1},
+      {e:'🎨',t:'小技・アプローチでカバー',ax:'C',pole:'K',w:2},
     ]},
-    // 軸D：向上心（K/N）
-    {q:'ゴルフのモチベーションは？', opts:[
-      {e:'📚',t:'もっと上手くなりたい！',ax:'D',pole:'T',w:2},
-      {e:'📈',t:'少しずつ成長したい',ax:'D',pole:'T',w:1},
-      {e:'😊',t:'今を楽しめれば十分',ax:'D',pole:'I',w:1},
-      {e:'🌴',t:'上達より娯楽！',ax:'D',pole:'I',w:2},
+    // 軸D：向上心（探求T / 今満喫I）
+    {q:'ゴルフを続ける一番の理由は？', opts:[
+      {e:'📚',t:'上達して、なりたい自分に近づくため',ax:'D',pole:'T',w:2},
+      {e:'📈',t:'少しずつでも成長を感じられるから',ax:'D',pole:'T',w:1},
+      {e:'😊',t:'気分転換・リフレッシュになるから',ax:'D',pole:'I',w:1},
+      {e:'🌴',t:'ただ純粋に、その時間が好きだから',ax:'D',pole:'I',w:2},
     ]},
-    {q:'レッスンやスイング動画は？', opts:[
-      {e:'🤓',t:'よく見て研究する',ax:'D',pole:'T',w:2},
-      {e:'👀',t:'たまに参考にする',ax:'D',pole:'T',w:1},
-      {e:'🤷',t:'あまり見ない',ax:'D',pole:'I',w:1},
-      {e:'🙅',t:'感覚でやる派',ax:'D',pole:'I',w:2},
+    {q:'ラウンドが終わったあとは？', opts:[
+      {e:'🤓',t:'ミスを分析して次に活かす',ax:'D',pole:'T',w:2},
+      {e:'📝',t:'良かった点を軽く振り返る',ax:'D',pole:'T',w:1},
+      {e:'😌',t:'終わったら特に気にしない',ax:'D',pole:'I',w:1},
+      {e:'🍻',t:'反省より打ち上げ！',ax:'D',pole:'I',w:2},
     ]},
-    {q:'5年後の理想のゴルフ像は？', opts:[
-      {e:'🏆',t:'シングルを目指してる',ax:'D',pole:'T',w:2},
-      {e:'⛳',t:'着実にスコアを縮めたい',ax:'D',pole:'T',w:1},
-      {e:'😄',t:'変わらず楽しんでいたい',ax:'D',pole:'I',w:1},
-      {e:'🍹',t:'のんびり趣味で続けたい',ax:'D',pole:'I',w:2},
+    {q:'ゴルフ、上手くなりたい気持ちは？', opts:[
+      {e:'🔥',t:'強い！どんどん上手くなりたい',ax:'D',pole:'T',w:2},
+      {e:'📈',t:'そこそこ。上達できたら嬉しい',ax:'D',pole:'T',w:1},
+      {e:'🙂',t:'あまりこだわらない',ax:'D',pole:'I',w:1},
+      {e:'🌴',t:'楽しければ上手さは気にしない',ax:'D',pole:'I',w:2},
     ]},
   ];
 
@@ -547,7 +536,6 @@
       </div>`;
     };
 
-    document.body.classList.add('noTabs'); // 結果画面はタブ非表示
     resultwrap.classList.remove('hidden');
     resultwrap.innerHTML=`
       <section style="padding-top:8px">
@@ -577,7 +565,7 @@
           <button class="sbtn" id="shareBtn" style="flex:1">📤 結果をシェアする</button>
         </div>
         ${shared
-          ? `<a class="bigcta" id="startMine" data-cta="startMine" href="${LP_URL}">🏌️ あなたも無料で診断する</a>`
+          ? `<a class="bigcta" id="startMine" data-cta="startMine" href="/golmoti">🏌️ 自分も診断してみる</a>`
           : `<button class="again" id="again">もう一度診断する</button>`}
       </div>
       </section>`;
@@ -599,7 +587,7 @@
       catch(e){ prompt('コピーしてください',shareUrl); }
     });
     const againBtn=document.getElementById('again');
-    if(againBtn) againBtn.addEventListener('click',()=>{ document.body.classList.remove('noTabs'); step=0; ans.length=0; resultwrap.classList.add('hidden'); resultwrap.innerHTML=''; quiz.classList.remove('hidden'); calcbox.classList.add('hidden'); quiz.scrollIntoView({behavior:'smooth'}); track('start',{total:QS.length}); renderQ(); });
+    if(againBtn) againBtn.addEventListener('click',()=>{ step=0; ans.length=0; resultwrap.classList.add('hidden'); resultwrap.innerHTML=''; quiz.classList.remove('hidden'); calcbox.classList.add('hidden'); quiz.scrollIntoView({behavior:'smooth'}); track('start',{total:QS.length}); renderQ(); });
     bindCTA();
     resultwrap.scrollIntoView({behavior:'smooth',block:'start'});
   }
