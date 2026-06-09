@@ -7,7 +7,7 @@ import { toast } from '@/components/Toast';
 import { Avatar } from '@/components/Avatar';
 import { track } from '@/lib/telemetry';
 import { allAreas } from '@/lib/mockData';
-import { GOLMOTI_TYPES } from '@/lib/golmoti';
+import { GOLMOTI_TYPES, getGolmotiType, golmotiImg } from '@/lib/golmoti';
 import type { Gender, CarStatus, ScoreEntry } from '@/lib/types';
 
 const playStyles = [
@@ -68,6 +68,7 @@ export default function ProfileEditPage() {
   const [scoreRange, setScoreRange] = useState('');
   const [playStyle, setPlayStyle] = useState('');
   const [golmotiType, setGolmotiType] = useState('');
+  const [golmotiOpen, setGolmotiOpen] = useState(false);
   const [frequency, setFrequency] = useState('');
   const [recentScores, setRecentScores] = useState<ScoreEntry[]>([]);
   const [golfHistory, setGolfHistory] = useState('');
@@ -348,16 +349,44 @@ export default function ProfileEditPage() {
         </Field>
 
         <Field label="ゴルフ診断タイプ（GOLMOTI）" hint="（任意）">
-          <select
-            value={golmotiType}
-            onChange={(e) => setGolmotiType(e.target.value)}
-            className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
+          <button
+            type="button"
+            onClick={() => setGolmotiOpen((o) => !o)}
+            className="w-full flex items-center gap-2.5 p-2.5 border-[1.5px] border-border rounded-[10px] text-sm bg-bg"
           >
-            <option value="">未設定</option>
-            {GOLMOTI_TYPES.map((t) => (
-              <option key={t.code} value={t.code}>{t.emoji} {t.name}（{t.code}）</option>
-            ))}
-          </select>
+            {golmotiType ? (
+              <>
+                <img src={golmotiImg(golmotiType)} alt="" className="w-9 h-9 object-contain flex-shrink-0" />
+                <span className="font-bold">{getGolmotiType(golmotiType)?.name}</span>
+                <span className="text-muted text-[11px] font-num">{golmotiType}</span>
+              </>
+            ) : (
+              <span className="text-muted">未設定（タップして選択）</span>
+            )}
+            <span className="ml-auto text-muted text-xs">{golmotiOpen ? '▲' : '▼'}</span>
+          </button>
+          {golmotiOpen && (
+            <div className="mt-2 border-[1.5px] border-border rounded-[10px] bg-card overflow-hidden">
+              <button
+                type="button"
+                onClick={() => { setGolmotiType(''); setGolmotiOpen(false); }}
+                className="w-full text-left px-3 py-2 text-xs font-bold text-sub border-b border-border"
+              >未設定にする</button>
+              <div className="grid grid-cols-2 gap-1.5 p-2 max-h-80 overflow-y-auto">
+                {GOLMOTI_TYPES.map((t) => (
+                  <button
+                    key={t.code}
+                    type="button"
+                    onClick={() => { setGolmotiType(t.code); setGolmotiOpen(false); }}
+                    className={`flex items-center gap-2 p-1.5 rounded-lg border-[1.5px] text-left ${golmotiType === t.code ? 'border-green bg-green-light' : 'border-border bg-bg'}`}
+                  >
+                    <img src={golmotiImg(t.code)} alt="" className="w-10 h-10 object-contain flex-shrink-0" />
+                    <span className="text-[11px] font-bold leading-tight">{t.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <a href="/golmoti" className="inline-block mt-2 text-[11px] font-bold text-green underline">
             まだの人は無料診断でチェック →
           </a>

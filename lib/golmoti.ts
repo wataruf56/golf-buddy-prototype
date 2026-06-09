@@ -1,29 +1,30 @@
-// ゴルフ性格診断「GOLMOTI」16タイプの共有データ。
-// 出典は public/golmoti.html の NICK 定義（コード→絵文字/名前/タグライン/動物）。
-// プロフィールの診断タイプ選択プルダウン・表示で使用する。
+// ゴルフ性格診断「GOLMOTI」16タイプの共有データ（新軸版）。
+// 軸：目的(G/E) × 社交(W/M) × 持ち味 飛距離P/技巧K × 向上心(T/I)。
+// public/golmoti-chars/{code}.png に各タイプの動物キャラ画像がある。
+// 出典は public/golmoti.html の NICK 定義と一致させること。
 
 export type GolmotiType = {
-  code: string;   // 例: 'GWST'（4軸の頭文字）
-  emoji: string;  // 動物の絵文字
+  code: string;   // 例: 'GWPT'
+  emoji: string;  // 動物の絵文字（フォールバック表示用）
   name: string;   // 「〜派」名
   animal: string; // 動物名
 };
 
 export const GOLMOTI_TYPES: GolmotiType[] = [
-  { code: 'GWST', emoji: '🐯', name: 'ピン一直線・攻め込み派', animal: 'トラ' },
-  { code: 'GWSI', emoji: '🦁', name: 'とにかく飛ばしたい派', animal: 'ライオン' },
-  { code: 'GWKT', emoji: '🦊', name: '計算して刻む派', animal: 'キツネ' },
-  { code: 'GWKI', emoji: '🐶', name: '手堅くパー拾い派', animal: 'イヌ' },
-  { code: 'GMST', emoji: '🦅', name: '黙って高み狙い派', animal: 'ワシ' },
-  { code: 'GMSI', emoji: '🐆', name: '一発逆転ねらい派', animal: 'ヒョウ' },
-  { code: 'GMKT', emoji: '🦉', name: '黙々スコアメイク派', animal: 'フクロウ' },
-  { code: 'GMKI', emoji: '🐢', name: 'ブレずに安全運転派', animal: 'カメ' },
-  { code: 'EWST', emoji: '🐬', name: '楽しく攻めて伸びる派', animal: 'イルカ' },
-  { code: 'EWSI', emoji: '🐵', name: 'ノリで振り回す派', animal: 'サル' },
-  { code: 'EWKT', emoji: '🦫', name: 'みんなでコツコツ上達派', animal: 'ビーバー' },
+  { code: 'GWPT', emoji: '🐯', name: 'ぶっ飛ばしエース派', animal: 'トラ' },
+  { code: 'GWPI', emoji: '🦁', name: '一発ロマン砲派', animal: 'ライオン' },
+  { code: 'GWKT', emoji: '🐶', name: 'みんなで堅実・上達派', animal: 'イヌ' },
+  { code: 'GWKI', emoji: '🦊', name: '賢く立ち回り派', animal: 'キツネ' },
+  { code: 'GMPT', emoji: '🦅', name: '孤高の飛ばし屋派', animal: 'ワシ' },
+  { code: 'GMPI', emoji: '🐆', name: '一撃必殺ハンター派', animal: 'ヒョウ' },
+  { code: 'GMKT', emoji: '🐢', name: 'コツコツ精密派', animal: 'カメ' },
+  { code: 'GMKI', emoji: '🦉', name: '黙々マイゴルフ派', animal: 'フクロウ' },
+  { code: 'EWPT', emoji: '🐬', name: '楽しく伸びる飛ばし派', animal: 'イルカ' },
+  { code: 'EWPI', emoji: '🐵', name: 'ノリ全開ドカン派', animal: 'サル' },
+  { code: 'EWKT', emoji: '🦫', name: 'みんなでコツコツ派', animal: 'ビーバー' },
   { code: 'EWKI', emoji: '🐻', name: 'スコアより笑顔派', animal: 'クマ' },
-  { code: 'EMST', emoji: '🐺', name: '自由きまま攻め派', animal: 'オオカミ' },
-  { code: 'EMSI', emoji: '🐱', name: '気分で大胆ショット派', animal: 'ネコ' },
+  { code: 'EMPT', emoji: '🐺', name: '自由きまま飛ばし派', animal: 'オオカミ' },
+  { code: 'EMPI', emoji: '🐱', name: '気分で大胆ショット派', animal: 'ネコ' },
   { code: 'EMKT', emoji: '🐹', name: 'コツコツ自分磨き派', animal: 'ハムスター' },
   { code: 'EMKI', emoji: '🦥', name: 'のんびりフェアウェイ散歩派', animal: 'ナマケモノ' },
 ];
@@ -35,6 +36,11 @@ const BY_CODE: Record<string, GolmotiType> = Object.fromEntries(
 export function getGolmotiType(code?: string | null): GolmotiType | undefined {
   if (!code) return undefined;
   return BY_CODE[code.toUpperCase().trim()];
+}
+
+// 各タイプの動物キャラ画像URL（透過PNG）。
+export function golmotiImg(code: string): string {
+  return `/golmoti-chars/${code}.png`;
 }
 
 // 診断ページ（共有結果／自分の結果）の URL。コード指定で結果を直接開ける。

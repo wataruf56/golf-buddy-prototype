@@ -1,9 +1,9 @@
 'use client';
 
-import { getGolmotiType, golmotiUrl } from '@/lib/golmoti';
+import { getGolmotiType, golmotiUrl, golmotiImg } from '@/lib/golmoti';
 
 // プロフィールに表示するゴルフ診断（GOLMOTI）タイプのバッジ。
-// code が未設定 or 不正なら何も描画しない。link=true で診断結果ページへのリンクにする。
+// 動物キャラ画像＋タイプ名を組み合わせて表示。code が未設定/不正なら何も描画しない。
 export function GolmotiBadge({
   code,
   link = false,
@@ -19,12 +19,16 @@ export function GolmotiBadge({
   if (!t) return null;
 
   const base =
-    'inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-light text-green text-[11px] font-bold rounded-full border-2 border-green ' +
+    'inline-flex items-center gap-2 pl-1.5 pr-3 py-1 bg-green-light text-green text-[12px] font-bold rounded-full border-2 border-green ' +
     className;
   const inner = (
     <>
-      <span className="text-[13px] leading-none">{t.emoji}</span>
-      <span>{t.name}</span>
+      <img
+        src={golmotiImg(t.code)}
+        alt={t.animal}
+        className="w-7 h-7 object-contain rounded-full bg-white/70"
+      />
+      <span className="leading-tight">{t.name}</span>
       {showCode && <span className="opacity-70 font-num">{t.code}</span>}
     </>
   );
