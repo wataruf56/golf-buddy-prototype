@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Search, Activity, Plus, Users, User, Sparkles } from 'lucide-react';
+import { Home, Search, Activity, Plus, Users, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUnreadCounts } from '@/lib/useUnread';
 
@@ -14,8 +14,7 @@ const tabs: Tab[] = [
   { id: 'swing', label: 'スイング', href: '/swing', icon: Activity },
   { id: 'create', label: '募集', href: '/create', icon: Plus },
   { id: 'buddies', label: 'ゴル友', href: '/buddies', icon: Users },
-  // 今回の機能：ゴルフ性格診断（静的ページ /golmoti へ全画面遷移）
-  { id: 'golmoti', label: '診断', href: '/golmoti', icon: Sparkles, external: true, isNew: true },
+  // 診断はアプリ本体から除外（独立LPへ移行）。プロフィールのタイプ選択のみ残す。
   { id: 'mypage', label: 'マイ', href: '/mypage', icon: User },
 ];
 
