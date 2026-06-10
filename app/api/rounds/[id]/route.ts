@@ -67,21 +67,26 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const hasBreakdown = ['spotsMale', 'spotsFemale', 'spotsAny'].some((k) => has(k));
   if (hasBreakdown) {
-    // 性別内訳を正として maxSpots・genderCondition を再計算。
+    // 性別内訳を正として maxSpots・genderCondition・currentCount を再計算。
     const clampN = (v: any, fb = 0) => Math.max(0, Math.min(49, Math.floor(Number(v ?? fb) || 0)));
     const sm = clampN(body.spotsMale, round.spotsMale);
     const sf = clampN(body.spotsFemale, round.spotsFemale);
     let sa = clampN(body.spotsAny, round.spotsAny);
     let slots = sm + sf + sa;
     if (slots < 1) { sa = 1; slots = 1; }
-    const nextMax = Math.min(50, slots + 1);
-    if (nextMax < (round.currentCount || 1)) {
+    // アプリ外メンバー（他アプリ等で集まっている人）。主催者と同様に枠を埋める扱い。
+    const external = has('externalCount') ? clampN(body.externalCount, round.externalCount) : (round.externalCount || 0);
+    const approvedApp = round.applicantIds?.length || 0;
+    if (slots < approvedApp) {
       return NextResponse.json(
-        { error: 'too_small', message: `すでに${round.currentCount}人が参加しているため、それ未満にはできません` },
+        { error: 'too_small', message: `すでに${approvedApp}人がゴルトモから参加しているため、募集枠をそれ未満にはできません` },
         { status: 400, headers: noStore },
       );
     }
+    const nextMax = Math.min(50, 1 + external + slots);
     patch.spotsMale = sm; patch.spotsFemale = sf; patch.spotsAny = sa;
+    patch.externalCount = external;
+    patch.currentCount = 1 + external + approvedApp; // 主催者 + アプリ外 + 承認済み
     patch.maxSpots = nextMax; patch.isCompetition = nextMax >= 5;
     genderCondition = sa === 0 && sf === 0 && sm > 0 ? 'male'
       : sa === 0 && sm === 0 && sf > 0 ? 'female' : 'any';

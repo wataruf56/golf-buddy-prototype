@@ -28,8 +28,9 @@ export default function CreatePage() {
   const [area, setArea] = useState('');
   const [dateType, setDateType] = useState<DateType>('fixed');
   const [dateRange, setDateRange] = useState('');
-  // maxSpots = 自分を含めた合計人数。募集枠 = maxSpots - 1 をさらに性別で内訳。
+  // maxSpots = 自分を含めた合計人数 = 主催者(1) + アプリ外メンバー + 募集枠(性別内訳)。
   const [maxSpots, setMaxSpots] = useState(4);
+  const [externalCount, setExternalCount] = useState(0); // 他アプリ等で既に集まっている人数
   const [spotsMale, setSpotsMale] = useState(0);
   const [spotsFemale, setSpotsFemale] = useState(0);
   const [price, setPrice] = useState('');
@@ -39,20 +40,27 @@ export default function CreatePage() {
 
   const isComp = maxSpots >= 5;
   const MIN_TOTAL = 2, MAX_TOTAL = 50;
-  const slots = Math.max(0, maxSpots - 1);        // 自分以外の募集枠
-  const spotsAny = Math.max(0, slots - spotsMale - spotsFemale); // どちらでもOK（自動）
+  const slots = Math.max(0, maxSpots - 1 - externalCount);        // ゴルトモで募集する枠
+  const spotsAny = Math.max(0, slots - spotsMale - spotsFemale);  // どちらでもOK（自動）
 
   // 合計人数の増減（募集枠が縮むときは内訳を自動で詰める）
   function changeTotal(delta: number) {
     const next = Math.max(MIN_TOTAL, Math.min(MAX_TOTAL, maxSpots + delta));
-    const nextSlots = next - 1;
+    const ext = Math.min(externalCount, next - 1);
+    const nextSlots = Math.max(0, next - 1 - ext);
     const m = Math.min(spotsMale, nextSlots);
     const f = Math.min(spotsFemale, Math.max(0, nextSlots - m));
-    setMaxSpots(next);
-    setSpotsMale(m);
-    setSpotsFemale(f);
+    setMaxSpots(next); setExternalCount(ext); setSpotsMale(m); setSpotsFemale(f);
   }
-  // 男女の手動増減（合計枠を超えないようにクランプ）
+  // アプリ外メンバーの増減（募集枠が縮むときは内訳を詰める）
+  function changeExternal(delta: number) {
+    const ext = Math.max(0, Math.min(externalCount + delta, maxSpots - 1));
+    const nextSlots = Math.max(0, maxSpots - 1 - ext);
+    const m = Math.min(spotsMale, nextSlots);
+    const f = Math.min(spotsFemale, Math.max(0, nextSlots - m));
+    setExternalCount(ext); setSpotsMale(m); setSpotsFemale(f);
+  }
+  // 男女の手動増減（募集枠を超えないようにクランプ）
   function changeMale(delta: number) {
     setSpotsMale((m) => Math.max(0, Math.min(m + delta, slots - spotsFemale)));
   }
@@ -86,6 +94,7 @@ export default function CreatePage() {
       dateRange: type === 'flexible' && dateType === 'range' ? dateRange : undefined,
       startTime: type === 'confirmed' ? startTime : undefined,
       maxSpots,
+      externalCount,
       spotsMale,
       spotsFemale,
       spotsAny,
@@ -248,15 +257,27 @@ export default function CreatePage() {
             <div className="flex items-center gap-3">
               <Stepper value={maxSpots} onMinus={() => changeTotal(-1)} onPlus={() => changeTotal(1)} minusDisabled={maxSpots <= MIN_TOTAL} plusDisabled={maxSpots >= MAX_TOTAL} suffix="人" />
             </div>
-            <div className="mt-1.5 px-3 py-2 bg-green-light rounded-lg text-[11px] text-green font-bold flex items-center gap-1.5">
-              👤 主催者（あなた）を含めた人数です
+            <div className="mt-1.5 px-3 py-2 bg-green-light rounded-lg text-[11px] text-green font-bold">
+              👤 主催者（あなた）を含めた合計人数です
             </div>
-            <div className="mt-1.5 text-xs font-bold text-sub">うち、あなた以外の募集枠：<b className="text-green">{slots}人</b></div>
+            <div className="mt-1.5 text-xs font-bold text-sub">
+              内訳：あなた <b className="text-text">1</b> ＋ アプリ外 <b className="text-text">{externalCount}</b> ＋ ゴルトモ募集 <b className="text-green">{slots}</b> 人
+            </div>
             {isComp && (
               <div className="mt-2 px-3 py-2.5 bg-orange-light rounded-lg text-xs text-orange font-bold">
                 🏆 5人以上はコンペ・イベント扱いになります
               </div>
             )}
+          </Field>
+
+          <Field label="アプリ外メンバー" hint="（他アプリ等で既に集まっている人・任意）">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-sub">ゴルトモにいない参加者</span>
+              <Stepper sm value={externalCount} onMinus={() => changeExternal(-1)} onPlus={() => changeExternal(1)} minusDisabled={externalCount <= 0} plusDisabled={externalCount >= maxSpots - 1} suffix="人" />
+            </div>
+            <div className="mt-1.5 text-[10px] text-muted font-medium">
+              他のアプリ等ですでに集まっているメンバーの人数。合計人数に算入され、その分ゴルトモの募集枠が減ります。
+            </div>
           </Field>
 
           <Field label="性別ごとの募集内訳" hint={`（募集枠 ${slots}人）`}>

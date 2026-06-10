@@ -327,6 +327,9 @@ export default function RoundDetailPage() {
               {o > 0 && (
                 <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-bg text-sub">未設定 {o}</span>
               )}
+              {(round.externalCount || 0) > 0 && (
+                <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-yellow-light text-yellow border border-yellow">📱 アプリ外 {round.externalCount}</span>
+              )}
             </div>
           );
         })()}
