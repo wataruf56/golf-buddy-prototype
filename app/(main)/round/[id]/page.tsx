@@ -355,17 +355,16 @@ export default function RoundDetailPage() {
           </div>
         )}
 
-        {isComp && (
-          <div className="mb-4">
-            <div className="flex justify-between items-baseline mb-1.5">
-              <span className="text-xs font-semibold text-sub">参加状況</span>
-              <span className="text-sm font-black text-orange">{round.currentCount}/{round.maxSpots}人 参加中</span>
-            </div>
-            <div className="w-full h-2 bg-bg rounded overflow-hidden">
-              <div className="h-full bg-orange rounded" style={{ width: `${Math.round((round.currentCount / round.maxSpots) * 100)}%` }} />
-            </div>
+        {/* 参加状況バーはコンペ以外の通常募集でも表示（何人中何人参加か） */}
+        <div className="mb-4">
+          <div className="flex justify-between items-baseline mb-1.5">
+            <span className="text-xs font-semibold text-sub">参加状況</span>
+            <span className="text-sm font-black text-orange">{round.currentCount}/{round.maxSpots}人 参加中</span>
           </div>
-        )}
+          <div className="w-full h-2 bg-bg rounded overflow-hidden">
+            <div className="h-full bg-orange rounded" style={{ width: `${Math.round((round.currentCount / Math.max(1, round.maxSpots)) * 100)}%` }} />
+          </div>
+        </div>
 
         {round.description && (
           <div className="mb-4 p-3 bg-bg rounded-xl text-[13px] text-text leading-relaxed">{round.description}</div>
