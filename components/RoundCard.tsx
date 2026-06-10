@@ -84,17 +84,16 @@ export function RoundCard({ round, host }: { round: Round; host?: User }) {
         )}
         <span className="badge px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-bg text-sub">{placeIcon} {placeLabel}</span>
       </div>
-      {isComp && (
-        <div className="mb-2.5">
-          <div className="flex justify-between items-baseline mb-1.5">
-            <span className="text-[11px] text-sub font-semibold">参加状況</span>
-            <span className="text-sm font-black text-orange">{round.currentCount}/{round.maxSpots}人 参加中</span>
-          </div>
-          <div className="w-full h-2 bg-bg rounded overflow-hidden">
-            <div className="h-full bg-orange rounded" style={{ width: `${pct}%` }} />
-          </div>
+      {/* 参加状況バー（コンペ以外の通常募集でもカード上に表示） */}
+      <div className="mb-2.5">
+        <div className="flex justify-between items-baseline mb-1.5">
+          <span className="text-[11px] text-sub font-semibold">参加状況</span>
+          <span className="text-sm font-black text-orange">{round.currentCount}/{round.maxSpots}人 参加中</span>
         </div>
-      )}
+        <div className="w-full h-2 bg-bg rounded overflow-hidden">
+          <div className="h-full bg-orange rounded" style={{ width: `${Math.round((round.currentCount / Math.max(1, round.maxSpots)) * 100)}%` }} />
+        </div>
+      </div>
       <div className="flex flex-wrap gap-1.5 mb-2.5">
         <span className="badge px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-blue-light text-blue">{conditionLabel}</span>
         {round.price && (
