@@ -27,8 +27,10 @@ export async function POST(req: NextRequest) {
   // 性別ごとの募集内訳。指定があればそれを正とし、maxSpots（＝主催者1＋募集枠）を再計算する。
   // 旧クライアント（内訳なし）は maxSpots をそのまま使い、全枠を「どちらでもOK」とみなす。
   const clampN = (v: any) => Math.max(0, Math.min(49, Math.floor(Number(v) || 0)));
-  // 他アプリ等で既に集まっている人数（主催者と同様、最初から埋まっている扱い）
-  const externalCount = clampN(body.externalCount);
+  // 主催者の知り合い（ゴルトモ外で既に集まっている人）。主催者と同様、最初から埋まっている扱い。
+  const externalMale = clampN(body.externalMale);
+  const externalFemale = clampN(body.externalFemale);
+  const externalTotal = externalMale + externalFemale + (body.externalMale == null && body.externalFemale == null ? clampN(body.externalCount) : 0);
   const hasBreakdown = ['spotsMale', 'spotsFemale', 'spotsAny'].some((k) => k in body);
   let spotsMale = clampN(body.spotsMale);
   let spotsFemale = clampN(body.spotsFemale);
@@ -37,10 +39,10 @@ export async function POST(req: NextRequest) {
   if (hasBreakdown) {
     let slots = spotsMale + spotsFemale + spotsAny;
     if (slots < 1) { spotsAny = 1; slots = 1; } // 最低1枠
-    maxSpots = Math.min(50, 1 + externalCount + slots); // 主催者 + アプリ外 + 募集枠
+    maxSpots = Math.min(50, 1 + externalTotal + slots); // 主催者 + 知り合い + 募集枠
   } else {
     maxSpots = Math.max(2, Math.min(50, Number(body.maxSpots) || 2));
-    spotsMale = 0; spotsFemale = 0; spotsAny = Math.max(0, maxSpots - 1 - externalCount);
+    spotsMale = 0; spotsFemale = 0; spotsAny = Math.max(0, maxSpots - 1 - externalTotal);
   }
   // 後方互換の性別条件をサーバー側で内訳から導出（単一性別のみ厳格ゲート）
   const genderCondition: 'any' | 'male' | 'female' =
@@ -62,8 +64,9 @@ export async function POST(req: NextRequest) {
     spotsMale,
     spotsFemale,
     spotsAny,
-    externalCount,
-    currentCount: 1 + externalCount, // 主催者 + アプリ外メンバーは最初から参加扱い
+    externalMale,
+    externalFemale,
+    currentCount: 1 + externalTotal, // 主催者 + 知り合いは最初から参加扱い
     applicantIds: [],
     price: body.price,
     beginnerOnly,

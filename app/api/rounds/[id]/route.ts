@@ -74,8 +74,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     let sa = clampN(body.spotsAny, round.spotsAny);
     let slots = sm + sf + sa;
     if (slots < 1) { sa = 1; slots = 1; }
-    // アプリ外メンバー（他アプリ等で集まっている人）。主催者と同様に枠を埋める扱い。
-    const external = has('externalCount') ? clampN(body.externalCount, round.externalCount) : (round.externalCount || 0);
+    // 主催者の知り合い（ゴルトモ外で集まっている人）。主催者と同様に枠を埋める扱い。
+    const em = has('externalMale') ? clampN(body.externalMale, round.externalMale) : (round.externalMale || 0);
+    const ef = has('externalFemale') ? clampN(body.externalFemale, round.externalFemale) : (round.externalFemale || 0);
+    const external = em + ef;
     const approvedApp = round.applicantIds?.length || 0;
     if (slots < approvedApp) {
       return NextResponse.json(
@@ -85,8 +87,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
     const nextMax = Math.min(50, 1 + external + slots);
     patch.spotsMale = sm; patch.spotsFemale = sf; patch.spotsAny = sa;
-    patch.externalCount = external;
-    patch.currentCount = 1 + external + approvedApp; // 主催者 + アプリ外 + 承認済み
+    patch.externalMale = em; patch.externalFemale = ef;
+    patch.currentCount = 1 + external + approvedApp; // 主催者 + 知り合い + 承認済み
     patch.maxSpots = nextMax; patch.isCompetition = nextMax >= 5;
     genderCondition = sa === 0 && sf === 0 && sm > 0 ? 'male'
       : sa === 0 && sm === 0 && sf > 0 ? 'female' : 'any';

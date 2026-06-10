@@ -31,7 +31,8 @@ export default function EditRoundPage() {
   const [dateType, setDateType] = useState<'fixed' | 'range'>('fixed');
   const [dateRange, setDateRange] = useState('');
   const [maxSpots, setMaxSpots] = useState(4);
-  const [externalCount, setExternalCount] = useState(0);
+  const [externalMale, setExternalMale] = useState(0);
+  const [externalFemale, setExternalFemale] = useState(0);
   const [spotsMale, setSpotsMale] = useState(0);
   const [spotsFemale, setSpotsFemale] = useState(0);
   const [price, setPrice] = useState('');
@@ -69,9 +70,11 @@ export default function EditRoundPage() {
     setDateType(round.dateType === 'range' ? 'range' : 'fixed');
     setDateRange(round.dateRange || '');
     setMaxSpots(round.maxSpots || 4);
-    setExternalCount(round.externalCount || 0);
+    const em0 = round.externalMale || 0, ef0 = round.externalFemale || 0;
+    setExternalMale(em0);
+    setExternalFemale(ef0);
     // 内訳の初期化。旧データ（内訳なし）は genderCondition から移行。
-    const recruited = Math.max(0, (round.maxSpots || 1) - 1 - (round.externalCount || 0));
+    const recruited = Math.max(0, (round.maxSpots || 1) - 1 - (em0 + ef0 || (round.externalCount || 0)));
     if (round.spotsMale != null || round.spotsFemale != null || round.spotsAny != null) {
       setSpotsMale(round.spotsMale || 0);
       setSpotsFemale(round.spotsFemale || 0);
@@ -91,26 +94,33 @@ export default function EditRoundPage() {
   const isComp = maxSpots >= 5;
   const currentCount = round?.currentCount || 1;
   const approvedApp = round?.applicantIds?.length || 0; // ゴルトモ経由で承認済みの人数
-  // 合計は「主催者1 + アプリ外 + 承認済みアプリ参加者」を下回れない。
-  const MIN_TOTAL = Math.max(2, 1 + externalCount + approvedApp);
+  const extTotal = externalMale + externalFemale;
+  // 合計は「主催者1 + 知り合い + 承認済みアプリ参加者」を下回れない。
+  const MIN_TOTAL = Math.max(2, 1 + extTotal + approvedApp);
   const MAX_TOTAL = 50;
-  const slots = Math.max(0, maxSpots - 1 - externalCount); // ゴルトモ募集枠
+  const slots = Math.max(0, maxSpots - 1 - extTotal); // ゴルトモ募集枠
   const spotsAny = Math.max(0, slots - spotsMale - spotsFemale);
+  function reflowSpots(ns: number) {
+    const m = Math.min(spotsMale, ns);
+    const f = Math.min(spotsFemale, Math.max(0, ns - m));
+    setSpotsMale(m); setSpotsFemale(f);
+  }
   function changeTotal(delta: number) {
     const next = Math.max(MIN_TOTAL, Math.min(MAX_TOTAL, maxSpots + delta));
-    const ext = Math.min(externalCount, Math.max(0, next - 1 - approvedApp));
-    const nextSlots = Math.max(0, next - 1 - ext);
-    const m = Math.min(spotsMale, nextSlots);
-    const f = Math.min(spotsFemale, Math.max(0, nextSlots - m));
-    setMaxSpots(next); setExternalCount(ext); setSpotsMale(m); setSpotsFemale(f);
+    let em = externalMale, ef = externalFemale;
+    let over = (em + ef) - (next - 1);
+    if (over > 0) { const cf = Math.min(ef, over); ef -= cf; over -= cf; em = Math.max(0, em - over); }
+    setMaxSpots(next); setExternalMale(em); setExternalFemale(ef);
+    reflowSpots(Math.max(0, next - 1 - (em + ef)));
   }
-  function changeExternal(delta: number) {
-    // アプリ外を増やすと募集枠が減る。承認済み人数を下回らないよう制限。
-    const ext = Math.max(0, Math.min(externalCount + delta, maxSpots - 1 - approvedApp));
-    const nextSlots = Math.max(0, maxSpots - 1 - ext);
-    const m = Math.min(spotsMale, nextSlots);
-    const f = Math.min(spotsFemale, Math.max(0, nextSlots - m));
-    setExternalCount(ext); setSpotsMale(m); setSpotsFemale(f);
+  // 知り合いを増やすと募集枠が減る。承認済み人数を下回らないよう制限。
+  function changeExtMale(delta: number) {
+    const em = Math.max(0, Math.min(externalMale + delta, maxSpots - 1 - approvedApp - externalFemale));
+    setExternalMale(em); reflowSpots(Math.max(0, maxSpots - 1 - (em + externalFemale)));
+  }
+  function changeExtFemale(delta: number) {
+    const ef = Math.max(0, Math.min(externalFemale + delta, maxSpots - 1 - approvedApp - externalMale));
+    setExternalFemale(ef); reflowSpots(Math.max(0, maxSpots - 1 - (externalMale + ef)));
   }
   function changeMale(delta: number) { setSpotsMale((m) => Math.max(0, Math.min(m + delta, slots - spotsFemale))); }
   function changeFemale(delta: number) { setSpotsFemale((f) => Math.max(0, Math.min(f + delta, slots - spotsMale))); }
@@ -155,7 +165,8 @@ export default function EditRoundPage() {
     const patch: Partial<Round> = {
       title: title || round!.title,
       maxSpots,
-      externalCount,
+      externalMale,
+      externalFemale,
       spotsMale,
       spotsFemale,
       spotsAny,
@@ -257,7 +268,7 @@ export default function EditRoundPage() {
             <Stepper value={maxSpots} onMinus={() => changeTotal(-1)} onPlus={() => changeTotal(1)} minusDisabled={maxSpots <= MIN_TOTAL} plusDisabled={maxSpots >= MAX_TOTAL} suffix="人" />
             <div className="mt-1.5 px-3 py-2 bg-green-light rounded-lg text-[11px] text-green font-bold">👤 主催者（あなた）を含めた合計人数です</div>
             <div className="mt-1.5 text-xs font-bold text-sub">
-              内訳：あなた <b className="text-text">1</b> ＋ アプリ外 <b className="text-text">{externalCount}</b> ＋ ゴルトモ募集 <b className="text-green">{slots}</b> 人
+              内訳：あなた <b className="text-text">1</b> ＋ 知り合い <b className="text-text">{extTotal}</b> ＋ ゴルトモ募集 <b className="text-green">{slots}</b> 人
             </div>
             {currentCount > 1 && (
               <div className="mt-1.5 text-[11px] text-muted">すでに{currentCount}人が参加しているため、それ未満には変更できません</div>
@@ -269,10 +280,16 @@ export default function EditRoundPage() {
             )}
           </Field>
 
-          <Field label="アプリ外メンバー" hint="（他アプリ等で既に集まっている人・任意）">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-sub">ゴルトモにいない参加者</span>
-              <Stepper sm value={externalCount} onMinus={() => changeExternal(-1)} onPlus={() => changeExternal(1)} minusDisabled={externalCount <= 0} plusDisabled={externalCount >= maxSpots - 1 - approvedApp} suffix="人" />
+          <Field label="主催者の知り合い" hint="（ゴルトモ外で既に集まっている人・任意）">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-black text-blue flex items-center gap-1.5">👨 男性</span>
+                <Stepper sm value={externalMale} onMinus={() => changeExtMale(-1)} onPlus={() => changeExtMale(1)} minusDisabled={externalMale <= 0} plusDisabled={extTotal >= maxSpots - 1 - approvedApp} suffix="人" />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-black text-pink-600 flex items-center gap-1.5">👩 女性</span>
+                <Stepper sm value={externalFemale} onMinus={() => changeExtFemale(-1)} onPlus={() => changeExtFemale(1)} minusDisabled={externalFemale <= 0} plusDisabled={extTotal >= maxSpots - 1 - approvedApp} suffix="人" />
+              </div>
             </div>
             <div className="mt-1.5 text-[10px] text-muted font-medium">
               合計人数に算入され、その分ゴルトモの募集枠が減ります。

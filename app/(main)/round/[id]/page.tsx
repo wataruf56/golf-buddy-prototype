@@ -320,15 +320,24 @@ export default function RoundDetailPage() {
             else if (u.gender === 'female') f++;
             else o++;
           }
+          // 主催者の知り合い（男女）も全体の構成に算入
+          const exM = round.externalMale || 0;
+          const exF = round.externalFemale || 0;
+          const exLegacy = (exM + exF === 0) ? (round.externalCount || 0) : 0;
+          m += exM; f += exF; o += exLegacy;
           return (
-            <div className="flex flex-wrap gap-1.5 mb-4">
-              <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-light text-blue">👨 男 {m}</span>
-              <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-pink-100 text-pink-600">👩 女 {f}</span>
-              {o > 0 && (
-                <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-bg text-sub">未設定 {o}</span>
-              )}
-              {(round.externalCount || 0) > 0 && (
-                <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-yellow-light text-yellow border border-yellow">📱 アプリ外 {round.externalCount}</span>
+            <div className="mb-4">
+              <div className="flex flex-wrap gap-1.5">
+                <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-light text-blue">👨 男 {m}</span>
+                <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-pink-100 text-pink-600">👩 女 {f}</span>
+                {o > 0 && (
+                  <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-bg text-sub">未設定 {o}</span>
+                )}
+              </div>
+              {(exM + exF) > 0 && (
+                <div className="mt-1.5 text-[10px] font-bold text-sub">
+                  うち主催者の知り合い：👨{exM} ・ 👩{exF}
+                </div>
               )}
             </div>
           );

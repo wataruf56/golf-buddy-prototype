@@ -68,9 +68,11 @@ export type Round = {
   spotsMale?: number;   // 男性の募集枠
   spotsFemale?: number; // 女性の募集枠
   spotsAny?: number;    // どちらでもOKの募集枠
-  // 他アプリ等で既に集まっている「アプリ外メンバー」の人数。主催者と同様に
-  // 最初から枠を埋めている扱い（currentCount に算入）。
-  externalCount?: number;
+  // 主催者の知り合い（ゴルトモ外で既に集まっている人）。主催者と同様に最初から
+  // 枠を埋めている扱い（currentCount に算入）。男女別に保持。
+  externalMale?: number;
+  externalFemale?: number;
+  externalCount?: number; // 旧データ互換（性別不明の合計）。新規は male+female を使用。
   currentCount: number;
   applicantIds: string[];
   pendingApplicantIds?: string[];
