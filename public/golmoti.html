@@ -100,6 +100,15 @@
   /* 共有結果ビューの大きめCTA（→ 紹介LP） */
   .bigcta{display:flex;align-items:center;justify-content:center;gap:8px;margin:18px 0 4px;width:100%;background:var(--orange);color:var(--cream);font-weight:900;font-size:17px;padding:18px;border:3px solid var(--ink);border-radius:16px;box-shadow:5px 5px 0 var(--ink);text-decoration:none;transition:transform .1s,box-shadow .1s}
   .bigcta:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--ink)}
+  /* 興味シグナル登録ブロック（結果ページ下部） */
+  .sigbox{margin:18px 16px 0;background:var(--teal);border:2.5px solid var(--ink);border-radius:18px;padding:18px 16px;box-shadow:5px 5px 0 var(--ink);color:var(--cream)}
+  .sigttl{font-weight:900;font-size:15px;line-height:1.5;text-align:center;margin-bottom:14px}
+  .siglbl{font-weight:800;font-size:11.5px;opacity:.95;margin:10px 2px 6px}
+  .sigchips{display:flex;flex-wrap:wrap;gap:7px}
+  .sigchip{font-weight:800;font-size:12.5px;padding:8px 13px;border-radius:999px;border:2px solid var(--ink);background:var(--cream);color:var(--ink);cursor:pointer}
+  .sigchip.on{background:var(--mustard);color:var(--ink)}
+  .sigcta{margin-top:16px}
+  .signote{text-align:center;font-size:10.5px;opacity:.9;font-weight:700;margin-top:8px}
   /* CTA */
   .cta{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--orange);color:var(--cream);font-weight:900;font-size:18px;padding:19px;border:2.5px solid var(--ink);border-radius:16px;box-shadow:5px 5px 0 var(--ink);cursor:pointer;text-decoration:none;transition:transform .12s,box-shadow .12s}
   .cta:active{transform:translate(5px,5px);box-shadow:0 0 0 var(--ink)}
@@ -243,8 +252,13 @@
   const LSKEY='golmotiEvents';
   function uid(){try{if(crypto&&crypto.randomUUID)return crypto.randomUUID();}catch(e){}return 's_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);}
   let SESSION=sessionStorage.getItem('golmotiSession'); if(!SESSION){SESSION=uid();sessionStorage.setItem('golmotiSession',SESSION);}
+  // 永続の匿名訪問者ID（セッションをまたいでユニーク計測）
+  let VISITOR=localStorage.getItem('golmotiVisitor'); if(!VISITOR){VISITOR=uid();try{localStorage.setItem('golmotiVisitor',VISITOR);}catch(e){}}
+  // 興味シグナルの選択肢（初期は粗い粒度。数を大きく見せる方針）
+  const AREAS=['東京','神奈川','埼玉','千葉','茨城','その他'];
+  const DAYS=['土日祝','平日'];
   function track(event,extra){
-    const p=Object.assign({sessionId:SESSION,event,quiz:'golmoti',style:STYLE,page:location.pathname,ref:document.referrer||''},extra||{});
+    const p=Object.assign({visitorId:VISITOR,sessionId:SESSION,event,quiz:'golmoti',style:STYLE,page:location.pathname,ref:document.referrer||''},extra||{});
     try{const a=JSON.parse(localStorage.getItem(LSKEY)||'[]');a.push(Object.assign({clientTs:Date.now()},p));localStorage.setItem(LSKEY,JSON.stringify(a.slice(-200)));}catch(e){}
     console.log('[golmoti]',p);
     try{const b=new Blob([JSON.stringify(p)],{type:'text/plain'});if(navigator.sendBeacon&&navigator.sendBeacon(ENDPOINT,b))return;}catch(e){}
@@ -570,6 +584,15 @@
           <div class="pt">⛳ ゴルトモでの楽しみ方</div>
           <ul>${recs.map(r=>`<li>・${r}</li>`).join('')}</ul>
         </div>
+        <div class="sigbox" id="sigbox">
+          <div class="sigttl">🔔 同じ【${nk.n}】と相性のいいラウンドが立ったら<br>LINEで先にお知らせ</div>
+          <div class="siglbl">行けるエリア（複数選択）</div>
+          <div class="sigchips" id="sigAreas">${AREAS.map(a=>`<button type="button" class="sigchip" data-area="${a}">${a}</button>`).join('')}</div>
+          <div class="siglbl">行ける日</div>
+          <div class="sigchips" id="sigDays">${DAYS.map(d=>`<button type="button" class="sigchip" data-day="${d}">${d}</button>`).join('')}</div>
+          <a class="bigcta sigcta" id="sigSubmit" href="https://lin.ee/h6hse4O"><span class="li">L</span>LINEで通知を受け取る</a>
+          <div class="signote">条件に合うラウンドが立ったらLINEでお知らせします（無料）</div>
+        </div>
         <div class="share">
           <button class="sbtn" id="shareBtn" style="flex:1">📤 結果をシェアする</button>
         </div>
@@ -595,6 +618,12 @@
       try{ await navigator.clipboard.writeText(shareUrl); alert('結果のリンクをコピーしました！'); }
       catch(e){ prompt('コピーしてください',shareUrl); }
     });
+    // 興味シグナル（行けるエリア×曜日）。診断結果＝雰囲気タグとして resultType を同送。
+    const selA=new Set(), selD=new Set();
+    document.querySelectorAll('#sigAreas .sigchip').forEach(b=>b.addEventListener('click',()=>{ const a=b.dataset.area; if(selA.has(a)){selA.delete(a);b.classList.remove('on');}else{selA.add(a);b.classList.add('on');} }));
+    document.querySelectorAll('#sigDays .sigchip').forEach(b=>b.addEventListener('click',()=>{ const d=b.dataset.day; if(selD.has(d)){selD.delete(d);b.classList.remove('on');}else{selD.add(d);b.classList.add('on');} }));
+    const sigBtn=document.getElementById('sigSubmit');
+    if(sigBtn) sigBtn.addEventListener('click',()=>{ track('signal',{resultType:code, areas:[...selA], days:[...selD]}); });
     const againBtn=document.getElementById('again');
     if(againBtn) againBtn.addEventListener('click',()=>{ step=0; ans.length=0; resultwrap.classList.add('hidden'); resultwrap.innerHTML=''; quiz.classList.remove('hidden'); calcbox.classList.add('hidden'); quiz.scrollIntoView({behavior:'smooth'}); track('start',{total:QS.length}); renderQ(); });
     bindCTA();
@@ -684,6 +713,7 @@
     }catch(e){ return ''; }
   }
   const SHARED=getSharedCode();
+  track('visit',{shared: SHARED ? 1 : 0, resultType: SHARED || ''}); // 来訪をユニーク計測
   if(SHARED){
     const hero=document.querySelector('.hero'); if(hero) hero.style.display='none';
     quiz.classList.add('hidden');

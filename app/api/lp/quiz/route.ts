@@ -31,9 +31,15 @@ export async function POST(req: NextRequest) {
   } catch { body = {}; }
 
   const s = (v: any, n = 120) => (v == null ? '' : String(v).slice(0, n));
+  const arr = (v: any) => Array.isArray(v) ? v.map((x: any) => s(x, 40)).slice(0, 30) : [];
   const entry = {
+    // 永続の匿名訪問者ID（localStorage）。セッションをまたいでユニーク計測する。
+    visitorId: s(body.visitorId, 60),
     sessionId: s(body.sessionId, 60),
     event: s(body.event, 20) || 'unknown',
+    // 興味シグナル（行けるエリア・曜日）。event:'signal' のときに入る。
+    areas: arr(body.areas),
+    days: arr(body.days),
     qid: s(body.qid, 40),
     optionId: s(body.optionId, 40),
     optionLabel: s(body.optionLabel, 120),
