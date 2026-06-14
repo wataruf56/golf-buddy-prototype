@@ -132,7 +132,21 @@ export async function GET(req: NextRequest) {
 
     const dailyArr = Object.keys(daily).sort().map((k) => ({ date: k, ...daily[k] }));
 
+    // LINEアカウントと紐付いた通知希望（_lpSignal）。③で保存される個人単位データ。
+    let linkedSignals = 0;
+    const linkedUsers = new Set<string>();
+    try {
+      const sigSnap = await db.collection('_lpSignal').limit(5000).get();
+      sigSnap.docs.forEach((d: any) => {
+        const x = d.data();
+        linkedSignals++;
+        if (x.lineUserId) linkedUsers.add(x.lineUserId);
+      });
+    } catch { /* コレクション未作成等は無視 */ }
+
     return NextResponse.json({
+      linkedSignals,
+      linkedUsers: linkedUsers.size,
       scanned: docs.length,
       uniqueSessions: sessions.size,
       uniqueVisitors: visitors.size,

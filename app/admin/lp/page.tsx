@@ -21,6 +21,8 @@ type Report = {
   completionRate: number | null;
   signalRate: number | null;
   uniqueSignalVisitors: number;
+  linkedSignals: number;
+  linkedUsers: number;
   byResult: Record<string, number>;
   byPattern: Record<string, number>;
   stepReach: Record<string, number>;
@@ -160,8 +162,12 @@ function Funnel({ data }: { data: Report }) {
       <Bar label="興味シグナル登録" value={data.signals} max={base} hint={`完了比 ${Math.round((data.signalRate || 0) * 100)}%`} color="bg-orange" />
       <Bar label="CTAクリック" value={data.ctas} max={base} color="bg-orange" />
       <Bar label="シェア" value={data.shares} max={base} color="bg-blue" />
-      <div className="mt-3 pt-3 border-t border-border text-[11px] text-sub">
-        通知登録したユニーク人数：<b className="text-text">{data.uniqueSignalVisitors}</b> 人
+      <div className="mt-3 pt-3 border-t border-border text-[11px] text-sub flex flex-col gap-1">
+        <div>通知登録したユニーク人数（匿名）：<b className="text-text">{data.uniqueSignalVisitors}</b> 人</div>
+        <div>
+          LINEアカウント紐付け済み：<b className="text-green">{data.linkedUsers ?? 0}</b> 人
+          <span className="text-muted">（{data.linkedSignals ?? 0} 件）</span>
+        </div>
       </div>
     </Card>
   );

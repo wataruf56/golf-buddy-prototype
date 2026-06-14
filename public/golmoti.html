@@ -250,6 +250,9 @@
   /* ===== データ収集（裏側送信＋ローカル保存） ===== */
   const ENDPOINT='https://app.goltomo.com/api/lp/quiz';
   const LSKEY='golmotiEvents';
+  // LIFF経由で「通知を受け取る」→ LINEアカウントと診断結果を紐付ける着地ページへ。
+  const LIFF_ID='2009973733-P5UdNex9';
+  const FRIEND_ADD='https://line.me/R/ti/p/@711xiyrs';
   function uid(){try{if(crypto&&crypto.randomUUID)return crypto.randomUUID();}catch(e){}return 's_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);}
   let SESSION=sessionStorage.getItem('golmotiSession'); if(!SESSION){SESSION=uid();sessionStorage.setItem('golmotiSession',SESSION);}
   // 永続の匿名訪問者ID（セッションをまたいでユニーク計測）
@@ -623,7 +626,17 @@
     document.querySelectorAll('#sigAreas .sigchip').forEach(b=>b.addEventListener('click',()=>{ const a=b.dataset.area; if(selA.has(a)){selA.delete(a);b.classList.remove('on');}else{selA.add(a);b.classList.add('on');} }));
     document.querySelectorAll('#sigDays .sigchip').forEach(b=>b.addEventListener('click',()=>{ const d=b.dataset.day; if(selD.has(d)){selD.delete(d);b.classList.remove('on');}else{selD.add(d);b.classList.add('on');} }));
     const sigBtn=document.getElementById('sigSubmit');
-    if(sigBtn) sigBtn.addEventListener('click',()=>{ track('signal',{resultType:code, areas:[...selA], days:[...selD]}); });
+    if(sigBtn) sigBtn.addEventListener('click',(e)=>{
+      track('signal',{resultType:code, areas:[...selA], days:[...selD]});
+      // LIFF経由でアプリの /lp-link へ。LINEログイン後、診断結果・エリア・曜日を
+      // 実LINEアカウントに紐付けて保存し、友だち追加へ進む。
+      try{
+        const to='/lp-link?v='+encodeURIComponent(VISITOR)+'&type='+encodeURIComponent(code)
+          +'&areas='+encodeURIComponent([...selA].join(','))+'&days='+encodeURIComponent([...selD].join(','));
+        e.preventDefault();
+        window.location.href='https://liff.line.me/'+LIFF_ID+'?to='+encodeURIComponent(to);
+      }catch(err){ /* 失敗時は href の友だち追加にフォールバック */ }
+    });
     const againBtn=document.getElementById('again');
     if(againBtn) againBtn.addEventListener('click',()=>{ step=0; ans.length=0; resultwrap.classList.add('hidden'); resultwrap.innerHTML=''; quiz.classList.remove('hidden'); calcbox.classList.add('hidden'); quiz.scrollIntoView({behavior:'smooth'}); track('start',{total:QS.length}); renderQ(); });
     bindCTA();
