@@ -50,3 +50,6 @@ button.shadow-card:active, a.shadow-card:active {
   transform: translate(2px, 2px);
   box-shadow: 2px 2px 0 #1E3A30 !important;
 }
+/* 横スクロールのサブタブなどでスクロールバーを隠す */
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Search, Activity, Plus, Users, User } from 'lucide-react';
+import { Home, Search, Activity, Plus, Users, User, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUnreadCounts } from '@/lib/useUnread';
 
 type Tab = { id: string; label: string; href: string; icon: any; external?: boolean; isNew?: boolean };
 
 const tabs: Tab[] = [
+  { id: 'guide', label: '使い方', href: '/guide', icon: BookOpen },
   { id: 'home', label: 'ホーム', href: '/home', icon: Home },
   { id: 'search', label: 'さがす', href: '/search', icon: Search },
   { id: 'swing', label: 'スイング', href: '/swing', icon: Activity },
