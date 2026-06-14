@@ -86,31 +86,63 @@ export async function GET(req: NextRequest) {
     const byResult: Record<string, number> = {};
     const byPattern: Record<string, number> = {};
     const sessions = new Set<string>();
-    let starts = 0, completes = 0, ctas = 0;
+    const visitors = new Set<string>();          // 永続の匿名訪問者ID（ユニーク人数）
+    const signalVisitors = new Set<string>();    // 興味シグナルを登録したユニーク訪問者
+    const areaCounts: Record<string, number> = {};   // 行けるエリア別
+    const dayCounts: Record<string, number> = {};    // 行ける曜日別（土日祝/平日）
+    const comboCounts: Record<string, number> = {};  // 「エリア×曜日」需要プール
+    const stepReach: Record<string, number> = {};    // 各設問への到達（回答数）= 離脱分析
+    const daily: Record<string, { visit: number; start: number; complete: number; signal: number }> = {};
+    let visits = 0, starts = 0, completes = 0, ctas = 0, shares = 0, signals = 0;
+
+    const JST = 9 * 3600 * 1000; // 日次バケットは日本時間で切る
+    const dayKey = (ts: any) => { try { return new Date((Number(ts) || 0) + JST).toISOString().slice(0, 10); } catch { return ''; } };
+    const bucket = (k: string) => { if (!k) return null; daily[k] = daily[k] || { visit: 0, start: 0, complete: 0, signal: 0 }; return daily[k]; };
 
     for (const d of docs) {
       if (d.sessionId) sessions.add(d.sessionId);
-      if (d.event === 'start') starts++;
+      if (d.visitorId) visitors.add(d.visitorId);
+      const dk = dayKey(d.ts);
+      if (d.event === 'visit') { visits++; const b = bucket(dk); if (b) b.visit++; }
+      if (d.event === 'start') { starts++; const b = bucket(dk); if (b) b.start++; }
       if (d.event === 'answer' && d.qid) {
         byOption[d.qid] = byOption[d.qid] || {};
         const key = `${d.optionId} ${d.optionLabel}`.trim();
         byOption[d.qid][key] = (byOption[d.qid][key] || 0) + 1;
+        stepReach[d.qid] = (stepReach[d.qid] || 0) + 1;
       }
       if (d.event === 'complete') {
-        completes++;
+        completes++; const b = bucket(dk); if (b) b.complete++;
         if (d.resultType) byResult[d.resultType] = (byResult[d.resultType] || 0) + 1;
         const pat = Array.isArray(d.pattern) ? d.pattern.join(',') : String(d.pattern || '');
         if (pat) byPattern[pat] = (byPattern[pat] || 0) + 1;
       }
+      if (d.event === 'signal') {
+        signals++; const b = bucket(dk); if (b) b.signal++;
+        if (d.visitorId) signalVisitors.add(d.visitorId);
+        const as: string[] = Array.isArray(d.areas) ? d.areas : [];
+        const ds: string[] = Array.isArray(d.days) ? d.days : [];
+        for (const a of as) areaCounts[a] = (areaCounts[a] || 0) + 1;
+        for (const dd of ds) dayCounts[dd] = (dayCounts[dd] || 0) + 1;
+        for (const a of as) for (const dd of ds) { const k = `${a}×${dd}`; comboCounts[k] = (comboCounts[k] || 0) + 1; }
+      }
       if (d.event === 'cta') ctas++;
+      if (d.event === 'share') shares++;
     }
+
+    const dailyArr = Object.keys(daily).sort().map((k) => ({ date: k, ...daily[k] }));
 
     return NextResponse.json({
       scanned: docs.length,
       uniqueSessions: sessions.size,
-      starts, completes, ctas,
+      uniqueVisitors: visitors.size,
+      visits, starts, completes, signals, ctas, shares,
       completionRate: starts ? +(completes / starts).toFixed(3) : null,
-      byOption, byResult, byPattern,
+      signalRate: completes ? +(signals / completes).toFixed(3) : null,
+      uniqueSignalVisitors: signalVisitors.size,
+      byOption, byResult, byPattern, stepReach,
+      demand: { areaCounts, dayCounts, comboCounts },
+      daily: dailyArr,
       serverTime: new Date().toISOString(),
     }, { headers: cors });
   } catch (e) {
