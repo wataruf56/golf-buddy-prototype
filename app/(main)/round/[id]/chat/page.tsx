@@ -71,6 +71,27 @@ export default function RoundChatPage() {
   const countFor = (tid: string) => messages.filter((m) => m.threadId === tid).length;
   const activeThreadObj = threads.find((t) => t.id === activeThread);
 
+  // メンション候補：このラウンドの参加者（主催者＋承認済み）から自分を除く。
+  const mentionMembers = useMemo(() => {
+    if (!round) return [] as { id: string; displayName: string }[];
+    const ids = [round.hostId, ...(round.applicantIds || [])].filter((id) => id && id !== meId);
+    const uniq = Array.from(new Set(ids));
+    return uniq
+      .map((id) => users.find((u) => u.id === id))
+      .filter(Boolean)
+      .map((u) => ({ id: (u as any).id as string, displayName: (u as any).displayName as string }));
+  }, [round, users, meId]);
+  const [showMention, setShowMention] = useState(false);
+
+  // 一度のメッセージで複数人を指名できるよう、@表示名 を本文に追記していく。
+  function addMention(name: string) {
+    setText((prev) => {
+      if (prev.includes('@' + name)) return prev; // 二重挿入を防ぐ
+      const sep = prev && !prev.endsWith(' ') ? ' ' : '';
+      return `${prev}${sep}@${name} `;
+    });
+  }
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [shown.length, activeThread]);
@@ -218,8 +239,36 @@ export default function RoundChatPage() {
         })}
       </div>
 
+      {/* メンション候補（複数タップで一度に複数人を指名できる） */}
+      {showMention && mentionMembers.length > 0 && (
+        <div className="px-4 pt-2 bg-card border-t border-border flex-shrink-0">
+          <div className="text-[10px] font-bold text-muted mb-1.5">指名する人をタップ（複数OK）</div>
+          <div className="flex gap-1.5 flex-wrap pb-2">
+            {mentionMembers.map((m) => {
+              const on = text.includes('@' + m.displayName);
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => addMention(m.displayName)}
+                  className={'px-2.5 py-1 rounded-full text-[12px] font-bold border-[1.5px] ' + (on ? 'bg-green text-white border-green' : 'bg-bg border-border text-sub')}
+                >{on ? '✓ ' : '@'}{m.displayName}</button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Composer */}
       <div className="flex gap-2 px-4 py-3 pb-7 bg-card border-t border-border flex-shrink-0">
+        {mentionMembers.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowMention((v) => !v)}
+            aria-label="メンション"
+            className={'flex-shrink-0 w-10 h-10 rounded-full text-base font-black border-[1.5px] ' + (showMention ? 'bg-green text-white border-green' : 'bg-bg border-border text-sub')}
+          >@</button>
+        )}
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}

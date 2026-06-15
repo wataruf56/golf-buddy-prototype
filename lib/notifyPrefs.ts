@@ -13,7 +13,8 @@ export type NotifyType =
   | 'reviewReminder' // post-round "please review" reminder
   | 'invited'        // I was invited to a round by the host
   | 'interestReceived' // someone marked my round as "気になる" (host)
-  | 'interestDeadline';// a round I'm "気になる" about is closing soon
+  | 'interestDeadline' // a round I'm "気になる" about is closing soon
+  | 'match';           // 両思いマッチ成立（また回りたい / 異性として気になる）
 
 // Display metadata for the settings UI. Order = display order.
 export const NOTIFY_TYPES: Array<{ key: NotifyType; label: string; desc: string; defaultOn: boolean }> = [
@@ -28,6 +29,7 @@ export const NOTIFY_TYPES: Array<{ key: NotifyType; label: string; desc: string;
   { key: 'invited',          label: '💌 ラウンドに招待された', desc: '募集者からラウンドに招待されたとき', defaultOn: true },
   { key: 'interestReceived', label: '💚 「気になる」が押された', desc: '自分の募集に「気になる」が押されたとき', defaultOn: true },
   { key: 'interestDeadline', label: '⏰ 気になるラウンドの締切間近', desc: '「気になる」した募集の開催が近づいたとき', defaultOn: true },
+  { key: 'match',            label: '💘 マッチ成立', desc: 'ラウンド後に両思いになったとき', defaultOn: true },
 ];
 
 const DEFAULTS: Record<NotifyType, boolean> = NOTIFY_TYPES.reduce((acc, t) => {
