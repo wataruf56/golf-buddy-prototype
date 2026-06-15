@@ -24,9 +24,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const stations: string[] = Array.isArray(body?.stations)
     ? body.stations.map((x: any) => String(x).slice(0, 20)).filter(Boolean).slice(0, 20)
     : [];
+  const capacity = typeof body?.capacity === 'number' && body.capacity > 0
+    ? Math.min(8, Math.floor(body.capacity)) : undefined;
 
   const next = { ...(round.participantPickups || {}) };
-  if (stations.length) next[meId] = stations;
+  if (stations.length) next[meId] = { stations, capacity };
   else delete next[meId];
 
   try {
@@ -34,5 +36,5 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
   }
-  return NextResponse.json({ ok: true, stations }, { headers: noStore });
+  return NextResponse.json({ ok: true, stations, capacity }, { headers: noStore });
 }

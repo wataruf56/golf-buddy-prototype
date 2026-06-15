@@ -123,9 +123,11 @@ export type Round = {
   // 主催者が車でピックアップ（送迎）できる代表駅（複数）。一般公開で表示し、
   // コンペ以外の募集ではカード上で目立たせる。
   pickupStations?: string[];
-  // 参加者（車あり）が自分で送迎できる駅を登録したもの。userId → 駅配列。
-  // コンペも含め、車ありの参加者だけが自分の枠を設定できる。
-  participantPickups?: Record<string, string[]>;
+  // 主催者が送迎で乗せられる人数（運転者である自分を含む）。
+  pickupCapacity?: number;
+  // 参加者（車あり）が自分で送迎できる駅＋定員を登録したもの。
+  // userId → { stations, capacity(自分含む) }。コンペも含め車ありの参加者が設定可。
+  participantPickups?: Record<string, { stations: string[]; capacity?: number }>;
 };
 
 export type RoundGroup = {

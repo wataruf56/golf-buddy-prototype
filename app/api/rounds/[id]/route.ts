@@ -63,6 +63,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (has('pickupStations')) patch.pickupStations = Array.isArray(body.pickupStations)
     ? body.pickupStations.map((x: any) => String(x).slice(0, 20)).slice(0, 20)
     : [];
+  if (has('pickupCapacity')) patch.pickupCapacity = typeof body.pickupCapacity === 'number' && body.pickupCapacity > 0
+    ? Math.min(8, Math.floor(body.pickupCapacity)) : undefined;
 
   let beginnerOnly = round.beginnerOnly;
   let genderCondition = round.genderCondition || 'any';

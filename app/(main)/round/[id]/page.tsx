@@ -927,8 +927,10 @@ function Field({ label, required, children }: { label: string; required?: boolea
 function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; meId: string; users: User[]; isHost: boolean; isApproved: boolean }) {
   const meUser = users.find((u) => u.id === meId);
   const canRegister = !isHost && isApproved && meUser?.car === 'have';
-  const [myStations, setMyStations] = useState<string[]>(round.participantPickups?.[meId] || []);
-  const [savedStations, setSavedStations] = useState<string[]>(round.participantPickups?.[meId] || []);
+  const mine = round.participantPickups?.[meId];
+  const [myStations, setMyStations] = useState<string[]>(mine?.stations || []);
+  const [myCapacity, setMyCapacity] = useState<number>(mine?.capacity || 0);
+  const [saved, setSaved] = useState<{ stations: string[]; capacity: number }>({ stations: mine?.stations || [], capacity: mine?.capacity || 0 });
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -936,24 +938,25 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
     try {
       const res = await fetch(`/api/rounds/${round.id}/pickup`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stations: myStations }), cache: 'no-store', credentials: 'include',
+        body: JSON.stringify({ stations: myStations, capacity: myCapacity || undefined }), cache: 'no-store', credentials: 'include',
       });
       if (!res.ok) throw new Error(String(res.status));
-      setSavedStations(myStations);
+      setSaved({ stations: myStations, capacity: myCapacity });
       toast(myStations.length ? '送迎できる駅を登録しました🚗' : '送迎の登録を解除しました');
     } catch (e) { toast('保存に失敗しました', 'error'); }
     finally { setSaving(false); }
   }
 
   // 表示用：主催者＋各参加者（自分の最新保存値で上書き）
-  const people: { id: string; name: string; stations: string[]; host: boolean }[] = [];
+  const people: { id: string; name: string; stations: string[]; capacity?: number; host: boolean }[] = [];
   if ((round.pickupStations?.length ?? 0) > 0) {
-    people.push({ id: round.hostId, name: users.find((u) => u.id === round.hostId)?.displayName || '主催者', stations: round.pickupStations!, host: true });
+    people.push({ id: round.hostId, name: users.find((u) => u.id === round.hostId)?.displayName || '主催者', stations: round.pickupStations!, capacity: round.pickupCapacity, host: true });
   }
   const pp = { ...(round.participantPickups || {}) };
-  if (canRegister) { if (savedStations.length) pp[meId] = savedStations; else delete pp[meId]; }
-  Object.entries(pp).forEach(([uid, sts]) => {
-    if (Array.isArray(sts) && sts.length) people.push({ id: uid, name: users.find((u) => u.id === uid)?.displayName || 'メンバー', stations: sts, host: false });
+  if (canRegister) { if (saved.stations.length) pp[meId] = { stations: saved.stations, capacity: saved.capacity || undefined }; else delete pp[meId]; }
+  Object.entries(pp).forEach(([uid, v]) => {
+    const sts = v?.stations || [];
+    if (sts.length) people.push({ id: uid, name: users.find((u) => u.id === uid)?.displayName || 'メンバー', stations: sts, capacity: v?.capacity, host: false });
   });
 
   if (people.length === 0 && !canRegister) return null;
@@ -961,15 +964,18 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
   return (
     <div className="mb-4 p-3 bg-green-light rounded-xl border-[1.5px] border-green">
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-lg">🚗</span>
-        <span className="text-[13px] font-black text-white bg-green px-2 py-0.5 rounded-full">送迎OK</span>
-        <span className="text-[12px] font-bold text-green">ピックアップできる人</span>
+        <span className="text-[13px] font-black text-white bg-green px-2 py-0.5 rounded-full">ピックアップ場所</span>
+        <span className="text-[12px] font-bold text-green">送迎できる人</span>
       </div>
       {people.length > 0 ? (
         <div className="flex flex-col gap-2">
           {people.map((p) => (
             <div key={p.id + (p.host ? '_h' : '')} className="bg-white rounded-lg p-2">
-              <div className="text-[12px] font-bold text-text mb-1">{p.name}{p.host && <span className="ml-1 text-[10px] text-green font-black">主催者</span>}</div>
+              <div className="text-[12px] font-bold text-text mb-1">
+                {p.name}
+                {p.host && <span className="ml-1 text-[10px] text-green font-black">主催者</span>}
+                {p.capacity ? <span className="ml-1.5 text-[10px] text-sub font-bold">自分含め{p.capacity}名</span> : null}
+              </div>
               <div className="flex flex-wrap gap-1.5">
                 {p.stations.map((st) => (
                   <span key={st} className="px-2 py-0.5 bg-green-light text-green rounded-full text-[11px] font-bold border border-green">{st}駅</span>
@@ -987,6 +993,19 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
           <div className="text-[11px] font-black text-green mb-1.5">🚗 あなたが送迎できる駅（車あり）</div>
           <div className="bg-white rounded-lg p-2">
             <PickupStationPicker value={myStations} onChange={setMyStations} />
+            {myStations.length > 0 && (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-[11px] font-bold text-sub">自分含め乗れる人数</span>
+                <input
+                  type="number" min={1} max={8} inputMode="numeric"
+                  value={myCapacity || ''}
+                  onChange={(e) => setMyCapacity(Math.max(0, Math.min(8, Number(e.target.value) || 0)))}
+                  placeholder="例: 4"
+                  className="w-14 px-2 py-1 border-[1.5px] border-border rounded-[8px] text-sm bg-bg outline-none text-center"
+                />
+                <span className="text-[11px] text-sub">名</span>
+              </div>
+            )}
           </div>
           <button onClick={save} disabled={saving} className="mt-2 w-full py-2.5 bg-green text-white rounded-full text-[13px] font-bold disabled:opacity-50">
             {saving ? '保存中…' : '送迎できる駅を登録する'}

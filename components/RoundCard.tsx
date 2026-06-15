@@ -5,31 +5,16 @@ import type { Round, User } from '@/lib/types';
 import { Avatar } from '@/components/Avatar';
 import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
 import { useUnreadCounts } from '@/lib/useUnread';
-import { useStore, store } from '@/lib/store';
 import { formatDate, ratingLabel } from '@/lib/utils';
-import { levelConditionLabel } from '@/lib/roundEligibility';
 
 export function RoundCard({ round, host }: { round: Round; host?: User }) {
   const { unreadRoundIds } = useUnreadCounts();
-  const allUsers = useStore((s) => s.users);
-  // Aggregate male / female counts across host + approved applicants.
-  const participantIds = [round.hostId, ...(round.applicantIds || [])];
-  let maleCount = 0, femaleCount = 0, otherCount = 0;
-  for (const uid of participantIds) {
-    const u = allUsers.find((x) => x.id === uid);
-    if (!u) continue;
-    if (u.gender === 'male') maleCount++;
-    else if (u.gender === 'female') femaleCount++;
-    else otherCount++;
-  }
-  const conditionLabel = levelConditionLabel(round);
   const hasUnread = unreadRoundIds.has(round.id);
   const isComp = round.maxSpots >= 5;
-  const remaining = round.maxSpots - round.currentCount;
-  const pct = Math.round((round.currentCount / round.maxSpots) * 100);
   const dateLabel = round.dateType === 'range' ? round.dateRange : formatDate(round.date);
   const placeLabel = round.type === 'confirmed' ? round.courseName : round.area;
   const placeIcon = round.type === 'confirmed' ? '⛳' : '📍';
+  const pickup = round.pickupStations || [];
 
   return (
     <Link
@@ -61,38 +46,32 @@ export function RoundCard({ round, host }: { round: Round; host?: User }) {
           )}
         </div>
       )}
-      <div className="flex justify-between items-start mb-2.5 gap-2">
-        <div className="text-[15px] font-bold flex-1">{round.title}</div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          {!isComp && (
-            <span className="badge inline-flex items-center px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-green-light text-green">
-              残り{remaining}枠
-            </span>
-          )}
-          <InterestHeart round={round} />
-        </div>
-      </div>
-      <div className="flex flex-wrap gap-1.5 mb-2.5">
+      {/* タイトル */}
+      <div className="text-[13px] font-bold text-sub mb-1.5">{round.title}</div>
+
+      {/* コース確定/未定 ＋ 大きく：ゴルフ場・日付・金額 */}
+      <div className="mb-3">
         {round.type === 'confirmed' ? (
           <span className="badge px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-green-light text-green">✅ コース確定</span>
         ) : (
           <span className="badge px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-[#EFEFEC] text-sub">📍 コース未定</span>
         )}
-        <span className="badge px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-bg text-sub">📅 {dateLabel}</span>
-        {round.dateType === 'fixed' && round.startTime && (
-          <span className="badge px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-bg text-sub">⏰ {round.startTime}</span>
-        )}
-        <span className="badge px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-bg text-sub">{placeIcon} {placeLabel}</span>
+        <div className="text-[19px] font-black mt-1.5 leading-snug">{placeIcon} {placeLabel}</div>
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5 mt-1">
+          <span className="text-[17px] font-black">📅 {dateLabel}</span>
+          {round.price && <span className="text-[17px] font-black text-orange">💰 {round.price}</span>}
+        </div>
       </div>
-      {/* 🚗 送迎OK（コンペ以外で、主催者がピックアップ可能なら目立たせる） */}
-      {!isComp && (round.pickupStations?.length ?? 0) > 0 && (
-        <div className="flex items-center gap-1.5 mb-2.5 px-3 py-2 bg-green-light rounded-lg border-[1.5px] border-green">
-          <span className="text-base">🚗</span>
-          <span className="text-[11px] font-black text-white bg-green px-1.5 py-px rounded-full">送迎OK</span>
-          <span className="text-[11px] font-bold text-green truncate flex-1">{round.pickupStations!.join('・')} から</span>
+
+      {/* ピックアップ場所（コンペ以外で、主催者がピックアップ可能なら表示） */}
+      {!isComp && pickup.length > 0 && (
+        <div className="mb-3 px-3 py-2 bg-green-light rounded-lg border-[1.5px] border-green">
+          <span className="text-[11px] font-black text-white bg-green px-2 py-px rounded-full mr-1.5">ピックアップ場所</span>
+          <span className="text-[12px] font-bold text-green">{pickup.join('・')}{round.pickupCapacity ? `（自分含め${round.pickupCapacity}名）` : ''}</span>
         </div>
       )}
-      {/* 参加状況バー（コンペ以外の通常募集でもカード上に表示） */}
+
+      {/* 参加状況バー */}
       <div className="mb-2.5">
         <div className="flex justify-between items-baseline mb-1.5">
           <span className="text-[11px] text-sub font-semibold">参加状況</span>
@@ -101,23 +80,6 @@ export function RoundCard({ round, host }: { round: Round; host?: User }) {
         <div className="w-full h-2 bg-bg rounded overflow-hidden">
           <div className="h-full bg-orange rounded" style={{ width: `${Math.round((round.currentCount / Math.max(1, round.maxSpots)) * 100)}%` }} />
         </div>
-      </div>
-      <div className="flex flex-wrap gap-1.5 mb-2.5">
-        <span className="badge px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-blue-light text-blue">{conditionLabel}</span>
-        {round.price && (
-          <span className="badge px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-yellow-light text-orange">{round.price}</span>
-        )}
-      </div>
-
-      {/* Gender breakdown of current participants (host + approved applicants).
-          Helps applicants see at a glance if they'd be the lone outlier
-          before tapping in. */}
-      <div className="flex flex-wrap gap-1.5 mb-2.5">
-        <span className="px-2 py-[2px] rounded-md text-[10px] font-bold bg-blue-light text-blue">👨 男 {maleCount}</span>
-        <span className="px-2 py-[2px] rounded-md text-[10px] font-bold bg-pink-100 text-pink-600">👩 女 {femaleCount}</span>
-        {otherCount > 0 && (
-          <span className="px-2 py-[2px] rounded-md text-[10px] font-bold bg-bg text-sub">未設定 {otherCount}</span>
-        )}
       </div>
       {round.isOfficial ? (
         <div className="flex items-center gap-2 pt-2.5 border-t border-border">
@@ -133,43 +95,5 @@ export function RoundCard({ round, host }: { round: Round; host?: User }) {
         </div>
       ) : null}
     </Link>
-  );
-}
-
-// ♡「気になる」heart. Lives inside the card's <Link>, so taps must not navigate.
-// Host sees a read-only count; everyone else can toggle their interest.
-function InterestHeart({ round }: { round: Round }) {
-  const meId = useStore((s) => s.meId);
-  const interested = (round.interestedIds || []).includes(meId);
-  const count = (round.interestedIds || []).length;
-  const isHost = round.hostId === meId;
-
-  async function onClick(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (isHost) return;
-    try { await store.toggleInterest(round.id, !interested); } catch {}
-  }
-
-  if (isHost) {
-    return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-bg text-sub" title="気になる人数">
-        <span>{count > 0 ? '❤️' : '🤍'}</span>
-        {count > 0 && <span>{count}</span>}
-      </span>
-    );
-  }
-
-  return (
-    <button
-      onClick={onClick}
-      aria-label={interested ? '気になるを解除' : '気になる'}
-      className={`inline-flex items-center gap-1 px-2.5 py-[3px] rounded-full text-[11px] font-bold transition-colors ${
-        interested ? 'bg-pink-100 text-pink-600' : 'bg-bg text-sub'
-      }`}
-    >
-      <span>{interested ? '❤️' : '🤍'}</span>
-      <span>{count > 0 ? count : '気になる'}</span>
-    </button>
   );
 }

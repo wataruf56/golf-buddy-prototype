@@ -40,6 +40,7 @@ export default function EditRoundPage() {
   const [beginnerOnly, setBeginnerOnly] = useState(false);
   const [description, setDescription] = useState('');
   const [pickupStations, setPickupStations] = useState<string[]>([]);
+  const [pickupCapacity, setPickupCapacity] = useState(0);
 
   // Pull the round directly if it isn't in the store (e.g. cold load on edit URL).
   useEffect(() => {
@@ -91,6 +92,7 @@ export default function EditRoundPage() {
     setBeginnerOnly(!!round.beginnerOnly);
     setDescription(round.description || '');
     setPickupStations(round.pickupStations || []);
+    setPickupCapacity(round.pickupCapacity || 0);
   }, [round]);
 
   const isConfirmed = round?.type === 'confirmed';
@@ -178,6 +180,7 @@ export default function EditRoundPage() {
       genderCondition: deriveGenderCondition(),
       description: description || '',
       pickupStations,
+      pickupCapacity: pickupStations.length && pickupCapacity > 0 ? pickupCapacity : undefined,
     };
     if (isConfirmed) {
       patch.courseName = courseName;
@@ -342,6 +345,19 @@ export default function EditRoundPage() {
 
           <Field label="🚗 ピックアップできる駅" hint="（送迎できる駅・複数選択・任意入力OK）">
             <PickupStationPicker value={pickupStations} onChange={setPickupStations} />
+            {pickupStations.length > 0 && (
+              <div className="mt-2.5 flex items-center gap-2">
+                <span className="text-xs font-bold text-sub">自分含め乗れる人数</span>
+                <input
+                  type="number" min={1} max={8} inputMode="numeric"
+                  value={pickupCapacity || ''}
+                  onChange={(e) => setPickupCapacity(Math.max(0, Math.min(8, Number(e.target.value) || 0)))}
+                  placeholder="例: 4"
+                  className="w-16 px-2 py-1.5 border-[1.5px] border-border rounded-[8px] text-sm bg-bg outline-none text-center"
+                />
+                <span className="text-xs text-sub">名</span>
+              </div>
+            )}
           </Field>
 
           <Field label="ひとこと">

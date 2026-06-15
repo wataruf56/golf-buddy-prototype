@@ -41,6 +41,7 @@ export default function CreatePage() {
   const [description, setDescription] = useState('');
   // 主催者がピックアップ（送迎）できる代表駅（複数選択）。
   const [pickupStations, setPickupStations] = useState<string[]>([]);
+  const [pickupCapacity, setPickupCapacity] = useState(0); // 自分含め乗れる人数
 
   const isComp = maxSpots >= 5;
   const MIN_TOTAL = 2, MAX_TOTAL = 50;
@@ -113,6 +114,7 @@ export default function CreatePage() {
       genderCondition: deriveGenderCondition(),
       description: description || undefined,
       pickupStations: pickupStations.length ? pickupStations : undefined,
+      pickupCapacity: pickupStations.length && pickupCapacity > 0 ? pickupCapacity : undefined,
       // Admin-only: request publishing under the ゴルトモ公式 identity. Server
       // re-validates the caller is actually an admin before honoring this.
       asOfficial: isAdmin ? postAsOfficial : undefined,
@@ -341,9 +343,22 @@ export default function CreatePage() {
           <Field label="🚗 ピックアップできる駅" hint="（送迎できる駅・複数選択・任意入力OK）">
             <PickupStationPicker value={pickupStations} onChange={setPickupStations} />
             {pickupStations.length > 0 && (
-              <div className="mt-2 px-3 py-2 bg-green-light rounded-lg text-[11px] font-bold text-green">
-                {pickupStations.join('・')} から送迎OK として募集に表示されます🚗
-              </div>
+              <>
+                <div className="mt-2.5 flex items-center gap-2">
+                  <span className="text-xs font-bold text-sub">自分含め乗れる人数</span>
+                  <input
+                    type="number" min={1} max={8} inputMode="numeric"
+                    value={pickupCapacity || ''}
+                    onChange={(e) => setPickupCapacity(Math.max(0, Math.min(8, Number(e.target.value) || 0)))}
+                    placeholder="例: 4"
+                    className="w-16 px-2 py-1.5 border-[1.5px] border-border rounded-[8px] text-sm bg-bg outline-none text-center"
+                  />
+                  <span className="text-xs text-sub">名</span>
+                </div>
+                <div className="mt-2 px-3 py-2 bg-green-light rounded-lg text-[11px] font-bold text-green">
+                  {pickupStations.join('・')} から送迎OK{pickupCapacity ? `（自分含め${pickupCapacity}名）` : ''} として表示されます🚗
+                </div>
+              </>
             )}
           </Field>
 
