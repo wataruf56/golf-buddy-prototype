@@ -11,6 +11,7 @@ import { chatIdFor, formatDate, ratingLabel, carLabel } from '@/lib/utils';
 import { levelConditionLabel } from '@/lib/roundEligibility';
 import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
 import { GroupAssignment } from '@/components/GroupAssignment';
+import { PickupStationPicker } from '@/components/PickupStationPicker';
 import type { Round, User } from '@/lib/types';
 
 // Brand launch URL — handled by middleware, redirects to liff.line.me/{id}
@@ -366,21 +367,8 @@ export default function RoundDetailPage() {
           </div>
         </div>
 
-        {/* 🚗 送迎OK（主催者がピックアップ可能な駅） */}
-        {(round.pickupStations?.length ?? 0) > 0 && (
-          <div className="mb-4 p-3 bg-green-light rounded-xl border-[1.5px] border-green">
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="text-lg">🚗</span>
-              <span className="text-[13px] font-black text-white bg-green px-2 py-0.5 rounded-full">送迎OK</span>
-              <span className="text-[12px] font-bold text-green">主催者がピックアップできます</span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {round.pickupStations!.map((st) => (
-                <span key={st} className="px-2.5 py-1 bg-white text-green rounded-full text-[12px] font-bold border border-green">{st}駅</span>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* 🚗 送迎（主催者＋車ありの参加者） */}
+        <PickupInfo round={round} meId={meId} users={users} isHost={isHost} isApproved={isApproved} />
 
         {round.description && (
           <div className="mb-4 p-3 bg-bg rounded-xl text-[13px] text-text leading-relaxed">{round.description}</div>
@@ -929,6 +917,82 @@ function Field({ label, required, children }: { label: string; required?: boolea
         {label} {required && <span className="text-red">*</span>}
       </label>
       {children}
+    </div>
+  );
+}
+
+// 🚗 送迎情報。主催者(round.pickupStations)＋車ありの参加者
+// (round.participantPickups[uid]) をまとめて表示。さらに「自分が車あり参加者」
+// なら、自分の送迎できる駅をその場で登録・更新できる。
+function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; meId: string; users: User[]; isHost: boolean; isApproved: boolean }) {
+  const meUser = users.find((u) => u.id === meId);
+  const canRegister = !isHost && isApproved && meUser?.car === 'have';
+  const [myStations, setMyStations] = useState<string[]>(round.participantPickups?.[meId] || []);
+  const [savedStations, setSavedStations] = useState<string[]>(round.participantPickups?.[meId] || []);
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/rounds/${round.id}/pickup`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stations: myStations }), cache: 'no-store', credentials: 'include',
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      setSavedStations(myStations);
+      toast(myStations.length ? '送迎できる駅を登録しました🚗' : '送迎の登録を解除しました');
+    } catch (e) { toast('保存に失敗しました', 'error'); }
+    finally { setSaving(false); }
+  }
+
+  // 表示用：主催者＋各参加者（自分の最新保存値で上書き）
+  const people: { id: string; name: string; stations: string[]; host: boolean }[] = [];
+  if ((round.pickupStations?.length ?? 0) > 0) {
+    people.push({ id: round.hostId, name: users.find((u) => u.id === round.hostId)?.displayName || '主催者', stations: round.pickupStations!, host: true });
+  }
+  const pp = { ...(round.participantPickups || {}) };
+  if (canRegister) { if (savedStations.length) pp[meId] = savedStations; else delete pp[meId]; }
+  Object.entries(pp).forEach(([uid, sts]) => {
+    if (Array.isArray(sts) && sts.length) people.push({ id: uid, name: users.find((u) => u.id === uid)?.displayName || 'メンバー', stations: sts, host: false });
+  });
+
+  if (people.length === 0 && !canRegister) return null;
+
+  return (
+    <div className="mb-4 p-3 bg-green-light rounded-xl border-[1.5px] border-green">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-lg">🚗</span>
+        <span className="text-[13px] font-black text-white bg-green px-2 py-0.5 rounded-full">送迎OK</span>
+        <span className="text-[12px] font-bold text-green">ピックアップできる人</span>
+      </div>
+      {people.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          {people.map((p) => (
+            <div key={p.id + (p.host ? '_h' : '')} className="bg-white rounded-lg p-2">
+              <div className="text-[12px] font-bold text-text mb-1">{p.name}{p.host && <span className="ml-1 text-[10px] text-green font-black">主催者</span>}</div>
+              <div className="flex flex-wrap gap-1.5">
+                {p.stations.map((st) => (
+                  <span key={st} className="px-2 py-0.5 bg-green-light text-green rounded-full text-[11px] font-bold border border-green">{st}駅</span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-[11px] text-green font-semibold">まだ送迎できる人がいません。車をお持ちなら下から登録できます。</div>
+      )}
+
+      {canRegister && (
+        <div className="mt-3 pt-3 border-t border-green/40">
+          <div className="text-[11px] font-black text-green mb-1.5">🚗 あなたが送迎できる駅（車あり）</div>
+          <div className="bg-white rounded-lg p-2">
+            <PickupStationPicker value={myStations} onChange={setMyStations} />
+          </div>
+          <button onClick={save} disabled={saving} className="mt-2 w-full py-2.5 bg-green text-white rounded-full text-[13px] font-bold disabled:opacity-50">
+            {saving ? '保存中…' : '送迎できる駅を登録する'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

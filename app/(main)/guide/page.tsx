@@ -137,8 +137,6 @@ function GuideInner() {
         <div className="text-lg font-black mb-1">{s.emoji} {s.title}</div>
         <p className="text-[13px] text-sub leading-relaxed mb-4">{s.desc}</p>
 
-        {s.shot && <Shot sectionKey={s.key} title={s.title} />}
-
         <div className="bg-card rounded-xl shadow-card p-4 mb-4">
           <div className="text-sm font-black mb-3">使い方の手順</div>
           <ol className="flex flex-col gap-3">
@@ -152,6 +150,8 @@ function GuideInner() {
             ))}
           </ol>
         </div>
+
+        {s.shot && <Shot sectionKey={s.key} title={s.title} />}
 
         {s.tips && (
           <div className="bg-green-light text-green rounded-xl p-3.5 text-[12.5px] font-semibold flex gap-2">

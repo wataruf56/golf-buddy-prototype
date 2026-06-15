@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { allAreas } from '@/lib/mockData';
 import { BEGINNER_FRIENDLY_SCORES } from '@/lib/roundEligibility';
-import { PICKUP_STATIONS } from '@/lib/stations';
+import { PickupStationPicker } from '@/components/PickupStationPicker';
 import { store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { track } from '@/lib/telemetry';
@@ -41,8 +41,6 @@ export default function CreatePage() {
   const [description, setDescription] = useState('');
   // 主催者がピックアップ（送迎）できる代表駅（複数選択）。
   const [pickupStations, setPickupStations] = useState<string[]>([]);
-  const togglePickup = (st: string) =>
-    setPickupStations((prev) => (prev.includes(st) ? prev.filter((x) => x !== st) : [...prev, st]));
 
   const isComp = maxSpots >= 5;
   const MIN_TOTAL = 2, MAX_TOTAL = 50;
@@ -340,20 +338,8 @@ export default function CreatePage() {
           </Field>
 
 
-          <Field label="🚗 ピックアップできる駅" hint="（送迎できる駅・複数選択・任意）">
-            <div className="flex gap-1.5 flex-wrap">
-              {PICKUP_STATIONS.map((st) => {
-                const on = pickupStations.includes(st);
-                return (
-                  <button
-                    key={st}
-                    type="button"
-                    onClick={() => togglePickup(st)}
-                    className={cn('px-3 py-1.5 text-xs font-bold rounded-full border-[1.5px]', on ? 'bg-green text-white border-green' : 'bg-bg border-border text-sub')}
-                  >{on ? '✓ ' : ''}{st}</button>
-                );
-              })}
-            </div>
+          <Field label="🚗 ピックアップできる駅" hint="（送迎できる駅・複数選択・任意入力OK）">
+            <PickupStationPicker value={pickupStations} onChange={setPickupStations} />
             {pickupStations.length > 0 && (
               <div className="mt-2 px-3 py-2 bg-green-light rounded-lg text-[11px] font-bold text-green">
                 {pickupStations.join('・')} から送迎OK として募集に表示されます🚗

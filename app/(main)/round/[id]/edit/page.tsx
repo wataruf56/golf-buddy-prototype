@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { allAreas } from '@/lib/mockData';
 import { BEGINNER_FRIENDLY_SCORES } from '@/lib/roundEligibility';
-import { PICKUP_STATIONS } from '@/lib/stations';
+import { PickupStationPicker } from '@/components/PickupStationPicker';
 import { store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import type { Round } from '@/lib/types';
@@ -40,8 +40,6 @@ export default function EditRoundPage() {
   const [beginnerOnly, setBeginnerOnly] = useState(false);
   const [description, setDescription] = useState('');
   const [pickupStations, setPickupStations] = useState<string[]>([]);
-  const togglePickup = (st: string) =>
-    setPickupStations((prev) => (prev.includes(st) ? prev.filter((x) => x !== st) : [...prev, st]));
 
   // Pull the round directly if it isn't in the store (e.g. cold load on edit URL).
   useEffect(() => {
@@ -342,20 +340,8 @@ export default function EditRoundPage() {
           </Field>
 
 
-          <Field label="🚗 ピックアップできる駅" hint="（送迎できる駅・複数選択・任意）">
-            <div className="flex gap-1.5 flex-wrap">
-              {PICKUP_STATIONS.map((st) => {
-                const on = pickupStations.includes(st);
-                return (
-                  <button
-                    key={st}
-                    type="button"
-                    onClick={() => togglePickup(st)}
-                    className={cn('px-3 py-1.5 text-xs font-bold rounded-full border-[1.5px]', on ? 'bg-green text-white border-green' : 'bg-bg border-border text-sub')}
-                  >{on ? '✓ ' : ''}{st}</button>
-                );
-              })}
-            </div>
+          <Field label="🚗 ピックアップできる駅" hint="（送迎できる駅・複数選択・任意入力OK）">
+            <PickupStationPicker value={pickupStations} onChange={setPickupStations} />
           </Field>
 
           <Field label="ひとこと">
