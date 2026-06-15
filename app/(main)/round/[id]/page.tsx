@@ -366,6 +366,22 @@ export default function RoundDetailPage() {
           </div>
         </div>
 
+        {/* 🚗 送迎OK（主催者がピックアップ可能な駅） */}
+        {(round.pickupStations?.length ?? 0) > 0 && (
+          <div className="mb-4 p-3 bg-green-light rounded-xl border-[1.5px] border-green">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-lg">🚗</span>
+              <span className="text-[13px] font-black text-white bg-green px-2 py-0.5 rounded-full">送迎OK</span>
+              <span className="text-[12px] font-bold text-green">主催者がピックアップできます</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {round.pickupStations!.map((st) => (
+                <span key={st} className="px-2.5 py-1 bg-white text-green rounded-full text-[12px] font-bold border border-green">{st}駅</span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {round.description && (
           <div className="mb-4 p-3 bg-bg rounded-xl text-[13px] text-text leading-relaxed">{round.description}</div>
         )}

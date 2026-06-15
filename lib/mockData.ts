@@ -21,6 +21,7 @@ export const mockRounds: Round[] = [
     maxSpots: 4, currentCount: 2, applicantIds: ['u1'],
     price: '¥8,000〜', levelCondition: '初心者OK',
     description: '初心者の方も大歓迎！のんびり楽しく回りましょう。',
+    pickupStations: ['新宿', '渋谷', '横浜'],
     status: 'open', isCompetition: false, hostCohort: 'a', createdAt: now - 2 * day,
   },
   {

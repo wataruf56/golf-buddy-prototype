@@ -84,6 +84,14 @@ export function RoundCard({ round, host }: { round: Round; host?: User }) {
         )}
         <span className="badge px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-bg text-sub">{placeIcon} {placeLabel}</span>
       </div>
+      {/* 🚗 送迎OK（コンペ以外で、主催者がピックアップ可能なら目立たせる） */}
+      {!isComp && (round.pickupStations?.length ?? 0) > 0 && (
+        <div className="flex items-center gap-1.5 mb-2.5 px-3 py-2 bg-green-light rounded-lg border-[1.5px] border-green">
+          <span className="text-base">🚗</span>
+          <span className="text-[11px] font-black text-white bg-green px-1.5 py-px rounded-full">送迎OK</span>
+          <span className="text-[11px] font-bold text-green truncate flex-1">{round.pickupStations!.join('・')} から</span>
+        </div>
+      )}
       {/* 参加状況バー（コンペ以外の通常募集でもカード上に表示） */}
       <div className="mb-2.5">
         <div className="flex justify-between items-baseline mb-1.5">

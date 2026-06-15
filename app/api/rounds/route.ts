@@ -75,6 +75,9 @@ export async function POST(req: NextRequest) {
     // UIs that only read levelCondition still show the right thing.
     levelCondition: levelConditionLabel({ beginnerOnly, genderCondition, levelCondition: '' }),
     description: body.description,
+    pickupStations: Array.isArray(body.pickupStations)
+      ? body.pickupStations.map((x: any) => String(x).slice(0, 20)).slice(0, 20)
+      : undefined,
     status: 'open',
     isCompetition: maxSpots >= 5,
     // "ゴルトモ公式" は管理者（福田渉）のみが選択可能。クライアントの申告は

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { allAreas } from '@/lib/mockData';
 import { BEGINNER_FRIENDLY_SCORES } from '@/lib/roundEligibility';
+import { PICKUP_STATIONS } from '@/lib/stations';
 import { store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import type { Round } from '@/lib/types';
@@ -38,6 +39,9 @@ export default function EditRoundPage() {
   const [price, setPrice] = useState('');
   const [beginnerOnly, setBeginnerOnly] = useState(false);
   const [description, setDescription] = useState('');
+  const [pickupStations, setPickupStations] = useState<string[]>([]);
+  const togglePickup = (st: string) =>
+    setPickupStations((prev) => (prev.includes(st) ? prev.filter((x) => x !== st) : [...prev, st]));
 
   // Pull the round directly if it isn't in the store (e.g. cold load on edit URL).
   useEffect(() => {
@@ -88,6 +92,7 @@ export default function EditRoundPage() {
     setPrice(round.price || '');
     setBeginnerOnly(!!round.beginnerOnly);
     setDescription(round.description || '');
+    setPickupStations(round.pickupStations || []);
   }, [round]);
 
   const isConfirmed = round?.type === 'confirmed';
@@ -174,6 +179,7 @@ export default function EditRoundPage() {
       beginnerOnly,
       genderCondition: deriveGenderCondition(),
       description: description || '',
+      pickupStations,
     };
     if (isConfirmed) {
       patch.courseName = courseName;
@@ -335,6 +341,22 @@ export default function EditRoundPage() {
             )}
           </Field>
 
+
+          <Field label="🚗 ピックアップできる駅" hint="（送迎できる駅・複数選択・任意）">
+            <div className="flex gap-1.5 flex-wrap">
+              {PICKUP_STATIONS.map((st) => {
+                const on = pickupStations.includes(st);
+                return (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => togglePickup(st)}
+                    className={cn('px-3 py-1.5 text-xs font-bold rounded-full border-[1.5px]', on ? 'bg-green text-white border-green' : 'bg-bg border-border text-sub')}
+                  >{on ? '✓ ' : ''}{st}</button>
+                );
+              })}
+            </div>
+          </Field>
 
           <Field label="ひとこと">
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={200} placeholder="募集の趣旨や雰囲気を伝えましょう（200文字以内）" className="w-full h-20 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-none" />

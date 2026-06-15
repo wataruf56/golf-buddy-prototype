@@ -120,6 +120,9 @@ export type Round = {
   // 主催者が自前のLINEオープンチャットを持っている場合のURL。設定されていれば
   // グループチャット上部に「LINEのオープンチャットあり」として表示。未設定なら非表示。
   openChatUrl?: string;
+  // 主催者が車でピックアップ（送迎）できる代表駅（複数）。一般公開で表示し、
+  // コンペ以外の募集ではカード上で目立たせる。
+  pickupStations?: string[];
 };
 
 export type RoundGroup = {
