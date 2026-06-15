@@ -156,29 +156,6 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {Array.isArray(user.recentScores) && user.recentScores.length > 0 && (() => {
-        const sorted = [...user.recentScores].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 3);
-        const avg = Math.round(sorted.reduce((s, x) => s + x.score, 0) / sorted.length);
-        return (
-          <details className="bg-card rounded-card shadow-card mb-4">
-            <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
-              <span className="text-[13px] font-bold">直近のスコア</span>
-              <span className="text-[11px] text-muted">直近3件 平均 {avg} ▾</span>
-            </summary>
-            <div className="px-4 pb-4 flex flex-col gap-1.5">
-              {sorted.map((s, i) => (
-                <div key={i} className="flex justify-between items-center px-3 py-2 bg-bg rounded-[10px]">
-                  <span className="text-[12px] text-sub">
-                    {new Date(s.date).toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' })}
-                  </span>
-                  <span className="text-[15px] font-black text-green">{s.score}</span>
-                </div>
-              ))}
-            </div>
-          </details>
-        );
-      })()}
-
       <details className="bg-card rounded-card shadow-card mb-4">
         <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
           <span className="text-[13px] font-bold">レビュー（匿名）</span>

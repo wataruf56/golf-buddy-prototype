@@ -413,48 +413,6 @@ export default function ProfileEditPage() {
           <div className="text-[10px] text-muted text-right mt-0.5">{bio.length}/300</div>
         </Field>
 
-        <details className="mb-4 border-[1.5px] border-border rounded-[10px]">
-          <summary className="flex items-center justify-between p-3 cursor-pointer list-none">
-            <span className="text-xs font-bold text-sub">
-              直近のスコア <span className="text-muted font-medium">（任意・最大10件）</span>
-            </span>
-            <span className="text-[11px] text-muted">{recentScores.length}件 ▾</span>
-          </summary>
-          <div className="px-3 pb-3 flex flex-col gap-2">
-            {recentScores.map((s, i) => (
-              <div key={i} className="flex gap-2 items-center">
-                <input
-                  type="date"
-                  value={s.date}
-                  max={new Date().toISOString().slice(0, 10)}
-                  onChange={(e) => setRecentScores((prev) => prev.map((x, j) => j === i ? { ...x, date: e.target.value } : x))}
-                  className="flex-1 p-2.5 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
-                />
-                <select
-                  value={s.score || ''}
-                  onChange={(e) => setRecentScores((prev) => prev.map((x, j) => j === i ? { ...x, score: parseInt(e.target.value) || 0 } : x))}
-                  className="w-24 p-2.5 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
-                >
-                  <option value="">スコア</option>
-                  {Array.from({ length: 91 }, (_, k) => 60 + k).map((n) => <option key={n} value={n}>{n}</option>)}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => setRecentScores((prev) => prev.filter((_, j) => j !== i))}
-                  className="px-2.5 py-2 text-xs text-muted border-[1.5px] border-border rounded-[10px]"
-                >削除</button>
-              </div>
-            ))}
-            {recentScores.length < 10 && (
-              <button
-                type="button"
-                onClick={() => setRecentScores((prev) => [...prev, { score: 0, date: new Date().toISOString().slice(0, 10) }])}
-                className="py-2.5 border-[1.5px] border-dashed border-border rounded-[10px] text-sm text-sub font-bold"
-              >＋ スコアを追加（{recentScores.length}/10）</button>
-            )}
-          </div>
-        </details>
-
         <button onClick={save} className="w-full py-4 bg-green text-white rounded-xl text-[15px] font-bold mt-4">
           保存する
         </button>
