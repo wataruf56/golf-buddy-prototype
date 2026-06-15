@@ -3,7 +3,7 @@ import type { Chat, PendingReview, Review, Round, User } from './types';
 export const ME_ID = 'me';
 
 export const mockUsers: User[] = [
-  { id: ME_ID, displayName: 'Wataru', age: 34, area: '神奈川県', scoreRange: '105〜115', playStyle: 'のんびり派', frequency: '月2回', avatar: '⛳', color: '#2D8C4E', reviewAvg: 4.5, reviewCount: 12, roundCount: 7, buddyCount: 3 },
+  { id: ME_ID, displayName: 'テスト太郎', age: 34, area: '神奈川県', scoreRange: '105〜115', playStyle: 'のんびり派', frequency: '月2回', avatar: '⛳', color: '#2D8C4E', reviewAvg: 4.5, reviewCount: 12, roundCount: 7, buddyCount: 3 },
   { id: 'u1', displayName: '田中 健太', age: 28, area: '神奈川県', scoreRange: '105〜115', playStyle: 'のんびり派', frequency: '月2回', avatar: '🧑', color: '#3478F6', reviewAvg: 4.3, reviewCount: 12, roundCount: 9, buddyCount: 2 },
   { id: 'u2', displayName: '佐藤 美咲', age: 32, area: '神奈川県', scoreRange: '110〜120', playStyle: 'エンジョイ派', frequency: '月1回', avatar: '👩', color: '#E67E22', reviewAvg: 4.6, reviewCount: 8, roundCount: 6, buddyCount: 4 },
   { id: 'u3', displayName: '鈴木 大輔', age: 35, area: '東京都', scoreRange: '95〜105', playStyle: 'サクサク派', frequency: '月3回', avatar: '👨', color: '#2D8C4E', reviewAvg: 4.8, reviewCount: 23, roundCount: 18, buddyCount: 6 },

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 // 使い方ガイド。下タブの各ページごとに「サブタブ」で切り替えて、
 // 手順とスクリーンショットを見られる。スクショは /guide-shots/{key}.png に
@@ -95,11 +96,22 @@ const SECTIONS: Section[] = [
 ];
 
 export default function GuidePage() {
-  const [active, setActive] = useState(0);
+  return (
+    <Suspense fallback={null}>
+      <GuideInner />
+    </Suspense>
+  );
+}
+
+function GuideInner() {
+  const search = useSearchParams();
+  const t = search?.get('t') || '';
+  const found = SECTIONS.findIndex((x) => x.key === t);
+  const [active, setActive] = useState(found >= 0 ? found : 0);
   const s = SECTIONS[active];
 
   return (
-    <div className="h-full overflow-y-auto bg-bg">
+    <div className="h-full overflow-y-auto overflow-x-hidden bg-bg">
       {/* ヘッダー */}
       <div className="px-4 pt-4 pb-2 bg-card border-b border-border sticky top-0 z-10">
         <div className="text-xl font-black mb-2">📖 使い方ガイド</div>
@@ -169,7 +181,7 @@ function Shot({ sectionKey, title }: { sectionKey: string; title: string }) {
       <img
         src={`/guide-shots/${sectionKey}.png`}
         alt={`${title}の画面`}
-        className="w-full block"
+        className="block w-full max-w-full h-auto"
         onError={() => setFailed(true)}
       />
     </div>
