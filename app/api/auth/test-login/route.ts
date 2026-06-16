@@ -23,14 +23,15 @@ export async function POST(req: NextRequest) {
 
   const gender = body?.gender === 'male' || body?.gender === 'female' ? body.gender : undefined;
   const car = body?.car === 'have' || body?.car === 'none' ? body.car : undefined;
-  const displayName = String(body?.displayName || 'テストユーザー').slice(0, 40);
+  // 名前は指定があるときだけ使う（未指定で既存の名前を上書きしない）。
+  const providedName = body?.displayName ? String(body.displayName).slice(0, 40) : '';
 
   try {
     const existing = await db.getUser(userId);
     if (!existing) {
       await db.upsertUser({
         id: userId,
-        displayName,
+        displayName: providedName || 'テストユーザー',
         avatar: String(body?.avatar || '⛳'),
         color: '#2A8C82',
         age: typeof body?.age === 'number' && body.age > 0 ? body.age : 30, // 30 → 20〜30代コホート
@@ -44,18 +45,19 @@ export async function POST(req: NextRequest) {
         lineId: userId,
       });
     } else {
-      // 既存テスト垢は指定された属性だけ更新（性別・車・名前の切替に対応）
-      const patch: any = { displayName };
+      // 既存テスト垢は「指定された属性だけ」更新（未指定は既存値を保持）
+      const patch: any = {};
+      if (providedName) patch.displayName = providedName;
       if (gender) patch.gender = gender;
       if (car) patch.car = car;
-      await db.updateUser(userId, patch);
+      if (Object.keys(patch).length) await db.updateUser(userId, patch);
     }
   } catch (e) {
     console.error('[test-login] upsert failed', e);
   }
 
   const token = makeSessionToken(userId, secret);
-  const res = NextResponse.json({ ok: true, userId, displayName });
+  const res = NextResponse.json({ ok: true, userId });
   res.cookies.set(LIFF_COOKIE_NAME, token, {
     httpOnly: true,
     secure: true,
