@@ -9,7 +9,7 @@ import { getAdminDb } from '@/lib/firebase';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  'Access-Control-Allow-Methods': 'POST, GET, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Cache-Control': 'no-store, must-revalidate',
   'Content-Type': 'application/json; charset=utf-8',
@@ -93,6 +93,9 @@ export async function GET(req: NextRequest) {
     const comboCounts: Record<string, number> = {};  // 「エリア×曜日」需要プール
     const stepReach: Record<string, number> = {};    // 各設問への到達（回答数）= 離脱分析
     const daily: Record<string, { visit: number; start: number; complete: number; signal: number }> = {};
+    const byRef: Record<string, number> = {};     // 流入元（来訪単位）
+    const byDevice = { mobile: 0, desktop: 0 };    // デバイス（来訪単位）
+    const byHour: number[] = Array(24).fill(0);    // 時間帯（来訪単位・JST）
     let visits = 0, starts = 0, completes = 0, ctas = 0, shares = 0, signals = 0;
 
     const JST = 9 * 3600 * 1000; // 日次バケットは日本時間で切る
@@ -103,7 +106,14 @@ export async function GET(req: NextRequest) {
       if (d.sessionId) sessions.add(d.sessionId);
       if (d.visitorId) visitors.add(d.visitorId);
       const dk = dayKey(d.ts);
-      if (d.event === 'visit') { visits++; const b = bucket(dk); if (b) b.visit++; }
+      if (d.event === 'visit') {
+        visits++; const b = bucket(dk); if (b) b.visit++;
+        // 来訪単位の流入元・デバイス・時間帯
+        if (d.ref) { try { byRef[new URL(d.ref).hostname.replace(/^www\./, '')] = (byRef[new URL(d.ref).hostname.replace(/^www\./, '')] || 0) + 1; } catch { byRef['その他'] = (byRef['その他'] || 0) + 1; } }
+        else byRef['直接 / 不明'] = (byRef['直接 / 不明'] || 0) + 1;
+        if (/Mobile|Android|iPhone|iPad/i.test(String(d.ua || ''))) byDevice.mobile++; else byDevice.desktop++;
+        try { const hr = new Date((Number(d.ts) || 0) + JST).getUTCHours(); if (hr >= 0 && hr < 24) byHour[hr]++; } catch {}
+      }
       if (d.event === 'start') { starts++; const b = bucket(dk); if (b) b.start++; }
       if (d.event === 'answer' && d.qid) {
         byOption[d.qid] = byOption[d.qid] || {};
@@ -132,6 +142,24 @@ export async function GET(req: NextRequest) {
 
     const dailyArr = Object.keys(daily).sort().map((k) => ({ date: k, ...daily[k] }));
 
+    // 生データ一覧（最新300件・削除UI用）。snap は ts 降順。
+    const raw = snap.docs.slice(0, 300).map((doc: any) => {
+      const x = doc.data();
+      return {
+        id: doc.id,
+        ts: x.ts || 0,
+        event: x.event || '',
+        visitorId: x.visitorId || '',
+        sessionId: x.sessionId || '',
+        resultType: x.resultType || '',
+        qid: x.qid || '',
+        optionLabel: x.optionLabel || '',
+        page: x.page || '',
+        ref: x.ref || '',
+        ua: String(x.ua || '').slice(0, 60),
+      };
+    });
+
     // LINEアカウントと紐付いた通知希望（_lpSignal）。③で保存される個人単位データ。
     let linkedSignals = 0;
     const linkedUsers = new Set<string>();
@@ -157,8 +185,52 @@ export async function GET(req: NextRequest) {
       byOption, byResult, byPattern, stepReach,
       demand: { areaCounts, dayCounts, comboCounts },
       daily: dailyArr,
+      byRef, byDevice, byHour,
+      raw,
       serverTime: new Date().toISOString(),
     }, { headers: cors });
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: cors });
+  }
+}
+
+// DELETE /api/lp/quiz?token=XXX  body: { id } | { visitorId } | { sessionId }
+// 計測データを削除する。id=1件削除 / visitorId・sessionId=その単位を一括削除。
+export async function DELETE(req: NextRequest) {
+  const url = new URL(req.url);
+  const token = url.searchParams.get('token') || '';
+  const expected = process.env.ADMIN_LOG_TOKEN || '';
+  if (!expected || token !== expected) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: cors });
+  }
+  if (isDemoMode) return NextResponse.json({ note: 'demo mode' }, { headers: cors });
+  const db = getAdminDb() as any;
+  if (!db) return NextResponse.json({ error: 'firestore not initialized' }, { status: 500, headers: cors });
+
+  let body: any = {};
+  try { body = await req.json(); } catch {}
+  const id = String(body?.id || '').trim();
+  const visitorId = String(body?.visitorId || '').trim();
+  const sessionId = String(body?.sessionId || '').trim();
+
+  try {
+    if (id) {
+      await db.collection('_lpQuiz').doc(id).delete();
+      return NextResponse.json({ ok: true, deleted: 1 }, { headers: cors });
+    }
+    const field = visitorId ? 'visitorId' : sessionId ? 'sessionId' : '';
+    const value = visitorId || sessionId;
+    if (!field) return NextResponse.json({ error: 'id / visitorId / sessionId のいずれかが必要です' }, { status: 400, headers: cors });
+
+    const snap = await db.collection('_lpQuiz').where(field, '==', value).limit(3000).get();
+    let deleted = 0;
+    const docs = snap.docs;
+    for (let i = 0; i < docs.length; i += 450) {
+      const batch = db.batch();
+      docs.slice(i, i + 450).forEach((d: any) => { batch.delete(d.ref); deleted++; });
+      await batch.commit();
+    }
+    return NextResponse.json({ ok: true, deleted }, { headers: cors });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: cors });
   }

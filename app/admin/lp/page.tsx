@@ -32,7 +32,16 @@ type Report = {
     comboCounts: Record<string, number>;
   };
   daily: { date: string; visit: number; start: number; complete: number; signal: number }[];
+  byRef: Record<string, number>;
+  byDevice: { mobile: number; desktop: number };
+  byHour: number[];
+  raw: RawEvent[];
   serverTime: string;
+};
+
+type RawEvent = {
+  id: string; ts: number; event: string; visitorId: string; sessionId: string;
+  resultType: string; qid: string; optionLabel: string; page: string; ref: string; ua: string;
 };
 
 export default function AdminLpReport() {
@@ -109,14 +118,19 @@ function Inner() {
 
       {data && (
         <div className="flex flex-col gap-4">
+          <StatGrid data={data} />
           <Funnel data={data} />
           <Daily daily={data.daily} />
+          <Sources byRef={data.byRef} />
+          <Devices byDevice={data.byDevice} />
+          <Hours byHour={data.byHour} />
           <Demand demand={data.demand} signals={data.signals} uniq={data.uniqueSignalVisitors} />
           <DropOff stepReach={data.stepReach} starts={data.starts} />
           <ResultDist byResult={data.byResult} completes={data.completes} />
           <Patterns byPattern={data.byPattern} />
+          <RawData raw={data.raw} token={token} onChanged={() => load(token)} />
           <div className="text-[10px] text-muted text-center mt-2">
-            ※ 直近 {data.scanned} 件のイベントを集計。LINEアカウントとの個人紐付けは次フェーズで対応予定。
+            ※ 直近 {data.scanned} 件のイベントを集計。
           </div>
         </div>
       )}
@@ -277,6 +291,119 @@ function Patterns({ byPattern }: { byPattern: Record<string, number> }) {
           </div>
         </div>
       ))}
+    </Card>
+  );
+}
+
+// 大きな数値カード（まず一番見たい指標をしっかり表示）
+function StatGrid({ data }: { data: Report }) {
+  const cells = [
+    { label: 'ユニーク訪問者', value: data.uniqueVisitors, sub: '人', color: 'text-blue' },
+    { label: '来訪', value: data.visits, sub: '回', color: 'text-text' },
+    { label: '診断完了', value: data.completes, sub: `完了率 ${Math.round((data.completionRate || 0) * 100)}%`, color: 'text-green' },
+    { label: '興味シグナル', value: data.signals, sub: `${data.uniqueSignalVisitors}人`, color: 'text-orange' },
+  ];
+  return (
+    <div className="grid grid-cols-2 gap-2.5">
+      {cells.map((c) => (
+        <div key={c.label} className="bg-card rounded-xl shadow-card p-3.5">
+          <div className="text-[11px] text-sub font-bold mb-0.5">{c.label}</div>
+          <div className={`text-[30px] leading-none font-black ${c.color}`}>{c.value}</div>
+          <div className="text-[10px] text-muted mt-1">{c.sub}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Sources({ byRef }: { byRef: Record<string, number> }) {
+  const rows = sortEntries(byRef || {});
+  if (!rows.length) return null;
+  const max = rows[0][1];
+  return (
+    <Card title="流入元（来訪の参照元）" sub="どこから来たか">
+      {rows.map(([k, v]) => <Bar key={k} label={k} value={v} max={max} color="bg-blue" />)}
+    </Card>
+  );
+}
+
+function Devices({ byDevice }: { byDevice: { mobile: number; desktop: number } }) {
+  const m = byDevice?.mobile || 0, d = byDevice?.desktop || 0;
+  const total = m + d;
+  if (total === 0) return null;
+  return (
+    <Card title="デバイス" sub={`来訪 ${total} 件の内訳`}>
+      <Bar label="📱 スマホ" value={m} max={total} hint={`${pct(m, total)}%`} color="bg-green" />
+      <Bar label="💻 PC" value={d} max={total} hint={`${pct(d, total)}%`} color="bg-blue" />
+    </Card>
+  );
+}
+
+function Hours({ byHour }: { byHour: number[] }) {
+  const arr = Array.isArray(byHour) ? byHour : [];
+  const max = Math.max(1, ...arr);
+  if (arr.reduce((a, b) => a + b, 0) === 0) return null;
+  return (
+    <Card title="時間帯（来訪・JST）" sub="アクセスが多い時間">
+      <div className="flex items-end gap-px h-24">
+        {arr.map((v, h) => (
+          <div key={h} className="flex-1 flex flex-col items-center justify-end h-full" title={`${h}時: ${v}`}>
+            <div className="w-full bg-green rounded-t" style={{ height: `${pct(v, max)}%` }} />
+            {h % 6 === 0 && <div className="text-[7px] text-muted mt-0.5">{h}</div>}
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+const EVENT_LABEL: Record<string, string> = {
+  visit: '来訪', start: '開始', answer: '回答', complete: '完了', signal: 'シグナル',
+  cta: 'CTA', share: 'シェア', viewShared: '共有閲覧', typeView: 'タイプ閲覧', linkLine: 'LINE紐付',
+};
+
+// データ管理：生イベントを1件ずつ／訪問者単位で削除できる。
+function RawData({ raw, token, onChanged }: { raw: RawEvent[]; token: string; onChanged: () => void }) {
+  const [busy, setBusy] = useState('');
+  async function del(body: any, label: string) {
+    if (!confirm(`${label}を削除します。元に戻せません。よろしいですか？`)) return;
+    setBusy(JSON.stringify(body));
+    try {
+      const r = await fetch(`/api/lp/quiz?token=${encodeURIComponent(token)}`, {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), cache: 'no-store',
+      });
+      const d = await r.json();
+      if (!r.ok) { alert('削除失敗: ' + (d.error || r.status)); }
+      else { onChanged(); }
+    } catch { alert('削除に失敗しました'); }
+    finally { setBusy(''); }
+  }
+  if (!raw || raw.length === 0) return null;
+  return (
+    <Card title="🗑 データ管理（生イベント）" sub={`最新 ${raw.length} 件。テストデータの削除に使えます`}>
+      <div className="flex flex-col gap-1.5 max-h-[420px] overflow-y-auto">
+        {raw.map((e) => (
+          <div key={e.id} className="bg-bg rounded-lg p-2 text-[11px]">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-bold">
+                <span className="px-1.5 py-px rounded bg-card border border-border mr-1">{EVENT_LABEL[e.event] || e.event}</span>
+                {e.resultType && <span className="text-green">{e.resultType} </span>}
+                {e.qid && <span className="text-sub">{e.qid} </span>}
+              </span>
+              <span className="text-[9px] text-muted flex-shrink-0">{e.ts ? new Date(e.ts).toLocaleString('ja-JP', { hour12: false }) : ''}</span>
+            </div>
+            <div className="text-[9px] text-muted mt-0.5 break-all">
+              visitor: {e.visitorId || '—'}{e.optionLabel ? ` / ${e.optionLabel}` : ''}
+            </div>
+            <div className="flex gap-1.5 mt-1.5">
+              <button onClick={() => del({ id: e.id }, 'この1件')} disabled={!!busy} className="px-2 py-1 bg-red-50 text-red-600 rounded font-bold disabled:opacity-50">この1件を削除</button>
+              {e.visitorId && (
+                <button onClick={() => del({ visitorId: e.visitorId }, `この訪問者(${e.visitorId.slice(0, 8)}…)の全データ`)} disabled={!!busy} className="px-2 py-1 bg-red-100 text-red-700 rounded font-bold disabled:opacity-50">この訪問者を全削除</button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </Card>
   );
 }
