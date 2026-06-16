@@ -12,6 +12,7 @@ import { levelConditionLabel } from '@/lib/roundEligibility';
 import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
 import { GroupAssignment } from '@/components/GroupAssignment';
 import { PickupStationPicker } from '@/components/PickupStationPicker';
+import { MatchPicker } from '@/components/MatchPicker';
 import type { Round, User } from '@/lib/types';
 
 // Brand launch URL — handled by middleware, redirects to liff.line.me/{id}
@@ -598,7 +599,10 @@ export default function RoundDetailPage() {
       )}
 
       {round.status === 'completed' && (isHost || isApproved) && (
-        <MatchSection round={round} meId={meId} users={users} />
+        <div className="bg-card rounded-card p-4 mb-3 shadow-card">
+          <div className="text-sm font-black mb-2">💘 ラウンド後のマッチング</div>
+          <MatchPicker roundId={round.id} />
+        </div>
       )}
 
       <div className="h-5" />
@@ -1048,95 +1052,3 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
   );
 }
 
-// ラウンド後のマッチング。一緒に回った相手ごとに「また回りたい」「異性として
-// 気になる」をトグル。両思い（相互）になった時だけ双方に通知が届く。片思いの
-// 状態は相手に見えない（ボタンの色は自分の操作を表すだけ）。
-type MatchEntry = { again: boolean; romantic: boolean; matchedAgain: boolean; matchedRomantic: boolean };
-function MatchSection({ round, meId, users }: { round: Round; meId: string; users: User[] }) {
-  const others = Array.from(new Set([round.hostId, ...(round.applicantIds || [])]))
-    .filter((id) => id && id !== meId)
-    .map((id) => users.find((u) => u.id === id))
-    .filter(Boolean) as User[];
-  const [state, setState] = useState<Record<string, MatchEntry>>({});
-  const [busy, setBusy] = useState<string>('');
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`/api/rounds/${round.id}/match`, { cache: 'no-store', credentials: 'include' });
-        if (!res.ok) return;
-        const d = await res.json();
-        if (!cancelled && d?.state) setState(d.state);
-      } catch { /* noop */ }
-    })();
-    return () => { cancelled = true; };
-  }, [round.id]);
-
-  if (others.length === 0) return null;
-
-  async function toggle(toUserId: string, kind: 'again' | 'romantic') {
-    const key = `${toUserId}:${kind}`;
-    if (busy) return;
-    setBusy(key);
-    const cur = state[toUserId] || { again: false, romantic: false, matchedAgain: false, matchedRomantic: false };
-    const on = !(kind === 'again' ? cur.again : cur.romantic);
-    // 楽観更新
-    setState((s) => ({ ...s, [toUserId]: { ...cur, [kind]: on, ...(on ? {} : kind === 'again' ? { matchedAgain: false } : { matchedRomantic: false }) } }));
-    try {
-      const res = await fetch(`/api/rounds/${round.id}/match`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ toUserId, kind, on }),
-        cache: 'no-store',
-        credentials: 'include',
-      });
-      const d = await res.json();
-      if (res.ok && on && d?.matched) {
-        setState((s) => ({ ...s, [toUserId]: { ...(s[toUserId] as MatchEntry), [kind === 'again' ? 'matchedAgain' : 'matchedRomantic']: true } }));
-        toast(kind === 'again' ? '🏌️ 両思い！「また回りたい」がマッチしました' : '💘 マッチ成立！気になる同士です');
-      }
-    } catch {
-      toast('通信に失敗しました', 'error');
-      setState((s) => ({ ...s, [toUserId]: cur })); // ロールバック
-    } finally {
-      setBusy('');
-    }
-  }
-
-  return (
-    <div className="bg-card rounded-card p-4 mb-3 shadow-card">
-      <div className="text-sm font-black mb-1">💘 ラウンド後のマッチング</div>
-      <div className="text-[11px] text-sub mb-3 leading-relaxed">
-        一緒に回った人に気持ちを送れます。<b className="text-text">両思いになった時だけ</b>お互いに通知されます（片思いは相手に分かりません）。
-      </div>
-      <div className="flex flex-col gap-2.5">
-        {others.map((u) => {
-          const e = state[u.id] || { again: false, romantic: false, matchedAgain: false, matchedRomantic: false };
-          return (
-            <div key={u.id} className="p-2.5 bg-bg rounded-[10px]">
-              <div className="flex items-center gap-2 mb-2">
-                <Avatar user={u} size={32} />
-                <div className="text-[13px] font-bold flex-1 min-w-0 truncate">{u.displayName}</div>
-                {e.matchedAgain && <span className="text-[10px] font-black text-green bg-green-light px-2 py-0.5 rounded-full border border-green">🏌️ 両思い</span>}
-                {e.matchedRomantic && <span className="text-[10px] font-black text-pink-600 bg-pink-100 px-2 py-0.5 rounded-full border border-pink-600">💘 マッチ</span>}
-              </div>
-              <div className="flex gap-1.5">
-                <button
-                  onClick={() => toggle(u.id, 'again')}
-                  disabled={!!busy}
-                  className={'flex-1 px-2 py-2 rounded-full text-[12px] font-bold border-[1.5px] ' + (e.again ? 'bg-green text-white border-green' : 'bg-card border-border text-sub')}
-                >{e.again ? '✓ ' : ''}🏌️ また回りたい</button>
-                <button
-                  onClick={() => toggle(u.id, 'romantic')}
-                  disabled={!!busy}
-                  className={'flex-1 px-2 py-2 rounded-full text-[12px] font-bold border-[1.5px] ' + (e.romantic ? 'bg-pink-600 text-white border-pink-600' : 'bg-card border-border text-sub')}
-                >{e.romantic ? '✓ ' : ''}💘 異性として気になる</button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
-import { addNotificationMany } from '@/lib/notifications';
 
 export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
   const meId = await getMeId();
@@ -15,18 +14,6 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   const participants = [updatedRound.hostId, ...(updatedRound.applicantIds || [])];
   const allPending = participants.flatMap((reviewer) => pendingForUser(reviewer));
   await db.createPendingReviews(allPending);
-
-  // 参加者全員へ「マッチングしよう」通知（ホームの🔔に出る）。詳細ページ下部の
-  // 💘マッチングで「また回りたい / 異性として気になる」を相手に送れる。両思いの
-  // ときだけ双方に通知される。
-  try {
-    await addNotificationMany(
-      participants,
-      'match',
-      '🏌️ ラウンドお疲れさまでした！一緒に回った人に「また回りたい / 気になる」を送れます',
-      `/round/${params.id}`,
-    );
-  } catch { /* best-effort */ }
-
+  // マッチングはレビュー完了後の画面で行うため、ここでの全員通知はしない。
   return NextResponse.json({ ok: true });
 }

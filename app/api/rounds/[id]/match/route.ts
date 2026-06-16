@@ -59,7 +59,16 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     state[to] = entry;
   }));
 
-  return NextResponse.json({ state }, { headers: noStore });
+  // 参加者の表示用情報（名前・アバター・性別）も返す。
+  const users: Record<string, any> = {};
+  await Promise.all(others.map(async (id) => {
+    const u = await db.getUser(id);
+    users[id] = u
+      ? { displayName: u.displayName || 'メンバー', avatar: u.avatar || '⛳', avatarUrl: (u as any).avatarUrl || '', gender: u.gender || '', age: u.age || 0 }
+      : { displayName: 'メンバー', avatar: '⛳' };
+  }));
+
+  return NextResponse.json({ state, users }, { headers: noStore });
 }
 
 // POST /api/rounds/[id]/match — { toUserId, kind, on }

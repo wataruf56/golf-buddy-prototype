@@ -8,9 +8,9 @@ import { toast } from '@/components/Toast';
 import { track } from '@/lib/telemetry';
 import type { User } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { MatchPicker } from '@/components/MatchPicker';
 
 export function ReviewOverlay() {
-  const meId = useStore((s) => s.meId);
   const pending = useStore((s) =>
     s.pendingReviews.filter((p) => p.reviewerId === s.meId && p.status === 'pending')
   );
@@ -18,7 +18,14 @@ export function ReviewOverlay() {
   const [stars, setStars] = useState(0);
   const [tags, setTags] = useState<string[]>([]);
   const [comment, setComment] = useState('');
+  const [busy, setBusy] = useState(false);
+  // レビューを全部終えたラウンドの「マッチング」フェーズ。null=レビュー中。
+  const [matchRoundId, setMatchRoundId] = useState<string | null>(null);
 
+  // レビュー完了後：そのラウンドの参加者一覧でマッチングを選ぶ。
+  if (matchRoundId) {
+    return <MatchPhaseOverlay roundId={matchRoundId} onClose={() => setMatchRoundId(null)} />;
+  }
   if (pending.length === 0) return null;
   const current = pending[0];
   const target: User | undefined = users.find((u) => u.id === current.revieweeId);
@@ -30,17 +37,19 @@ export function ReviewOverlay() {
     setTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
   }
 
-  const [busy, setBusy] = useState(false);
   const canSubmit = stars > 0 && tags.length >= 1 && !busy;
   async function submit() {
     if (!canSubmit) return;
     setBusy(true);
     track('review_submit_click', { pendingId: current.id, revieweeId: current.revieweeId, stars, tagCount: tags.length });
+    // このラウンドの未レビューが今回で最後か（=完了後にマッチングへ進む）
+    const wasLastForRound = pending.filter((p) => p.roundId === current.roundId).length <= 1;
     try {
       await store.submitReview(current.id, stars, tags, comment || undefined);
       track('review_submit_success', { pendingId: current.id });
       toast('レビューを送信しました');
       setStars(0); setTags([]); setComment('');
+      if (wasLastForRound) setMatchRoundId(current.roundId);
     } catch (e) {
       track('review_submit_error', { message: (e as Error).message });
       toast('送信失敗: ' + (e as Error).message, 'error');
@@ -125,6 +134,24 @@ export function ReviewOverlay() {
                 ? 'タグを1つ以上選んでください'
                 : 'レビューを送信する'}
         </button>
+      </div>
+    </div>
+  );
+}
+
+// レビュー完了後に出る「マッチング」フェーズ。一緒に回ったメンバー一覧で
+// 「また回りたい」「異性として気になる」を選ぶ。両思い時のみ双方に通知。
+function MatchPhaseOverlay({ roundId, onClose }: { roundId: string; onClose: () => void }) {
+  return (
+    <div className="absolute inset-0 bg-black/50 z-[100] flex items-center justify-center p-5 backdrop-blur-sm">
+      <div className="bg-card rounded-card p-5 w-full max-w-[360px] shadow-lg max-h-[88%] overflow-y-auto">
+        <h3 className="text-lg font-black mb-0.5">💘 一緒に回った人とマッチング</h3>
+        <div className="text-[12px] text-sub mb-4">レビューありがとうございました！気持ちを送りましょう。</div>
+        <MatchPicker roundId={roundId} />
+        <button
+          onClick={onClose}
+          className="w-full mt-4 py-3 rounded-xl text-[15px] font-bold bg-green text-white"
+        >完了する</button>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { useStore, getMe } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { chatIdFor, ratingLabel } from '@/lib/utils';
@@ -12,6 +13,20 @@ export default function BuddiesPage() {
   const users = useStore((s) => s.users);
   const buddyIds = useStore((s) => s.buddyIds);
   const blocked = new Set(me.blockedUserIds || []);
+
+  // 両思い（マッチ）になっている相手 → バッジ表示用。
+  const [matches, setMatches] = useState<Record<string, { again: boolean; romantic: boolean }>>({});
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/me/matches', { cache: 'no-store', credentials: 'include' });
+        const d = await res.json();
+        if (!cancelled && d?.matches) setMatches(d.matches);
+      } catch { /* noop */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Only mutual-review buddies. Pre-buddy 1on1 chats live in /round/[id] only.
   const buddies = buddyIds
@@ -49,11 +64,18 @@ export default function BuddiesPage() {
                 <Link href={`/profile/${other.id}`} className="flex items-center gap-3 min-w-0 flex-1">
                   <Avatar user={other} size={48} />
                   <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-[15px] font-bold">{other.displayName}</span>
                       <span className="text-[11px] text-green font-bold">{ratingLabel(other)}</span>
                     </div>
-                    <div className="text-[10px] text-muted mt-0.5">タップでプロフィール</div>
+                    {(matches[other.id]?.again || matches[other.id]?.romantic) ? (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        {matches[other.id]?.romantic && <span className="text-[10px] font-black text-pink-600 bg-pink-100 px-1.5 py-px rounded-full border border-pink-600">💘 マッチ</span>}
+                        {matches[other.id]?.again && <span className="text-[10px] font-black text-green bg-green-light px-1.5 py-px rounded-full border border-green">🏌️ また回りたい</span>}
+                      </div>
+                    ) : (
+                      <div className="text-[10px] text-muted mt-0.5">タップでプロフィール</div>
+                    )}
                   </div>
                 </Link>
                 {/* Message preview / unread → opens the chat. */}
