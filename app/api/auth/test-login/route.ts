@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { checkAdminPassword } from '@/lib/adminSession';
 import { LIFF_COOKIE_NAME, LIFF_COOKIE_MAX_AGE, makeSessionToken } from '@/lib/liffSession';
 
-// オーナー専用のテストログイン。LINEログイン無しで「テスト用アカウント」に入り、
-// PCから複数アカウントの動作検証ができる。
+// テスト用ログイン。LINEログイン無しで「テスト用アカウント」に入り、PCから
+// 複数アカウントの動作検証ができる。テスト用途のためパスワードは不要。
 //
-// 安全策:
-//  - 管理パスワード(ADMIN_PASSWORD)を知っている人だけが使える。
-//  - なりすませるのは userId が "test_" で始まるテスト専用IDのみ。実ユーザーには
-//    一切なりすませない（万一パスワードが漏れても被害をテスト垢に限定）。
-// 成功すると LIFF と同じ __session Cookie を発行するので、以降は普通にログイン
-// 済みとして全機能を操作できる。
+// 安全策: なりすませるのは userId が "test_" で始まるテスト専用IDのみ。実ユーザー
+// には一切なりすませない。成功すると LIFF と同じ __session Cookie を発行するので、
+// 以降は普通にログイン済みとして全機能を操作できる。
 
 export async function POST(req: NextRequest) {
   const secret = process.env.NEXTAUTH_SECRET || '';
@@ -19,10 +15,6 @@ export async function POST(req: NextRequest) {
 
   let body: any = {};
   try { body = await req.json(); } catch {}
-
-  if (!checkAdminPassword(String(body?.password || ''))) {
-    return NextResponse.json({ error: 'パスワードが違います' }, { status: 401 });
-  }
 
   const userId = String(body?.userId || '').trim();
   if (!userId.startsWith('test_')) {
