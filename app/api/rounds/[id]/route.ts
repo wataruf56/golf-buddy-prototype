@@ -65,6 +65,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     : [];
   if (has('pickupCapacity')) patch.pickupCapacity = typeof body.pickupCapacity === 'number' && body.pickupCapacity > 0
     ? Math.min(8, Math.floor(body.pickupCapacity)) : undefined;
+  if (has('openChatUrl')) patch.openChatUrl = body.openChatUrl ? String(body.openChatUrl).trim().slice(0, 300) : '';
 
   let beginnerOnly = round.beginnerOnly;
   let genderCondition = round.genderCondition || 'any';

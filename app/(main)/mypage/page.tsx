@@ -29,6 +29,8 @@ export default function MyPage() {
       (r.pendingApplicantIds || []).includes(s.meId)
     )
   );
+  // 「参加予定」= これから参加する（募集中＝未完了）のラウンドだけ。完了・終了は除く。
+  const upcomingRounds = myRounds.filter((r) => r.status === 'open');
   // "ラウンド回数" = COMPLETED rounds I was in (host or approved applicant).
   // Only finished rounds count — open/recruiting ones don't. We take the max
   // of this live count and the stored roundCount (which is incremented at
@@ -149,15 +151,15 @@ export default function MyPage() {
         </div>
 
 
-        <details className="bg-card rounded-card shadow-card mb-4">
+        <details className="bg-card rounded-card shadow-card mb-4" open>
           <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
-            <span className="text-[13px] font-bold">ラウンド履歴 / 参加中</span>
-            <span className="text-[11px] text-muted">{myRounds.length}件 ▾</span>
+            <span className="text-[13px] font-bold">参加予定のラウンド</span>
+            <span className="text-[11px] text-muted">{upcomingRounds.length}件 ▾</span>
           </summary>
           <div className="px-4 pb-4">
-          {myRounds.length === 0 ? (
-            <div className="text-xs text-muted py-3 text-center">まだラウンドがありません</div>
-          ) : myRounds.map((r) => {
+          {upcomingRounds.length === 0 ? (
+            <div className="text-xs text-muted py-3 text-center">参加予定のラウンドはありません</div>
+          ) : upcomingRounds.map((r) => {
             const role = r.hostId === me.id
               ? '主催'
               : r.applicantIds.includes(me.id) ? '参加確定'
@@ -220,34 +222,40 @@ export default function MyPage() {
           </div>
         </details>
 
-        <button
-          onClick={() => {
-            setShowNotifySettings(true);
-            // First time opening → nudge to add the official account so LINE
-            // pushes actually arrive.
-            if (BOT_BASIC_ID && typeof window !== 'undefined') {
-              const added = localStorage.getItem('gb_bot_added') === '1';
-              if (!added) setShowAddBotModal(true);
-            }
-          }}
-          className="w-full bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card text-left"
-        >
-          <span className="text-sm font-medium">🔔 LINE通知の設定</span>
-          <span className="text-muted">›</span>
-        </button>
-        <AppUpdateButton />
-        <Link href="/legal/terms" className="bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card">
-          <span className="text-sm font-medium">利用規約</span>
-          <span className="text-muted">›</span>
-        </Link>
-        <Link href="/legal/privacy" className="bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card">
-          <span className="text-sm font-medium">プライバシーポリシー</span>
-          <span className="text-muted">›</span>
-        </Link>
-        <button onClick={logout} className="w-full bg-card rounded-xl px-4 py-3.5 mb-1.5 flex justify-between items-center shadow-card text-left">
-          <span className="text-sm font-medium text-red">ログアウト</span>
-          <span className="text-muted">›</span>
-        </button>
+        <details className="bg-card rounded-card shadow-card mb-4">
+          <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
+            <span className="text-[13px] font-bold">⚙️ その他の設定</span>
+            <span className="text-[11px] text-muted">▾</span>
+          </summary>
+          <div className="px-3 pb-3 flex flex-col gap-1.5">
+            <button
+              onClick={() => {
+                setShowNotifySettings(true);
+                if (BOT_BASIC_ID && typeof window !== 'undefined') {
+                  const added = localStorage.getItem('gb_bot_added') === '1';
+                  if (!added) setShowAddBotModal(true);
+                }
+              }}
+              className="w-full bg-bg rounded-xl px-4 py-3 flex justify-between items-center text-left"
+            >
+              <span className="text-sm font-medium">🔔 LINE通知の設定</span>
+              <span className="text-muted">›</span>
+            </button>
+            <Link href="/legal/terms" className="bg-bg rounded-xl px-4 py-3 flex justify-between items-center">
+              <span className="text-sm font-medium">利用規約</span>
+              <span className="text-muted">›</span>
+            </Link>
+            <Link href="/legal/privacy" className="bg-bg rounded-xl px-4 py-3 flex justify-between items-center">
+              <span className="text-sm font-medium">プライバシーポリシー</span>
+              <span className="text-muted">›</span>
+            </Link>
+            <button onClick={logout} className="w-full bg-bg rounded-xl px-4 py-3 flex justify-between items-center text-left">
+              <span className="text-sm font-medium text-red">ログアウト</span>
+              <span className="text-muted">›</span>
+            </button>
+            <AppUpdateButton />
+          </div>
+        </details>
       </div>
       <div className="h-5" />
 

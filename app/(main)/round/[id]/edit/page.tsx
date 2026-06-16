@@ -41,6 +41,7 @@ export default function EditRoundPage() {
   const [description, setDescription] = useState('');
   const [pickupStations, setPickupStations] = useState<string[]>([]);
   const [pickupCapacity, setPickupCapacity] = useState(0);
+  const [openChatUrl, setOpenChatUrl] = useState('');
 
   // Pull the round directly if it isn't in the store (e.g. cold load on edit URL).
   useEffect(() => {
@@ -93,6 +94,7 @@ export default function EditRoundPage() {
     setDescription(round.description || '');
     setPickupStations(round.pickupStations || []);
     setPickupCapacity(round.pickupCapacity || 0);
+    setOpenChatUrl(round.openChatUrl || '');
   }, [round]);
 
   const isConfirmed = round?.type === 'confirmed';
@@ -181,6 +183,7 @@ export default function EditRoundPage() {
       description: description || '',
       pickupStations,
       pickupCapacity: pickupStations.length && pickupCapacity > 0 ? pickupCapacity : undefined,
+      openChatUrl: openChatUrl.trim(),
     };
     if (isConfirmed) {
       patch.courseName = courseName;
@@ -362,6 +365,15 @@ export default function EditRoundPage() {
 
           <Field label="ひとこと">
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={200} placeholder="募集の趣旨や雰囲気を伝えましょう（200文字以内）" className="w-full h-20 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-none" />
+          </Field>
+
+          <Field label="LINEオープンチャットURL" hint="（任意・参加者に表示されます）">
+            <input
+              value={openChatUrl}
+              onChange={(e) => setOpenChatUrl(e.target.value)}
+              placeholder="https://line.me/ti/g2/..."
+              className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
+            />
           </Field>
 
           <button

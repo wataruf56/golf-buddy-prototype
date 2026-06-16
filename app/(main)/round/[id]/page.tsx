@@ -251,22 +251,6 @@ export default function RoundDetailPage() {
       toast(`${name}さんを招待しました`);
     } catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }
-  async function setOpenChat() {
-    const cur = round!.openChatUrl || '';
-    const url = window.prompt('LINEオープンチャットのURLを入力してください（空欄で削除）', cur);
-    if (url === null) return;
-    try {
-      const res = await fetch(`/api/rounds/${round!.id}/openchat`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url.trim() }), cache: 'no-store',
-      });
-      if (!res.ok) { const t = await res.text(); throw new Error(t.slice(0, 100)); }
-      const d = await res.json();
-      if (storeRound) await store.refreshRounds().catch(() => {});
-      else setFetchedRound((prev) => ({ ...(prev || (round as Round)), openChatUrl: d.openChatUrl } as Round));
-      toast(url.trim() ? 'オープンチャットURLを設定しました' : '削除しました');
-    } catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
-  }
 
   return (
     <div className="px-5 py-3">
@@ -306,7 +290,7 @@ export default function RoundDetailPage() {
           <Cell label="日時">{dateLabel} {round.startTime || ''}</Cell>
           <Cell label={round.type === 'confirmed' ? 'コース' : 'エリア'}>{round.type === 'confirmed' ? round.courseName : round.area}</Cell>
           <Cell label="レベル">{levelConditionLabel(round)}</Cell>
-          <Cell label="費用目安">{round.price || '—'}</Cell>
+          <Cell label="費用目安">{round.price ? (() => { const p = round.price.replace(/[¥￥]/g, '').trim(); return p.includes('円') ? p : `${p}円`; })() : '—'}</Cell>
         </div>
 
         {/* Gender breakdown across host + approved applicants. Always shown
@@ -402,27 +386,22 @@ export default function RoundDetailPage() {
           </Link>
         )}
 
-        {/* LINE Open Chat link — shown right under the round chat entry when the
-            host has set one. Host gets a set/edit affordance here. */}
+        {/* LINEオープンチャット — LINEアイコン＋目立つ見出し＋小さな補足。
+            URLの設定/編集は投稿者の編集画面（鉛筆）で行う。 */}
         {canChatGroup && round.openChatUrl && (
           <a
             href={round.openChatUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 p-3 bg-bg border border-border rounded-xl mb-2 font-bold text-sm text-text"
+            className="flex items-center gap-3 p-3 bg-bg border border-border rounded-xl mb-4 text-text"
           >
-            <span className="text-lg">💬</span>
-            <span className="flex-1">LINEオープンチャットはこちら</span>
+            <span className="w-9 h-9 rounded-[9px] bg-[#06C755] text-white flex items-center justify-center text-[11px] font-black flex-shrink-0">LINE</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-black">LINEオープンチャット</div>
+              <div className="text-[11px] text-muted">LINEオープンチャットはこちら</div>
+            </div>
             <span className="text-muted">↗</span>
           </a>
-        )}
-        {canChatGroup && isHost && (
-          <button
-            onClick={setOpenChat}
-            className="w-full text-[12px] font-bold text-blue py-1.5 mb-4 text-left"
-          >
-            {round.openChatUrl ? '🔗 LINEオープンチャットURLを編集' : '＋ LINEオープンチャットURLを設定'}
-          </button>
         )}
         {canChatGroup && !round.openChatUrl && <div className="mb-2" />}
 

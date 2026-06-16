@@ -225,6 +225,8 @@ function Inner() {
                   className="flex-1 py-1.5 text-[11px] font-bold bg-red-100 text-red-700 rounded"
                 >🗑 全部削除</button>
               </div>
+              <RoundMessages token={token} roundId={r.id} />
+
               <details className="mt-1">
                 <summary className="text-[9px] text-muted cursor-pointer">ID</summary>
                 <div className="text-[9px] font-mono text-muted break-all mt-0.5">{r.id}</div>
@@ -234,5 +236,61 @@ function Inner() {
         })}
       </div>
     </div>
+  );
+}
+
+// ラウンドのグループチャットを管理者が閲覧し、不適切な発言を個別削除する。
+function RoundMessages({ token, roundId }: { token: string; roundId: string }) {
+  const [msgs, setMsgs] = useState<any[] | null>(null);
+  const [users, setUsers] = useState<Record<string, any>>({});
+  const [loading, setLoading] = useState(false);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const r = await fetch(`/api/admin/round-messages?token=${encodeURIComponent(token)}&roundId=${encodeURIComponent(roundId)}`, { cache: 'no-store' });
+      const d = await r.json();
+      if (r.ok) { setMsgs(d.items || []); setUsers(d.users || {}); }
+      else { alert('取得失敗: ' + (d.error || r.status)); }
+    } catch { alert('取得失敗'); }
+    finally { setLoading(false); }
+  }
+
+  async function del(messageId: string) {
+    if (!confirm('このメッセージを削除しますか？（元に戻せません）')) return;
+    try {
+      const r = await fetch(`/api/admin/round-messages?token=${encodeURIComponent(token)}`, {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roundId, messageId }), cache: 'no-store',
+      });
+      if (!r.ok) throw new Error(String(r.status));
+      setMsgs((prev) => (prev || []).filter((m) => m.id !== messageId));
+    } catch { alert('削除に失敗しました'); }
+  }
+
+  return (
+    <details
+      className="mt-2"
+      onToggle={(e) => { if ((e.target as HTMLDetailsElement).open && msgs === null) load(); }}
+    >
+      <summary className="text-[11px] font-bold text-blue cursor-pointer py-1">💬 ラウンドメッセージを見る</summary>
+      <div className="mt-1 flex flex-col gap-1.5">
+        {loading && <div className="text-[10px] text-muted">読み込み中...</div>}
+        {msgs && msgs.length === 0 && <div className="text-[10px] text-muted">メッセージはありません</div>}
+        {msgs && msgs.map((m) => {
+          const u = users[m.senderId] || { displayName: m.senderId, avatar: '?' };
+          return (
+            <div key={m.id} className="bg-bg rounded-lg p-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-bold truncate">{u.avatar} {u.displayName}{m.threadId ? ' ・スレッド' : ''}</span>
+                <button onClick={() => del(m.id)} className="text-[10px] font-bold text-red-600 px-2 py-0.5 bg-red-50 rounded flex-shrink-0">削除</button>
+              </div>
+              <div className="text-[12px] mt-0.5 whitespace-pre-wrap break-words">{m.text}</div>
+              <div className="text-[9px] text-muted mt-0.5">{m.createdAt ? new Date(m.createdAt).toLocaleString('ja-JP') : ''}</div>
+            </div>
+          );
+        })}
+      </div>
+    </details>
   );
 }
