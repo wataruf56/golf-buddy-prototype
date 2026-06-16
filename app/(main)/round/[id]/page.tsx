@@ -34,7 +34,6 @@ export default function RoundDetailPage() {
   const storeUsers = useStore((s) => s.users);
   const meId = useStore((s) => s.meId);
   const me = useStore(getMe);
-  const buddyIds = useStore((s) => s.buddyIds);
   const profileReady = isProfileComplete(me?.age);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -122,10 +121,6 @@ export default function RoundDetailPage() {
     .map((id) => users.find((u) => u.id === id))
     .filter(Boolean) as User[];
   const invitedUsers = (round.invitedIds || [])
-    .map((id) => users.find((u) => u.id === id))
-    .filter(Boolean) as User[];
-  // The host's ゴル友 (mutual-review buddies) to choose invitees from.
-  const buddyUsers = (buddyIds || [])
     .map((id) => users.find((u) => u.id === id))
     .filter(Boolean) as User[];
   // Membership sets used to style invite buttons (participating → grey out).
@@ -618,33 +613,7 @@ export default function RoundDetailPage() {
 
       {inviteOpen && (
         <PickerModal title="ゴルトモを招待する" onClose={() => setInviteOpen(false)}>
-          {buddyUsers.length === 0 ? (
-            <div className="text-center text-sub text-sm py-10">
-              まだゴルトモがいません。<br />一緒にラウンドして相互レビューするとここに表示されます。
-            </div>
-          ) : (
-            buddyUsers.map((u) => {
-              const st = inviteState(u.id);
-              return (
-                <div key={u.id} className="flex items-center gap-2 p-2.5 bg-bg rounded-[10px] mb-1.5">
-                  <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
-                    <Avatar user={u} size={36} />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
-                      <div className="text-[10px] text-sub">{describeUser(u)} ・ {ratingLabel(u)}</div>
-                    </div>
-                  </Link>
-                  {st === 'joined' ? (
-                    <span className="px-3 py-1.5 bg-bg text-muted border border-border rounded-lg text-xs font-bold flex-shrink-0">参加済み</span>
-                  ) : st === 'invited' ? (
-                    <span className="px-3 py-1.5 bg-bg text-muted border border-border rounded-lg text-xs font-bold flex-shrink-0">招待済み</span>
-                  ) : (
-                    <button onClick={() => invite(u.id, u.displayName)} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold flex-shrink-0">招待</button>
-                  )}
-                </div>
-              );
-            })
-          )}
+          <InviteSearch inviteState={inviteState} onInvite={invite} />
         </PickerModal>
       )}
 
@@ -809,6 +778,90 @@ function ScoreEntryCard({ round, host, applicants }: {
       <div className="text-[10px] text-muted text-center mt-2">
         範囲外(30未満 / 200超)は保存されません。空欄にして保存すると登録済みのスコアが消えます。
       </div>
+    </div>
+  );
+}
+
+// 招待候補の検索。登録している全ユーザー（同年代）から性別・年齢・名前で絞り込み、
+// 招待ボタンを出す。検索は /api/users/search。
+type SearchUser = { id: string; displayName: string; avatar: string; avatarUrl?: string; age?: number; gender?: string; area?: string; scoreRange?: string; car?: string; reviewAvg?: number; reviewCount?: number };
+function InviteSearch({ inviteState, onInvite }: { inviteState: (id: string) => 'joined' | 'invited' | 'open'; onInvite: (id: string, name: string) => void }) {
+  const [gender, setGender] = useState<'' | 'male' | 'female'>('');
+  const [q, setQ] = useState('');
+  const [minAge, setMinAge] = useState('');
+  const [maxAge, setMaxAge] = useState('');
+  const [items, setItems] = useState<SearchUser[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [note, setNote] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const p = new URLSearchParams();
+        if (gender) p.set('gender', gender);
+        if (q.trim()) p.set('q', q.trim());
+        if (minAge) p.set('minAge', minAge);
+        if (maxAge) p.set('maxAge', maxAge);
+        const res = await fetch(`/api/users/search?${p.toString()}`, { cache: 'no-store', credentials: 'include' });
+        const d = await res.json();
+        if (cancelled) return;
+        setItems(d.items || []);
+        setNote(d.note || '');
+      } catch { if (!cancelled) setItems([]); }
+      finally { if (!cancelled) setLoading(false); }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [gender, q, minAge, maxAge]);
+
+  const chip = (label: string, on: boolean, onClick: () => void) => (
+    <button onClick={onClick} className={'px-3 py-1.5 rounded-full text-xs font-bold border-[1.5px] ' + (on ? 'bg-green text-white border-green' : 'bg-bg border-border text-sub')}>{label}</button>
+  );
+
+  return (
+    <div>
+      <div className="text-[11px] text-sub mb-2">登録ユーザーから条件で探して招待できます（同年代のみ）。招待された人にはLINEで通知が届きます。</div>
+      <div className="flex gap-1.5 mb-2">
+        {chip('全員', gender === '', () => setGender(''))}
+        {chip('👨 男性', gender === 'male', () => setGender('male'))}
+        {chip('👩 女性', gender === 'female', () => setGender('female'))}
+      </div>
+      <div className="flex gap-1.5 mb-2 items-center">
+        <input value={minAge} onChange={(e) => setMinAge(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder="最小" className="w-16 px-2 py-1.5 border-[1.5px] border-border rounded-[8px] text-sm bg-bg outline-none text-center" />
+        <span className="text-xs text-sub">〜</span>
+        <input value={maxAge} onChange={(e) => setMaxAge(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder="最大" className="w-16 px-2 py-1.5 border-[1.5px] border-border rounded-[8px] text-sm bg-bg outline-none text-center" />
+        <span className="text-xs text-sub">歳</span>
+      </div>
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 名前で検索" className="w-full px-3 py-2 mb-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+
+      {loading && <div className="text-center text-[11px] text-muted py-3">検索中...</div>}
+      {!loading && note && <div className="text-center text-[12px] text-muted py-6">{note}</div>}
+      {!loading && !note && items.length === 0 && <div className="text-center text-[12px] text-muted py-6">条件に合うユーザーがいません</div>}
+
+      {items.map((u) => {
+        const st = inviteState(u.id);
+        return (
+          <div key={u.id} className="flex items-center gap-2 p-2.5 bg-bg rounded-[10px] mb-1.5">
+            <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
+              <Avatar user={{ id: u.id, displayName: u.displayName, avatar: u.avatar, avatarUrl: u.avatarUrl, color: '#2A8C82' } as any} size={36} />
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
+                <div className="text-[10px] text-sub truncate">
+                  {[u.gender === 'male' ? '👨男性' : u.gender === 'female' ? '👩女性' : '', u.age ? `${u.age}歳` : '', u.area, u.car === 'have' ? '🚗' : ''].filter(Boolean).join(' ・ ')}
+                </div>
+              </div>
+            </Link>
+            {st === 'joined' ? (
+              <span className="px-3 py-1.5 bg-bg text-muted border border-border rounded-lg text-xs font-bold flex-shrink-0">参加済み</span>
+            ) : st === 'invited' ? (
+              <span className="px-3 py-1.5 bg-bg text-muted border border-border rounded-lg text-xs font-bold flex-shrink-0">招待済み</span>
+            ) : (
+              <button onClick={() => onInvite(u.id, u.displayName)} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold flex-shrink-0">招待</button>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

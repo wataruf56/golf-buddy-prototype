@@ -4,7 +4,6 @@ import { getMeId } from '@/lib/session';
 import { pushTo, liffUrl } from '@/lib/linePush';
 import { webPushText } from '@/lib/webPush';
 import { isNotifyEnabled } from '@/lib/notifyPrefs';
-import { getBuddyIds } from '@/lib/buddies';
 
 // POST /api/rounds/[id]/invite  body: { userId }
 // The host invites a past ゴル友 (mutual review) OR someone who marked the round
@@ -29,18 +28,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 });
   if (userId === meId) return NextResponse.json({ error: 'cannot_invite_self' }, { status: 400 });
 
-  // Eligible invitees: ゴル友 (mutual review with host) OR 気になる on this round.
-  const isInterested = (existing.interestedIds || []).includes(userId);
-  let eligible = isInterested;
-  if (!eligible) {
-    const buddies = await getBuddyIds(meId);
-    eligible = buddies.includes(userId);
-  }
-  if (!eligible) {
-    return NextResponse.json(
-      { error: 'not_eligible', message: '招待できるのはゴル友、または「気になる」を押した人だけです' },
-      { status: 403 },
-    );
+  // 招待対象は「登録している全ユーザー」。ただしラウンドは年代(コホート)で
+  // 分離されているため、同じ年代のユーザーのみ招待できる。
+  const invitee0 = await db.getUser(userId);
+  if (!invitee0) return NextResponse.json({ error: 'user_not_found' }, { status: 404 });
+  if (existing.hostCohort) {
+    const { getCohort } = await import('@/lib/ageGate');
+    if (getCohort(invitee0.age) !== existing.hostCohort) {
+      return NextResponse.json(
+        { error: 'cohort_mismatch', message: 'この募集とは別の年代のユーザーは招待できません' },
+        { status: 403 },
+      );
+    }
   }
 
   const { round, added } = await db.inviteToRound(params.id, userId);
