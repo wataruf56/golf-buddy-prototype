@@ -56,7 +56,7 @@ export function PickupStationPicker({
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
           placeholder="その他の駅を入力（例: 大船）"
           maxLength={20}
-          className="flex-1 px-3 py-2 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
+          className="flex-1 min-w-0 px-3 py-2 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
         />
         <button type="button" onClick={addCustom} className="px-4 py-2 bg-green text-white rounded-[10px] text-xs font-bold flex-shrink-0">追加</button>
       </div>
