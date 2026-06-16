@@ -90,6 +90,7 @@ export default async function middleware(req: NextRequest) {
     if (
       path.startsWith('/admin') ||
       path.startsWith('/api/admin') ||
+      path.startsWith('/api/lp/') ||
       path.startsWith('/api/auth/') ||
       path === '/liff' || path.startsWith('/liff/') ||
       path.startsWith('/icons/') || path === '/manifest.json' || path === '/favicon.ico'
