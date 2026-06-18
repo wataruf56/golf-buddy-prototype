@@ -59,6 +59,7 @@ function Inner() {
   const [data, setData] = useState<Report | null>(null);
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
+  const [tab, setTab] = useState<'overview' | 'analysis' | 'data'>('overview');
 
   // 他の管理画面と同じトークン取得パターン（/api/admin/init を正とする）
   useEffect(() => {
@@ -118,17 +119,39 @@ function Inner() {
 
       {data && (
         <div className="flex flex-col gap-4">
-          <StatGrid data={data} />
-          <Funnel data={data} />
-          <Daily daily={data.daily} />
-          <Sources byRef={data.byRef} />
-          <Devices byDevice={data.byDevice} />
-          <Hours byHour={data.byHour} />
-          <Demand demand={data.demand} signals={data.signals} uniq={data.uniqueSignalVisitors} />
-          <DropOff stepReach={data.stepReach} starts={data.starts} />
-          <ResultDist byResult={data.byResult} completes={data.completes} />
-          <Patterns byPattern={data.byPattern} />
-          <RawData raw={data.raw} token={token} onChanged={() => load(token)} />
+          {/* 上部タブで切替（概要 / 分析 / データ管理） */}
+          <div className="flex gap-1.5 bg-card rounded-full p-1 shadow-card sticky top-2 z-10">
+            {([['overview', '📈 概要'], ['analysis', '🔍 分析'], ['data', '🗑 データ管理']] as const).map(([k, label]) => (
+              <button
+                key={k}
+                onClick={() => setTab(k)}
+                className={'flex-1 py-2 rounded-full text-[12px] font-bold transition-colors ' + (tab === k ? 'bg-green text-white' : 'text-sub')}
+              >{label}</button>
+            ))}
+          </div>
+
+          {tab === 'overview' && (
+            <>
+              <StatGrid data={data} />
+              <Funnel data={data} />
+              <Daily daily={data.daily} />
+              <Demand demand={data.demand} signals={data.signals} uniq={data.uniqueSignalVisitors} />
+            </>
+          )}
+          {tab === 'analysis' && (
+            <>
+              <Sources byRef={data.byRef} />
+              <Devices byDevice={data.byDevice} />
+              <Hours byHour={data.byHour} />
+              <DropOff stepReach={data.stepReach} starts={data.starts} />
+              <ResultDist byResult={data.byResult} completes={data.completes} />
+              <Patterns byPattern={data.byPattern} />
+            </>
+          )}
+          {tab === 'data' && (
+            <VisitorManager raw={data.raw} token={token} onChanged={() => load(token)} />
+          )}
+
           <div className="text-[10px] text-muted text-center mt-2">
             ※ 直近 {data.scanned} 件のイベントを集計。
           </div>
@@ -169,7 +192,8 @@ function Bar({ label, value, max, hint, color = 'bg-green' }: { label: string; v
 function Funnel({ data }: { data: Report }) {
   const base = Math.max(data.visits, data.starts, data.uniqueVisitors, 1);
   return (
-    <Card title="ファネル（来訪 → 完了 → 通知登録）" sub={`ユニーク訪問者 ${data.uniqueVisitors} 人`}>
+    <Card title="ファネル（来訪 → 完了 → 通知登録）" sub="各ステップの人数・件数">
+      <Bar label="ユニーク訪問者" value={data.uniqueVisitors} max={base} hint="人" color="bg-blue" />
       <Bar label="来訪 (visit)" value={data.visits} max={base} color="bg-blue" />
       <Bar label="診断スタート" value={data.starts} max={base} hint={`来訪比 ${pct(data.starts, data.visits)}%`} color="bg-green" />
       <Bar label="診断完了" value={data.completes} max={base} hint={`完了率 ${Math.round((data.completionRate || 0) * 100)}%`} color="bg-green" />
@@ -323,6 +347,13 @@ function Sources({ byRef }: { byRef: Record<string, number> }) {
   return (
     <Card title="流入元（来訪の参照元）" sub="どこから来たか">
       {rows.map(([k, v]) => <Bar key={k} label={k} value={v} max={max} color="bg-blue" />)}
+      <div className="mt-3 pt-3 border-t border-border text-[10px] text-muted leading-relaxed">
+        💡「直接 / 不明」= 参照元(リファラ)が無い来訪です。具体的には:<br />
+        ・URL直打ち / ブックマーク / QR読み取り<br />
+        ・<b>LINEのトーク・リッチメニューから開いた場合</b>（LINE内ブラウザはリファラを送らないことが多い）<br />
+        ・他アプリやメールのリンク経由<br />
+        ＝ 多くは「LINEや直接アクセス」と考えてOKです。「その他」は判別できなかった外部サイトです。
+      </div>
     </Card>
   );
 }
@@ -362,9 +393,12 @@ const EVENT_LABEL: Record<string, string> = {
   cta: 'CTA', share: 'シェア', viewShared: '共有閲覧', typeView: 'タイプ閲覧', linkLine: 'LINE紐付',
 };
 
-// データ管理：生イベントを1件ずつ／訪問者単位で削除できる。
-function RawData({ raw, token, onChanged }: { raw: RawEvent[]; token: string; onChanged: () => void }) {
+// データ管理：ユニーク訪問者ごとにまとめて表示。クリックで詳細（イベント一覧）を
+// 展開し、訪問者単位の一括削除／1件削除ができる。
+function VisitorManager({ raw, token, onChanged }: { raw: RawEvent[]; token: string; onChanged: () => void }) {
   const [busy, setBusy] = useState('');
+  const [open, setOpen] = useState<string>('');
+
   async function del(body: any, label: string) {
     if (!confirm(`${label}を削除します。元に戻せません。よろしいですか？`)) return;
     setBusy(JSON.stringify(body));
@@ -373,36 +407,84 @@ function RawData({ raw, token, onChanged }: { raw: RawEvent[]; token: string; on
         method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), cache: 'no-store',
       });
       const d = await r.json();
-      if (!r.ok) { alert('削除失敗: ' + (d.error || r.status)); }
-      else { onChanged(); }
+      if (!r.ok) alert('削除失敗: ' + (d.error || r.status));
+      else onChanged();
     } catch { alert('削除に失敗しました'); }
     finally { setBusy(''); }
   }
-  if (!raw || raw.length === 0) return null;
+
+  // 訪問者IDでグループ化
+  const groups = useMemo(() => {
+    const m: Record<string, RawEvent[]> = {};
+    for (const e of raw || []) {
+      const k = e.visitorId || '__novid__';
+      (m[k] = m[k] || []).push(e);
+    }
+    return Object.entries(m)
+      .map(([vid, evs]) => {
+        const sorted = [...evs].sort((a, b) => b.ts - a.ts);
+        const completed = evs.find((e) => e.event === 'complete');
+        return {
+          vid,
+          events: sorted,
+          count: evs.length,
+          lastTs: sorted[0]?.ts || 0,
+          resultType: completed?.resultType || '',
+          hasComplete: !!completed,
+        };
+      })
+      .sort((a, b) => b.lastTs - a.lastTs);
+  }, [raw]);
+
+  if (!raw || raw.length === 0) return <Card title="🗑 データ管理"><div className="text-[12px] text-muted py-4 text-center">データがありません</div></Card>;
+
   return (
-    <Card title="🗑 データ管理（生イベント）" sub={`最新 ${raw.length} 件。テストデータの削除に使えます`}>
-      <div className="flex flex-col gap-1.5 max-h-[420px] overflow-y-auto">
-        {raw.map((e) => (
-          <div key={e.id} className="bg-bg rounded-lg p-2 text-[11px]">
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-bold">
-                <span className="px-1.5 py-px rounded bg-card border border-border mr-1">{EVENT_LABEL[e.event] || e.event}</span>
-                {e.resultType && <span className="text-green">{e.resultType} </span>}
-                {e.qid && <span className="text-sub">{e.qid} </span>}
-              </span>
-              <span className="text-[9px] text-muted flex-shrink-0">{e.ts ? new Date(e.ts).toLocaleString('ja-JP', { hour12: false }) : ''}</span>
-            </div>
-            <div className="text-[9px] text-muted mt-0.5 break-all">
-              visitor: {e.visitorId || '—'}{e.optionLabel ? ` / ${e.optionLabel}` : ''}
-            </div>
-            <div className="flex gap-1.5 mt-1.5">
-              <button onClick={() => del({ id: e.id }, 'この1件')} disabled={!!busy} className="px-2 py-1 bg-red-50 text-red-600 rounded font-bold disabled:opacity-50">この1件を削除</button>
-              {e.visitorId && (
-                <button onClick={() => del({ visitorId: e.visitorId }, `この訪問者(${e.visitorId.slice(0, 8)}…)の全データ`)} disabled={!!busy} className="px-2 py-1 bg-red-100 text-red-700 rounded font-bold disabled:opacity-50">この訪問者を全削除</button>
+    <Card title="🗑 データ管理（訪問者ごと）" sub={`最新イベントから ${groups.length} 名分。タップで詳細・削除`}>
+      <div className="flex flex-col gap-1.5">
+        {groups.map((g) => {
+          const isOpen = open === g.vid;
+          const isNoVid = g.vid === '__novid__';
+          return (
+            <div key={g.vid} className="bg-bg rounded-lg overflow-hidden">
+              <button onClick={() => setOpen(isOpen ? '' : g.vid)} className="w-full flex items-center gap-2 p-2.5 text-left">
+                <span className="text-base">{g.hasComplete ? '✅' : '👤'}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12px] font-bold truncate">
+                    {isNoVid ? '（訪問者ID無しの古いデータ）' : g.vid}
+                  </div>
+                  <div className="text-[10px] text-muted">
+                    {g.count}件 {g.resultType && `・ ${g.resultType}`} ・ {g.lastTs ? new Date(g.lastTs).toLocaleString('ja-JP', { hour12: false }) : ''}
+                  </div>
+                </div>
+                <span className="text-muted text-[11px] flex-shrink-0">{isOpen ? '▲' : '▼'}</span>
+              </button>
+
+              {isOpen && (
+                <div className="px-2.5 pb-2.5">
+                  {!isNoVid && (
+                    <button
+                      onClick={() => del({ visitorId: g.vid }, `この訪問者の全データ(${g.count}件)`)}
+                      disabled={!!busy}
+                      className="w-full mb-2 py-2 bg-red-100 text-red-700 rounded-lg text-[12px] font-bold disabled:opacity-50"
+                    >この訪問者の全データを削除（{g.count}件）</button>
+                  )}
+                  <div className="flex flex-col gap-1 max-h-[260px] overflow-y-auto">
+                    {g.events.map((e) => (
+                      <div key={e.id} className="flex items-center gap-2 bg-card rounded p-1.5 text-[10px]">
+                        <span className="px-1.5 py-px rounded bg-bg border border-border font-bold flex-shrink-0">{EVENT_LABEL[e.event] || e.event}</span>
+                        <span className="flex-1 min-w-0 truncate text-sub">
+                          {[e.resultType, e.qid, e.optionLabel].filter(Boolean).join(' ・ ')}
+                          <span className="text-muted"> {e.ts ? new Date(e.ts).toLocaleString('ja-JP', { hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                        </span>
+                        <button onClick={() => del({ id: e.id }, 'この1件')} disabled={!!busy} className="px-1.5 py-0.5 bg-red-50 text-red-600 rounded font-bold flex-shrink-0">削除</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </Card>
   );
