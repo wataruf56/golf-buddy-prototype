@@ -212,11 +212,25 @@ export async function DELETE(req: NextRequest) {
   const id = String(body?.id || '').trim();
   const visitorId = String(body?.visitorId || '').trim();
   const sessionId = String(body?.sessionId || '').trim();
+  const all = body?.all === true;
 
   try {
     if (id) {
       await db.collection('_lpQuiz').doc(id).delete();
       return NextResponse.json({ ok: true, deleted: 1 }, { headers: cors });
+    }
+    // 全削除（ゼロからやり直す用）。バッチで全件消す。
+    if (all) {
+      let deleted = 0;
+      for (let loop = 0; loop < 100; loop++) {
+        const snap = await db.collection('_lpQuiz').limit(450).get();
+        if (snap.empty) break;
+        const batch = db.batch();
+        snap.docs.forEach((d: any) => { batch.delete(d.ref); deleted++; });
+        await batch.commit();
+        if (snap.size < 450) break;
+      }
+      return NextResponse.json({ ok: true, deleted, all: true }, { headers: cors });
     }
     const field = visitorId ? 'visitorId' : sessionId ? 'sessionId' : '';
     const value = visitorId || sessionId;
