@@ -105,11 +105,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       const otherName = other?.displayName || '相手';
       const link = `/round/${params.id}`;
       if (kind === 'again') {
-        await addNotification(toUserId, 'match', `🏌️ ${meName}さんと「また一緒に回りたい」が両思いになりました！`, link);
-        await addNotification(meId, 'match', `🏌️ ${otherName}さんと「また一緒に回りたい」が両思いになりました！`, link);
+        // 「異性として気になる」も両思いなら、そちらを優先して again の通知はしない。
+        const romanticMutual = (await likeExists(docId('romantic', meId, toUserId))) && (await likeExists(docId('romantic', toUserId, meId)));
+        if (!romanticMutual) {
+          await addNotification(toUserId, 'match', `🏌️ ${meName}さんから「また一緒に回りたい」という回答があり、両思いになりました！`, link);
+          await addNotification(meId, 'match', `🏌️ ${otherName}さんから「また一緒に回りたい」という回答があり、両思いになりました！`, link);
+        }
       } else {
-        await addNotification(toUserId, 'match', `💘 気になる同士でマッチしました！（${meName}さん）`, link);
-        await addNotification(meId, 'match', `💘 気になる同士でマッチしました！（${otherName}さん）`, link);
+        await addNotification(toUserId, 'match', `💘 ${meName}さんから「異性として気になる」という回答があり、両思いになりました！`, link);
+        await addNotification(meId, 'match', `💘 ${otherName}さんから「異性として気になる」という回答があり、両思いになりました！`, link);
       }
     }
   }

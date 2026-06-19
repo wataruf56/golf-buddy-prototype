@@ -46,10 +46,8 @@ export async function POST(req: NextRequest) {
   if (!revieweeId || !roundId || !stars) {
     return NextResponse.json({ error: 'invalid: revieweeId/roundId/stars required' }, { status: 400 });
   }
+  // タグは任意（レビュー画面のタグUIは廃止し、評価＋マッチングに変更）。
   const tagList = Array.isArray(tags) ? tags.filter((t: any) => typeof t === 'string' && t.trim()) : [];
-  if (tagList.length < 1) {
-    return NextResponse.json({ error: 'tags_required', message: 'タグを1つ以上選んでください' }, { status: 400 });
-  }
   try {
     const review = await db.createReview({
       roundId, reviewerId: meId, revieweeId,
