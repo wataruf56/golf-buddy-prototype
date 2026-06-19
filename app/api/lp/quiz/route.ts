@@ -42,6 +42,8 @@ export async function POST(req: NextRequest) {
     days: arr(body.days),
     // クルマ・送迎の希望（単一）。event:'signal' のときに入る。
     pickup: s(body.pickup, 40),
+    // ピックアップ場所（駅・複数）。pickup が可能/希望のときに入る。
+    pickupPlaces: arr(body.pickupPlaces),
     qid: s(body.qid, 40),
     optionId: s(body.optionId, 40),
     optionLabel: s(body.optionLabel, 120),
@@ -89,11 +91,14 @@ export async function GET(req: NextRequest) {
     const byPattern: Record<string, number> = {};
     const sessions = new Set<string>();
     const visitors = new Set<string>();          // 永続の匿名訪問者ID（ユニーク人数）
+    const startVisitors = new Set<string>();      // 診断スタートしたユニーク訪問者
+    const completeVisitors = new Set<string>();   // 診断完了したユニーク訪問者
     const signalVisitors = new Set<string>();    // 興味シグナルを登録したユニーク訪問者
     const areaCounts: Record<string, number> = {};   // 行けるエリア別
     const dayCounts: Record<string, number> = {};    // 行ける曜日別（土日祝/平日）
     const comboCounts: Record<string, number> = {};  // 「エリア×曜日」需要プール
     const pickupCounts: Record<string, number> = {}; // クルマ・送迎の希望
+    const pickupPlaceCounts: Record<string, number> = {}; // ピックアップ場所（駅）
     const stepReach: Record<string, number> = {};    // 各設問への到達（回答数）= 離脱分析
     const daily: Record<string, { visit: number; start: number; complete: number; signal: number }> = {};
     const byRef: Record<string, number> = {};     // 流入元（来訪単位）
@@ -117,7 +122,7 @@ export async function GET(req: NextRequest) {
         if (/Mobile|Android|iPhone|iPad/i.test(String(d.ua || ''))) byDevice.mobile++; else byDevice.desktop++;
         try { const hr = new Date((Number(d.ts) || 0) + JST).getUTCHours(); if (hr >= 0 && hr < 24) byHour[hr]++; } catch {}
       }
-      if (d.event === 'start') { starts++; const b = bucket(dk); if (b) b.start++; }
+      if (d.event === 'start') { starts++; if (d.visitorId) startVisitors.add(d.visitorId); const b = bucket(dk); if (b) b.start++; }
       if (d.event === 'answer' && d.qid) {
         byOption[d.qid] = byOption[d.qid] || {};
         const key = `${d.optionId} ${d.optionLabel}`.trim();
@@ -125,7 +130,7 @@ export async function GET(req: NextRequest) {
         stepReach[d.qid] = (stepReach[d.qid] || 0) + 1;
       }
       if (d.event === 'complete') {
-        completes++; const b = bucket(dk); if (b) b.complete++;
+        completes++; if (d.visitorId) completeVisitors.add(d.visitorId); const b = bucket(dk); if (b) b.complete++;
         if (d.resultType) byResult[d.resultType] = (byResult[d.resultType] || 0) + 1;
         const pat = Array.isArray(d.pattern) ? d.pattern.join(',') : String(d.pattern || '');
         if (pat) byPattern[pat] = (byPattern[pat] || 0) + 1;
@@ -139,6 +144,8 @@ export async function GET(req: NextRequest) {
         for (const dd of ds) dayCounts[dd] = (dayCounts[dd] || 0) + 1;
         for (const a of as) for (const dd of ds) { const k = `${a}×${dd}`; comboCounts[k] = (comboCounts[k] || 0) + 1; }
         if (d.pickup) pickupCounts[d.pickup] = (pickupCounts[d.pickup] || 0) + 1;
+        const pp: string[] = Array.isArray(d.pickupPlaces) ? d.pickupPlaces : [];
+        for (const p of pp) pickupPlaceCounts[p] = (pickupPlaceCounts[p] || 0) + 1;
       }
       if (d.event === 'cta') ctas++;
       if (d.event === 'share') shares++;
@@ -183,11 +190,13 @@ export async function GET(req: NextRequest) {
       uniqueSessions: sessions.size,
       uniqueVisitors: visitors.size,
       visits, starts, completes, signals, ctas, shares,
+      uniqueStarts: startVisitors.size,
+      uniqueCompletes: completeVisitors.size,
       completionRate: starts ? +(completes / starts).toFixed(3) : null,
       signalRate: completes ? +(signals / completes).toFixed(3) : null,
       uniqueSignalVisitors: signalVisitors.size,
       byOption, byResult, byPattern, stepReach,
-      demand: { areaCounts, dayCounts, comboCounts, pickupCounts },
+      demand: { areaCounts, dayCounts, comboCounts, pickupCounts, pickupPlaceCounts },
       daily: dailyArr,
       byRef, byDevice, byHour,
       raw,

@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
     areas: arr(body.areas),
     days: arr(body.days),
     pickup: s(body.pickup, 40),
+    pickupPlaces: arr(body.pickupPlaces),
     source: 'golmoti-lp',
     ts: Date.now(),
   };

@@ -15,6 +15,8 @@ type Report = {
   visits: number;
   starts: number;
   completes: number;
+  uniqueStarts: number;
+  uniqueCompletes: number;
   signals: number;
   ctas: number;
   shares: number;
@@ -32,6 +34,7 @@ type Report = {
     dayCounts: Record<string, number>;
     comboCounts: Record<string, number>;
     pickupCounts: Record<string, number>;
+    pickupPlaceCounts: Record<string, number>;
   };
   daily: { date: string; visit: number; start: number; complete: number; signal: number }[];
   byRef: Record<string, number>;
@@ -136,6 +139,7 @@ function Inner() {
             <>
               <StatGrid data={data} />
               <Funnel data={data} />
+              <UniqueBreakdown data={data} />
               <Daily daily={data.daily} />
               <Demand demand={data.demand} signals={data.signals} uniq={data.uniqueSignalVisitors} />
             </>
@@ -193,12 +197,12 @@ function Bar({ label, value, max, hint, color = 'bg-green' }: { label: string; v
 }
 
 function Funnel({ data }: { data: Report }) {
-  const base = Math.max(data.uniqueVisitors, data.starts, 1);
+  const base = Math.max(data.uniqueVisitors, data.uniqueStarts, 1);
   return (
-    <Card title="ファネル（訪問 → 診断 → 通知登録）" sub="各ステップの人数・件数">
+    <Card title="ファネル（訪問 → 診断 → 通知登録）" sub="すべてユニーク（1人1カウント）">
       <Bar label="ユニーク訪問者" value={data.uniqueVisitors} max={base} hint="人" color="bg-blue" />
-      <Bar label="診断スタート（1問目回答）" value={data.starts} max={base} hint={`訪問比 ${pct(data.starts, data.uniqueVisitors)}%`} color="bg-green" />
-      <Bar label="診断完了" value={data.completes} max={base} hint={`完了率 ${pct(data.completes, data.starts)}%`} color="bg-green" />
+      <Bar label="診断スタート（1問目回答）" value={data.uniqueStarts} max={base} hint={`訪問比 ${pct(data.uniqueStarts, data.uniqueVisitors)}%`} color="bg-green" />
+      <Bar label="診断完了" value={data.uniqueCompletes} max={base} hint={`完了率 ${pct(data.uniqueCompletes, data.uniqueStarts)}%`} color="bg-green" />
       <Bar label="興味シグナル登録" value={data.signals} max={base} hint={`完了比 ${Math.round((data.signalRate || 0) * 100)}%`} color="bg-orange" />
       <Bar label="CTAクリック" value={data.ctas} max={base} color="bg-orange" />
       <Bar label="シェア" value={data.shares} max={base} color="bg-blue" />
@@ -271,6 +275,17 @@ function Demand({ demand, signals, uniq }: { demand: Report['demand']; signals: 
               <div className="mt-3 pt-3 border-t border-border">
                 <div className="text-[11px] font-bold text-sub mb-2">🚗 クルマ・送迎の希望</div>
                 {pk.map(([k, v]) => <Bar key={k} label={k} value={v} max={maxP} hint={`${pct(v, signals)}%`} color="bg-orange" />)}
+              </div>
+            );
+          })()}
+          {(() => {
+            const pl = sortEntries(demand.pickupPlaceCounts || {});
+            if (!pl.length) return null;
+            const maxPl = pl[0][1];
+            return (
+              <div className="mt-3 pt-3 border-t border-border">
+                <div className="text-[11px] font-bold text-sub mb-2">🚉 ピックアップ希望の場所（駅）</div>
+                {pl.map(([k, v]) => <Bar key={k} label={`${k}駅`} value={v} max={maxPl} color="bg-green" />)}
               </div>
             );
           })()}
@@ -361,9 +376,9 @@ function Patterns({ byPattern }: { byPattern: Record<string, number> }) {
 function StatGrid({ data }: { data: Report }) {
   const cells = [
     { label: 'ユニーク訪問者', value: data.uniqueVisitors, sub: '人', color: 'text-blue' },
-    { label: '診断スタート', value: data.starts, sub: `訪問比 ${pct(data.starts, data.uniqueVisitors)}%`, color: 'text-text' },
-    { label: '診断完了', value: data.completes, sub: `完了率 ${pct(data.completes, data.starts)}%`, color: 'text-green' },
-    { label: '興味シグナル', value: data.signals, sub: `${data.uniqueSignalVisitors}人`, color: 'text-orange' },
+    { label: '診断スタート', value: data.uniqueStarts, sub: `訪問比 ${pct(data.uniqueStarts, data.uniqueVisitors)}%`, color: 'text-text' },
+    { label: '診断完了', value: data.uniqueCompletes, sub: `完了率 ${pct(data.uniqueCompletes, data.uniqueStarts)}%`, color: 'text-green' },
+    { label: '興味シグナル', value: data.uniqueSignalVisitors, sub: `${data.signals}件`, color: 'text-orange' },
   ];
   return (
     <div className="grid grid-cols-2 gap-2.5">
@@ -375,6 +390,34 @@ function StatGrid({ data }: { data: Report }) {
         </div>
       ))}
     </div>
+  );
+}
+
+// ユニーク（1人1カウント）と 延べ（同じ人の複数回も全部）を並べて確認する
+// レポート。同じ人が何度も診断しても、上のファネルはユニークで数えていることを
+// あとから検証できる。
+function UniqueBreakdown({ data }: { data: Report }) {
+  const rows = [
+    { label: '診断スタート', uniq: data.uniqueStarts, total: data.starts },
+    { label: '診断完了', uniq: data.uniqueCompletes, total: data.completes },
+    { label: '興味シグナル', uniq: data.uniqueSignalVisitors, total: data.signals },
+  ];
+  return (
+    <Card title="ユニーク／延べ の内訳" sub="同じ人の複数回診断を除いた「ユニーク」と、全カウント「延べ」">
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="text-[10px] text-muted font-bold text-left">項目</div>
+        <div className="text-[10px] text-muted font-bold">ユニーク</div>
+        <div className="text-[10px] text-muted font-bold">延べ（全回数）</div>
+        {rows.map((r) => (
+          <div key={r.label} className="contents">
+            <div className="text-[12px] font-bold text-left border-t border-border pt-1.5">{r.label}</div>
+            <div className="text-[15px] font-black text-green border-t border-border pt-1.5">{r.uniq}</div>
+            <div className="text-[13px] font-bold text-muted border-t border-border pt-1.5">{r.total}</div>
+          </div>
+        ))}
+      </div>
+      <div className="text-[10px] text-muted mt-2">※ ファネル・上部カードは「ユニーク」を表示。延べはあなたの複数回テストなども含む全数。</div>
+    </Card>
   );
 }
 
