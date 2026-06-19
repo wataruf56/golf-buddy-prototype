@@ -25,11 +25,13 @@ type Report = {
   linkedUsers: number;
   byResult: Record<string, number>;
   byPattern: Record<string, number>;
+  byOption: Record<string, Record<string, number>>;
   stepReach: Record<string, number>;
   demand: {
     areaCounts: Record<string, number>;
     dayCounts: Record<string, number>;
     comboCounts: Record<string, number>;
+    pickupCounts: Record<string, number>;
   };
   daily: { date: string; visit: number; start: number; complete: number; signal: number }[];
   byRef: Record<string, number>;
@@ -140,11 +142,12 @@ function Inner() {
           )}
           {tab === 'analysis' && (
             <>
+              <ResultDist byResult={data.byResult} completes={data.completes} />
+              <OptionBreakdown byOption={data.byOption} />
+              <DropOff stepReach={data.stepReach} starts={data.starts} />
               <Sources byRef={data.byRef} />
               <Devices byDevice={data.byDevice} />
               <Hours byHour={data.byHour} />
-              <DropOff stepReach={data.stepReach} starts={data.starts} />
-              <ResultDist byResult={data.byResult} completes={data.completes} />
               <Patterns byPattern={data.byPattern} />
             </>
           )}
@@ -190,13 +193,12 @@ function Bar({ label, value, max, hint, color = 'bg-green' }: { label: string; v
 }
 
 function Funnel({ data }: { data: Report }) {
-  const base = Math.max(data.visits, data.starts, data.uniqueVisitors, 1);
+  const base = Math.max(data.uniqueVisitors, data.starts, 1);
   return (
-    <Card title="ファネル（来訪 → 完了 → 通知登録）" sub="各ステップの人数・件数">
+    <Card title="ファネル（訪問 → 診断 → 通知登録）" sub="各ステップの人数・件数">
       <Bar label="ユニーク訪問者" value={data.uniqueVisitors} max={base} hint="人" color="bg-blue" />
-      <Bar label="来訪 (visit)" value={data.visits} max={base} color="bg-blue" />
-      <Bar label="診断スタート" value={data.starts} max={base} hint={`来訪比 ${pct(data.starts, data.visits)}%`} color="bg-green" />
-      <Bar label="診断完了" value={data.completes} max={base} hint={`完了率 ${Math.round((data.completionRate || 0) * 100)}%`} color="bg-green" />
+      <Bar label="診断スタート（1問目回答）" value={data.starts} max={base} hint={`訪問比 ${pct(data.starts, data.uniqueVisitors)}%`} color="bg-green" />
+      <Bar label="診断完了" value={data.completes} max={base} hint={`完了率 ${pct(data.completes, data.starts)}%`} color="bg-green" />
       <Bar label="興味シグナル登録" value={data.signals} max={base} hint={`完了比 ${Math.round((data.signalRate || 0) * 100)}%`} color="bg-orange" />
       <Bar label="CTAクリック" value={data.ctas} max={base} color="bg-orange" />
       <Bar label="シェア" value={data.shares} max={base} color="bg-blue" />
@@ -261,8 +263,44 @@ function Demand({ demand, signals, uniq }: { demand: Report['demand']; signals: 
               {days.map(([k, v]) => <Bar key={k} label={k} value={v} max={maxA} color="bg-blue" />)}
             </div>
           </div>
+          {(() => {
+            const pk = sortEntries(demand.pickupCounts || {});
+            if (!pk.length) return null;
+            const maxP = pk[0][1];
+            return (
+              <div className="mt-3 pt-3 border-t border-border">
+                <div className="text-[11px] font-bold text-sub mb-2">🚗 クルマ・送迎の希望</div>
+                {pk.map(([k, v]) => <Bar key={k} label={k} value={v} max={maxP} hint={`${pct(v, signals)}%`} color="bg-orange" />)}
+              </div>
+            );
+          })()}
         </>
       )}
+    </Card>
+  );
+}
+
+// 設問ごとの回答分布（事業判断に効く「ユーザーの傾向」）。
+function OptionBreakdown({ byOption }: { byOption: Record<string, Record<string, number>> }) {
+  const qids = Object.keys(byOption || {}).sort((a, b) => (parseInt(a.replace(/\D/g, ''), 10) || 0) - (parseInt(b.replace(/\D/g, ''), 10) || 0));
+  if (!qids.length) return null;
+  return (
+    <Card title="設問ごとの回答傾向" sub="各問でどの選択肢が選ばれたか">
+      <div className="flex flex-col gap-3">
+        {qids.map((q) => {
+          const opts = sortEntries(byOption[q]);
+          const total = opts.reduce((s, [, v]) => s + v, 0) || 1;
+          const max = opts.length ? opts[0][1] : 1;
+          return (
+            <div key={q}>
+              <div className="text-[11px] font-black text-sub mb-1.5">{q.toUpperCase()}</div>
+              {opts.map(([label, v]) => (
+                <Bar key={label} label={label.replace(/^\S+\s/, '')} value={v} max={max} hint={`${pct(v, total)}%`} color="bg-green" />
+              ))}
+            </div>
+          );
+        })}
+      </div>
     </Card>
   );
 }
@@ -323,8 +361,8 @@ function Patterns({ byPattern }: { byPattern: Record<string, number> }) {
 function StatGrid({ data }: { data: Report }) {
   const cells = [
     { label: 'ユニーク訪問者', value: data.uniqueVisitors, sub: '人', color: 'text-blue' },
-    { label: '来訪', value: data.visits, sub: '回', color: 'text-text' },
-    { label: '診断完了', value: data.completes, sub: `完了率 ${Math.round((data.completionRate || 0) * 100)}%`, color: 'text-green' },
+    { label: '診断スタート', value: data.starts, sub: `訪問比 ${pct(data.starts, data.uniqueVisitors)}%`, color: 'text-text' },
+    { label: '診断完了', value: data.completes, sub: `完了率 ${pct(data.completes, data.starts)}%`, color: 'text-green' },
     { label: '興味シグナル', value: data.signals, sub: `${data.uniqueSignalVisitors}人`, color: 'text-orange' },
   ];
   return (

@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
     resultType: s(body.resultType, 60),
     areas: arr(body.areas),
     days: arr(body.days),
+    pickup: s(body.pickup, 40),
     source: 'golmoti-lp',
     ts: Date.now(),
   };

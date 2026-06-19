@@ -27,6 +27,7 @@ function Inner() {
   const resultType = search?.get('type') || '';
   const areas = (search?.get('areas') || '').split(',').filter(Boolean);
   const days = (search?.get('days') || '').split(',').filter(Boolean);
+  const pickup = search?.get('pickup') || '';
 
   const [status, setStatus] = useState('通知設定を保存しています...');
   const [done, setDone] = useState(false);
@@ -39,7 +40,7 @@ function Inner() {
         const res = await fetch('/api/lp/link-line', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ visitorId, resultType, areas, days }),
+          body: JSON.stringify({ visitorId, resultType, areas, days, pickup }),
           cache: 'no-store',
           credentials: 'include',
         });

@@ -40,6 +40,8 @@ export async function POST(req: NextRequest) {
     // 興味シグナル（行けるエリア・曜日）。event:'signal' のときに入る。
     areas: arr(body.areas),
     days: arr(body.days),
+    // クルマ・送迎の希望（単一）。event:'signal' のときに入る。
+    pickup: s(body.pickup, 40),
     qid: s(body.qid, 40),
     optionId: s(body.optionId, 40),
     optionLabel: s(body.optionLabel, 120),
@@ -91,6 +93,7 @@ export async function GET(req: NextRequest) {
     const areaCounts: Record<string, number> = {};   // 行けるエリア別
     const dayCounts: Record<string, number> = {};    // 行ける曜日別（土日祝/平日）
     const comboCounts: Record<string, number> = {};  // 「エリア×曜日」需要プール
+    const pickupCounts: Record<string, number> = {}; // クルマ・送迎の希望
     const stepReach: Record<string, number> = {};    // 各設問への到達（回答数）= 離脱分析
     const daily: Record<string, { visit: number; start: number; complete: number; signal: number }> = {};
     const byRef: Record<string, number> = {};     // 流入元（来訪単位）
@@ -135,6 +138,7 @@ export async function GET(req: NextRequest) {
         for (const a of as) areaCounts[a] = (areaCounts[a] || 0) + 1;
         for (const dd of ds) dayCounts[dd] = (dayCounts[dd] || 0) + 1;
         for (const a of as) for (const dd of ds) { const k = `${a}×${dd}`; comboCounts[k] = (comboCounts[k] || 0) + 1; }
+        if (d.pickup) pickupCounts[d.pickup] = (pickupCounts[d.pickup] || 0) + 1;
       }
       if (d.event === 'cta') ctas++;
       if (d.event === 'share') shares++;
@@ -183,7 +187,7 @@ export async function GET(req: NextRequest) {
       signalRate: completes ? +(signals / completes).toFixed(3) : null,
       uniqueSignalVisitors: signalVisitors.size,
       byOption, byResult, byPattern, stepReach,
-      demand: { areaCounts, dayCounts, comboCounts },
+      demand: { areaCounts, dayCounts, comboCounts, pickupCounts },
       daily: dailyArr,
       byRef, byDevice, byHour,
       raw,

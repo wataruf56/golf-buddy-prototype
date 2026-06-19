@@ -257,9 +257,11 @@
   let SESSION=sessionStorage.getItem('golmotiSession'); if(!SESSION){SESSION=uid();sessionStorage.setItem('golmotiSession',SESSION);}
   // 永続の匿名訪問者ID（セッションをまたいでユニーク計測）
   let VISITOR=localStorage.getItem('golmotiVisitor'); if(!VISITOR){VISITOR=uid();try{localStorage.setItem('golmotiVisitor',VISITOR);}catch(e){}}
-  // 興味シグナルの選択肢（初期は粗い粒度。数を大きく見せる方針）
-  const AREAS=['東京','神奈川','埼玉','千葉','茨城','その他'];
+  // 興味シグナルの選択肢
+  const AREAS=['東京','神奈川','埼玉','千葉','茨城','栃木','群馬','大阪','京都','兵庫','愛知','静岡','福岡','北海道','宮城','広島','その他'];
   const DAYS=['土日祝','平日'];
+  // クルマ・送迎の希望（単一選択）。需要プールに追加。
+  const PICKUP=['ピックアップ可能','送迎してくれるなら行きたい','ピックアップ不可'];
   function track(event,extra){
     const p=Object.assign({visitorId:VISITOR,sessionId:SESSION,event,quiz:'golmoti',style:STYLE,page:location.pathname,ref:document.referrer||''},extra||{});
     try{const a=JSON.parse(localStorage.getItem(LSKEY)||'[]');a.push(Object.assign({clientTs:Date.now()},p));localStorage.setItem(LSKEY,JSON.stringify(a.slice(-200)));}catch(e){}
@@ -507,6 +509,8 @@
     qbox.querySelectorAll('.opt').forEach(b=>b.addEventListener('click',()=>{
       const o=cur.opts[+b.dataset.i];
       ans[step]={qi:step+1, ax:o.ax, pole:o.pole, w:o.w, t:o.t};
+      // 「診断スタート」は1問目を回答した人だけカウント（LP来訪だけでは数えない）
+      if(step===0) track('start',{total:QS.length});
       track('answer',{qid:'q'+(step+1), optionId:o.ax+o.pole+o.w, optionLabel:o.t, step:step+1, total:QS.length});
       step++;
       if(step<QS.length) renderQ(); else showCalc();
@@ -593,6 +597,8 @@
           <div class="sigchips" id="sigAreas">${AREAS.map(a=>`<button type="button" class="sigchip" data-area="${a}">${a}</button>`).join('')}</div>
           <div class="siglbl">行ける日</div>
           <div class="sigchips" id="sigDays">${DAYS.map(d=>`<button type="button" class="sigchip" data-day="${d}">${d}</button>`).join('')}</div>
+          <div class="siglbl">クルマ・送迎について</div>
+          <div class="sigchips" id="sigPickup">${PICKUP.map(p=>`<button type="button" class="sigchip" data-pickup="${p}">${p}</button>`).join('')}</div>
           <a class="bigcta sigcta" id="sigSubmit" href="https://line.me/R/ti/p/@711xiyrs"><span class="li">L</span>LINEで通知を受け取る</a>
           <div class="signote">条件に合うラウンドが立ったらLINEでお知らせします（無料）</div>
         </div>
@@ -622,23 +628,26 @@
       catch(e){ prompt('コピーしてください',shareUrl); }
     });
     // 興味シグナル（行けるエリア×曜日）。診断結果＝雰囲気タグとして resultType を同送。
-    const selA=new Set(), selD=new Set();
+    const selA=new Set(), selD=new Set(); let selP='';
     document.querySelectorAll('#sigAreas .sigchip').forEach(b=>b.addEventListener('click',()=>{ const a=b.dataset.area; if(selA.has(a)){selA.delete(a);b.classList.remove('on');}else{selA.add(a);b.classList.add('on');} }));
     document.querySelectorAll('#sigDays .sigchip').forEach(b=>b.addEventListener('click',()=>{ const d=b.dataset.day; if(selD.has(d)){selD.delete(d);b.classList.remove('on');}else{selD.add(d);b.classList.add('on');} }));
+    // ピックアップは単一選択
+    document.querySelectorAll('#sigPickup .sigchip').forEach(b=>b.addEventListener('click',()=>{ selP=(selP===b.dataset.pickup)?'':b.dataset.pickup; document.querySelectorAll('#sigPickup .sigchip').forEach(x=>x.classList.toggle('on', x.dataset.pickup===selP)); }));
     const sigBtn=document.getElementById('sigSubmit');
     if(sigBtn) sigBtn.addEventListener('click',(e)=>{
-      track('signal',{resultType:code, areas:[...selA], days:[...selD]});
+      track('signal',{resultType:code, areas:[...selA], days:[...selD], pickup:selP});
+      track('cta',{where:'line-signal'}); // 診断後のLINE登録もCTAとしてカウント
       // LIFF経由でアプリの /lp-link へ。LINEログイン後、診断結果・エリア・曜日を
       // 実LINEアカウントに紐付けて保存し、友だち追加へ進む。
       try{
         const to='/lp-link?v='+encodeURIComponent(VISITOR)+'&type='+encodeURIComponent(code)
-          +'&areas='+encodeURIComponent([...selA].join(','))+'&days='+encodeURIComponent([...selD].join(','));
+          +'&areas='+encodeURIComponent([...selA].join(','))+'&days='+encodeURIComponent([...selD].join(','))+'&pickup='+encodeURIComponent(selP);
         e.preventDefault();
         window.location.href='https://liff.line.me/'+LIFF_ID+'?to='+encodeURIComponent(to);
       }catch(err){ /* 失敗時は href の友だち追加にフォールバック */ }
     });
     const againBtn=document.getElementById('again');
-    if(againBtn) againBtn.addEventListener('click',()=>{ step=0; ans.length=0; resultwrap.classList.add('hidden'); resultwrap.innerHTML=''; quiz.classList.remove('hidden'); calcbox.classList.add('hidden'); quiz.scrollIntoView({behavior:'smooth'}); track('start',{total:QS.length}); renderQ(); });
+    if(againBtn) againBtn.addEventListener('click',()=>{ step=0; ans.length=0; resultwrap.classList.add('hidden'); resultwrap.innerHTML=''; quiz.classList.remove('hidden'); calcbox.classList.add('hidden'); quiz.scrollIntoView({behavior:'smooth'}); renderQ(); });
     bindCTA();
     resultwrap.scrollIntoView({behavior:'smooth',block:'start'});
   }
@@ -732,7 +741,7 @@
     quiz.classList.add('hidden');
     showResult(SHARED);
   } else {
-    track('start',{total:QS.length});
+    // 'start' は1問目の回答時に発火（LP来訪では数えない）
     renderQ();
     bindCTA();
   }
