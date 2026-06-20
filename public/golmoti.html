@@ -109,6 +109,14 @@
   .sigchip.on{background:var(--mustard);color:var(--ink)}
   .sigcta{margin-top:16px}
   .signote{text-align:center;font-size:10.5px;opacity:.9;font-weight:700;margin-top:8px}
+  /* 診断なしでも開ける「条件選択」画面（CTAからオーバーレイ表示） */
+  .sgscreen{position:fixed;inset:0;z-index:300;background:rgba(38,30,24,.55);display:none;overflow-y:auto}
+  .sgscreen.show{display:block}
+  .sgpanel{max-width:480px;margin:0 auto;min-height:100%;background:var(--paper)}
+  .sghead{display:flex;align-items:center;gap:10px;padding:13px 16px;position:sticky;top:0;background:var(--paper);border-bottom:2.5px solid var(--ink);z-index:2}
+  .sghead b{font-weight:900;font-size:15.5px}
+  .sghead .sgx{margin-left:auto;flex-shrink:0;font-weight:900;font-size:18px;line-height:1;background:var(--cream);border:2px solid var(--ink);border-radius:10px;width:36px;height:36px;cursor:pointer}
+  .sgintro{font-weight:700;font-size:12.5px;color:#6b5440;padding:14px 18px 0;line-height:1.6}
   /* CTA */
   .cta{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--orange);color:var(--cream);font-weight:900;font-size:18px;padding:19px;border:2.5px solid var(--ink);border-radius:16px;box-shadow:5px 5px 0 var(--ink);cursor:pointer;text-decoration:none;transition:transform .12s,box-shadow .12s}
   .cta:active{transform:translate(5px,5px);box-shadow:0 0 0 var(--ink)}
@@ -240,11 +248,37 @@
 
 <!-- 固定CTAバー：LINEで友だち追加（相性のいいゴルフ仲間探し） -->
 <div class="findbar">
-  <a href="https://line.me/R/ti/p/@711xiyrs" data-cta="findfriends">
+  <a href="https://line.me/R/ti/p/@711xiyrs" id="findbarCta" data-cta="findfriends">
     <img class="li-logo" src="/line-logo.png" alt="LINE" width="184" height="183">
     <span class="ftxt"><b>相性のいいゴルフ友達を探す</b><small>無料・LINEで30秒 ・ 同世代とつながる ⛳</small></span>
     <span class="far">›</span>
   </a>
+</div>
+
+<!-- 条件選択オーバーレイ：診断なしでも CTA から開ける（エリア/曜日/ピックアップ → LINE） -->
+<div class="sgscreen" id="sgScreen" aria-hidden="true">
+  <div class="sgpanel">
+    <div class="sghead">
+      <b>🔔 ゴルフ友達を探す条件</b>
+      <button type="button" class="sgx" id="sgClose" aria-label="閉じる">✕</button>
+    </div>
+    <div class="sgintro">行けるエリア・曜日・送迎の希望を選ぶと、条件に合うゴルフ友達やラウンドができたときにLINEでお知らせします（無料）。</div>
+    <div class="sigbox" id="sgBox">
+      <div class="sigttl">あなたの希望条件を教えてください</div>
+      <div class="siglbl">行けるエリア（複数選択）</div>
+      <div class="sigchips" id="sgAreas"></div>
+      <div class="siglbl">行ける日</div>
+      <div class="sigchips" id="sgDays"></div>
+      <div class="siglbl">クルマ・送迎について</div>
+      <div class="sigchips" id="sgPickup"></div>
+      <div id="sgPlacesWrap" style="display:none">
+        <div class="siglbl">ピックアップ場所（複数選択）</div>
+        <div class="sigchips" id="sgPlaces"></div>
+      </div>
+      <a class="bigcta sigcta" id="sgSubmit" href="https://line.me/R/ti/p/@711xiyrs"><img class="li-logo" src="/line-logo.png" alt="LINE" width="184" height="183">LINEで通知を受け取る</a>
+      <div class="signote">条件に合うゴルフ友達・ラウンドができたらLINEでお知らせします（無料）</div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -271,6 +305,19 @@
     console.log('[golmoti]',p);
     try{const b=new Blob([JSON.stringify(p)],{type:'text/plain'});if(navigator.sendBeacon&&navigator.sendBeacon(ENDPOINT,b))return;}catch(e){}
     try{fetch(ENDPOINT,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(p),keepalive:true,mode:'no-cors'}).catch(()=>{});}catch(e){}
+  }
+  // 興味シグナル（エリア/曜日/ピックアップ）をLIFF経由で /lp-link に渡してLINE紐付け→友だち追加へ。
+  // 診断結果からも、診断なしの選択画面からも共通で使う（code は未診断なら ''）。
+  function gotoLineSignal(code,areas,days,pickup,places,where){
+    track('signal',{resultType:code||'', areas, days, pickup, pickupPlaces:places, where:where||'signal'});
+    track('cta',{where:where||'line-signal'});
+    try{
+      const to='/lp-link?v='+encodeURIComponent(VISITOR)+'&type='+encodeURIComponent(code||'')
+        +'&areas='+encodeURIComponent(areas.join(','))+'&days='+encodeURIComponent(days.join(','))
+        +'&pickup='+encodeURIComponent(pickup||'')+'&places='+encodeURIComponent(places.join(','));
+      window.location.href='https://liff.line.me/'+LIFF_ID+'?to='+encodeURIComponent(to);
+      return true;
+    }catch(err){ return false; }
   }
 
   /* ===== 4軸の定義 ===== */
@@ -641,17 +688,10 @@
     document.querySelectorAll('#sigPlaces .sigchip').forEach(b=>b.addEventListener('click',()=>{ const p=b.dataset.place; if(selPlaces.has(p)){selPlaces.delete(p);b.classList.remove('on');}else{selPlaces.add(p);b.classList.add('on');} }));
     const sigBtn=document.getElementById('sigSubmit');
     if(sigBtn) sigBtn.addEventListener('click',(e)=>{
-      track('signal',{resultType:code, areas:[...selA], days:[...selD], pickup:selP, pickupPlaces:[...selPlaces]});
-      track('cta',{where:'line-signal'}); // 診断後のLINE登録もCTAとしてカウント
       // LIFF経由でアプリの /lp-link へ。LINEログイン後、診断結果・エリア・曜日を
-      // 実LINEアカウントに紐付けて保存し、友だち追加へ進む。
-      try{
-        const to='/lp-link?v='+encodeURIComponent(VISITOR)+'&type='+encodeURIComponent(code)
-          +'&areas='+encodeURIComponent([...selA].join(','))+'&days='+encodeURIComponent([...selD].join(','))
-          +'&pickup='+encodeURIComponent(selP)+'&places='+encodeURIComponent([...selPlaces].join(','));
-        e.preventDefault();
-        window.location.href='https://liff.line.me/'+LIFF_ID+'?to='+encodeURIComponent(to);
-      }catch(err){ /* 失敗時は href の友だち追加にフォールバック */ }
+      // 実LINEアカウントに紐付けて保存し、友だち追加へ進む。失敗時は href の友だち追加へ。
+      e.preventDefault();
+      if(!gotoLineSignal(code,[...selA],[...selD],selP,[...selPlaces],'line-signal')) window.location.href=FRIEND_ADD;
     });
     const againBtn=document.getElementById('again');
     if(againBtn) againBtn.addEventListener('click',()=>{ step=0; ans.length=0; resultwrap.classList.add('hidden'); resultwrap.innerHTML=''; quiz.classList.remove('hidden'); calcbox.classList.add('hidden'); quiz.scrollIntoView({behavior:'smooth'}); renderQ(); });
@@ -755,6 +795,36 @@
     renderQ();
     bindCTA();
   }
+
+  /* ===== 条件選択オーバーレイ（診断を受けなくても CTA から開ける） ===== */
+  function setupSignalScreen(){
+    const screen=document.getElementById('sgScreen'); if(!screen) return;
+    const A=document.getElementById('sgAreas'), D=document.getElementById('sgDays'), P=document.getElementById('sgPickup'), PL=document.getElementById('sgPlaces'), plWrap=document.getElementById('sgPlacesWrap');
+    A.innerHTML=AREAS.map(a=>`<button type="button" class="sigchip" data-area="${a}">${a}</button>`).join('');
+    D.innerHTML=DAYS.map(d=>`<button type="button" class="sigchip" data-day="${d}">${d}</button>`).join('');
+    P.innerHTML=PICKUP.map(p=>`<button type="button" class="sigchip" data-pickup="${p}">${p}</button>`).join('');
+    PL.innerHTML=PICKUP_PLACES.map(p=>`<button type="button" class="sigchip" data-place="${p}">${p}</button>`).join('');
+    const selA=new Set(), selD=new Set(), selPlaces=new Set(); let selP='';
+    A.querySelectorAll('.sigchip').forEach(b=>b.addEventListener('click',()=>{ const a=b.dataset.area; if(selA.has(a)){selA.delete(a);b.classList.remove('on');}else{selA.add(a);b.classList.add('on');} }));
+    D.querySelectorAll('.sigchip').forEach(b=>b.addEventListener('click',()=>{ const d=b.dataset.day; if(selD.has(d)){selD.delete(d);b.classList.remove('on');}else{selD.add(d);b.classList.add('on');} }));
+    P.querySelectorAll('.sigchip').forEach(b=>b.addEventListener('click',()=>{
+      selP=(selP===b.dataset.pickup)?'':b.dataset.pickup;
+      P.querySelectorAll('.sigchip').forEach(x=>x.classList.toggle('on', x.dataset.pickup===selP));
+      const show=(selP==='ピックアップ可能'||selP==='送迎してくれるなら行きたい');
+      plWrap.style.display=show?'block':'none';
+      if(!show){ selPlaces.clear(); PL.querySelectorAll('.sigchip').forEach(x=>x.classList.remove('on')); }
+    }));
+    PL.querySelectorAll('.sigchip').forEach(b=>b.addEventListener('click',()=>{ const p=b.dataset.place; if(selPlaces.has(p)){selPlaces.delete(p);b.classList.remove('on');}else{selPlaces.add(p);b.classList.add('on');} }));
+    const sub=document.getElementById('sgSubmit');
+    if(sub) sub.addEventListener('click',(e)=>{ e.preventDefault(); if(!gotoLineSignal('',[...selA],[...selD],selP,[...selPlaces],'signal-screen')) window.location.href=FRIEND_ADD; });
+    const xb=document.getElementById('sgClose'); if(xb) xb.addEventListener('click',closeSignalScreen);
+    screen.addEventListener('click',(e)=>{ if(e.target===screen) closeSignalScreen(); });
+  }
+  function openSignalScreen(where){ const s=document.getElementById('sgScreen'); if(!s)return; track('signal_open',{where:where||''}); s.classList.add('show'); s.setAttribute('aria-hidden','false'); document.body.style.overflow='hidden'; s.scrollTop=0; }
+  function closeSignalScreen(){ const s=document.getElementById('sgScreen'); if(!s)return; s.classList.remove('show'); s.setAttribute('aria-hidden','true'); document.body.style.overflow=''; }
+  setupSignalScreen();
+  // CTA（直接LINEに飛んでいた導線）→ まず条件選択オーバーレイを表示してからLINEへ。
+  { const fb=document.getElementById('findbarCta'); if(fb) fb.addEventListener('click',(e)=>{ e.preventDefault(); openSignalScreen('findbar'); }); }
 
   const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.12});
   document.querySelectorAll('.reveal').forEach((el,i)=>{el.style.transitionDelay=(i%3*60)+'ms';io.observe(el)});
