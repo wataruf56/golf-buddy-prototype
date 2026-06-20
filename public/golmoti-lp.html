@@ -69,13 +69,13 @@
   .final h2{font-weight:900;font-size:25px;line-height:1.4;margin-bottom:10px}
   .final p{font-size:13px;font-weight:700;color:#6b5440;margin-bottom:20px}
   .cta{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--line);color:#fff;font-weight:900;font-size:17px;padding:16px;border:2.5px solid var(--ink);border-radius:14px;box-shadow:4px 4px 0 var(--ink);cursor:pointer;text-decoration:none}
-  .cta .li{width:24px;height:24px;background:#fff;color:var(--line);border-radius:7px;display:grid;place-items:center;font-weight:900;font-size:13px;border:2px solid var(--ink)}
+  .cta .li{flex-shrink:0;padding:3px 7px;background:#06C755;color:#fff;border-radius:7px;display:inline-flex;align-items:center;font-weight:900;font-size:12px;letter-spacing:.5px;border:2px solid var(--ink)}
   .cta-note{font-size:11.5px;font-weight:700;color:#8a7256;text-align:center;margin-top:10px}
   footer{padding:30px 22px 40px;text-align:center;font-weight:700;font-size:12px;color:var(--sub)}footer .fl{font-weight:900;font-size:18px;color:var(--ink);margin-bottom:6px}
   /* sticky */
   .stickybar{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;z-index:120;padding:10px 14px calc(12px + env(safe-area-inset-bottom));background:var(--paper);border-top:3px solid var(--ink)}
   .stickybar a{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--line);color:#fff;font-weight:900;font-size:16px;padding:15px;border:2.5px solid var(--ink);border-radius:14px;box-shadow:4px 4px 0 var(--ink);text-decoration:none}
-  .stickybar .li{width:24px;height:24px;background:#fff;color:var(--line);border-radius:7px;display:grid;place-items:center;font-weight:900;font-size:13px;border:2px solid var(--ink)}
+  .stickybar .li{flex-shrink:0;padding:3px 7px;background:#06C755;color:#fff;border-radius:7px;display:inline-flex;align-items:center;font-weight:900;font-size:12px;letter-spacing:.5px;border:2px solid var(--ink)}
   .mascot{display:inline-block;line-height:0}.mascot svg{display:block;width:100%;height:100%}
   .reveal{opacity:0;transform:translateY(20px);transition:opacity .5s,transform .5s cubic-bezier(.2,.8,.2,1.05)}.reveal.in{opacity:1;transform:none}
 </style>
@@ -131,14 +131,14 @@
     <span class="be">⛳</span>
     <h2>まずは無料で<br>診断してみる？</h2>
     <p>あなたのゴルフタイプ、1分でわかります。</p>
-    <a class="cta" href="https://line.me/R/ti/p/@711xiyrs"><span class="li">L</span>無料で始める</a>
+    <a class="cta" href="https://line.me/R/ti/p/@711xiyrs"><span class="li">LINE</span>無料で始める</a>
     <p class="cta-note" style="margin-top:12px">LINE公式アカウントから診断スタート</p>
   </div>
 
   <footer><div class="fl">⛳ ゴルトモ / GOLMOTI</div>同世代のラウンド仲間を探すアプリ<br>© 2026 Goltomo</footer>
 </div>
 
-<div class="stickybar"><a href="https://line.me/R/ti/p/@711xiyrs"><span class="li">L</span>無料で始める</a></div>
+<div class="stickybar"><a href="https://line.me/R/ti/p/@711xiyrs"><span class="li">LINE</span>無料で始める</a></div>
 
 <script>
   /* ===== 軸・タイプ・動物マスコット（本体LPから流用） ===== */

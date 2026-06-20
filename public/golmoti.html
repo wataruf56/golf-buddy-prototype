@@ -112,7 +112,7 @@
   /* CTA */
   .cta{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--orange);color:var(--cream);font-weight:900;font-size:18px;padding:19px;border:2.5px solid var(--ink);border-radius:16px;box-shadow:5px 5px 0 var(--ink);cursor:pointer;text-decoration:none;transition:transform .12s,box-shadow .12s}
   .cta:active{transform:translate(5px,5px);box-shadow:0 0 0 var(--ink)}
-  .cta .li{width:26px;height:26px;background:var(--cream);color:var(--orange);border-radius:7px;display:grid;place-items:center;font-weight:900;font-size:14px;border:2px solid var(--ink)}
+  .cta .li{flex-shrink:0;padding:3px 7px;background:#06C755;color:#fff;border-radius:7px;display:inline-flex;align-items:center;font-weight:900;font-size:12px;letter-spacing:.5px;border:2px solid var(--ink)}
   .cta-note{font-size:12px;font-weight:700;color:#8a7256;margin-top:12px;text-align:center}
   .ctawrap{margin:18px 16px 0}
   /* sections */
@@ -145,7 +145,7 @@
   .findbar{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;z-index:200;padding:10px 14px calc(12px + env(safe-area-inset-bottom));background:var(--paper);border-top:3px solid var(--ink)}
   .findbar a{display:flex;align-items:center;justify-content:center;gap:11px;width:100%;background:var(--teal);color:var(--cream);padding:12px 16px;border:2.5px solid var(--ink);border-radius:14px;box-shadow:4px 4px 0 var(--ink);text-decoration:none;transition:transform .12s,box-shadow .12s;animation:findpulse 2.2s ease-in-out infinite}
   .findbar a:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink);animation:none}
-  .findbar .li{flex-shrink:0;width:28px;height:28px;background:var(--cream);color:var(--teal);border-radius:8px;display:grid;place-items:center;font-weight:900;font-size:15px;border:2px solid var(--ink)}
+  .findbar .li{flex-shrink:0;padding:4px 8px;background:#06C755;color:#fff;border-radius:8px;display:inline-flex;align-items:center;font-weight:900;font-size:13px;letter-spacing:.5px;border:2px solid var(--ink)}
   .findbar .ftxt{display:flex;flex-direction:column;line-height:1.25;text-align:left}
   .findbar .ftxt b{font-weight:900;font-size:16px}
   .findbar .ftxt small{font-weight:700;font-size:10.5px;opacity:.9}
@@ -154,7 +154,7 @@
   .stickybar{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;z-index:120;padding:10px 14px calc(12px + env(safe-area-inset-bottom));background:var(--paper);border-top:3px solid var(--ink)}
   .stickybar a{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--orange);color:var(--cream);font-weight:900;font-size:16px;padding:15px;border:2.5px solid var(--ink);border-radius:14px;box-shadow:4px 4px 0 var(--ink);text-decoration:none;transition:transform .12s,box-shadow .12s}
   .stickybar a:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
-  .stickybar .li{width:24px;height:24px;background:var(--cream);color:var(--orange);border-radius:7px;display:grid;place-items:center;font-weight:900;font-size:13px;border:2px solid var(--ink)}
+  .stickybar .li{flex-shrink:0;padding:3px 7px;background:#06C755;color:#fff;border-radius:7px;display:inline-flex;align-items:center;font-weight:900;font-size:11px;letter-spacing:.5px;border:2px solid var(--ink)}
   .dev{margin-top:14px;font-size:11px;color:#b3a489;background:none;border:none;cursor:pointer;text-decoration:underline}
   /* type detail bottom-sheet */
   .tmodal{position:fixed;inset:0;max-width:480px;left:50%;transform:translateX(-50%);background:rgba(51,39,27,.55);z-index:150;display:none;align-items:flex-end}
@@ -174,7 +174,7 @@
   .dfx{margin-top:12px;display:flex;flex-direction:column;gap:7px}
   .dfrow{display:flex;gap:9px;align-items:flex-start}
   .dfk{flex-shrink:0;width:84px;font-weight:900;font-size:11px;padding:4px 6px;border-radius:8px;text-align:center;border:2px solid var(--ink)}
-  .df-s{background:#DCF0DC;color:#2f5e3a}.df-w{background:#FBE0D6;color:#b34a2c}.df-a{background:#FFEFC2;color:#8a6a1e}.df-o{background:#D8EFEC;color:#1f6d63}
+  .df-s{background:#DCF0DC;color:#2f5e3a}.df-w{background:#FBE0D6;color:#b34a2c}.df-a{background:#FFEFC2;color:#8a6a1e}.df-o{background:#D8EFEC;color:#1f6d63}.df-t{background:#E7E0F7;color:#5b46a8}
   .dfv{font-size:13px;font-weight:700;color:#4a3a2c;line-height:1.5;padding-top:3px}
   .aishou{display:flex;gap:10px;margin-top:14px}
   .ai{flex:1;border:2.5px solid var(--ink);border-radius:14px;padding:12px 8px;text-align:center}
@@ -240,7 +240,7 @@
 <!-- 固定CTAバー：LINEで友だち追加（相性のいいゴルフ仲間探し） -->
 <div class="findbar">
   <a href="https://line.me/R/ti/p/@711xiyrs" data-cta="findfriends">
-    <span class="li">L</span>
+    <span class="li">LINE</span>
     <span class="ftxt"><b>相性のいいゴルフ友達を探す</b><small>無料・LINEで30秒 ・ 同世代とつながる ⛳</small></span>
     <span class="far">›</span>
   </a>
@@ -304,22 +304,22 @@
 
   /* ===== 各タイプの詳細（強み・弱み・あるある・おすすめの回り方） ===== */
   const DETAIL={
-    GWPT:{s:'豪快な飛距離と、場を盛り上げるムードメーカー力。',w:'熱くなって攻めすぎ、大叩きすることも。',a:'「ナイショ！」を一番大きい声で言う。',o:'コンペで主役に。飛ばし屋同士で競うと燃える。'},
-    GWPI:{s:'当たれば爆発する飛距離と盛り上げ番長ぶり。',w:'ムラっ気があり、安定感は二の次。',a:'ドラコンだけは絶対に獲りにいく。',o:'ワイワイ系イベントで飛ばし自慢を。'},
-    GWKT:{s:'安定感と面倒見の良さ。スコアもまとめる。',w:'周りを気にして自分のプレーが疎かに。',a:'いつの間にか幹事を任されている。',o:'気の合う仲間とグループ定期ラウンド。'},
-    GWKI:{s:'コースマネジメントと空気を読む力。',w:'そつなさゆえ、熱量が見えにくい。',a:'大叩きせず、いつの間にか好スコア。',o:'仲間と気楽なコンペで実力発揮。'},
-    GMPT:{s:'飛距離への探究心と高い集中力。',w:'自分の世界に入り込みやすい。',a:'練習場で延々とドライバーを打ち込む。',o:'少人数で記録更新を狙うラウンドへ。'},
-    GMPI:{s:'瞬発力と、決め所での一発の飛距離。',w:'気分の波が大きくムラが出る。',a:'いい一発を一日中語っていられる。',o:'自分のペースで攻められるラウンドで。'},
-    GMKT:{s:'大崩れしない安定と、地道な継続力。',w:'慎重すぎて攻め所を逃すことも。',a:'パター練習が何より好き。',o:'スコア管理しながら一人/少人数で。'},
-    GMKI:{s:'自分のリズムを崩さない安定感。',w:'マイペースすぎて周りと温度差。',a:'無言で淡々と good score を出す。',o:'静かに回れる落ち着いた仲間と。'},
-    EWPT:{s:'明るさと成長意欲を両立する伸び盛り。',w:'楽しさ優先で詰めが甘くなることも。',a:'上達もスコアも「楽しい！」で片付く。',o:'ワイワイ仲間とラウンド＆練習。'},
-    EWPI:{s:'場を明るくする力と思い切りの良さ。',w:'大叩きしても気にしない（良くも悪くも）。',a:'池ポチャもネタにして大笑い。',o:'気楽なエンジョイコンペで盛り上げ役に。'},
-    EWKT:{s:'コツコツ続ける継続力と協調性。',w:'のんびりで決定力に欠けることも。',a:'みんなのボール探しを率先して手伝う。',o:'初心者歓迎の和やかラウンドで。'},
-    EWKI:{s:'楽しい場づくりの天才で、包容力抜群。',w:'上達への本気度はやや控えめ。',a:'打ち上げの仕切りは任せろ。',o:'イベント・コンペの幹事役で輝く。'},
-    EMPT:{s:'マイペースな探究心と伸びる飛距離。',w:'群れず、誘いに乗りにくい。',a:'一人予約でふらっと回りに行く。',o:'少人数の気楽なラウンドで。'},
-    EMPI:{s:'ハマった時の大胆さと爽快な一打。',w:'気分次第でムラが大きい。',a:'乗らない日はさっさと終わらせる。',o:'縛りのない自由なラウンドで気分よく。'},
-    EMKT:{s:'地道な努力と崩れない安定感。',w:'控えめで自分からは誘いにくい。',a:'実は練習量がこっそり一番多い。',o:'マイペースを尊重し合える仲間と。'},
-    EMKI:{s:'動じない穏やかさで、場をふっと和ます。',w:'向上心は薄めで現状維持になりがち。',a:'景色とお弁当が一番の楽しみ。',o:'のんびり回れるゆる募集で。'},
+    GWPT:{desc:'結果にこだわる本気派で、豪快な飛距離で攻めるパワー型。仲間とワイワイ盛り上がるのが大好きで、自然とその場の主役になります。「もっと上手くなりたい」という向上心も人一倍で、練習も本番も全力で楽しむタイプ。あなたが一打を放てば、その日のラウンドは一気に盛り上がります。',s:'誰よりも飛ぶドライバーと、場を一気に盛り上げるムードメーカー力。チームを引っ張る存在感で、初対面でもすぐ打ち解けられます。',w:'熱くなって攻めすぎ、ここ一番で大叩きしてしまうことも。力みと「もう一発」の欲はほどほどに。',a:'「ナイショ！」の声が一番大きい。ドライバーの飛距離はつい盛りがち。',o:'コンペやチーム戦で主役に。飛ばし屋同士で競い合うと、燃えて一番輝きます。',tip:'飛距離は最大の武器。ここぞで刻む勇気を持てると、スコアも一気に安定します。'},
+    GWPI:{desc:'当たれば爆発する飛距離と、その場のノリを全力で楽しむロマン砲タイプ。スコアより「最高の一打」と盛り上がりを優先し、一緒にいると場がパッと明るくなります。安定感より一発の夢を追う、愛されムードメーカーです。',s:'当たれば誰も真似できない特大ショットと、宴を盛り上げる番長気質。ノリの良さは天下一品。',w:'ムラっ気が大きく、安定感は二の次。良い時と悪い時の差が激しめ。',a:'ドラコン（ドラコン賞）だけは何があっても獲りにいく。',o:'ワイワイ系イベントやエンジョイコンペで、飛ばし自慢を披露するのが一番楽しい。',tip:'一発のロマンはそのままに、刻むホールを1〜2個決めておくと大崩れを防げます。'},
+    GWKT:{desc:'仲間と楽しみながらも、技と安定で着実にスコアをまとめる頼れる相棒タイプ。面倒見がよく気配り上手で、グループの潤滑油的な存在。コツコツ努力を続けて、しっかり上達していく堅実派です。',s:'大崩れしない安定感と、抜群の面倒見の良さ。チーム全体のスコアもまとめあげます。',w:'周りに気を配りすぎて、自分のプレーが後回しになりがち。',a:'気づけば幹事を任されている。みんなの飲み物まで把握している。',o:'気の合う仲間との定期グループラウンドで、安定の実力を発揮できます。',tip:'たまには自分のスコアにも本気を。あなたが攻めると周りももっと盛り上がります。'},
+    GWKI:{desc:'コースマネジメントと機転で、無理せず結果を拾う知恵袋タイプ。場の空気を読むのが得意で、仲間と楽しみつつスマートに好スコアを出します。派手さより賢さで魅せる立ち回り上手です。',s:'状況判断とコースマネジメント力。小技と機転で、危ない場面もそつなく切り抜けます。',w:'そつがない分、内に秘めた熱量が周りに伝わりにくいことも。',a:'大叩きせず、気づけばいつの間にか好スコア。',o:'仲間との気楽なコンペで、堅実な実力を発揮するのが向いています。',tip:'たまに思い切って攻めると、新しい引き出しと飛距離が見つかります。'},
+    GMPT:{desc:'飛距離への探究心が強く、黙々と高みを目指す求道者タイプ。一人の時間で技術を磨き、記録更新に喜びを感じます。群れずに自分と向き合う、ストイックな飛ばし屋です。',s:'飛距離への飽くなき探究心と高い集中力。一人で淡々と上達を積み重ねられます。',w:'自分の世界に入り込みやすく、周りが見えなくなることも。',a:'練習場で延々とドライバーを打ち込んでいる。',o:'少人数で記録更新を狙う、落ち着いたラウンドが性に合います。',tip:'たまに気の合う仲間と回ると、研究の成果を試せて刺激になります。'},
+    GMPI:{desc:'静かに狙い、ハマれば爆発する勝負師タイプ。決め所での一発の飛距離は格別で、自分のペースを崩さず攻めます。寡黙ながら一打にロマンを込める一匹狼です。',s:'瞬発力と、ここぞでの一発の飛距離。決まった時の爆発力は誰にも負けません。',w:'気分の波が大きく、調子にムラが出やすい。',a:'会心の一打を一日中語っていられる。',o:'自分のペースで攻められる、縛りの少ないラウンドで本領発揮。',tip:'波を小さくする「いつもの一本」を決めておくと、安定感が増します。'},
+    GMKT:{desc:'ブレずに刻んで積み上げる、堅実な努力家タイプ。派手さはないけれど大崩れせず、地道な継続でしっかり上達します。一人でも黙々と練習を重ねる、コツコツ精密派です。',s:'大崩れしない安定感と、地道に続ける継続力。スコアメイクが手堅い。',w:'慎重すぎて、攻めるべき場面を逃してしまうことも。',a:'パター練習が何より好き。スコアは細かく記録している。',o:'スコア管理をしながら、一人または少人数で回るのが向いています。',tip:'リスクを取る練習も少しだけ。攻めの引き出しが増えると伸びしろ大。'},
+    GMKI:{desc:'自分の型を静かに貫く寡黙な職人タイプ。周りに流されず、淡々と良いスコアを出します。マイペースに自分のゴルフを味わう、落ち着いた一匹狼です。',s:'自分のリズムを崩さない、ブレない安定感。一人でも淡々と good score。',w:'マイペースすぎて、周りと温度差が生まれることも。',a:'無言で淡々と、気づけば好スコアを出している。',o:'静かに集中して回れる、落ち着いた少人数ラウンドで。',tip:'同じく静かに楽しむ仲間を見つけると、心地よい距離感で長く続けられます。'},
+    EWPT:{desc:'明るさと成長意欲を両立する伸び盛りタイプ。「楽しい！」を原動力に、仲間とワイワイ回りながらぐんぐん上達します。前向きなエネルギーで、周りまで元気にする存在です。',s:'明るさと成長意欲の両立。楽しみながら自然と上達していく伸びしろの塊。',w:'楽しさ優先で、ここ一番の詰めが甘くなることも。',a:'上達もスコアも、最後は「楽しかった！」で片付く。',o:'ワイワイ仲間とのラウンド＆練習で、楽しく伸びていけます。',tip:'楽しさはそのままに、たまに1ホールだけ本気で集中すると一気に伸びます。'},
+    EWPI:{desc:'ノリと勢いで振り回す、陽気なムードメーカータイプ。スコアより楽しさ最優先で、失敗すらネタにして笑いに変えます。一緒にいるだけで場が明るくなる、みんなの太陽です。',s:'場を明るくする天性の力と、思い切りの良いスイング。',w:'大叩きしても気にしない（良くも悪くも）。安定感は二の次。',a:'池ポチャもOBも、全部ネタにして大笑い。',o:'気楽なエンジョイコンペで、盛り上げ役として輝きます。',tip:'勢いはあなたの魅力。狙いどころだけ少し丁寧にすると、スコアもついてきます。'},
+    EWKT:{desc:'仲間と和気あいあい、着実に上手くなる働き者タイプ。協調性が高く、コツコツ続ける継続力が持ち味。みんなで楽しみながら成長していく、和やかな相棒です。',s:'コツコツ続ける継続力と、抜群の協調性。場の雰囲気を和ませます。',w:'のんびりしていて、ここ一番の決定力に欠けることも。',a:'みんなのボール探しを、率先して手伝っている。',o:'初心者歓迎の和やかなラウンドで、楽しく着実に上達できます。',tip:'たまに自分の挑戦目標を決めると、続けてきた努力が一気に花開きます。'},
+    EWKI:{desc:'スコアより笑顔、みんなで楽しむことを大切にする宴会部長タイプ。包容力抜群で、場づくりの天才。勝ち負けより「みんなが楽しめたか」を一番に考える、愛されキャラです。',s:'楽しい場づくりの才能と、誰でも受け入れる包容力。',w:'上達への本気度はやや控えめ。スコアにはこだわらない。',a:'打ち上げの仕切りは任せろ。お店選びもプロ級。',o:'イベントやコンペの幹事役で、いちばん輝くタイプです。',tip:'たまに「今日はスコアも狙う日」を作ると、新鮮な達成感が味わえます。'},
+    EMPT:{desc:'群れずに気ままに飛ばし、こっそり上達するマイペース探究タイプ。自分の時間を大切にしながら、飛距離と技術を静かに磨きます。自由を愛する、伸びしろのある一匹狼です。',s:'マイペースな探究心と、伸びていく飛距離。自分のペースで着実に成長。',w:'群れるのが苦手で、誘いに乗りにくいことも。',a:'一人予約で、ふらっと回りに行くのが好き。',o:'少人数の気楽なラウンドで、のびのび攻められます。',tip:'たまに気の合う相手と回ると、ひとりでは気づけない発見があります。'},
+    EMPI:{desc:'気分屋だけど一打は大胆な自由人タイプ。乗った日は爽快なショットを連発し、自分の気分を何より大切にします。型にはまらず、その日のノリでゴルフを楽しむマイペース派です。',s:'ハマった時の大胆さと、爽快な一打。気分が乗ると手がつけられません。',w:'気分次第でムラが大きい。調子の波がそのままスコアに出る。',a:'乗らない日は、さっさと切り上げる潔さ。',o:'縛りのない自由なラウンドで、気分よく回るのが一番。',tip:'気分を上げる「ルーティン」を持つと、調子の悪い日も底上げできます。'},
+    EMKT:{desc:'マイペースに、安全に腕を磨くがんばり屋タイプ。控えめだけど努力家で、実はこっそり一番練習しているタイプ。自分のリズムで着実に積み上げる、堅実な努力家です。',s:'地道な努力と、崩れない安定感。気づけば確実に上達しています。',w:'控えめで、自分からはなかなか誘いにくい。',a:'実は練習量がこっそり一番多い。努力は人に見せない。',o:'お互いのマイペースを尊重し合える仲間と、長く続けられます。',tip:'勇気を出して一度誘ってみると、気の合う仲間がきっと見つかります。'},
+    EMKI:{desc:'自然体でゴルフそのものを味わう癒し系タイプ。スコアや上達より、景色や空気、ゆったりした時間を楽しみます。動じない穏やかさで、一緒にいる人をふっと和ませる存在です。',s:'動じない穏やかさで、その場の空気をやわらげる癒し力。',w:'向上心は薄めで、現状維持になりがち。',a:'景色とお弁当（昼食）が、ラウンドの一番の楽しみ。',o:'のんびり回れる、ゆるめの募集がぴったりです。',tip:'たまに小さな目標を一つ持つと、いつものラウンドがもっと楽しくなります。'},
   };
 
   /* ===== 動物マスコット（独自SVGアイコン／フラット・MBId風テイスト） ===== */
@@ -554,11 +554,6 @@
     // 相性◎：社交軸(B)を反転（補い合う）
     const partnerCode=code.split('').map((ch,i)=>{ const ax=AXORDER[i]; if(ax==='B'){ return ch===AX.B.left.c?AX.B.right.c:AX.B.left.c; } return ch; }).join('');
     const pk=NICK[partnerCode]||{e:'⛳',n:'ゴルファー'};
-    // ゴルトモの楽しみ方
-    const recs=[];
-    recs.push( code[1]===AX.B.left.c ? '<b>コンペ・グループチャット</b>でワイワイ盛り上がろう' : '<b>少人数のゆるい募集</b>で、自分のペースでつながろう');
-    recs.push( code[0]===AX.A.left.c ? '<b>同じくらい本気の仲間</b>とスコアを競い合おう' : '<b>「初心者歓迎・エンジョイ」募集</b>で気楽に楽しもう');
-    recs.push( code[3]===AX.D.left.c ? '<b>上達意欲の高い仲間</b>と切磋琢磨しよう' : '<b>のんびり回れる仲間</b>と、今を楽しもう');
 
     const axBar=(ax)=>{
       const L=AX[ax].left,R=AX[ax].right,p=pos[ax].leftPct,isLeft=pos[ax].score>=0;
@@ -579,7 +574,7 @@
           <div class="rname">${nk.n}</div>
           <div class="rtag">${nk.t}</div>
         </div>
-        <div class="rdesc">${traits[0].d}で、${traits[2].d}。${traits[1].d}、${traits[3].d}タイプです。</div>
+        <div class="rdesc">${(DETAIL[code]||{}).desc || `${traits[0].d}で、${traits[2].d}。${traits[1].d}、${traits[3].d}タイプです。`}</div>
         <div class="kw">${kws.map(k=>`<span>${k}</span>`).join('')}</div>
         <div class="axbars">
           <h4>あなたの4軸バランス</h4>
@@ -588,10 +583,6 @@
         <div class="panel" style="padding-top:14px">
           <div class="pt">📖 あなたの取扱説明書</div>
           ${detailFieldsHTML(code)}
-        </div>
-        <div class="panel">
-          <div class="pt">⛳ ゴルトモでの楽しみ方</div>
-          <ul>${recs.map(r=>`<li>・${r}</li>`).join('')}</ul>
         </div>
         <div class="sigbox" id="sigbox">
           <div class="sigttl">🔔 同じ【${nk.n}】と相性のいいラウンドが立ったら<br>LINEで先にお知らせ</div>
@@ -605,7 +596,7 @@
             <div class="siglbl">ピックアップ場所（複数選択）</div>
             <div class="sigchips" id="sigPlaces">${PICKUP_PLACES.map(p=>`<button type="button" class="sigchip" data-place="${p}">${p}</button>`).join('')}</div>
           </div>
-          <a class="bigcta sigcta" id="sigSubmit" href="https://line.me/R/ti/p/@711xiyrs"><span class="li">L</span>LINEで通知を受け取る</a>
+          <a class="bigcta sigcta" id="sigSubmit" href="https://line.me/R/ti/p/@711xiyrs"><span class="li">LINE</span>LINEで通知を受け取る</a>
           <div class="signote">条件に合うラウンドが立ったらLINEでお知らせします（無料）</div>
         </div>
         <div class="share">
@@ -688,7 +679,7 @@
   }
   // 強み/弱み/あるある/おすすめ＋相性 のHTML（結果・モーダル共通）
   function detailFieldsHTML(code){
-    const d=DETAIL[code]||{s:'',w:'',a:'',o:''};
+    const d=DETAIL[code]||{s:'',w:'',a:'',o:'',tip:''};
     const g=matchGood(code), b=matchBad(code), gk=NICK[g]||{e:'⛳',n:''}, bk=NICK[b]||{e:'⛳',n:''};
     return `
       <div class="dfx">
@@ -696,6 +687,7 @@
         <div class="dfrow"><span class="dfk df-w">⚠️ 弱み</span><span class="dfv">${d.w}</span></div>
         <div class="dfrow"><span class="dfk df-a">😅 あるある</span><span class="dfv">${d.a}</span></div>
         <div class="dfrow"><span class="dfk df-o">⛳ おすすめ</span><span class="dfv">${d.o}</span></div>
+        ${d.tip?`<div class="dfrow"><span class="dfk df-t">💡 アドバイス</span><span class="dfv">${d.tip}</span></div>`:''}
       </div>
       <div class="aishou">
         <div class="ai ok"><div class="ail">相性◎</div><div class="aie">${mascotHTML(g,'m-ai')}</div><div class="ain">${gk.n}</div><div class="aic">${g}</div></div>
