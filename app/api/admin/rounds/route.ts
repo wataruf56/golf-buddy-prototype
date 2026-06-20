@@ -83,7 +83,20 @@ export async function DELETE(req: NextRequest) {
   try {
     const doc = await db.collection('rounds').doc(id).get();
     if (!doc.exists) return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStore });
+    const roundData = doc.data() || {};
     await db.collection('rounds').doc(id).delete();
+
+    // 完了済みラウンドを消したら、参加者の roundCount を1減らす（完了時に+1して
+    // いるため。削除しても減らないバグの修正）。0未満にはしない。
+    if (roundData.status === 'completed') {
+      const parts: string[] = Array.from(new Set([roundData.hostId, ...((roundData.applicantIds as string[]) || [])].filter(Boolean)));
+      await Promise.all(parts.map(async (uid) => {
+        try {
+          const us = await db.collection('users').doc(uid).get();
+          if (us.exists) await us.ref.set({ roundCount: Math.max(0, (us.data().roundCount || 0) - 1) }, { merge: true });
+        } catch {}
+      }));
+    }
 
     let pendingDeleted = 0;
     let reviewsDeleted = 0;

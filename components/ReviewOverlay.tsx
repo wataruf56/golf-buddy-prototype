@@ -78,6 +78,10 @@ export function ReviewOverlay() {
         <div className="px-5 pt-5 pb-3 border-b border-border flex-shrink-0">
           <h3 className="text-lg font-black">ラウンドレビュー</h3>
           <div className="text-[12px] text-sub mt-0.5">一緒に回った{pending.length}人を評価してください（{ratedCount}/{pending.length}）</div>
+          <div className="mt-2.5 px-3 py-2.5 bg-green-light rounded-xl text-[12px] text-green font-bold leading-relaxed">
+            🔒 「また回りたい」「異性として気になる」は<u>お互いが両思いだった時だけ</u>通知されます。<br />
+            相手が選ばなかった場合、あなたの選択が相手に知られることは一切ありません。
+          </div>
         </div>
 
         {/* 全員ぶんスクロール */}
@@ -108,19 +112,19 @@ export function ReviewOverlay() {
                   ))}
                 </div>
 
-                {/* マッチング（異性の相手のみ） */}
-                {opp && (
-                  <div className="flex gap-1.5 mt-2">
-                    <button
-                      onClick={() => upd(p.id, { again: !r.again })}
-                      className={cn('flex-1 py-2 rounded-full text-[12px] font-bold border-[1.5px]', r.again ? 'bg-green text-white border-green' : 'bg-card border-border text-sub')}
-                    >{r.again ? '✓ ' : ''}🏌️ また回りたい</button>
+                {/* マッチング：また回りたいは全員、異性として気になるは異性のみ */}
+                <div className="flex gap-1.5 mt-2">
+                  <button
+                    onClick={() => upd(p.id, { again: !r.again })}
+                    className={cn('flex-1 py-2 rounded-full text-[12px] font-bold border-[1.5px]', r.again ? 'bg-green text-white border-green' : 'bg-card border-border text-sub')}
+                  >{r.again ? '✓ ' : ''}🏌️ また回りたい</button>
+                  {opp && (
                     <button
                       onClick={() => upd(p.id, { romantic: !r.romantic })}
                       className={cn('flex-1 py-2 rounded-full text-[12px] font-bold border-[1.5px]', r.romantic ? 'bg-pink-600 text-white border-pink-600' : 'bg-card border-border text-sub')}
-                    >{r.romantic ? '✓ ' : ''}💘 気になる</button>
-                  </div>
-                )}
+                    >{r.romantic ? '✓ ' : ''}💘 異性として気になる</button>
+                  )}
+                </div>
 
                 {/* コメント（任意） */}
                 <input
@@ -133,11 +137,6 @@ export function ReviewOverlay() {
               </div>
             );
           })}
-          {pending.some((p) => isOpp(users.find((u) => u.id === p.revieweeId))) && (
-            <div className="text-[10px] text-muted leading-relaxed px-1">
-              💡「また回りたい / 気になる」は両思い（お互い選択）のときだけ相手に通知されます。選ばなければ相手に知られません。
-            </div>
-          )}
         </div>
 
         {/* 送信（固定） */}

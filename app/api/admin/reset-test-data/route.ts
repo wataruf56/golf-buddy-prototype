@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   const db = getAdminDb() as any;
   if (!db) return NextResponse.json({ error: 'firestore not initialized' }, { status: 500, headers: noStore });
 
-  const result = { roundsDeleted: 0, chatMsgsDeleted: 0, notifsDeleted: 0, likesDeleted: 0, namesReset: 0 };
+  const result = { roundsDeleted: 0, chatMsgsDeleted: 0, notifsDeleted: 0, likesDeleted: 0, reviewsDeleted: 0, namesReset: 0 };
 
   try {
     // 1) test_ がホストのラウンド + そのグループチャットを削除
@@ -64,11 +64,25 @@ export async function POST(req: NextRequest) {
       if (result.likesDeleted) await b.commit();
     } catch {}
 
-    // 4) テスト垢の表示名を正しい日本語に再設定
+    // 3.5) test_ が絡むレビューを削除
+    try {
+      const rv = await db.collection('reviews').limit(3000).get();
+      const b = db.batch();
+      rv.docs.forEach((d: any) => {
+        const x = d.data();
+        if (isTest(x.reviewerId) || isTest(x.revieweeId)) { b.delete(d.ref); result.reviewsDeleted++; }
+      });
+      if (result.reviewsDeleted) await b.commit();
+    } catch {}
+
+    // 4) テスト垢の表示名を再設定＋カウンタ（ラウンド回数等）を0にリセット
     for (const u of TEST_USERS) {
       try {
         const us = await db.collection('users').doc(u.id).get();
-        if (us.exists) { await us.ref.set({ displayName: u.displayName }, { merge: true }); result.namesReset++; }
+        if (us.exists) {
+          await us.ref.set({ displayName: u.displayName, roundCount: 0, buddyCount: 0, reviewCount: 0, reviewAvg: 0 }, { merge: true });
+          result.namesReset++;
+        }
       } catch {}
     }
 
