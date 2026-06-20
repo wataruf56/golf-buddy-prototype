@@ -259,12 +259,12 @@
   // 永続の匿名訪問者ID（セッションをまたいでユニーク計測）
   let VISITOR=localStorage.getItem('golmotiVisitor'); if(!VISITOR){VISITOR=uid();try{localStorage.setItem('golmotiVisitor',VISITOR);}catch(e){}}
   // 興味シグナルの選択肢
-  const AREAS=['東京','神奈川','埼玉','千葉','茨城','栃木','群馬','大阪','京都','兵庫','愛知','静岡','福岡','北海道','宮城','広島','その他'];
+  const AREAS=['東京','神奈川','埼玉','千葉','茨城','栃木','群馬','山梨','静岡','その他'];
   const DAYS=['土日祝','平日'];
   // クルマ・送迎の希望（単一選択）。需要プールに追加。
   const PICKUP=['ピックアップ可能','送迎してくれるなら行きたい','ピックアップ不可'];
   // ピックアップ場所の候補（本サービスの送迎駅と同じ）。可能/希望のとき複数選択。
-  const PICKUP_PLACES=['新宿','渋谷','池袋','東京','品川','横浜','川崎','大宮','立川','町田','北千住','吉祥寺'];
+  const PICKUP_PLACES=['東京','新宿','渋谷','池袋','品川','上野','北千住','赤羽','立川','八王子','町田','吉祥寺','横浜','川崎','武蔵小杉','新横浜','藤沢','大宮','浦和','川口','所沢','越谷','船橋','西船橋','柏','千葉','海浜幕張','守谷'];
   function track(event,extra){
     const p=Object.assign({visitorId:VISITOR,sessionId:SESSION,event,quiz:'golmoti',style:STYLE,page:location.pathname,ref:document.referrer||''},extra||{});
     try{const a=JSON.parse(localStorage.getItem(LSKEY)||'[]');a.push(Object.assign({clientTs:Date.now()},p));localStorage.setItem(LSKEY,JSON.stringify(a.slice(-200)));}catch(e){}
