@@ -53,6 +53,12 @@ export default async function middleware(req: NextRequest) {
 
   // -------- LP host (goltomo.com / www.goltomo.com) --------
   if (LP_HOSTS.has(host)) {
+    // 静的アセット（画像・CSS・JS・フォント等）は public/ からそのまま配信。
+    // これを通さないと LP(/lp や golmoti.html)が参照する画像が /lp の HTML に
+    // 書き換えられてしまう（例: /line-logo.png）。
+    if (/\.(png|jpe?g|webp|svg|gif|ico|css|js|mjs|map|woff2?|ttf|otf|json|txt|mp4|webm)$/i.test(path)) {
+      return NextResponse.next();
+    }
     if (path.startsWith('/legal') || path === '/lp' || path.startsWith('/lp/') || path.startsWith('/icons/') || path.startsWith('/golmoti-chars/') || path === '/manifest.json' || path === '/favicon.ico' || path === '/golmoti' || path === '/golmoti.html' || path === '/golmoti-lp' || path === '/golmoti-lp.html') {
       return NextResponse.next();
     }
