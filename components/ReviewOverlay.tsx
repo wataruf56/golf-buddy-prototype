@@ -8,34 +8,35 @@ import { track } from '@/lib/telemetry';
 import type { User } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
-// ラウンド後のレビュー＝総合評価＋（異性の相手のみ）マッチング選択。
-// タグは廃止。相手ごとに「また一緒に回りたい」「異性として気になる」を選べ、
-// 両思い（相互選択）のときだけ双方に通知される。
+// ラウンド後のレビュー。4人/コンペなど複数人でも、1画面に全員を並べて
+// スクロールしながら一気に「★評価」と（異性の相手のみ）「また回りたい/異性として
+// 気になる」を入力し、まとめて送信する。
+type Row = { stars: number; again: boolean; romantic: boolean; comment: string };
+
 export function ReviewOverlay() {
   const me = useStore(getMe);
   const pending = useStore((s) =>
     s.pendingReviews.filter((p) => p.reviewerId === s.meId && p.status === 'pending')
   );
   const users = useStore((s) => s.users);
-  const [stars, setStars] = useState(0);
-  const [comment, setComment] = useState('');
-  const [again, setAgain] = useState(false);
-  const [romantic, setRomantic] = useState(false);
+  const [rows, setRows] = useState<Record<string, Row>>({});
   const [busy, setBusy] = useState(false);
 
   if (pending.length === 0) return null;
-  const current = pending[0];
-  const target: User | undefined = users.find((u) => u.id === current.revieweeId);
-  if (!target) return null;
 
-  // 異性のときだけマッチング項目を表示（両者の性別が設定済みで異なる）。
-  const isOppositeSex =
-    (me?.gender === 'male' || me?.gender === 'female') &&
-    (target.gender === 'male' || target.gender === 'female') &&
-    me.gender !== target.gender;
+  const get = (id: string): Row => rows[id] || { stars: 0, again: false, romantic: false, comment: '' };
+  const upd = (id: string, patch: Partial<Row>) => setRows((p) => ({ ...p, [id]: { ...get(id), ...patch } }));
 
-  const labels = ['', 'もう少し...', '普通', '良い！', 'とても良い！', '最高！'];
-  const canSubmit = stars > 0 && !busy;
+  const ratedCount = pending.filter((p) => (rows[p.id]?.stars || 0) > 0).length;
+  const allRated = ratedCount === pending.length;
+
+  function isOpp(target?: User): boolean {
+    return !!(
+      (me?.gender === 'male' || me?.gender === 'female') &&
+      (target?.gender === 'male' || target?.gender === 'female') &&
+      me.gender !== target.gender
+    );
+  }
 
   async function sendLike(roundId: string, toUserId: string, kind: 'again' | 'romantic') {
     try {
@@ -46,23 +47,24 @@ export function ReviewOverlay() {
     } catch { /* best-effort */ }
   }
 
-  async function submit() {
-    if (!canSubmit) return;
+  async function submitAll() {
+    if (!allRated || busy) return;
     setBusy(true);
-    track('review_submit_click', { pendingId: current.id, revieweeId: current.revieweeId, stars });
+    track('review_bulk_submit', { count: pending.length });
     try {
-      await store.submitReview(current.id, stars, [], comment || undefined);
-      // マッチング（異性のみ）。優先度: 異性として気になる > また回りたい。
-      // romantic を先に送ると、両方一致時に again 側の通知が抑制される。
-      if (isOppositeSex) {
-        if (romantic) await sendLike(current.roundId, current.revieweeId, 'romantic');
-        if (again) await sendLike(current.roundId, current.revieweeId, 'again');
+      for (const p of pending) {
+        const r = get(p.id);
+        if (r.stars <= 0) continue;
+        await store.submitReview(p.id, r.stars, [], r.comment || undefined);
+        const target = users.find((u) => u.id === p.revieweeId);
+        if (isOpp(target)) {
+          // 優先度: 異性として気になる > また回りたい（romanticを先に送る）
+          if (r.romantic) await sendLike(p.roundId, p.revieweeId, 'romantic');
+          if (r.again) await sendLike(p.roundId, p.revieweeId, 'again');
+        }
       }
-      track('review_submit_success', { pendingId: current.id });
-      toast('送信しました');
-      setStars(0); setComment(''); setAgain(false); setRomantic(false);
+      toast('レビューを送信しました');
     } catch (e) {
-      track('review_submit_error', { message: (e as Error).message });
       toast('送信失敗: ' + (e as Error).message, 'error');
     } finally {
       setBusy(false);
@@ -70,68 +72,84 @@ export function ReviewOverlay() {
   }
 
   return (
-    <div className="absolute inset-0 bg-black/50 z-[100] flex items-center justify-center p-5 backdrop-blur-sm">
-      <div className="bg-card rounded-card p-6 w-full max-w-[350px] shadow-lg max-h-[90%] overflow-y-auto">
-        <h3 className="text-lg font-black mb-1">ラウンドレビュー</h3>
-        <div className="text-[13px] text-sub mb-4">一緒に回った相手はいかがでしたか？</div>
-
-        <div className="flex items-center gap-3 p-3 bg-bg rounded-xl mb-4">
-          <Avatar user={target} size={44} emojiSize={22} />
-          <div>
-            <div className="text-sm font-bold">{target.displayName}</div>
-            <div className="text-[11px] text-sub">
-              {target.gender === 'male' ? '👨 男性' : target.gender === 'female' ? '👩 女性' : ''}{target.age ? ` ・ ${target.age}歳` : ''}
-            </div>
-          </div>
+    <div className="absolute inset-0 bg-black/50 z-[100] flex flex-col backdrop-blur-sm">
+      <div className="bg-card w-full max-w-[400px] mx-auto my-auto h-full sm:h-auto sm:max-h-[94%] rounded-card flex flex-col overflow-hidden shadow-lg">
+        {/* ヘッダー（固定） */}
+        <div className="px-5 pt-5 pb-3 border-b border-border flex-shrink-0">
+          <h3 className="text-lg font-black">ラウンドレビュー</h3>
+          <div className="text-[12px] text-sub mt-0.5">一緒に回った{pending.length}人を評価してください（{ratedCount}/{pending.length}）</div>
         </div>
 
-        <div className="text-center mb-1 text-xs text-sub">総合評価</div>
-        <div className="flex gap-1.5 justify-center my-3">
-          {[1, 2, 3, 4, 5].map((n) => (
-            <button key={n} onClick={() => setStars(n)} className="text-4xl" style={{ color: n <= stars ? '#E8A93C' : '#E8E6E1' }}>
-              {n <= stars ? '★' : '☆'}
-            </button>
-          ))}
-        </div>
-        {stars > 0 && <div className="text-center text-[13px] font-bold text-green mb-3">{labels[stars]}</div>}
+        {/* 全員ぶんスクロール */}
+        <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
+          {pending.map((p) => {
+            const target = users.find((u) => u.id === p.revieweeId);
+            if (!target) return null;
+            const r = get(p.id);
+            const opp = isOpp(target);
+            return (
+              <div key={p.id} className="bg-bg rounded-xl p-3">
+                <div className="flex items-center gap-2.5 mb-2">
+                  <Avatar user={target} size={40} emojiSize={20} />
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold truncate">{target.displayName}</div>
+                    <div className="text-[11px] text-sub">
+                      {target.gender === 'male' ? '👨 男性' : target.gender === 'female' ? '👩 女性' : ''}{target.age ? ` ・ ${target.age}歳` : ''}
+                    </div>
+                  </div>
+                </div>
 
-        {/* マッチング（異性の相手のときだけ表示） */}
-        {isOppositeSex && (
-          <div className="mb-4">
-            <div className="text-xs text-sub mb-2">この人とのマッチング（任意）</div>
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={() => setAgain((v) => !v)}
-                className={cn('w-full py-3 rounded-xl text-sm font-bold border-[1.5px]', again ? 'bg-green text-white border-green' : 'bg-bg border-border text-text')}
-              >{again ? '✓ ' : ''}🏌️ また一緒に回りたい</button>
-              <button
-                onClick={() => setRomantic((v) => !v)}
-                className={cn('w-full py-3 rounded-xl text-sm font-bold border-[1.5px]', romantic ? 'bg-pink-600 text-white border-pink-600' : 'bg-bg border-border text-text')}
-              >{romantic ? '✓ ' : ''}💘 異性として気になる</button>
+                {/* 星評価 */}
+                <div className="flex gap-1 justify-center mb-1">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button key={n} onClick={() => upd(p.id, { stars: n })} className="text-[30px] leading-none" style={{ color: n <= r.stars ? '#E8A93C' : '#E8E6E1' }}>
+                      {n <= r.stars ? '★' : '☆'}
+                    </button>
+                  ))}
+                </div>
+
+                {/* マッチング（異性の相手のみ） */}
+                {opp && (
+                  <div className="flex gap-1.5 mt-2">
+                    <button
+                      onClick={() => upd(p.id, { again: !r.again })}
+                      className={cn('flex-1 py-2 rounded-full text-[12px] font-bold border-[1.5px]', r.again ? 'bg-green text-white border-green' : 'bg-card border-border text-sub')}
+                    >{r.again ? '✓ ' : ''}🏌️ また回りたい</button>
+                    <button
+                      onClick={() => upd(p.id, { romantic: !r.romantic })}
+                      className={cn('flex-1 py-2 rounded-full text-[12px] font-bold border-[1.5px]', r.romantic ? 'bg-pink-600 text-white border-pink-600' : 'bg-card border-border text-sub')}
+                    >{r.romantic ? '✓ ' : ''}💘 気になる</button>
+                  </div>
+                )}
+
+                {/* コメント（任意） */}
+                <input
+                  value={r.comment}
+                  onChange={(e) => upd(p.id, { comment: e.target.value })}
+                  placeholder="ひとこと（任意）"
+                  maxLength={200}
+                  className="w-full mt-2 px-3 py-2 border-[1.5px] border-border rounded-[10px] text-[13px] bg-card outline-none"
+                />
+              </div>
+            );
+          })}
+          {pending.some((p) => isOpp(users.find((u) => u.id === p.revieweeId))) && (
+            <div className="text-[10px] text-muted leading-relaxed px-1">
+              💡「また回りたい / 気になる」は両思い（お互い選択）のときだけ相手に通知されます。選ばなければ相手に知られません。
             </div>
-            <div className="text-[10px] text-muted mt-2 leading-relaxed">
-              ※ 両思い（お互いに選択）のときだけ相手に通知されます。選ばなければ相手に知られることはありません。
-            </div>
-          </div>
-        )}
-
-        <div className="mb-4">
-          <div className="text-xs text-sub mb-1.5">コメント（任意）</div>
-          <textarea
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            placeholder="一緒にラウンドした感想を書いてください"
-            className="w-full h-[56px] p-2.5 border-[1.5px] border-border rounded-[10px] text-[13px] resize-none outline-none bg-bg"
-          />
+          )}
         </div>
 
-        <button
-          onClick={submit}
-          disabled={!canSubmit}
-          className={cn('w-full py-3.5 rounded-xl text-[15px] font-bold', canSubmit ? 'bg-green text-white' : 'bg-border text-muted cursor-not-allowed')}
-        >
-          {busy ? '送信中...' : stars === 0 ? '★をタップして評価してください' : '送信する'}
-        </button>
+        {/* 送信（固定） */}
+        <div className="px-4 py-3 border-t border-border flex-shrink-0">
+          <button
+            onClick={submitAll}
+            disabled={!allRated || busy}
+            className={cn('w-full py-3.5 rounded-xl text-[15px] font-bold', allRated && !busy ? 'bg-green text-white' : 'bg-border text-muted cursor-not-allowed')}
+          >
+            {busy ? '送信中...' : allRated ? `全員分のレビューを送信する（${pending.length}人）` : `全員を評価してください（${ratedCount}/${pending.length}）`}
+          </button>
+        </div>
       </div>
     </div>
   );
