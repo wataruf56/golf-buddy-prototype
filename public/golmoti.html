@@ -112,7 +112,7 @@
   /* CTA */
   .cta{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--orange);color:var(--cream);font-weight:900;font-size:18px;padding:19px;border:2.5px solid var(--ink);border-radius:16px;box-shadow:5px 5px 0 var(--ink);cursor:pointer;text-decoration:none;transition:transform .12s,box-shadow .12s}
   .cta:active{transform:translate(5px,5px);box-shadow:0 0 0 var(--ink)}
-  .cta .li{flex-shrink:0;padding:3px 7px;background:#06C755;color:#fff;border-radius:7px;display:inline-flex;align-items:center;font-weight:900;font-size:12px;letter-spacing:.5px;border:2px solid var(--ink)}
+  .li-logo{flex-shrink:0;width:auto;height:30px;display:inline-block;vertical-align:middle;background:#fff;border-radius:8px;padding:2px;box-sizing:content-box;border:2px solid var(--ink)}
   .cta-note{font-size:12px;font-weight:700;color:#8a7256;margin-top:12px;text-align:center}
   .ctawrap{margin:18px 16px 0}
   /* sections */
@@ -145,7 +145,7 @@
   .findbar{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;z-index:200;padding:10px 14px calc(12px + env(safe-area-inset-bottom));background:var(--paper);border-top:3px solid var(--ink)}
   .findbar a{display:flex;align-items:center;justify-content:center;gap:11px;width:100%;background:var(--teal);color:var(--cream);padding:12px 16px;border:2.5px solid var(--ink);border-radius:14px;box-shadow:4px 4px 0 var(--ink);text-decoration:none;transition:transform .12s,box-shadow .12s;animation:findpulse 2.2s ease-in-out infinite}
   .findbar a:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink);animation:none}
-  .findbar .li{flex-shrink:0;padding:4px 8px;background:#06C755;color:#fff;border-radius:8px;display:inline-flex;align-items:center;font-weight:900;font-size:13px;letter-spacing:.5px;border:2px solid var(--ink)}
+  .findbar .li-logo{height:34px}
   .findbar .ftxt{display:flex;flex-direction:column;line-height:1.25;text-align:left}
   .findbar .ftxt b{font-weight:900;font-size:16px}
   .findbar .ftxt small{font-weight:700;font-size:10.5px;opacity:.9}
@@ -154,7 +154,7 @@
   .stickybar{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;z-index:120;padding:10px 14px calc(12px + env(safe-area-inset-bottom));background:var(--paper);border-top:3px solid var(--ink)}
   .stickybar a{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--orange);color:var(--cream);font-weight:900;font-size:16px;padding:15px;border:2.5px solid var(--ink);border-radius:14px;box-shadow:4px 4px 0 var(--ink);text-decoration:none;transition:transform .12s,box-shadow .12s}
   .stickybar a:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
-  .stickybar .li{flex-shrink:0;padding:3px 7px;background:#06C755;color:#fff;border-radius:7px;display:inline-flex;align-items:center;font-weight:900;font-size:11px;letter-spacing:.5px;border:2px solid var(--ink)}
+  .stickybar .li-logo{height:28px}
   .dev{margin-top:14px;font-size:11px;color:#b3a489;background:none;border:none;cursor:pointer;text-decoration:underline}
   /* type detail bottom-sheet */
   .tmodal{position:fixed;inset:0;max-width:480px;left:50%;transform:translateX(-50%);background:rgba(51,39,27,.55);z-index:150;display:none;align-items:flex-end}
@@ -241,7 +241,7 @@
 <!-- 固定CTAバー：LINEで友だち追加（相性のいいゴルフ仲間探し） -->
 <div class="findbar">
   <a href="https://line.me/R/ti/p/@711xiyrs" data-cta="findfriends">
-    <span class="li">LINE</span>
+    <img class="li-logo" src="/line-logo.png" alt="LINE" width="184" height="183">
     <span class="ftxt"><b>相性のいいゴルフ友達を探す</b><small>無料・LINEで30秒 ・ 同世代とつながる ⛳</small></span>
     <span class="far">›</span>
   </a>
@@ -597,7 +597,7 @@
             <div class="siglbl">ピックアップ場所（複数選択）</div>
             <div class="sigchips" id="sigPlaces">${PICKUP_PLACES.map(p=>`<button type="button" class="sigchip" data-place="${p}">${p}</button>`).join('')}</div>
           </div>
-          <a class="bigcta sigcta" id="sigSubmit" href="https://line.me/R/ti/p/@711xiyrs"><span class="li">LINE</span>LINEで通知を受け取る</a>
+          <a class="bigcta sigcta" id="sigSubmit" href="https://line.me/R/ti/p/@711xiyrs"><img class="li-logo" src="/line-logo.png" alt="LINE" width="184" height="183">LINEで通知を受け取る</a>
           <div class="signote">条件に合うラウンドが立ったらLINEでお知らせします（無料）</div>
         </div>
         <div class="share">
@@ -670,8 +670,6 @@
   function matchGood(code){ return flip(code,'B'); }
   // ○ 相性がいい：プレースタイル軸(C)だけ逆＝目的・社交・向上心が同じで、飛距離派×技巧派が補い合う
   function matchOk(code){ return flip(code,'C'); }
-  // ◇ 違いを楽しめる：目的(A)と向上心(D)が逆＝タイプは違うが、その分新しい発見や刺激が多い相手
-  function matchBad(code){ return flip(flip(code,'A'),'D'); }
   function describeType(code){
     const nk=NICK[code]||{e:'⛳',n:'ゴルファー',t:''};
     const tr=AXORDER.map((ax,i)=>poleOf(ax,code[i]));
@@ -683,8 +681,8 @@
   // 強み/弱み/あるある/おすすめ＋相性 のHTML（結果・モーダル共通）
   function detailFieldsHTML(code){
     const d=DETAIL[code]||{s:'',w:'',a:'',o:'',tip:''};
-    const g=matchGood(code), o=matchOk(code), b=matchBad(code);
-    const gk=NICK[g]||{e:'⛳',n:''}, ok=NICK[o]||{e:'⛳',n:''}, bk=NICK[b]||{e:'⛳',n:''};
+    const g=matchGood(code), o=matchOk(code);
+    const gk=NICK[g]||{e:'⛳',n:''}, ok=NICK[o]||{e:'⛳',n:''};
     return `
       <div class="dfx">
         <div class="dfrow"><span class="dfk df-s">💪 強み</span><span class="dfv">${d.s}</span></div>
@@ -695,9 +693,8 @@
       </div>
       <div class="aishttl">⛳ 一緒に回ると楽しいタイプ</div>
       <div class="aishou">
-        <div class="ai ok"><div class="ail">◎ ものすごく合う</div><div class="aie">${mascotHTML(g,'m-ai')}</div><div class="ain">${gk.n}</div><div class="aic">${g}</div></div>
+        <div class="ai ok"><div class="ail">◎ ものすごく相性がいい</div><div class="aie">${mascotHTML(g,'m-ai')}</div><div class="ain">${gk.n}</div><div class="aic">${g}</div></div>
         <div class="ai mid"><div class="ail">○ 相性がいい</div><div class="aie">${mascotHTML(o,'m-ai')}</div><div class="ain">${ok.n}</div><div class="aic">${o}</div></div>
-        <div class="ai stim"><div class="ail">◇ 違いを楽しめる</div><div class="aie">${mascotHTML(b,'m-ai')}</div><div class="ain">${bk.n}</div><div class="aic">${b}</div></div>
       </div>`;
   }
 
