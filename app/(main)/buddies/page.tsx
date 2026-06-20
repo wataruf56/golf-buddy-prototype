@@ -5,7 +5,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useStore, getMe } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
-import { chatIdFor, ratingLabel } from '@/lib/utils';
+import { chatIdFor } from '@/lib/utils';
 
 type MatchInfo = { again: boolean; romantic: boolean };
 type MUser = { displayName: string; avatar?: string; avatarUrl?: string; gender?: string; age?: number };
@@ -24,13 +24,15 @@ function Inner() {
   const me = useStore(getMe);
   const chats = useStore((s) => s.chats);
   const users = useStore((s) => s.users);
-  const buddyIds = useStore((s) => s.buddyIds);
   const blocked = new Set(me.blockedUserIds || []);
 
-  const initTab = (search?.get('tab') as 'buddies' | 'romantic' | 'again') || 'buddies';
-  const [tab, setTab] = useState<'buddies' | 'romantic' | 'again'>(initTab);
+  const initTab = (search?.get('tab') as 'past' | 'romantic' | 'again') || 'past';
+  const [tab, setTab] = useState<'past' | 'romantic' | 'again'>(initTab);
   const [matches, setMatches] = useState<Record<string, MatchInfo>>({});
   const [matchUsers, setMatchUsers] = useState<Record<string, MUser>>({});
+  const [pastIds, setPastIds] = useState<string[]>([]);
+  const [pastUsers, setPastUsers] = useState<Record<string, MUser>>({});
+  const [pastLoaded, setPastLoaded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,20 +45,24 @@ function Inner() {
         if (d?.users) setMatchUsers(d.users);
       } catch { /* noop */ }
     })();
+    (async () => {
+      try {
+        const res = await fetch('/api/me/past-partners', { cache: 'no-store', credentials: 'include' });
+        const d = await res.json();
+        if (cancelled) return;
+        if (Array.isArray(d?.partners)) setPastIds(d.partners);
+        if (d?.users) setPastUsers(d.users);
+      } catch { /* noop */ } finally { if (!cancelled) setPastLoaded(true); }
+    })();
     return () => { cancelled = true; };
   }, []);
 
-  const buddies = buddyIds
-    .filter((id) => !blocked.has(id))
-    .map((id) => ({ other: users.find((u) => u.id === id), chat: chats.find((c) => c.id === chatIdFor(meId, id)) }))
-    .filter((b) => b.other)
-    .sort((a, b) => (b.chat?.lastMessageAt || 0) - (a.chat?.lastMessageAt || 0));
-
+  const pastPartners = pastIds.filter((id) => !blocked.has(id));
   const romanticIds = Object.keys(matches).filter((id) => matches[id]?.romantic);
   const againIds = Object.keys(matches).filter((id) => matches[id]?.again);
 
   const tabs = [
-    { key: 'buddies' as const, label: '👥 ゴル友', n: buddies.length },
+    { key: 'past' as const, label: '⛳ 一緒に回った人', n: pastPartners.length },
     { key: 'romantic' as const, label: '💘 気になる', n: romanticIds.length },
     { key: 'again' as const, label: '🏌️ また回りたい', n: againIds.length },
   ];
@@ -72,47 +78,46 @@ function Inner() {
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={'flex-1 py-2 rounded-full text-[12px] font-bold transition-colors ' + (tab === t.key ? 'bg-green text-white' : 'text-sub')}
+              className={'flex-1 py-2 rounded-full text-[11px] font-bold transition-colors ' + (tab === t.key ? 'bg-green text-white' : 'text-sub')}
             >{t.label}{t.n > 0 ? ` ${t.n}` : ''}</button>
           ))}
         </div>
       </div>
 
       <div className="px-5 pb-20">
-        {tab === 'buddies' && (
+        {tab === 'past' && (
           <>
-            <div className="text-xs text-sub mb-3">ラウンド後の相互レビューを完了した相手とメッセージができます</div>
-            {buddies.length === 0 ? (
-              <Empty title="まだゴル友がいません" desc="ラウンドに参加して相互レビューを完了するとゴル友になれます" />
+            <div className="text-xs text-sub mb-3">過去に同じ組でラウンドした人の一覧です。タップでプロフィール・💬でメッセージ。</div>
+            {pastPartners.length === 0 ? (
+              <Empty title={pastLoaded ? 'まだ一緒に回った人がいません' : '読み込み中...'} desc="ラウンドに参加して完了すると、同じ組だった人がここに並びます" />
             ) : (
-              buddies.map(({ chat, other }) => {
-                if (!other) return null;
-                const cid = chatIdFor(meId, other.id);
+              pastPartners.map((id) => {
+                const u = pastUsers[id] || matchUsers[id] || users.find((x) => x.id === id) || { displayName: 'メンバー' };
+                const cid = chatIdFor(meId, id);
+                const chat = chats.find((c) => c.id === cid);
                 const unread = chat?.unreadCount[meId] || 0;
                 return (
-                  <div key={other.id} className="bg-card rounded-card p-4 shadow-card mb-2.5 flex items-center gap-3">
-                    <Link href={`/profile/${other.id}`} className="flex items-center gap-3 min-w-0 flex-1">
-                      <Avatar user={other} size={48} />
+                  <div key={id} className="bg-card rounded-card p-4 shadow-card mb-2.5 flex items-center gap-3">
+                    <Link href={`/profile/${id}`} className="flex items-center gap-3 min-w-0 flex-1">
+                      <Avatar user={{ id, displayName: u.displayName, avatar: u.avatar, avatarUrl: u.avatarUrl, color: '#2A8C82' } as any} size={48} />
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[15px] font-bold">{other.displayName}</span>
-                          <span className="text-[11px] text-green font-bold">{ratingLabel(other)}</span>
+                          <span className="text-[15px] font-bold truncate">{u.displayName}</span>
+                          {u.gender === 'male' ? <span className="text-[11px]">👨</span> : u.gender === 'female' ? <span className="text-[11px]">👩</span> : null}
+                          {u.age ? <span className="text-[11px] text-sub font-medium">{u.age}歳</span> : null}
                         </div>
-                        {(matches[other.id]?.again || matches[other.id]?.romantic) ? (
+                        {(matches[id]?.again || matches[id]?.romantic) ? (
                           <div className="flex items-center gap-1 mt-0.5">
-                            {matches[other.id]?.romantic && <span className="text-[10px] font-black text-pink-600 bg-pink-100 px-1.5 py-px rounded-full border border-pink-600">💘 マッチ</span>}
-                            {matches[other.id]?.again && <span className="text-[10px] font-black text-green bg-green-light px-1.5 py-px rounded-full border border-green">🏌️ また回りたい</span>}
+                            {matches[id]?.romantic && <span className="text-[10px] font-black text-pink-600 bg-pink-100 px-1.5 py-px rounded-full border border-pink-600">💘 マッチ</span>}
+                            {matches[id]?.again && <span className="text-[10px] font-black text-green bg-green-light px-1.5 py-px rounded-full border border-green">🏌️ また回りたい</span>}
                           </div>
                         ) : (
                           <div className="text-[10px] text-muted mt-0.5">タップでプロフィール</div>
                         )}
                       </div>
                     </Link>
-                    <Link href={`/chat/${cid}?other=${other.id}`} className="flex items-center gap-2 flex-shrink-0 max-w-[45%]">
-                      <div className="text-right min-w-0">
-                        <div className="text-xs text-sub truncate">{chat?.lastMessage || 'メッセージ ›'}</div>
-                        {unread > 0 && <div className="inline-block mt-1 px-1.5 py-0.5 bg-orange text-white text-[10px] font-bold rounded-full min-w-[18px] text-center">{unread}</div>}
-                      </div>
+                    <Link href={chat ? `/chat/${cid}?other=${id}` : `/profile/${id}`} className="flex items-center gap-2 flex-shrink-0">
+                      {unread > 0 && <div className="px-1.5 py-0.5 bg-orange text-white text-[10px] font-bold rounded-full min-w-[18px] text-center">{unread}</div>}
                       <span className="text-lg flex-shrink-0">💬</span>
                     </Link>
                   </div>

@@ -382,7 +382,11 @@ class FirestoreDB implements DB {
   }
   async deleteRound(id: string) {
     const ref = this.fs.collection('rounds').doc(id);
-    // Best-effort cleanup of chat + thread subcollections, then the doc itself.
+    // 削除前にラウンド情報を控える（完了済みなら参加者の roundCount を戻すため）。
+    let roundData: any = null;
+    try { const s = await ref.get(); roundData = s.exists ? s.data() : null; } catch {}
+
+    // Best-effort cleanup of chat + thread subcollections.
     for (const sub of ['chat', 'threads']) {
       try {
         const snap = await ref.collection(sub).limit(500).get();
@@ -393,6 +397,59 @@ class FirestoreDB implements DB {
         }
       } catch (e) { console.error(`[deleteRound] sub ${sub} cleanup failed (non-fatal)`, e); }
     }
+
+    // カスケード①: このラウンドのレビューを削除（被レビュー者の集計を後で再計算）。
+    const recompute = new Set<string>();
+    try {
+      const snap = await this.fs.collection('reviews').where('roundId', '==', id).get();
+      if (!snap.empty) {
+        const batch = this.fs.batch();
+        snap.docs.forEach((d: any) => { const x = d.data(); if (x.revieweeId) recompute.add(x.revieweeId); batch.delete(d.ref); });
+        await batch.commit();
+      }
+    } catch (e) { console.error('[deleteRound] reviews cleanup failed (non-fatal)', e); }
+
+    // カスケード②: このラウンドのレビュー依頼（pendingReviews）を削除。
+    try {
+      const snap = await this.fs.collection('pendingReviews').where('roundId', '==', id).get();
+      if (!snap.empty) {
+        const batch = this.fs.batch();
+        snap.docs.forEach((d: any) => batch.delete(d.ref));
+        await batch.commit();
+      }
+    } catch (e) { console.error('[deleteRound] pendingReviews cleanup failed (non-fatal)', e); }
+
+    // カスケード③: このラウンドで付いた「気になる/また回りたい」いいねを削除。
+    // → ラウンドを消したら「ゴル友」タブのマッチ一覧からも消える（残骸防止）。
+    try {
+      const snap = await this.fs.collection('_matchLikes').where('roundId', '==', id).get();
+      if (!snap.empty) {
+        const batch = this.fs.batch();
+        snap.docs.forEach((d: any) => batch.delete(d.ref));
+        await batch.commit();
+      }
+    } catch (e) { console.error('[deleteRound] matchLikes cleanup failed (non-fatal)', e); }
+
+    // 被レビュー者の reviewAvg / reviewCount を再計算（レビューが減った分を反映）。
+    for (const uid of Array.from(recompute)) {
+      try {
+        const all = await this.listReviewsForUser(uid);
+        const avg = all.length ? +(all.reduce((s, r) => s + r.stars, 0) / all.length).toFixed(2) : 0;
+        await this.fs.collection('users').doc(uid).set({ reviewCount: all.length, reviewAvg: avg, updatedAt: Date.now() }, { merge: true });
+      } catch (e) { console.error('[deleteRound] review recompute failed (non-fatal)', uid, e); }
+    }
+
+    // 完了済みラウンドを消したら参加者の roundCount を1減らす（0未満にはしない）。
+    if (roundData && roundData.status === 'completed') {
+      const parts: string[] = Array.from(new Set([roundData.hostId, ...((roundData.applicantIds as string[]) || [])].filter(Boolean)));
+      await Promise.all(parts.map(async (uid) => {
+        try {
+          const us = await this.fs.collection('users').doc(uid).get();
+          if (us.exists) await us.ref.set({ roundCount: Math.max(0, (us.data().roundCount || 0) - 1) }, { merge: true });
+        } catch {}
+      }));
+    }
+
     await ref.delete();
   }
   async joinRound(id: string, userId: string) {

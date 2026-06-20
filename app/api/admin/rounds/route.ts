@@ -98,6 +98,18 @@ export async function DELETE(req: NextRequest) {
       }));
     }
 
+    // このラウンドで付いた「気になる/また回りたい」いいねを削除（cascadeに関わらず常に）。
+    // → 「ゴル友」タブのマッチ一覧に残骸が残らないようにする。
+    let likesDeleted = 0;
+    try {
+      const snap = await db.collection('_matchLikes').where('roundId', '==', id).get();
+      if (!snap.empty) {
+        const batch = db.batch();
+        snap.docs.forEach((d: any) => { batch.delete(d.ref); likesDeleted++; });
+        await batch.commit();
+      }
+    } catch {}
+
     let pendingDeleted = 0;
     let reviewsDeleted = 0;
     let chatMsgsDeleted = 0;
@@ -147,7 +159,7 @@ export async function DELETE(req: NextRequest) {
       } catch {}
     }
 
-    return NextResponse.json({ ok: true, pendingDeleted, reviewsDeleted, chatMsgsDeleted }, { headers: noStore });
+    return NextResponse.json({ ok: true, pendingDeleted, reviewsDeleted, chatMsgsDeleted, likesDeleted }, { headers: noStore });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
   }

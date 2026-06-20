@@ -26,6 +26,7 @@ export default function RoundChatPage() {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [denied, setDenied] = useState(false);
+  const [notFound, setNotFound] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const round = storeRound || fetchedRound;
@@ -34,6 +35,9 @@ export default function RoundChatPage() {
     try {
       const res = await fetch(`/api/rounds/${params.id}/chat`, { cache: 'no-store' });
       if (res.status === 403) { setDenied(true); setLoaded(true); return; }
+      // ラウンドが削除済み（または存在しない）→ 専用画面を出す。
+      // ストアに古いラウンドが残っていても掲示板を開かせず、送信時の 404 を防ぐ。
+      if (res.status === 404) { setNotFound(true); setLoaded(true); return; }
       if (!res.ok) throw new Error(`${res.status}`);
       const d = await res.json();
       setMessages(d.messages || []);
@@ -143,6 +147,20 @@ export default function RoundChatPage() {
         </div>
         <button onClick={() => router.push(`/round/${params.id}`)} className="px-5 py-2.5 bg-green text-white rounded-xl text-sm font-bold">
           募集の詳細を見る
+        </button>
+      </div>
+    );
+  }
+  if (notFound) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full px-8 text-center">
+        <div className="text-4xl mb-3">🗑️</div>
+        <div className="text-base font-black mb-2">このラウンドは削除されました</div>
+        <div className="text-[13px] text-sub leading-relaxed mb-5">
+          主催者がこの募集を削除したため、グループチャットは利用できません。
+        </div>
+        <button onClick={() => router.push('/home')} className="px-5 py-2.5 bg-green text-white rounded-xl text-sm font-bold">
+          ホームに戻る
         </button>
       </div>
     );
