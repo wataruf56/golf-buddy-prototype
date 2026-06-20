@@ -32,6 +32,8 @@ export default function HomePage() {
   const readAtRef = useRef<number>(me.notifReadAt || 0);
   const [showNotifModal, setShowNotifModal] = useState(false);
   const [showAddBot, setShowAddBot] = useState(false);
+  // マッチ成立のポップアップ（ホームで大きく表示）。一度見たら再表示しない。
+  const [matchPopup, setMatchPopup] = useState<{ text: string; tab: string } | null>(null);
   // Mark the お知らせ inbox read shortly after viewing the home screen.
   useEffect(() => {
     if (!notifications.length) return;
@@ -49,6 +51,25 @@ export default function HomePage() {
     if (localStorage.getItem('gb_bot_added') === '1') return;
     setShowAddBot(true);
   }, [me.notifyOff]);
+  // マッチ通知が来たらポップアップ。localStorageで既読管理し再表示を防ぐ。
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const ms = notifications.filter((n) => (n as any).type === 'match');
+    if (!ms.length) return;
+    const newest = ms[0];
+    const seen = Number(localStorage.getItem('gb_match_popup_seen') || 0);
+    if ((newest.createdAt || 0) <= seen) return;
+    const tab = newest.text.includes('気になる') ? 'romantic' : 'again';
+    setMatchPopup({ text: newest.text, tab });
+  }, [notifications]);
+  function closeMatchPopup(go: boolean) {
+    const newest = notifications.filter((n) => (n as any).type === 'match')[0];
+    if (newest) { try { localStorage.setItem('gb_match_popup_seen', String(newest.createdAt)); } catch {} }
+    const tab = matchPopup?.tab;
+    setMatchPopup(null);
+    if (go && tab) router.push(`/buddies?tab=${tab}`);
+  }
+
   const rounds = useStore((s) => s.rounds.filter((r) => r.status === 'open'));
   const users = useStore((s) => s.users);
   const myHostedPending = useStore((s) =>
@@ -288,6 +309,19 @@ export default function HomePage() {
                 ✓ 未読のお知らせはありません
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 🎉 マッチ成立ポップアップ（レビューと同じ大きさ・中央表示） */}
+      {matchPopup && (
+        <div className="absolute inset-0 bg-black/50 z-[120] flex items-center justify-center p-5 backdrop-blur-sm">
+          <div className="bg-card rounded-card p-7 w-full max-w-[340px] shadow-lg text-center">
+            <div className="text-5xl mb-2">🎉</div>
+            <div className="text-xl font-black mb-1.5">マッチしました！</div>
+            <div className="text-[13px] text-sub mb-6 leading-relaxed">{matchPopup.text}</div>
+            <button onClick={() => closeMatchPopup(true)} className="w-full py-3.5 bg-green text-white rounded-xl text-[15px] font-bold mb-2">見に行く</button>
+            <button onClick={() => closeMatchPopup(false)} className="w-full py-3 text-sub text-sm font-bold">閉じる</button>
           </div>
         </div>
       )}

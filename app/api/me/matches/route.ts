@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMeId } from '@/lib/session';
 import { getAdminDb } from '@/lib/firebase';
+import { db as appDb } from '@/lib/db';
 
 // 自分が両思い（相互いいね）になっている相手の一覧。ゴル友画面で「マッチ済み」
 // バッジを出すのに使う。again=また回りたい / romantic=異性として気になる。
@@ -25,7 +26,15 @@ export async function GET(_req: NextRequest) {
       matches[to] = matches[to] || { again: false, romantic: false };
       matches[to][kind] = true;
     }));
-    return NextResponse.json({ matches }, { headers: noStore });
+    // 相手の表示用情報（ゴル友画面の一覧表示に使う）
+    const users: Record<string, any> = {};
+    await Promise.all(Object.keys(matches).map(async (id) => {
+      const u = await appDb.getUser(id);
+      users[id] = u
+        ? { displayName: u.displayName || 'メンバー', avatar: u.avatar || '⛳', avatarUrl: (u as any).avatarUrl || '', age: u.age || 0, gender: u.gender || '' }
+        : { displayName: 'メンバー', avatar: '⛳' };
+    }));
+    return NextResponse.json({ matches, users }, { headers: noStore });
   } catch (e) {
     return NextResponse.json({ matches: {}, error: (e as Error).message }, { headers: noStore });
   }
