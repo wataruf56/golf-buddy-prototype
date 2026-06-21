@@ -489,7 +489,12 @@ function VisitorManager({ raw, token, onChanged }: { raw: RawEvent[]; token: str
       });
       const d = await r.json();
       if (!r.ok) alert('削除失敗: ' + (d.error || r.status));
-      else onChanged();
+      else {
+        const parts = [`計測ログ ${d.deleted ?? 0}件`];
+        if (typeof d.deletedSignals === 'number') parts.push(`LINE通知データ ${d.deletedSignals}件`);
+        alert(`データベースから削除しました（${parts.join(' / ')}）`);
+        onChanged();
+      }
     } catch { alert('削除に失敗しました'); }
     finally { setBusy(''); }
   }

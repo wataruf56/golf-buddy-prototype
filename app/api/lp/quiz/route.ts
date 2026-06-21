@@ -227,37 +227,44 @@ export async function DELETE(req: NextRequest) {
   const sessionId = String(body?.sessionId || '').trim();
   const all = body?.all === true;
 
+  // コレクション全体を条件付きでバッチ削除するヘルパー。
+  const wipe = async (coll: string, where?: { field: string; value: string }) => {
+    let deleted = 0;
+    for (let loop = 0; loop < 100; loop++) {
+      let q: any = db.collection(coll);
+      if (where) q = q.where(where.field, '==', where.value);
+      const snap = await q.limit(450).get();
+      if (snap.empty) break;
+      const batch = db.batch();
+      snap.docs.forEach((d: any) => { batch.delete(d.ref); deleted++; });
+      await batch.commit();
+      if (snap.size < 450) break;
+    }
+    return deleted;
+  };
+
   try {
     if (id) {
       await db.collection('_lpQuiz').doc(id).delete();
       return NextResponse.json({ ok: true, deleted: 1 }, { headers: cors });
     }
-    // 全削除（ゼロからやり直す用）。バッチで全件消す。
+    // 全削除（ゼロからやり直す用）。計測ログ(_lpQuiz)とLINE紐付け通知(_lpSignal)を両方消す。
     if (all) {
-      let deleted = 0;
-      for (let loop = 0; loop < 100; loop++) {
-        const snap = await db.collection('_lpQuiz').limit(450).get();
-        if (snap.empty) break;
-        const batch = db.batch();
-        snap.docs.forEach((d: any) => { batch.delete(d.ref); deleted++; });
-        await batch.commit();
-        if (snap.size < 450) break;
-      }
-      return NextResponse.json({ ok: true, deleted, all: true }, { headers: cors });
+      const deleted = await wipe('_lpQuiz');
+      const deletedSignals = await wipe('_lpSignal');
+      return NextResponse.json({ ok: true, deleted, deletedSignals, all: true }, { headers: cors });
     }
     const field = visitorId ? 'visitorId' : sessionId ? 'sessionId' : '';
     const value = visitorId || sessionId;
     if (!field) return NextResponse.json({ error: 'id / visitorId / sessionId のいずれかが必要です' }, { status: 400, headers: cors });
 
-    const snap = await db.collection('_lpQuiz').where(field, '==', value).limit(3000).get();
-    let deleted = 0;
-    const docs = snap.docs;
-    for (let i = 0; i < docs.length; i += 450) {
-      const batch = db.batch();
-      docs.slice(i, i + 450).forEach((d: any) => { batch.delete(d.ref); deleted++; });
-      await batch.commit();
-    }
-    return NextResponse.json({ ok: true, deleted }, { headers: cors });
+    // 計測ログを削除。
+    const deleted = await wipe('_lpQuiz', { field, value });
+    // 訪問者単位の削除なら、LINE紐付けの通知データ(_lpSignal)も同じ visitorId で削除する。
+    // → 「この訪問者の全データを削除」でDBから完全に消える（残骸を残さない）。
+    let deletedSignals = 0;
+    if (visitorId) deletedSignals = await wipe('_lpSignal', { field: 'visitorId', value: visitorId });
+    return NextResponse.json({ ok: true, deleted, deletedSignals }, { headers: cors });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: cors });
   }
