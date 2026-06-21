@@ -10,6 +10,7 @@ export type SwingUserContext = {
   age?: number;
   scoreRange?: string;     // e.g. '90台'
   golfHistory?: string;    // e.g. '3〜5年'
+  club?: string;           // 使用クラブ（例: 'ドライバー（1W）'）
 };
 
 const GENDER_LABEL: Record<string, string> = { male: '男性', female: '女性', other: 'その他' };
@@ -22,6 +23,7 @@ export function buildUserContextBlock(ctx: SwingUserContext | undefined): string
   if (ctx.age && ctx.age > 0) parts.push(`・年齢: ${ctx.age}歳`);
   if (ctx.scoreRange) parts.push(`・平均スコア: ${ctx.scoreRange}`);
   if (ctx.golfHistory) parts.push(`・ゴルフ歴: ${ctx.golfHistory}`);
+  if (ctx.club) parts.push(`・この動画で使用しているクラブ: ${ctx.club}`);
   if (!parts.length) return '';
   return [
     '【このゴルファーのプロフィール】',
@@ -29,8 +31,9 @@ export function buildUserContextBlock(ctx: SwingUserContext | undefined): string
     '',
     '上記のレベル・経験を踏まえ、その人に合った言葉選びとアドバイスをしてください。',
     '（例: 初心者には基礎的な動作の説明から、上級者には細かなニュアンスまで）',
+    ctx.club ? `なお、使用クラブは「${ctx.club}」です。クラブ特性（番手による必要なスイングの違い・ボール位置・入射角・スイングプレーン等）を踏まえて、このクラブに即した具体的なアドバイスをしてください。` : '',
     '',
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 }
 
 const COACH_INTRO = [

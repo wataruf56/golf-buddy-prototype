@@ -17,6 +17,7 @@ export type SwingDoc = {
   rangeGcsPath?: string;       // range_vs_round: 練習場でのスイング
 
   userMessage?: string;        // free-text (required for question mode)
+  club?: string;               // 使用クラブ（ユーザーがプルダウンで選択。履歴表示＋AIへ渡す）
 
   reviewText?: string;         // raw analyzer output
   reviewTextChunks?: string[]; // pre-split for UI

@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
   const prevGcsPath = body?.prevGcsPath ? String(body.prevGcsPath).trim() : undefined;
   const rangeGcsPath = body?.rangeGcsPath ? String(body.rangeGcsPath).trim() : undefined;
   const userMessage = body?.userMessage ? String(body.userMessage).trim() : undefined;
+  const club = body?.club ? String(body.club).slice(0, 40).trim() : undefined;
 
   if (!swingId) return NextResponse.json({ error: 'swingId required' }, { status: 400, headers: noStore });
   if (!VALID_MODES.includes(mode)) return NextResponse.json({ error: 'invalid mode' }, { status: 400, headers: noStore });
@@ -58,6 +59,7 @@ export async function POST(req: NextRequest) {
     prevGcsPath,
     rangeGcsPath,
     userMessage,
+    club,
     billingPlanSnapshot: 'free',
     createdAt: now,
     updatedAt: now,

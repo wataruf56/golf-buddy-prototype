@@ -118,7 +118,10 @@ async function processOne(swing: SwingDoc): Promise<{ status: string }> {
         age: u.age,
         scoreRange: u.scoreRange,
         golfHistory: (u as any).golfHistory,
+        club: fresh.club,
       };
+    } else if (fresh.club) {
+      userContext = { club: fresh.club };
     }
   } catch (e) { /* fallback to no-context */ }
   const prompt = buildPromptForMode({ mode, userMessage: fresh.userMessage, userContext });

@@ -125,6 +125,11 @@ export default function SwingDetailPage() {
         <div className="text-[11px] text-muted">
           {new Date(swing.createdAt).toLocaleString('ja-JP')}
         </div>
+        {swing.club && (
+          <div className="mt-2 inline-flex items-center gap-1 text-[12px] font-bold text-sub bg-bg rounded-full px-2.5 py-1">
+            🏌️ 使用クラブ: {swing.club}
+          </div>
+        )}
         {swing.userMessage && (
           <div className="mt-3 p-3 bg-bg rounded-lg text-[12px] text-sub whitespace-pre-wrap">
             {swing.userMessage}

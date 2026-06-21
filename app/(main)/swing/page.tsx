@@ -112,15 +112,29 @@ export default function SwingListPage() {
               <Link
                 key={s.swingId}
                 href={`/swing/${s.swingId}`}
-                className="flex items-center justify-between p-3.5 bg-card rounded-xl shadow-card"
+                className="flex items-center justify-between gap-3 p-3.5 bg-card rounded-xl shadow-card"
               >
                 <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-bold">{MODE_LABEL[s.mode] || s.mode}</div>
                   <div className="text-[11px] text-muted mt-0.5">
                     {formatDate(new Date(s.createdAt).toISOString().slice(0, 10))}
                   </div>
+                  {s.club && (
+                    <div className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-bold text-sub bg-bg rounded-full px-2 py-0.5">
+                      🏌️ {s.club}
+                    </div>
+                  )}
                 </div>
-                <StatusBadge status={s.status} />
+                {s.status === 'done' && typeof s.swingScore === 'number' ? (
+                  <div className="flex flex-col items-center flex-shrink-0">
+                    <div className="w-[52px] h-[52px] rounded-full border-[3px] border-blue flex items-center justify-center">
+                      <span className="text-[18px] font-black text-blue leading-none">{s.swingScore}</span>
+                    </div>
+                    <span className="text-[9px] text-muted mt-0.5 font-bold">スコア</span>
+                  </div>
+                ) : (
+                  <StatusBadge status={s.status} />
+                )}
               </Link>
             ))}
           </div>

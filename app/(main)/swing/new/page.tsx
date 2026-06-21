@@ -7,6 +7,7 @@ import { ModeSelector } from '@/components/swing/ModeSelector';
 import { VideoUploader } from '@/components/swing/VideoUploader';
 import { toast } from '@/components/Toast';
 import { getMe, useStore } from '@/lib/store';
+import { SWING_CLUBS } from '@/lib/swingClubs';
 import type { SwingMode } from '@/types/swing';
 
 function genId(): string {
@@ -32,6 +33,7 @@ export default function NewSwingPage() {
   const profileReady = hydrated && profileMissing.length === 0;
 
   const [mode, setMode] = useState<SwingMode | ''>('');
+  const [club, setClub] = useState('');
   const [videoUri, setVideoUri] = useState('');
   const [proUri, setProUri] = useState('');
   const [prevUri, setPrevUri] = useState('');
@@ -45,6 +47,7 @@ export default function NewSwingPage() {
   if (mode === 'past' && !prevUri) missing.push('過去動画');
   if (mode === 'range_vs_round' && !rangeUri) missing.push('練習場の動画');
   if (mode && !videoUri) missing.push(mode === 'range_vs_round' ? 'ラウンド本番の動画' : '自分の動画');
+  if (mode && !club) missing.push('使用クラブ');
   if (mode === 'question' && !userMessage.trim()) missing.push('質問内容');
   const ready = missing.length === 0;
 
@@ -63,6 +66,7 @@ export default function NewSwingPage() {
           prevGcsPath: prevUri || undefined,
           rangeGcsPath: rangeUri || undefined,
           userMessage: userMessage.trim() || undefined,
+          club: club || undefined,
         }),
       });
       if (!r.ok) {
@@ -169,7 +173,22 @@ export default function NewSwingPage() {
 
           <div className="mt-5">
             <div className="text-xs font-bold text-sub mb-2">
-              {mode === 'question' ? '③ 質問内容（必須）' : '③ 補足メッセージ（任意）'}
+              {mode === 'compare' || mode === 'past' || mode === 'range_vs_round' ? '④ 使用クラブ（必須）' : '③ 使用クラブ（必須）'}
+            </div>
+            <select
+              value={club}
+              onChange={(e) => setClub(e.target.value)}
+              className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
+            >
+              <option value="">クラブを選択してください</option>
+              {SWING_CLUBS.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <div className="text-[10px] text-muted mt-1">選んだクラブの特性を踏まえて AI が解析します（履歴にも表示されます）</div>
+          </div>
+
+          <div className="mt-5">
+            <div className="text-xs font-bold text-sub mb-2">
+              {mode === 'question' ? '質問内容（必須）' : '補足メッセージ（任意）'}
             </div>
             <textarea
               value={userMessage}
