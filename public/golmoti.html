@@ -290,8 +290,28 @@
   const FRIEND_ADD='https://line.me/R/ti/p/@711xiyrs';
   function uid(){try{if(crypto&&crypto.randomUUID)return crypto.randomUUID();}catch(e){}return 's_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);}
   let SESSION=sessionStorage.getItem('golmotiSession'); if(!SESSION){SESSION=uid();sessionStorage.setItem('golmotiSession',SESSION);}
-  // 永続の匿名訪問者ID（セッションをまたいでユニーク計測）
-  let VISITOR=localStorage.getItem('golmotiVisitor'); if(!VISITOR){VISITOR=uid();try{localStorage.setItem('golmotiVisitor',VISITOR);}catch(e){}}
+  // 永続の匿名訪問者ID（セッションをまたいでユニーク計測）。既に存在＝再訪。
+  let RETURNING=false;
+  let VISITOR=localStorage.getItem('golmotiVisitor');
+  if(VISITOR){ RETURNING=true; } else { VISITOR=uid(); try{localStorage.setItem('golmotiVisitor',VISITOR);}catch(e){} }
+  // 流入・デバイス等のコンテキスト（visit / leave に付与して属性分析に使う）。
+  function ctx(){
+    let u; try{ u=new URLSearchParams(location.search); }catch(e){ u=new URLSearchParams(''); }
+    const g=(k)=>(u.get(k)||'');
+    let tz=''; try{ tz=Intl.DateTimeFormat().resolvedOptions().timeZone||''; }catch(e){}
+    return {
+      utmSource:g('utm_source')||g('src')||g('ref_src'), utmMedium:g('utm_medium'),
+      utmCampaign:g('utm_campaign')||g('camp'), utmContent:g('utm_content'), utmTerm:g('utm_term'),
+      landing:location.pathname+location.search.slice(0,200),
+      screenSize:((screen&&screen.width)||0)+'x'+((screen&&screen.height)||0),
+      viewport:((window.innerWidth)||0)+'x'+((window.innerHeight)||0),
+      lang:(navigator.language||''), tz, returning:RETURNING?1:0,
+    };
+  }
+  // 滞在・スクロール・離脱の計測用ステート。
+  let T_VISIT=Date.now(), T_START=0, MAX_STEP=0, MAX_SCROLL=0, RESULT_SHOWN=false, LEFT=false;
+  function trackScroll(){ try{ const h=document.documentElement; const sc=(h.scrollTop||document.body.scrollTop); const max=(h.scrollHeight-h.clientHeight)||1; const pctv=Math.min(100,Math.round(sc/max*100)); if(pctv>MAX_SCROLL) MAX_SCROLL=pctv; }catch(e){} }
+  function sendLeave(){ if(LEFT) return; LEFT=true; trackScroll(); track('leave',{lastStep:(typeof step==='number'?step:0), maxStep:MAX_STEP, scroll:MAX_SCROLL, reached:RESULT_SHOWN?1:0, dwellMs:Date.now()-T_VISIT}); }
   // 興味シグナルの選択肢
   const AREAS=['東京','神奈川','埼玉','千葉','茨城','栃木','群馬','山梨','静岡','その他'];
   const DAYS=['土日祝','平日'];
@@ -300,7 +320,7 @@
   // ピックアップ場所の候補（本サービスの送迎駅と同じ）。可能/希望のとき複数選択。
   const PICKUP_PLACES=['東京','新宿','渋谷','池袋','品川','上野','北千住','赤羽','立川','八王子','町田','吉祥寺','横浜','川崎','武蔵小杉','新横浜','藤沢','大宮','浦和','川口','所沢','越谷','船橋','西船橋','柏','千葉','海浜幕張','守谷'];
   function track(event,extra){
-    const p=Object.assign({visitorId:VISITOR,sessionId:SESSION,event,quiz:'golmoti',style:STYLE,page:location.pathname,ref:document.referrer||''},extra||{});
+    const p=Object.assign({visitorId:VISITOR,sessionId:SESSION,event,quiz:'golmoti',style:STYLE,page:location.pathname,ref:document.referrer||''},(event==='visit'||event==='leave')?ctx():{},extra||{});
     try{const a=JSON.parse(localStorage.getItem(LSKEY)||'[]');a.push(Object.assign({clientTs:Date.now()},p));localStorage.setItem(LSKEY,JSON.stringify(a.slice(-200)));}catch(e){}
     console.log('[golmoti]',p);
     try{const b=new Blob([JSON.stringify(p)],{type:'text/plain'});if(navigator.sendBeacon&&navigator.sendBeacon(ENDPOINT,b))return;}catch(e){}
@@ -560,9 +580,10 @@
       const o=cur.opts[+b.dataset.i];
       ans[step]={qi:step+1, ax:o.ax, pole:o.pole, w:o.w, t:o.t};
       // 「診断スタート」は1問目を回答した人だけカウント（LP来訪だけでは数えない）
-      if(step===0) track('start',{total:QS.length});
-      track('answer',{qid:'q'+(step+1), optionId:o.ax+o.pole+o.w, optionLabel:o.t, step:step+1, total:QS.length});
-      step++;
+      if(step===0){ T_START=Date.now(); track('start',{total:QS.length}); }
+      const sinceStart=T_START?Date.now()-T_START:0;
+      track('answer',{qid:'q'+(step+1), optionId:o.ax+o.pole+o.w, optionLabel:o.t, step:step+1, total:QS.length, msFromStart:sinceStart});
+      step++; if(step>MAX_STEP) MAX_STEP=step;
       if(step<QS.length) renderQ(); else showCalc();
     }));
     const bk=document.getElementById('qback'); if(bk) bk.addEventListener('click',()=>{step--;renderQ();});
@@ -592,8 +613,9 @@
       const r=computeCode(); code=r.code; pos=r.pos;
     }
     const nk=NICK[code]||{e:'⛳',n:'ゴルファー',t:''};
+    RESULT_SHOWN=true;
     if(shared){ track('viewShared',{resultType:code}); }
-    else { const pattern=ans.map((a,i)=>`q${i+1}:${a.ax}${a.pole}${a.w}`); track('complete',{resultType:code, pattern, total:QS.length}); }
+    else { const pattern=ans.map((a,i)=>`q${i+1}:${a.ax}${a.pole}${a.w}`); track('complete',{resultType:code, pattern, total:QS.length, msTotal:(T_START?Date.now()-T_START:0), answered:ans.length}); }
 
     // 持ち味（各軸の選ばれたpole説明）
     const traits=AXORDER.map(ax=>{ const isLeft=pos[ax].score>=0; return isLeft?AX[ax].left:AX[ax].right; });
@@ -786,6 +808,12 @@
   }
   const SHARED=getSharedCode();
   track('visit',{shared: SHARED ? 1 : 0, resultType: SHARED || ''}); // 来訪をユニーク計測
+  // スクロール深度＋離脱（drop-off）計測。ページを離れる瞬間に 'leave' を送る。
+  try{ window.addEventListener('scroll',trackScroll,{passive:true}); }catch(e){}
+  try{
+    window.addEventListener('pagehide',sendLeave);
+    document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') sendLeave(); });
+  }catch(e){}
   if(SHARED){
     const hero=document.querySelector('.hero'); if(hero) hero.style.display='none';
     quiz.classList.add('hidden');
