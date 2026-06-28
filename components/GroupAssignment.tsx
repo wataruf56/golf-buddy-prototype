@@ -11,6 +11,8 @@ let uidSeq = 0;
 const newGroupId = () => `g_${Date.now()}_${(uidSeq++).toString(36)}`;
 const newGuestId = () => `gst_${Date.now()}_${(uidSeq++).toString(36)}`;
 const isGuest = (id: string) => id.startsWith('gst_');
+// スタートのコース種別。プリセット2つ＋自由記入。
+const COURSE_PRESETS = ['アウトスタートから', 'インスタートから'];
 
 export function GroupAssignment({ round, users, isHost }: { round: Round; users: User[]; isHost: boolean }) {
   const registeredIds = useMemo(
@@ -48,6 +50,18 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  // 自由記入モードの組（コースがプリセット以外、または「自由記入」を選んだ組）。
+  const [freeCourse, setFreeCourse] = useState<Set<string>>(() => {
+    const s = new Set<string>();
+    (round.groups || []).forEach((g) => { if (g.course && !COURSE_PRESETS.includes(g.course)) s.add(g.id); });
+    return s;
+  });
+  const showFree = (g: RoundGroup) => freeCourse.has(g.id) || (!!g.course && !COURSE_PRESETS.includes(g.course));
+  const courseSelectValue = (g: RoundGroup) => (g.course && COURSE_PRESETS.includes(g.course)) ? g.course : (showFree(g) ? '__free__' : '');
+  function onCourseSelect(gid: string, v: string) {
+    if (v === '__free__') { setFreeCourse((p) => new Set(p).add(gid)); setCourse(gid, ''); }
+    else { setFreeCourse((p) => { const n = new Set(p); n.delete(gid); return n; }); setCourse(gid, v); }
+  }
 
   const assigned = new Set(groups.flatMap((g) => g.memberIds));
   const pool = participantIds.filter((id) => !assigned.has(id));
@@ -208,7 +222,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
     finally { setSaving(false); }
   }
 
-  const Card = ({ id }: { id: string }) => {
+  const Card = ({ id, inGroup }: { id: string; inGroup?: boolean }) => {
     const u = userOf(id);
     return (
       <div
@@ -226,6 +240,15 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
         <span className="truncate">{nameOf(id)}</span>
         {metaOf(id) && <span className="text-[10px] text-muted font-normal flex-shrink-0">（{metaOf(id)}）</span>}
         {isGuest(id) && <span className="text-[9px] font-bold text-sub bg-bg border border-border rounded px-1 ml-0.5 flex-shrink-0">ゲスト</span>}
+        {inGroup && (
+          <button
+            type="button"
+            aria-label="未割り当てに戻す"
+            onPointerDown={(e) => { e.stopPropagation(); }}
+            onClick={(e) => { e.stopPropagation(); moveMember(id, 'pool'); }}
+            className="ml-auto w-5 h-5 rounded-full bg-red-100 text-red-600 text-[12px] leading-none flex items-center justify-center flex-shrink-0"
+          >×</button>
+        )}
       </div>
     );
   };
@@ -233,7 +256,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   return (
     <div className="bg-card rounded-card p-4 shadow-card mb-4">
       <div className="text-[13px] font-bold mb-0.5">⛳ 組分け・スタート時間（主催者）</div>
-      <div className="text-[10px] text-muted mb-2.5">「未割り当て」から各組へドラッグ。組の追加・削除も可。</div>
+      <div className="text-[10px] text-muted mb-2.5">「未割り当て」から各組へドラッグ。メンバーの「×」または外へドラッグで未割り当てに戻せます。</div>
 
       {/* reservation / capacity */}
       <div className="flex items-center justify-between bg-green-light rounded-xl px-3 py-2 mb-2.5">
@@ -259,14 +282,6 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
         <span className="text-[11px] text-muted self-center">{participantIds.length}人 / {groups.length}組</span>
       </div>
 
-      {/* コース種別の候補（自由入力も可） */}
-      <datalist id="courseOptions">
-        <option value="IN-OUT" />
-        <option value="OUT-IN" />
-        <option value="INコース" />
-        <option value="OUTコース" />
-      </datalist>
-
       {/* groups */}
       <div className="flex flex-col gap-2.5">
         {groups.map((g, gi) => {
@@ -280,23 +295,37 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
                 <button onClick={() => delGroup(g.id)} className="w-7 h-7 rounded-lg border border-red-200 text-red-500 font-black bg-card">×</button>
               </span>
             </div>
-            {/* コース種別（IN-OUT / OUT-IN 等。選択後の編集・自由入力も可） */}
+            {/* スタートのコース（アウト/イン/自由記入） */}
             <div className="flex items-center gap-1.5 mb-1.5">
               <span className="text-[10px] text-muted flex-shrink-0">⛳ コース</span>
-              <input
-                list="courseOptions"
-                value={g.course || ''}
-                onChange={(e) => setCourse(g.id, e.target.value)}
-                placeholder="IN-OUT / OUT-IN / 自由入力"
-                maxLength={30}
+              <select
+                value={courseSelectValue(g)}
+                onChange={(e) => onCourseSelect(g.id, e.target.value)}
                 className="flex-1 min-w-0 text-[12px] border-[1.5px] border-border rounded-lg px-2 py-1 bg-bg outline-none"
-              />
+              >
+                <option value="">選択してください</option>
+                <option value="アウトスタートから">アウトスタートから</option>
+                <option value="インスタートから">インスタートから</option>
+                <option value="__free__">自由記入</option>
+              </select>
             </div>
+            {showFree(g) && (
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="text-[10px] text-muted flex-shrink-0 w-[34px]"> </span>
+                <input
+                  value={g.course || ''}
+                  onChange={(e) => setCourse(g.id, e.target.value)}
+                  placeholder="コースを自由に入力"
+                  maxLength={30}
+                  className="flex-1 min-w-0 text-[12px] border-[1.5px] border-border rounded-lg px-2 py-1 bg-bg outline-none"
+                />
+              </div>
+            )}
             {over && <div className="text-[10px] text-red-600 font-bold mb-1.5">⚠️ 人数オーバーです（{g.memberIds.length}名 / 規定{GROUP_MAX}名）</div>}
             <div className="flex flex-col gap-1.5 min-h-[40px]">
               {g.memberIds.length === 0
                 ? <div className="text-[11px] text-muted px-1 py-1.5">ここにドラッグ</div>
-                : g.memberIds.map((id) => <Card key={id} id={id} />)}
+                : g.memberIds.map((id) => <Card key={id} id={id} inGroup />)}
             </div>
           </div>
           );
