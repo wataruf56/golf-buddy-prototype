@@ -57,11 +57,11 @@ export function ReviewOverlay() {
         if (r.stars <= 0) continue;
         await store.submitReview(p.id, r.stars, [], r.comment || undefined);
         const target = users.find((u) => u.id === p.revieweeId);
-        if (isOpp(target)) {
-          // 優先度: 異性として気になる > また回りたい（romanticを先に送る）
-          if (r.romantic) await sendLike(p.roundId, p.revieweeId, 'romantic');
-          if (r.again) await sendLike(p.roundId, p.revieweeId, 'again');
-        }
+        const opp = isOpp(target);
+        // 「異性として気になる」は「また一緒に回りたい」を内包する。
+        const effAgain = r.again || (opp && r.romantic);
+        if (opp && r.romantic) await sendLike(p.roundId, p.revieweeId, 'romantic');
+        if (effAgain) await sendLike(p.roundId, p.revieweeId, 'again');
       }
       toast('レビューを送信しました');
     } catch (e) {
@@ -112,17 +112,30 @@ export function ReviewOverlay() {
                   ))}
                 </div>
 
-                {/* マッチング：また回りたいは全員、異性として気になるは異性のみ */}
-                <div className="flex gap-1.5 mt-2">
-                  <button
-                    onClick={() => upd(p.id, { again: !r.again })}
-                    className={cn('flex-1 py-2 rounded-full text-[12px] font-bold border-[1.5px]', r.again ? 'bg-green text-white border-green' : 'bg-card border-border text-sub')}
-                  >{r.again ? '✓ ' : ''}🏌️ また回りたい</button>
-                  {opp && (
+                {/* マッチング：また回りたいは全員。異性として気になる(異性のみ)は
+                    「また回りたい」を内包するため、選択中は専用ボタン1つに切り替える。 */}
+                <div className="mt-2">
+                  {opp && r.romantic ? (
                     <button
-                      onClick={() => upd(p.id, { romantic: !r.romantic })}
-                      className={cn('flex-1 py-2 rounded-full text-[12px] font-bold border-[1.5px]', r.romantic ? 'bg-pink-600 text-white border-pink-600' : 'bg-card border-border text-sub')}
-                    >{r.romantic ? '✓ ' : ''}💘 異性として気になる</button>
+                      onClick={() => upd(p.id, { romantic: false })}
+                      className="w-full py-2 rounded-full text-[12px] font-bold border-[1.5px] bg-pink-600 text-white border-pink-600"
+                    >✓ 💘 異性として気になる（「また回りたい」も含む）</button>
+                  ) : (
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={() => upd(p.id, { again: !r.again })}
+                        className={cn('flex-1 py-2 rounded-full text-[12px] font-bold border-[1.5px]', r.again ? 'bg-green text-white border-green' : 'bg-card border-border text-sub')}
+                      >{r.again ? '✓ ' : ''}🏌️ また回りたい</button>
+                      {opp && (
+                        <button
+                          onClick={() => upd(p.id, { romantic: true, again: false })}
+                          className="flex-1 py-2 rounded-full text-[12px] font-bold border-[1.5px] bg-card border-border text-sub"
+                        >💘 異性として気になる</button>
+                      )}
+                    </div>
+                  )}
+                  {opp && r.romantic && (
+                    <div className="text-[10px] text-pink-600 font-bold mt-1 text-center">「また一緒に回りたい」も自動で含まれます</div>
                   )}
                 </div>
 

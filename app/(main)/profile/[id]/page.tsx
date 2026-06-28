@@ -23,6 +23,7 @@ export default function ProfilePage() {
 
   const [user, setUser] = useState<User | undefined>(cachedUser);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [track, setTrack] = useState<{ roundedWith: number; againCount: number } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
@@ -32,6 +33,10 @@ export default function ProfilePage() {
     fetch(`/api/users/${encodeURIComponent(params.id)}`)
       .then((r) => r.json())
       .then((d) => { if (d.user) setUser(d.user); if (d.reviews) setReviews(d.reviews); })
+      .catch(() => {});
+    fetch(`/api/users/${encodeURIComponent(params.id)}/track-record`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => setTrack({ roundedWith: d.roundedWith || 0, againCount: d.againCount || 0 }))
       .catch(() => {});
   }, [params.id]);
 
@@ -130,6 +135,31 @@ export default function ProfilePage() {
           <div className="text-2xl font-black">{user.roundCount}</div>
           <div className="text-[10px] text-muted mt-0.5">ラウンド</div>
         </div>
+      </div>
+
+      {/* 実績ベースの評価：一緒に回った人のうち「また回りたい」を押した割合 */}
+      <div className="bg-green-light border-[1.5px] border-green rounded-card p-4 mb-5">
+        <div className="text-[12px] font-black text-green mb-1.5">🏌️ また回りたいと思われた実績</div>
+        {track ? (
+          track.roundedWith > 0 ? (
+            <>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-[28px] leading-none font-black text-green">{track.againCount}</span>
+                <span className="text-[13px] font-bold text-sub">/ {track.roundedWith}人</span>
+                <span className="text-[12px] font-bold text-green ml-auto">
+                  {Math.round((track.againCount / track.roundedWith) * 100)}%
+                </span>
+              </div>
+              <div className="text-[11px] text-sub mt-1.5">
+                これまで <b className="text-text">{track.roundedWith}人</b> と一緒にラウンドし、そのうち <b className="text-green">{track.againCount}人</b> が「また一緒に回りたい」と回答。
+              </div>
+            </>
+          ) : (
+            <div className="text-[12px] text-sub">まだ一緒にラウンドした実績がありません。</div>
+          )
+        ) : (
+          <div className="text-[12px] text-muted">読み込み中...</div>
+        )}
       </div>
 
       <div className="bg-card rounded-card p-4 shadow-card mb-3">
