@@ -17,7 +17,8 @@ const playStyles = [
 const frequencies = [
   '月1回未満', '月1回', '月2回', '月3回', '月4回以上', '週1回以上', 'ほぼ毎日',
 ];
-const avatars = ['⛳', '🧑', '👩', '👨', '🧔', '👱', '🧓', '🤠'];
+// 絵文字アバターは男女マークの2種のみ。
+const avatars = ['👨', '👩'];
 const scoreRanges = [
   'ラウンド未経験',
   'ラウンド数回',
@@ -72,8 +73,9 @@ export default function ProfileEditPage() {
   const [frequency, setFrequency] = useState('');
   const [recentScores, setRecentScores] = useState<ScoreEntry[]>([]);
   const [golfHistory, setGolfHistory] = useState('');
-  const [avatar, setAvatar] = useState('⛳');
+  const [avatar, setAvatar] = useState('👨');
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
+  const [avatarMode, setAvatarMode] = useState<'photo' | 'emoji' | 'golmoti'>('emoji');
   const [initialized, setInitialized] = useState(false);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -95,8 +97,9 @@ export default function ProfileEditPage() {
     setFrequency(me.frequency || '');
     setRecentScores(Array.isArray(me.recentScores) ? me.recentScores : []);
     setGolfHistory(me.golfHistory || '');
-    setAvatar(me.avatar || '⛳');
+    setAvatar(me.avatar || (me.gender === 'female' ? '👩' : '👨'));
     setAvatarUrl(me.avatarUrl || undefined);
+    setAvatarMode((me.avatarMode as any) || (me.avatarUrl ? 'photo' : 'emoji'));
     setInitialized(true);
     track('profile_edit_initialized', {
       hydrated, meId, meIdInStore: me.id,
@@ -116,6 +119,7 @@ export default function ProfileEditPage() {
     try {
       const dataUrl = await resizeToDataUrl(file, 320, 0.7);
       setAvatarUrl(dataUrl);
+      setAvatarMode('photo');
       track('photo_resize_success', { dataUrlLength: dataUrl.length });
       toast('写真を取り込みました（保存ボタンで確定）');
     } catch (e) {
@@ -128,6 +132,7 @@ export default function ProfileEditPage() {
 
   function clearPhoto() {
     setAvatarUrl(undefined);
+    setAvatarMode('emoji');
     if (fileRef.current) fileRef.current.value = '';
   }
 
@@ -168,6 +173,7 @@ export default function ProfileEditPage() {
         car: (car || undefined) as CarStatus | undefined,
         bio,
         area, scoreRange, playStyle, frequency, avatar,
+        avatarMode,
         golmotiType: golmotiType || '',
         avatarUrl: avatarUrl || '',
         recentScores: cleanedScores,
@@ -204,59 +210,74 @@ export default function ProfileEditPage() {
 
       <div className="bg-card rounded-card p-5 shadow-card">
         <div className="mb-5">
-          <label className="block text-xs font-bold text-sub mb-2">プロフィール写真</label>
-          <div className="flex items-center gap-4">
-            <Avatar user={{ avatar, avatarUrl, color: me.color }} size={72} emojiSize={36} />
-            <div className="flex-1 flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                disabled={busy}
-                className="px-4 py-2.5 bg-green text-white rounded-lg text-sm font-bold disabled:opacity-50"
-              >
+          <label className="block text-xs font-bold text-sub mb-2">プロフィールアイコン</label>
+          <div className="flex items-center gap-4 mb-3">
+            <Avatar user={{ avatar, avatarUrl, color: me.color, avatarMode, golmotiType }} size={72} emojiSize={36} />
+            <div className="flex-1 text-[11px] text-muted leading-relaxed">
+              表示するアイコンの種類を選べます。写真も診断アイコンも未設定の場合は絵文字になります。
+            </div>
+          </div>
+
+          {/* アイコンの種類セレクタ */}
+          <div className="flex gap-1.5 mb-3">
+            {([['photo', '📷 写真'], ['emoji', '😀 絵文字'], ['golmoti', '⛳ 診断アイコン']] as const).map(([m, label]) => {
+              const disabled = m === 'golmoti' && !golmotiType;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => setAvatarMode(m)}
+                  className={'flex-1 py-2 rounded-lg text-[12px] font-bold border-[1.5px] ' + (avatarMode === m ? 'bg-green text-white border-green' : 'bg-bg border-border text-sub') + (disabled ? ' opacity-40' : '')}
+                >{label}</button>
+              );
+            })}
+          </div>
+          {avatarMode === 'golmoti' && !golmotiType && (
+            <div className="text-[11px] text-orange mb-2">※ 診断アイコンは、下の「ゴルフタイプ診断」を設定すると選べます。</div>
+          )}
+
+          {/* 写真モード */}
+          {avatarMode === 'photo' && (
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} className="px-4 py-2.5 bg-green text-white rounded-lg text-sm font-bold disabled:opacity-50">
                 {busy ? '読み込み中...' : avatarUrl ? '写真を変更' : '写真をアップロード'}
               </button>
               {avatarUrl && (
-                <button
-                  type="button"
-                  onClick={clearPhoto}
-                  className="px-4 py-2 bg-bg text-sub rounded-lg text-xs font-bold"
-                >
-                  写真を削除（絵文字に戻す）
-                </button>
+                <button type="button" onClick={clearPhoto} className="px-4 py-2 bg-bg text-sub rounded-lg text-xs font-bold">写真を削除</button>
               )}
             </div>
-          </div>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) handleFile(f);
-            }}
-          />
-        </div>
+          )}
 
-        {!avatarUrl && (
-          <div className="mb-4">
-            <label className="block text-xs font-bold text-sub mb-1.5">絵文字アバター（写真未設定時）</label>
+          {/* 絵文字モード（男女マークの2種） */}
+          {avatarMode === 'emoji' && (
             <div className="flex gap-2 flex-wrap">
               {avatars.map((a) => (
                 <button
                   key={a}
                   onClick={() => setAvatar(a)}
-                  className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl border-[1.5px] ${
-                    avatar === a ? 'border-green bg-green-light' : 'border-border bg-bg'
-                  }`}
-                >
-                  {a}
-                </button>
+                  className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl border-[1.5px] ${avatar === a ? 'border-green bg-green-light' : 'border-border bg-bg'}`}
+                >{a}</button>
               ))}
             </div>
-          </div>
-        )}
+          )}
+
+          {/* 診断アイコンモード */}
+          {avatarMode === 'golmoti' && golmotiType && (
+            <div className="flex items-center gap-2.5 bg-bg rounded-lg p-2.5">
+              <img src={golmotiImg(golmotiType)} alt="" className="w-12 h-12 object-contain flex-shrink-0" />
+              <span className="text-[12px] font-bold">{getGolmotiType(golmotiType)?.name} のアイコンを表示します</span>
+            </div>
+          )}
+
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+          />
+        </div>
 
         <Field label="表示名">
           <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />

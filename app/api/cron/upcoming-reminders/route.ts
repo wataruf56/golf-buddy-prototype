@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { pushToMany, liffUrl } from '@/lib/linePush';
 import { isNotifyEnabled } from '@/lib/notifyPrefs';
+import { getReminderDaysBefore } from '@/lib/roundReminderConfig';
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 
@@ -30,13 +31,6 @@ const DAY = 24 * 60 * 60 * 1000;
 const JST = 9 * 60 * 60 * 1000;
 const MAX_PER_TICK = 80;
 
-// 各バンドの判定。daysUntil(JSTカレンダー日数) が範囲内なら、そのキーで送る。
-const BANDS: { key: string; min: number; max: number }[] = [
-  { key: 'd30', min: 8, max: 31 },
-  { key: 'd7', min: 2, max: 7 },
-  { key: 'd1', min: 0, max: 1 },
-];
-
 function targetMs(date: string, startTime?: string): number | null {
   const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date || '');
   if (!dm) return null;
@@ -55,23 +49,27 @@ export async function GET(req: NextRequest) {
 
   const now = Date.now();
   const dnow = Math.floor((now + JST) / DAY); // JSTでの「今日」の通し日数
+  // 管理画面で設定した「開催の何日前に送るか」（例: [30,7,1]）。
+  const daysBefore = await getReminderDaysBefore();
   const allRounds = await db.listRounds();
 
   type Job = { round: any; key: string; daysUntil: number };
   const jobs: Job[] = [];
-  for (const r of allRounds) {
-    if (r.status !== 'open') continue;        // 募集中のみ（締切/完了は対象外）
-    if (!r.date) continue;                     // 日程未確定（範囲のみ）は対象外
-    const target = targetMs(r.date, r.startTime);
-    if (target === null) continue;
-    const dtar = Math.floor((target + JST) / DAY);
-    const daysUntil = dtar - dnow;             // JSTカレンダー日数
-    if (daysUntil < 0) continue;               // 過去は対象外
-    const band = BANDS.find((b) => daysUntil >= b.min && daysUntil <= b.max);
-    if (!band) continue;
-    if (r.upcomingRemindersSent && r.upcomingRemindersSent[band.key]) continue; // 送信済み
-    jobs.push({ round: r, key: band.key, daysUntil });
-    if (jobs.length >= MAX_PER_TICK) break;
+  if (daysBefore.length) {
+    for (const r of allRounds) {
+      if (r.status !== 'open') continue;        // 募集中のみ（締切/完了は対象外）
+      if (!r.date) continue;                     // 日程未確定（範囲のみ）は対象外
+      const target = targetMs(r.date, r.startTime);
+      if (target === null) continue;
+      const dtar = Math.floor((target + JST) / DAY);
+      const daysUntil = dtar - dnow;             // JSTカレンダー日数
+      if (daysUntil < 0) continue;               // 過去は対象外
+      if (!daysBefore.includes(daysUntil)) continue; // 設定された「◯日前」に一致した日だけ送る
+      const key = `d${daysUntil}`;
+      if (r.upcomingRemindersSent && r.upcomingRemindersSent[key]) continue; // 送信済み
+      jobs.push({ round: r, key, daysUntil });
+      if (jobs.length >= MAX_PER_TICK) break;
+    }
   }
 
   let sent = 0, skipped = 0;

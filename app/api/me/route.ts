@@ -13,7 +13,7 @@ export async function PATCH(req: NextRequest) {
   const meId = await getMeId();
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const body = await req.json();
-  const allowed = ['displayName', 'age', 'gender', 'car', 'bio', 'area', 'scoreRange', 'playStyle', 'frequency', 'golmotiType', 'avatar', 'avatarUrl', 'recentScores', 'notifyOff', 'notifyPrefs', 'golfHistory', 'realNameLast', 'realNameFirst'];
+  const allowed = ['displayName', 'age', 'gender', 'car', 'bio', 'area', 'scoreRange', 'playStyle', 'frequency', 'golmotiType', 'avatar', 'avatarUrl', 'avatarMode', 'recentScores', 'notifyOff', 'notifyPrefs', 'golfHistory', 'realNameLast', 'realNameFirst'];
   const patch: Record<string, unknown> = {};
   for (const key of allowed) if (key in body) patch[key] = body[key];
   await db.updateUser(meId, patch as any);

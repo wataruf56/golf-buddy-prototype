@@ -16,6 +16,9 @@ export type User = {
   golmotiType?: string;
   avatar: string;
   avatarUrl?: string;
+  // アイコンの種類: 'photo'=写真 / 'emoji'=絵文字(男女マーク) / 'golmoti'=診断アイコン。
+  // 未設定なら avatarUrl があれば写真、無ければ絵文字（後方互換）。
+  avatarMode?: 'photo' | 'emoji' | 'golmoti';
   color: string;
   lineId?: string;
   reviewAvg: number;
@@ -139,6 +142,7 @@ export type RoundGroup = {
   id: string;
   startTime?: string;
   memberIds: string[];
+  course?: string;   // コース種別（例: 'IN-OUT' / 'OUT-IN' / 自由入力のコース名）
 };
 
 // ゴルトモ未登録のゲスト（名前のみ）。組み分けに含められる。

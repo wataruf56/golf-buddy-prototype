@@ -238,19 +238,6 @@ export default function SearchPage() {
               </select>
             </FilterGroup>
 
-            <FilterGroup label="コース状況">
-              <Chips
-                options={[
-                  { id: 'all', label: '全て' },
-                  { id: 'confirmed', label: '✅ 確定' },
-                  { id: 'flexible', label: '📍 未定' },
-                ]}
-                value={draft.course}
-                onChange={(v) => patch('course', v as CourseFilter)}
-                color="green"
-              />
-            </FilterGroup>
-
             <FilterGroup label="募集の性別">
               <Chips
                 options={[

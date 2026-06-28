@@ -49,39 +49,11 @@ export function RoundCard({ round, host }: { round: Round; host?: User }) {
           )}
         </div>
       )}
-      {/* 投稿者（左上にアイコン＋名前。アイコンサイズは従来のまま28） */}
-      {round.isOfficial ? (
-        <div className="flex items-center gap-2 mb-2">
-          <OfficialAvatar size={28} />
-          <div className="text-sm font-black">ゴルトモ公式</div>
-          <OfficialBadge />
-        </div>
-      ) : host ? (
-        <div className="flex items-center gap-2 mb-2">
-          <Avatar user={host} size={28} />
-          <div className="text-sm font-bold">{host.displayName}</div>
-          <div className="text-[11px] text-muted">{ratingLabel(host, { count: true })}</div>
-        </div>
-      ) : null}
-
-      {/* タイトル（大きく） */}
-      <div className="text-[17px] font-black leading-snug mb-2">{round.title}</div>
-
-      {/* コース確定/未定 ＋ コース・日付・金額（バランス良く） */}
-      <div className="mb-3">
-        {round.type === 'confirmed' ? (
-          <span className="badge px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-green-light text-green">✅ コース確定</span>
-        ) : (
-          <span className="badge px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-[#EFEFEC] text-sub">📍 コース未定</span>
-        )}
-        <div className="mt-1.5 flex flex-col gap-0.5">
-          <div className="text-sm font-bold">{placeIcon} {placeLabel}</div>
-          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5">
-            <span className="text-sm font-bold">📅 {dateLabel}</span>
-            {priceLabel && <span className="text-sm font-black text-orange">💰 {priceLabel}</span>}
-          </div>
-        </div>
-      </div>
+      {/* (a) 日付（左上） → (b) コース名 → (c) タイトル → (d) 金額 */}
+      <div className="text-[15px] font-black mb-0.5">📅 {dateLabel}{round.startTime ? ` ${round.startTime}` : ''}</div>
+      <div className="text-[13px] font-bold text-sub mb-1">{placeIcon} {placeLabel || (round.type === 'confirmed' ? 'コース調整中' : 'コース未定')}</div>
+      <div className="text-[16px] font-black leading-snug mb-1">{round.title}</div>
+      {priceLabel && <div className="text-sm font-black text-orange mb-2">💰 {priceLabel}</div>}
 
       {/* ピックアップ場所（コンペ以外で、主催者がピックアップ可能なら表示） */}
       {!isComp && pickup.length > 0 && (
@@ -92,7 +64,7 @@ export function RoundCard({ round, host }: { round: Round; host?: User }) {
       )}
 
       {/* 参加状況バー */}
-      <div>
+      <div className="mt-2.5">
         <div className="flex justify-between items-baseline mb-1.5">
           <span className="text-[11px] text-sub font-semibold">参加状況</span>
           <span className="text-sm font-black text-orange">{round.currentCount}/{round.maxSpots}人 参加中</span>
@@ -100,6 +72,23 @@ export function RoundCard({ round, host }: { round: Round; host?: User }) {
         <div className="w-full h-2 bg-bg rounded overflow-hidden">
           <div className="h-full bg-orange rounded" style={{ width: `${Math.round((round.currentCount / Math.max(1, round.maxSpots)) * 100)}%` }} />
         </div>
+      </div>
+
+      {/* (e) 投稿者（枠内の左下に小さく） */}
+      <div className="mt-3 pt-2.5 border-t border-border">
+        {round.isOfficial ? (
+          <div className="flex items-center gap-1.5">
+            <OfficialAvatar size={20} />
+            <span className="text-[12px] font-bold">ゴルトモ公式</span>
+            <OfficialBadge />
+          </div>
+        ) : host ? (
+          <div className="flex items-center gap-1.5">
+            <Avatar user={host} size={20} />
+            <span className="text-[12px] font-bold">{host.displayName}</span>
+            <span className="text-[10px] text-muted">{ratingLabel(host, { count: true })}</span>
+          </div>
+        ) : null}
       </div>
     </Link>
   );

@@ -46,6 +46,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return {
       id: typeof g?.id === 'string' && g.id ? g.id.slice(0, 40) : `g_${i}`,
       startTime: typeof g?.startTime === 'string' ? g.startTime.slice(0, 10) : undefined,
+      course: typeof g?.course === 'string' && g.course.trim() ? g.course.trim().slice(0, 30) : undefined,
       memberIds,
     };
   });

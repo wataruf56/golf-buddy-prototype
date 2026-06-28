@@ -12,6 +12,20 @@ import type { Round, RoundType, DateType } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Stepper } from '@/components/Stepper';
 
+// 毎回タイトルを考えなくて済むよう、よく使う募集タイトルの定型文。
+const TITLE_PRESETS = [
+  '初心者歓迎！のんびりラウンド',
+  'ワイワイ楽しく18ホール',
+  '同世代でゆるっとゴルフ',
+  '真剣勝負！スコアアップラウンド',
+  '平日ゆったりラウンド',
+  '朝活ゴルフ',
+  '仕事終わりにサクッとハーフ',
+  '女性も安心♪エンジョイゴルフ',
+  'コンペ前の練習ラウンド',
+  '一緒に上達しましょう！',
+];
+
 export default function CreatePage() {
   const router = useRouter();
   const meId = useStore((s) => s.meId);
@@ -222,6 +236,17 @@ export default function CreatePage() {
         <div className="bg-card rounded-card p-5 shadow-card">
           <Field label="タイトル">
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="例: 初心者歓迎！のんびりラウンド" className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+            <div className="text-[10px] text-muted mt-2 mb-1">よく使うタイトルから選ぶ（選んでから編集もできます）</div>
+            <div className="flex flex-wrap gap-1.5">
+              {TITLE_PRESETS.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTitle(t)}
+                  className={'px-2.5 py-1.5 rounded-full text-[11px] font-bold border-[1.5px] ' + (title === t ? 'bg-green text-white border-green' : 'bg-bg border-border text-sub')}
+                >{t}</button>
+              ))}
+            </div>
           </Field>
 
           {isConfirmed ? (

@@ -27,6 +27,15 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   const userOf = (id: string) => users.find((u) => u.id === id);
   const guestOf = (id: string) => guests.find((g) => g.id === id);
   const nameOf = (id: string) => (isGuest(id) ? (guestOf(id)?.name || 'ゲスト') : (userOf(id)?.displayName || 'メンバー'));
+  // 名前の横に小さく出す「性別・年齢・スコア」。ゲストは情報なし。
+  const metaOf = (id: string) => {
+    if (isGuest(id)) return '';
+    const u = userOf(id);
+    if (!u) return '';
+    const g = u.gender === 'male' ? '♂' : u.gender === 'female' ? '♀' : '';
+    const sr = (u as any).scoreRange ? String((u as any).scoreRange) : '';
+    return [g, u.age ? `${u.age}歳` : '', sr].filter(Boolean).join('・');
+  };
 
   // Build initial groups from saved data, dropping ids no longer present.
   const validInit = new Set<string>([...registeredIds, ...((round.guests || []).map((g) => g.id))]);
@@ -53,17 +62,21 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
         <div className="flex flex-col gap-2">
           {groups.map((g, gi) => (
             <div key={g.id} className="bg-bg rounded-xl p-2.5">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[12px] font-bold">組{gi + 1}</span>
-                <span className="text-[12px] font-bold text-green">{g.startTime || '時間未定'}</span>
+              <div className="flex items-center justify-between mb-1.5 gap-2">
+                <span className="text-[12px] font-bold">組{gi + 1}{g.course && <span className="ml-1.5 text-[11px] font-bold text-blue">⛳ {g.course}</span>}</span>
+                <span className="text-[12px] font-bold text-green flex-shrink-0">{g.startTime || '時間未定'}</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {g.memberIds.map((id) => {
                   const u = userOf(id);
+                  const meta = metaOf(id);
                   return (
                     <span key={id} className={`inline-flex items-center gap-1 pl-1 pr-2 py-0.5 rounded-full ${id === store.get().meId ? 'bg-green-light' : 'bg-card'}`}>
-                      {u && <Avatar user={u} size={18} emojiSize={10} />}
+                      {u
+                        ? <Avatar user={u} size={18} emojiSize={10} />
+                        : <span className="w-[18px] h-[18px] rounded-full bg-bg border border-border flex items-center justify-center text-[10px]">👤</span>}
                       <span className="text-[11px] font-semibold">{nameOf(id)}</span>
+                      {meta && <span className="text-[9px] text-muted font-normal">（{meta}）</span>}
                     </span>
                   );
                 })}
@@ -86,11 +99,9 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
       // remove from all groups first
       let next = prev.map((g) => ({ ...g, memberIds: g.memberIds.filter((m) => m !== id) }));
       if (toZone !== 'pool') {
-        next = next.map((g) => {
-          if (g.id !== toZone) return g;
-          if (g.memberIds.length >= GROUP_MAX) return g; // full → drop back to pool
-          return { ...g, memberIds: [...g.memberIds, id] };
-        });
+        // 満員でも一時的に受け入れる（他の組へスライドして入れ替えできるように）。
+        // 4名超は赤＋「人数オーバー」警告で知らせる。
+        next = next.map((g) => (g.id === toZone ? { ...g, memberIds: [...g.memberIds, id] } : g));
       }
       return next;
     });
@@ -155,6 +166,9 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   function setTime(gid: string, t: string) {
     setGroupsDirty(groups.map((g) => (g.id === gid ? { ...g, startTime: t } : g)));
   }
+  function setCourse(gid: string, c: string) {
+    setGroupsDirty(groups.map((g) => (g.id === gid ? { ...g, course: c } : g)));
+  }
   function shuffle() {
     const ids = [...participantIds];
     for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
@@ -210,6 +224,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
           ? <Avatar user={u} size={22} emojiSize={12} />
           : <span className="w-[22px] h-[22px] rounded-full bg-bg border border-border flex items-center justify-center text-[12px]">👤</span>}
         <span className="truncate">{nameOf(id)}</span>
+        {metaOf(id) && <span className="text-[10px] text-muted font-normal flex-shrink-0">（{metaOf(id)}）</span>}
         {isGuest(id) && <span className="text-[9px] font-bold text-sub bg-bg border border-border rounded px-1 ml-0.5 flex-shrink-0">ゲスト</span>}
       </div>
     );
@@ -244,24 +259,48 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
         <span className="text-[11px] text-muted self-center">{participantIds.length}人 / {groups.length}組</span>
       </div>
 
+      {/* コース種別の候補（自由入力も可） */}
+      <datalist id="courseOptions">
+        <option value="IN-OUT" />
+        <option value="OUT-IN" />
+        <option value="INコース" />
+        <option value="OUTコース" />
+      </datalist>
+
       {/* groups */}
       <div className="flex flex-col gap-2.5">
-        {groups.map((g, gi) => (
-          <div key={g.id} data-dz={g.id} className="border-2 border-dashed border-border rounded-xl p-2.5">
+        {groups.map((g, gi) => {
+          const over = g.memberIds.length > GROUP_MAX;
+          return (
+          <div key={g.id} data-dz={g.id} className={`border-2 border-dashed rounded-xl p-2.5 ${over ? 'border-red-400 bg-red-50' : 'border-border'}`}>
             <div className="flex items-center justify-between mb-1.5 gap-2">
-              <span className="text-[13px] font-black">組{gi + 1} <span className="text-[11px] text-muted">({g.memberIds.length}/{GROUP_MAX})</span></span>
+              <span className="text-[13px] font-black">組{gi + 1} <span className={`text-[11px] ${over ? 'text-red-600 font-bold' : 'text-muted'}`}>({g.memberIds.length}/{GROUP_MAX})</span></span>
               <span className="flex items-center gap-1.5">
-                <input type="time" value={g.startTime || ''} onChange={(e) => setTime(g.id, e.target.value)} className="text-[12px] border-[1.5px] border-border rounded-lg px-1.5 py-1 bg-bg" />
+                <input type="time" value={g.startTime || ''} onChange={(e) => setTime(g.id, e.target.value)} className="text-[12px] border-[1.5px] border-border rounded-lg px-1.5 py-1 bg-bg w-[88px]" />
                 <button onClick={() => delGroup(g.id)} className="w-7 h-7 rounded-lg border border-red-200 text-red-500 font-black bg-card">×</button>
               </span>
             </div>
+            {/* コース種別（IN-OUT / OUT-IN 等。選択後の編集・自由入力も可） */}
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span className="text-[10px] text-muted flex-shrink-0">⛳ コース</span>
+              <input
+                list="courseOptions"
+                value={g.course || ''}
+                onChange={(e) => setCourse(g.id, e.target.value)}
+                placeholder="IN-OUT / OUT-IN / 自由入力"
+                maxLength={30}
+                className="flex-1 min-w-0 text-[12px] border-[1.5px] border-border rounded-lg px-2 py-1 bg-bg outline-none"
+              />
+            </div>
+            {over && <div className="text-[10px] text-red-600 font-bold mb-1.5">⚠️ 人数オーバーです（{g.memberIds.length}名 / 規定{GROUP_MAX}名）</div>}
             <div className="flex flex-col gap-1.5 min-h-[40px]">
               {g.memberIds.length === 0
                 ? <div className="text-[11px] text-muted px-1 py-1.5">ここにドラッグ</div>
                 : g.memberIds.map((id) => <Card key={id} id={id} />)}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* ゲスト（ゴルトモ未登録）追加 */}
