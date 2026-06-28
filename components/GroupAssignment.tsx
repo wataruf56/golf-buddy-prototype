@@ -11,8 +11,8 @@ let uidSeq = 0;
 const newGroupId = () => `g_${Date.now()}_${(uidSeq++).toString(36)}`;
 const newGuestId = () => `gst_${Date.now()}_${(uidSeq++).toString(36)}`;
 const isGuest = (id: string) => id.startsWith('gst_');
-// スタートのコース種別。プリセット2つ＋自由記入。
-const COURSE_PRESETS = ['アウトスタートから', 'インスタートから'];
+// スタートのコース種別。プリセット2つ＋自由記入。OUT=アウトスタート / IN=インスタート。
+const COURSE_PRESETS = ['OUT', 'IN'];
 
 export function GroupAssignment({ round, users, isHost }: { round: Round; users: User[]; isHost: boolean }) {
   const registeredIds = useMemo(
@@ -222,10 +222,16 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
     finally { setSaving(false); }
   }
 
-  const Card = ({ id, inGroup }: { id: string; inGroup?: boolean }) => {
+  // 重要: ここは「コンポーネント」ではなく「JSXを返す関数」にしている。
+  // <Card/> としてコンポーネント化すると毎レンダーで型が変わり、ドラッグ開始時の
+  // setDraggingId による再レンダーでカードのDOMが作り直され、ポインターキャプチャが
+  // 外れてドロップが効かなくなる（移動できないバグの原因）。key付き要素を直接返して
+  // 同一DOMを保ち、キャプチャを維持する。
+  const renderMember = (id: string, inGroup?: boolean) => {
     const u = userOf(id);
     return (
       <div
+        key={id}
         onPointerDown={(e) => onPointerDown(e, id)}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -304,8 +310,8 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
                 className="flex-1 min-w-0 text-[12px] border-[1.5px] border-border rounded-lg px-2 py-1 bg-bg outline-none"
               >
                 <option value="">選択してください</option>
-                <option value="アウトスタートから">アウトスタートから</option>
-                <option value="インスタートから">インスタートから</option>
+                <option value="OUT">OUT（アウトスタート）</option>
+                <option value="IN">IN（インスタート）</option>
                 <option value="__free__">自由記入</option>
               </select>
             </div>
@@ -325,7 +331,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
             <div className="flex flex-col gap-1.5 min-h-[40px]">
               {g.memberIds.length === 0
                 ? <div className="text-[11px] text-muted px-1 py-1.5">ここにドラッグ</div>
-                : g.memberIds.map((id) => <Card key={id} id={id} inGroup />)}
+                : g.memberIds.map((id) => renderMember(id, true))}
             </div>
           </div>
           );
@@ -364,7 +370,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
         <div className="text-[13px] font-black mb-1.5">未割り当て <span className="text-[11px] text-muted">({pool.length}人)</span></div>
         {pool.length === 0
           ? <div className="text-[11px] text-muted px-1 py-1">全員 組に割り当て済み ✅</div>
-          : <div className="flex flex-wrap gap-1.5">{pool.map((id) => <Card key={id} id={id} />)}</div>}
+          : <div className="flex flex-wrap gap-1.5">{pool.map((id) => renderMember(id))}</div>}
       </div>
 
       <button onClick={save} disabled={saving || !dirty} className="w-full mt-3 py-3 bg-green text-white rounded-xl text-sm font-bold disabled:opacity-50">
