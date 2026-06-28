@@ -11,6 +11,7 @@ export type NotifyType =
   | 'roundChat'      // any message in a round group chat I'm in
   | 'swing'          // my swing analysis finished
   | 'reviewReminder' // post-round "please review" reminder
+  | 'roundUpcoming'  // 参加ラウンドの開催が近づいた事前リマインド（1ヶ月前/1週間前/前日）
   | 'invited'        // I was invited to a round by the host
   | 'interestReceived' // someone marked my round as "気になる" (host)
   | 'interestDeadline' // a round I'm "気になる" about is closing soon
@@ -26,6 +27,7 @@ export const NOTIFY_TYPES: Array<{ key: NotifyType; label: string; desc: string;
   { key: 'roundChat',      label: '🏌️ ラウンドチャット',     desc: '参加ラウンドのグループチャットの新着（多めに届きます）', defaultOn: false },
   { key: 'swing',          label: '📊 スイング解析の完了',   desc: 'AI解析が終わったとき', defaultOn: true },
   { key: 'reviewReminder', label: '📝 レビューのお願い',     desc: 'ラウンド後にレビューを促す通知', defaultOn: true },
+  { key: 'roundUpcoming',  label: '📅 開催前リマインド',     desc: '参加ラウンドの1ヶ月前・1週間前・前日にお知らせ', defaultOn: true },
   { key: 'invited',          label: '💌 ラウンドに招待された', desc: '募集者からラウンドに招待されたとき', defaultOn: true },
   { key: 'interestReceived', label: '💚 「気になる」が押された', desc: '自分の募集に「気になる」が押されたとき', defaultOn: true },
   { key: 'interestDeadline', label: '⏰ 気になるラウンドの締切間近', desc: '「気になる」した募集の開催が近づいたとき', defaultOn: true },

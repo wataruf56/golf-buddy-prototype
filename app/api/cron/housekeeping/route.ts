@@ -52,5 +52,13 @@ export async function GET(req: NextRequest) {
     results.interestReminders = { error: (e as Error).message };
   }
 
+  try {
+    const { GET: upcomingReminders } = await import('../upcoming-reminders/route');
+    const res = await upcomingReminders(req);
+    results.upcomingReminders = await res.json().catch(() => ({ ok: res.ok }));
+  } catch (e) {
+    results.upcomingReminders = { error: (e as Error).message };
+  }
+
   return NextResponse.json({ ok: true, ...results }, { headers: noStore });
 }

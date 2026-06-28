@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import type { Round, RoundGroup, User } from '@/lib/types';
+import type { Round, RoundGroup, RoundGuest, User } from '@/lib/types';
 import { Avatar } from '@/components/Avatar';
 import { store } from '@/lib/store';
 import { toast } from '@/components/Toast';
@@ -9,20 +9,31 @@ import { toast } from '@/components/Toast';
 const GROUP_MAX = 4;
 let uidSeq = 0;
 const newGroupId = () => `g_${Date.now()}_${(uidSeq++).toString(36)}`;
+const newGuestId = () => `gst_${Date.now()}_${(uidSeq++).toString(36)}`;
+const isGuest = (id: string) => id.startsWith('gst_');
 
 export function GroupAssignment({ round, users, isHost }: { round: Round; users: User[]; isHost: boolean }) {
-  const participantIds = useMemo(
+  const registeredIds = useMemo(
     () => [round.hostId, ...(round.applicantIds || [])].filter(Boolean),
     [round.hostId, round.applicantIds],
   );
+  const [guests, setGuests] = useState<RoundGuest[]>(round.guests || []);
+  const [guestName, setGuestName] = useState('');
+  // 組み分け対象 = 登録参加者 ＋ ゲスト。
+  const participantIds = useMemo(
+    () => [...registeredIds, ...guests.map((g) => g.id)],
+    [registeredIds, guests],
+  );
   const userOf = (id: string) => users.find((u) => u.id === id);
-  const nameOf = (id: string) => userOf(id)?.displayName || 'メンバー';
+  const guestOf = (id: string) => guests.find((g) => g.id === id);
+  const nameOf = (id: string) => (isGuest(id) ? (guestOf(id)?.name || 'ゲスト') : (userOf(id)?.displayName || 'メンバー'));
 
-  // Build initial groups from the saved data, dropping ids no longer participating.
+  // Build initial groups from saved data, dropping ids no longer present.
+  const validInit = new Set<string>([...registeredIds, ...((round.guests || []).map((g) => g.id))]);
   const initial: RoundGroup[] = (round.groups || []).map((g) => ({
     id: g.id || newGroupId(),
     startTime: g.startTime,
-    memberIds: (g.memberIds || []).filter((id) => participantIds.includes(id)),
+    memberIds: (g.memberIds || []).filter((id) => validInit.has(id)),
   }));
   const [groups, setGroups] = useState<RoundGroup[]>(initial.length ? initial : []);
   const [saving, setSaving] = useState(false);
@@ -155,12 +166,25 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
     setGroupsDirty(next);
   }
 
+  function addGuest() {
+    const name = guestName.trim();
+    if (!name) return;
+    setGuests((prev) => [...prev, { id: newGuestId(), name: name.slice(0, 30) }]);
+    setGuestName('');
+    setDirty(true);
+  }
+  function removeGuest(id: string) {
+    setGuests((prev) => prev.filter((g) => g.id !== id));
+    setGroups((prev) => prev.map((g) => ({ ...g, memberIds: g.memberIds.filter((m) => m !== id) })));
+    setDirty(true);
+  }
+
   async function save() {
     setSaving(true);
     try {
       const res = await fetch(`/api/rounds/${round.id}/groups`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groups }), cache: 'no-store',
+        body: JSON.stringify({ groups, guests }), cache: 'no-store',
       });
       if (!res.ok) throw new Error(`${res.status}`);
       await store.refreshRounds();
@@ -182,8 +206,11 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
         style={{ touchAction: 'none', cursor: 'grab' }}
       >
         <span className="text-muted text-[15px] leading-none">⠿</span>
-        {u && <Avatar user={u} size={22} emojiSize={12} />}
+        {u
+          ? <Avatar user={u} size={22} emojiSize={12} />
+          : <span className="w-[22px] h-[22px] rounded-full bg-bg border border-border flex items-center justify-center text-[12px]">👤</span>}
         <span className="truncate">{nameOf(id)}</span>
+        {isGuest(id) && <span className="text-[9px] font-bold text-sub bg-bg border border-border rounded px-1 ml-0.5 flex-shrink-0">ゲスト</span>}
       </div>
     );
   };
@@ -235,6 +262,33 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
             </div>
           </div>
         ))}
+      </div>
+
+      {/* ゲスト（ゴルトモ未登録）追加 */}
+      <div className="border border-border rounded-xl p-2.5 mt-2.5 bg-card">
+        <div className="text-[13px] font-black mb-1.5">👤 ゲストを追加 <span className="text-[10px] text-muted font-normal">（ゴルトモ未登録の人）</span></div>
+        <div className="flex gap-1.5 mb-2">
+          <input
+            value={guestName}
+            onChange={(e) => setGuestName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') addGuest(); }}
+            placeholder="名前を入力（例: 田中さん）"
+            maxLength={30}
+            className="flex-1 min-w-0 text-[13px] border-[1.5px] border-border rounded-lg px-2.5 py-1.5 bg-bg outline-none"
+          />
+          <button onClick={addGuest} disabled={!guestName.trim()} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold disabled:opacity-50">追加</button>
+        </div>
+        {guests.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {guests.map((g) => (
+              <span key={g.id} className="inline-flex items-center gap-1 bg-bg border border-border rounded-full pl-2 pr-1 py-0.5 text-[11px] font-bold">
+                👤 {g.name}
+                <button onClick={() => removeGuest(g.id)} aria-label="削除" className="w-4 h-4 rounded-full bg-red-100 text-red-600 text-[11px] leading-none flex items-center justify-center">×</button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="text-[10px] text-muted mt-1.5">追加したゲストは下の「未割り当て」に並びます。各組へドラッグしてください。</div>
       </div>
 
       {/* unassigned pool */}

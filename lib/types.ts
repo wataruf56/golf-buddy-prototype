@@ -128,12 +128,23 @@ export type Round = {
   // 参加者（車あり）が自分で送迎できる駅＋定員を登録したもの。
   // userId → { stations, capacity(自分含む) }。コンペも含め車ありの参加者が設定可。
   participantPickups?: Record<string, { stations: string[]; capacity?: number }>;
+  // ゴルトモ未登録のゲスト参加者（主催者が名前で追加）。組み分けに入れられる。
+  // RoundGroup.memberIds にはこの guest.id（"gst_..."）も入りうる。
+  guests?: RoundGuest[];
+  // 開催前リマインドの送信記録。キー: 'd30'|'d7'|'d1' → 送信時刻(ms)。二重送信防止。
+  upcomingRemindersSent?: Record<string, number>;
 };
 
 export type RoundGroup = {
   id: string;
   startTime?: string;
   memberIds: string[];
+};
+
+// ゴルトモ未登録のゲスト（名前のみ）。組み分けに含められる。
+export type RoundGuest = {
+  id: string;   // "gst_..." 形式
+  name: string;
 };
 
 export type Review = {
