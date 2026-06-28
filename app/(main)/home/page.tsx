@@ -72,6 +72,17 @@ export default function HomePage() {
 
   const rounds = useStore((s) => s.rounds.filter((r) => r.status === 'open'));
   const users = useStore((s) => s.users);
+  // ホーム最上部に出す「ゴルトモ公式の直近コンペ」。公式(isOfficial)かつコンペ規模
+  // (5名以上)で募集中のものから、開催が近い順に1件。未来の予定が無ければ最新作成分。
+  const officialComp = (() => {
+    const todayStr = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+    const comps = rounds.filter((r) => r.isOfficial && r.maxSpots >= 5);
+    const upcoming = comps
+      .filter((r) => r.date && r.date >= todayStr)
+      .sort((a, b) => (a.date! < b.date! ? -1 : 1));
+    if (upcoming.length) return upcoming[0];
+    return comps.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0] || null;
+  })();
   const myHostedPending = useStore((s) =>
     s.rounds.filter((r) => r.hostId === s.meId).flatMap((r) =>
       (r.pendingApplicantIds || []).map((uid) => ({ round: r, applicantId: uid }))
@@ -139,6 +150,16 @@ export default function HomePage() {
           )}
         </button>
       </div>
+
+      {/* ホーム最上部：ゴルトモ公式の直近コンペ・イベント */}
+      {officialComp && (
+        <section className="px-5 pb-3">
+          <div className="text-[13px] font-black text-orange mb-2 flex items-center gap-1.5">
+            🏆 ゴルトモ公式コンペ・イベント
+          </div>
+          <RoundCard round={officialComp} host={users.find((u) => u.id === officialComp.hostId)} />
+        </section>
+      )}
 
       <HomeUpdateCard />
 
@@ -260,7 +281,7 @@ export default function HomePage() {
               </Link>
             </div>
           ) : (
-            rounds.map((r) => (
+            rounds.filter((r) => r.id !== officialComp?.id).map((r) => (
               <RoundCard key={r.id} round={r} host={users.find((u) => u.id === r.hostId)} />
             ))
           )}

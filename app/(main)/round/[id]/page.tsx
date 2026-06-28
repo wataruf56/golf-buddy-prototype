@@ -976,6 +976,17 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
   const [myCapacity, setMyCapacity] = useState<number>(mine?.capacity || 0);
   const [saved, setSaved] = useState<{ stations: string[]; capacity: number }>({ stations: mine?.stations || [], capacity: mine?.capacity || 0 });
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
+  // 登録済みの値が（ラウンド取得タイミングの都合で）エディタに反映されない
+  // ことがあったため、編集中でない時は最新の登録値へ同期する＝いつでも修正可能に。
+  const mineKey = JSON.stringify(mine || null);
+  useEffect(() => {
+    if (editing) return; // 編集中はユーザー入力を上書きしない
+    setMyStations(mine?.stations || []);
+    setMyCapacity(mine?.capacity || 0);
+    setSaved({ stations: mine?.stations || [], capacity: mine?.capacity || 0 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mineKey, editing]);
 
   async function save() {
     setSaving(true);
@@ -986,7 +997,9 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
       });
       if (!res.ok) throw new Error(String(res.status));
       setSaved({ stations: myStations, capacity: myCapacity });
-      toast(myStations.length ? '送迎できる駅を登録しました🚗' : '送迎の登録を解除しました');
+      setEditing(false);
+      store.refreshRounds().catch(() => {});
+      toast(myStations.length ? '送迎できる駅を保存しました🚗' : '送迎の登録を解除しました');
     } catch (e) { toast('保存に失敗しました', 'error'); }
     finally { setSaving(false); }
   }
@@ -1036,14 +1049,14 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
         <div className="mt-3 pt-3 border-t border-green/40">
           <div className="text-[11px] font-black text-green mb-1.5">🚗 あなたが送迎できる駅（車あり）</div>
           <div className="bg-white rounded-lg p-2">
-            <PickupStationPicker value={myStations} onChange={setMyStations} />
+            <PickupStationPicker value={myStations} onChange={(v) => { setEditing(true); setMyStations(v); }} />
             {myStations.length > 0 && (
               <div className="mt-2 flex items-center gap-2">
                 <span className="text-[11px] font-bold text-sub">自分含め乗れる人数</span>
                 <input
                   type="number" min={1} max={8} inputMode="numeric"
                   value={myCapacity || ''}
-                  onChange={(e) => setMyCapacity(Math.max(0, Math.min(8, Number(e.target.value) || 0)))}
+                  onChange={(e) => { setEditing(true); setMyCapacity(Math.max(0, Math.min(8, Number(e.target.value) || 0))); }}
                   placeholder="例: 4"
                   className="w-14 px-2 py-1 border-[1.5px] border-border rounded-[8px] text-sm bg-bg outline-none text-center"
                 />
@@ -1052,8 +1065,9 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
             )}
           </div>
           <button onClick={save} disabled={saving} className="mt-2 w-full py-2.5 bg-green text-white rounded-full text-[13px] font-bold disabled:opacity-50">
-            {saving ? '保存中…' : '送迎できる駅を登録する'}
+            {saving ? '保存中…' : (saved.stations.length ? '送迎できる駅を更新する' : '送迎できる駅を登録する')}
           </button>
+          <div className="text-[10px] text-green/80 text-center mt-1">登録後もいつでも変更・解除できます</div>
         </div>
       )}
     </div>
