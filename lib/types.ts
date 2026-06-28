@@ -91,6 +91,8 @@ export type Round = {
   // Server-side gate enforced in /api/rounds/[id]/join.
   genderCondition?: 'any' | 'male' | 'female';
   description?: string;
+  // 集合場所・集合時間などの詳細（自由記入）。日時のすぐ下に表示。
+  meetingInfo?: string;
   status: RoundStatus;
   isCompetition: boolean;
   // True when the host is a ゴルトモ admin (set server-side at creation from

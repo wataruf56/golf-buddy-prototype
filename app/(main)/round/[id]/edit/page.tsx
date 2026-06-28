@@ -28,6 +28,7 @@ export default function EditRoundPage() {
   const [courseName, setCourseName] = useState('');
   const [date, setDate] = useState('');
   const [startTime, setStartTime] = useState('8:00');
+  const [meetingInfo, setMeetingInfo] = useState('');
   const [area, setArea] = useState('');
   const [dateType, setDateType] = useState<'fixed' | 'range'>('fixed');
   const [dateRange, setDateRange] = useState('');
@@ -70,6 +71,7 @@ export default function EditRoundPage() {
     setCourseName(round.courseName || '');
     setDate(round.date || '');
     setStartTime(round.startTime || '8:00');
+    setMeetingInfo(round.meetingInfo || '');
     setArea(round.area || '');
     setDateType(round.dateType === 'range' ? 'range' : 'fixed');
     setDateRange(round.dateRange || '');
@@ -190,6 +192,7 @@ export default function EditRoundPage() {
       patch.dateType = 'fixed';
       patch.date = date;
       patch.startTime = startTime;
+      patch.meetingInfo = meetingInfo.trim();
     } else {
       patch.area = area;
       patch.dateType = dateType;
@@ -244,6 +247,15 @@ export default function EditRoundPage() {
                 <select value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none">
                   {timeSlots.map((t) => <option key={t}>{t}</option>)}
                 </select>
+              </Field>
+              <Field label="集合場所・集合時間">
+                <textarea
+                  value={meetingInfo}
+                  onChange={(e) => setMeetingInfo(e.target.value.slice(0, 200))}
+                  placeholder="例: クラブハウス前に 7:30 集合 / 7:00 に◯◯駅集合して相乗り など"
+                  className="w-full h-20 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-none"
+                />
+                <div className="text-[10px] text-muted text-right mt-0.5">{meetingInfo.length}/200</div>
               </Field>
               <Field label="プレー費の目安">
                 <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="例: ¥8,000〜" className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />

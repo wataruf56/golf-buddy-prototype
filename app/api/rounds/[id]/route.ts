@@ -60,6 +60,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (has('startTime')) patch.startTime = body.startTime ? String(body.startTime) : '';
   if (has('price')) patch.price = body.price ? String(body.price).slice(0, 40) : '';
   if (has('description')) patch.description = body.description ? String(body.description).slice(0, 200) : '';
+  if (has('meetingInfo')) patch.meetingInfo = body.meetingInfo ? String(body.meetingInfo).slice(0, 200) : '';
   if (has('pickupStations')) patch.pickupStations = Array.isArray(body.pickupStations)
     ? body.pickupStations.map((x: any) => String(x).slice(0, 20)).slice(0, 20)
     : [];

@@ -289,6 +289,14 @@ export default function RoundDetailPage() {
           <Cell label="費用目安">{round.price ? (() => { const p = round.price.replace(/[¥￥]/g, '').trim(); return p.includes('円') ? p : `${p}円`; })() : '—'}</Cell>
         </div>
 
+        {/* 集合場所・集合時間（日時のすぐ下）。主催者が記入していれば表示。 */}
+        {round.meetingInfo && (
+          <div className="mb-4 bg-green-light rounded-xl p-3 border-[1.5px] border-green">
+            <div className="text-[11px] text-green font-black mb-1">📍 集合場所・集合時間</div>
+            <div className="text-sm font-bold text-text whitespace-pre-wrap">{round.meetingInfo}</div>
+          </div>
+        )}
+
         {/* Gender breakdown across host + approved applicants. Always shown
             (incl. competitions) so you can see the mix at a glance. */}
         {(() => {

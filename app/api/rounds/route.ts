@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
     // UIs that only read levelCondition still show the right thing.
     levelCondition: levelConditionLabel({ beginnerOnly, genderCondition, levelCondition: '' }),
     description: body.description,
+    meetingInfo: body.meetingInfo ? String(body.meetingInfo).slice(0, 200) : undefined,
     pickupStations: Array.isArray(body.pickupStations)
       ? body.pickupStations.map((x: any) => String(x).slice(0, 20)).slice(0, 20)
       : undefined,

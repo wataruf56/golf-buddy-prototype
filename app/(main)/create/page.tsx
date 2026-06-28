@@ -40,6 +40,7 @@ export default function CreatePage() {
   const [courseName, setCourseName] = useState('');
   const [date, setDate] = useState('');
   const [startTime, setStartTime] = useState('8:00');
+  const [meetingInfo, setMeetingInfo] = useState('');
   const [area, setArea] = useState('');
   const [dateType, setDateType] = useState<DateType>('fixed');
   const [dateRange, setDateRange] = useState('');
@@ -117,6 +118,7 @@ export default function CreatePage() {
       date: type === 'confirmed' ? date : (dateType === 'fixed' ? date : undefined),
       dateRange: type === 'flexible' && dateType === 'range' ? dateRange : undefined,
       startTime: type === 'confirmed' ? startTime : undefined,
+      meetingInfo: type === 'confirmed' && meetingInfo.trim() ? meetingInfo.trim() : undefined,
       maxSpots,
       externalMale,
       externalFemale,
@@ -261,6 +263,15 @@ export default function CreatePage() {
                 <select value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none">
                   {timeSlots.map((t) => <option key={t}>{t}</option>)}
                 </select>
+              </Field>
+              <Field label="集合場所・集合時間">
+                <textarea
+                  value={meetingInfo}
+                  onChange={(e) => setMeetingInfo(e.target.value.slice(0, 200))}
+                  placeholder="例: クラブハウス前に 7:30 集合 / 7:00 に◯◯駅集合して相乗り など"
+                  className="w-full h-20 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-none"
+                />
+                <div className="text-[10px] text-muted text-right mt-0.5">{meetingInfo.length}/200</div>
               </Field>
               <Field label="プレー費の目安">
                 <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="例: ¥8,000〜" className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
