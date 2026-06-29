@@ -121,7 +121,12 @@ export default function RoundDetailPage() {
   const interestedUsers = (round.interestedIds || [])
     .map((id) => users.find((u) => u.id === id))
     .filter(Boolean) as User[];
+  // 招待中に出すのは「まだ参加していない」招待者だけ。すでに主催者／参加確定／申請中の
+  // 人は除外（コース未定→確定の切替などで重複表示されるのを防ぐ）。
   const invitedUsers = (round.invitedIds || [])
+    .filter((id) => id !== round.hostId
+      && !(round.applicantIds || []).includes(id)
+      && !(round.pendingApplicantIds || []).includes(id))
     .map((id) => users.find((u) => u.id === id))
     .filter(Boolean) as User[];
   // Membership sets used to style invite buttons (participating → grey out).
