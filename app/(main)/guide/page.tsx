@@ -2,48 +2,47 @@
 
 import Link from 'next/link';
 
-// 使い方ガイド：LP風の1枚もの。やることは「①プロフィール登録 → ②参加」の
-// 2ステップだけ、というシンプルな流れが一目で分かる構成。
+// 使い方・ヘルプ。「はじめての方へ」（タップで開く説明）＋「規約・運営情報」。
 export default function GuidePage() {
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden bg-bg">
       <div className="px-5 pt-6 pb-24 max-w-md mx-auto">
         {/* ヒーロー */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <div className="text-3xl mb-2">⛳</div>
-          <h1 className="text-[22px] font-black leading-tight">ゴルトモの使い方</h1>
-          <p className="text-[13px] text-sub mt-1.5">同世代のゴルフ仲間と回るまで、<br />たったの<b className="text-green">2ステップ</b>。</p>
+          <h1 className="text-[22px] font-black leading-tight">使い方・ヘルプ</h1>
+          <p className="text-[13px] text-sub mt-1.5">同世代のゴルフ仲間と回るまで、たったの<b className="text-green">2ステップ</b>。</p>
         </div>
 
-        {/* STEP 1 */}
-        <StepCard
-          n={1}
-          emoji="📝"
-          title="プロフィールを登録する"
-          desc="名前・年齢・スコアなどを入力。これだけで準備OK。あなたに合う仲間とつながりやすくなります。"
-          cta={{ href: '/mypage/edit', label: 'プロフィールを登録する' }}
-        />
+        {/* はじめての方へ */}
+        <div className="text-[11px] font-black text-sub mb-2">はじめての方へ</div>
+        <div className="flex flex-col gap-2.5 mb-7">
+          <Accordion icon="📝" title="アプリの使い方（2ステップ）">
+            <p><b>① プロフィールを登録</b><br />名前・年齢・スコアなどを入力。これだけで準備OK。あなたに合う仲間とつながりやすくなります。</p>
+            <p className="mt-2"><b>② 気になるラウンドに参加</b><br />募集を見つけたら「参加する」を押すだけ。承認されたらグループチャットで集合場所などを相談して当日へ。</p>
+            <Link href="/mypage/edit" className="inline-block mt-3 px-4 py-2 bg-green text-white rounded-xl text-[13px] font-bold">プロフィールを登録する</Link>
+          </Accordion>
 
-        <Connector />
+          <Accordion icon="🏌️" title="ラウンドを募集する流れ">
+            <p>自分でラウンドを立てることもできます。</p>
+            <p className="mt-2">① ゴルフ場・日付・スタート時間・都道府県・募集人数を入力して投稿<br />② 参加申請を承認<br />③ グループチャットで集合場所・送迎などを相談<br />④ 当日プレー</p>
+            <Link href="/create" className="inline-block mt-3 px-4 py-2 bg-orange text-white rounded-xl text-[13px] font-bold">ラウンドを募集する</Link>
+          </Accordion>
 
-        {/* STEP 2 */}
-        <StepCard
-          n={2}
-          emoji="⛳"
-          title="参加したいラウンドに参加する"
-          desc="気になるラウンド募集を見つけたら、専用の「参加する」ボタンを押すだけ。あとは当日を待つだけです。"
-          cta={{ href: '/search', label: 'ラウンドを探す' }}
-        />
+          <Accordion icon="💘" title="マッチング・レビューの仕組み（両想い）">
+            <p>ラウンド後に、一緒に回った人をレビューできます。</p>
+            <p className="mt-2"><b>「また一緒に回りたい」「異性として気になる」</b>は、<b className="text-green">お互いが選んだ時だけ</b>通知される“両想い”方式。片思いの間は、あなたの選択が相手に知られることは一切ありません。</p>
+            <p className="mt-2">「異性として気になる」を選ぶと「また回りたい」も自動的に含まれます。両想いになった相手は「ゴル友」タブに表示されます。</p>
+            <p className="mt-2 text-sub">プロフィールには「<b className="text-text">これまで何人とラウンドし、そのうち何人が『また回りたい』と答えたか</b>」が実績として表示されます。</p>
+          </Accordion>
 
-        {/* 締め */}
-        <div className="mt-8 text-center bg-green-light rounded-card p-5 border-[1.5px] border-green">
-          <div className="text-2xl mb-1">🎉</div>
-          <div className="text-[14px] font-black text-green">これだけ！</div>
-          <p className="text-[12px] text-sub mt-1">あとは一緒に回って、楽しいゴルフを。</p>
+          <Accordion icon="🔔" title="LINE通知について">
+            <p>公式LINEを友だち追加すると、参加申請・承認・マッチ成立・開催前リマインドなどをLINEで受け取れます。通知の種類はマイページの通知設定でON/OFFできます。</p>
+          </Accordion>
         </div>
 
-        {/* 規約・運営情報（ホームから移管） */}
-        <div className="mt-8 text-[11px] font-black text-sub mb-2">規約・運営情報</div>
+        {/* 規約・運営情報 */}
+        <div className="text-[11px] font-black text-sub mb-2">規約・運営情報</div>
         <div className="bg-card rounded-card shadow-card overflow-hidden border-2 border-border">
           <LinkRow icon="📄" label="利用規約" href="/legal/terms" />
           <LinkRow icon="🔒" label="プライバシーポリシー" href="/legal/privacy" />
@@ -55,6 +54,19 @@ export default function GuidePage() {
   );
 }
 
+function Accordion({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) {
+  return (
+    <details className="bg-card rounded-card shadow-card border-2 border-border overflow-hidden group">
+      <summary className="flex items-center gap-2.5 px-4 py-3.5 cursor-pointer list-none text-[14px] font-black">
+        <span className="text-lg w-6 text-center">{icon}</span>
+        <span className="flex-1">{title}</span>
+        <span className="text-muted transition-transform group-open:rotate-90">›</span>
+      </summary>
+      <div className="px-4 pb-4 pt-1 text-[13px] text-text leading-relaxed border-t-2 border-hair">{children}</div>
+    </details>
+  );
+}
+
 function LinkRow({ icon, label, href, last }: { icon: string; label: string; href: string; last?: boolean }) {
   return (
     <Link href={href} className={'flex items-center gap-2.5 px-3.5 py-3 text-[13px] font-bold ' + (last ? '' : 'border-b-2 border-hair')}>
@@ -62,32 +74,5 @@ function LinkRow({ icon, label, href, last }: { icon: string; label: string; hre
       <span className="flex-1">{label}</span>
       <span className="text-muted">›</span>
     </Link>
-  );
-}
-
-function StepCard({
-  n, emoji, title, desc, cta,
-}: {
-  n: number; emoji: string; title: string; desc: string; cta: { href: string; label: string };
-}) {
-  return (
-    <div className="bg-card rounded-card shadow-card p-5">
-      <div className="flex items-center gap-3 mb-2.5">
-        <span className="flex-shrink-0 w-10 h-10 rounded-full bg-green text-white text-[18px] font-black flex items-center justify-center">{n}</span>
-        <div className="text-[17px] font-black leading-tight">{emoji} {title}</div>
-      </div>
-      <p className="text-[13px] text-sub leading-relaxed mb-4">{desc}</p>
-      <Link href={cta.href} className="block w-full text-center py-3 bg-green text-white rounded-xl text-[14px] font-bold">
-        {cta.label}
-      </Link>
-    </div>
-  );
-}
-
-function Connector() {
-  return (
-    <div className="flex justify-center py-2">
-      <span className="text-2xl text-green">↓</span>
-    </div>
   );
 }
