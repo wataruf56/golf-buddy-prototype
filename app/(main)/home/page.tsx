@@ -151,30 +151,27 @@ export default function HomePage() {
         </button>
       </div>
 
-      <HomeUpdateCard />
-
+      {/* 公式LINE未登録の人向け：最上部に「LINEで通知を受け取る」ボタン（押すと友だち追加へ） */}
       {showAddBot && (
         <div className="px-5 pb-3">
-          <div className="bg-green-light border-2 border-green rounded-card p-3.5 flex items-center gap-3">
-            <span className="text-xl">🔔</span>
-            <div className="flex-1 min-w-0">
-              <div className="text-[13px] font-black text-green">通知を受け取るには公式アカウントを友だち追加</div>
-              <div className="text-[11px] text-sub mt-0.5">メッセージや申請を LINE で受信できます</div>
-            </div>
-            <a
-              href={`https://line.me/R/ti/p/${encodeURIComponent(BOT_BASIC_ID)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3 py-1.5 bg-green text-white text-xs font-bold rounded-full whitespace-nowrap"
-            >追加</a>
-            <button
-              onClick={() => { localStorage.setItem('gb_add_bot_dismissed', '1'); setShowAddBot(false); }}
-              className="text-muted text-lg leading-none px-1"
-              aria-label="閉じる"
-            >×</button>
-          </div>
+          <a
+            href={`https://line.me/R/ti/p/${encodeURIComponent(BOT_BASIC_ID)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-full py-3 rounded-card border-2 border-border shadow-card font-black text-white"
+            style={{ background: '#06C755' }}
+          >
+            <img src="/line-logo.png" alt="LINE" width="184" height="183" className="h-6 w-auto bg-white rounded-md border-2 border-border p-0.5" style={{ boxSizing: 'content-box' }} />
+            <span>LINEで通知を受け取る</span>
+          </a>
+          <button
+            onClick={() => { localStorage.setItem('gb_add_bot_dismissed', '1'); setShowAddBot(false); }}
+            className="block mx-auto mt-1 text-[11px] text-muted underline"
+          >通知は不要（閉じる）</button>
         </div>
       )}
+
+      <HomeUpdateCard />
 
 
       {myInvites.length > 0 && (
