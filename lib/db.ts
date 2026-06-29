@@ -30,7 +30,7 @@ export interface DB {
 
   // Round group chat (messages may belong to a named thread via threadId)
   listRoundMessages(roundId: string): Promise<Message[]>;
-  addRoundMessage(roundId: string, senderId: string, text: string, threadId?: string): Promise<Message>;
+  addRoundMessage(roundId: string, senderId: string, text: string, threadId?: string, imageUrl?: string): Promise<Message>;
   listRoundThreads(roundId: string): Promise<RoundThread[]>;
   createRoundThread(roundId: string, name: string, userId: string): Promise<RoundThread>;
 
@@ -273,8 +273,8 @@ class MemoryDB implements DB {
   async listRoundMessages(roundId: string) {
     return [...(this.roundChats.get(roundId) || [])];
   }
-  async addRoundMessage(roundId: string, senderId: string, text: string, threadId?: string) {
-    const msg: Message = { id: `rm_${Date.now()}_${Math.random().toString(36).slice(2,8)}`, senderId, text, createdAt: Date.now(), read: false, ...(threadId ? { threadId } : {}) };
+  async addRoundMessage(roundId: string, senderId: string, text: string, threadId?: string, imageUrl?: string) {
+    const msg: Message = { id: `rm_${Date.now()}_${Math.random().toString(36).slice(2,8)}`, senderId, text, createdAt: Date.now(), read: false, ...(threadId ? { threadId } : {}), ...(imageUrl ? { imageUrl } : {}) };
     const arr = this.roundChats.get(roundId) || [];
     arr.push(msg);
     this.roundChats.set(roundId, arr);
@@ -767,12 +767,13 @@ class FirestoreDB implements DB {
       return [];
     }
   }
-  async addRoundMessage(roundId: string, senderId: string, text: string, threadId?: string) {
+  async addRoundMessage(roundId: string, senderId: string, text: string, threadId?: string, imageUrl?: string) {
     const now = Date.now();
     const data: any = { senderId, text, createdAt: now, read: false };
     if (threadId) data.threadId = threadId;
+    if (imageUrl) data.imageUrl = imageUrl;
     const ref = await this.fs.collection('rounds').doc(roundId).collection('chat').add(data);
-    return { id: ref.id, senderId, text, createdAt: now, read: false, ...(threadId ? { threadId } : {}) };
+    return { id: ref.id, senderId, text, createdAt: now, read: false, ...(threadId ? { threadId } : {}), ...(imageUrl ? { imageUrl } : {}) };
   }
   async listRoundThreads(roundId: string) {
     try {

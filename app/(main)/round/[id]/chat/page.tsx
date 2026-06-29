@@ -13,6 +13,28 @@ import type { Message, Round, RoundThread } from '@/lib/types';
 // goltomo.com/app link that deep-links to this group chat after login.
 const SHARE_BASE = 'https://goltomo.com/app';
 
+// 画像を長辺 max px・JPEG quality q にリサイズしてデータURLにする（Firestore保存用に軽量化）。
+function resizeImage(file: File, max: number, q: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('no ctx')); return; }
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', q));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('load error')); };
+    img.src = url;
+  });
+}
+
 export default function RoundChatPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -29,6 +51,7 @@ export default function RoundChatPage() {
   const [notFound, setNotFound] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const round = storeRound || fetchedRound;
 
   async function load() {
@@ -100,16 +123,14 @@ export default function RoundChatPage() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [shown.length, activeThread]);
 
-  async function send() {
-    if (!text.trim()) return;
-    const t = text.trim();
-    setText('');
+  async function postMsg(t: string, imageUrl?: string) {
+    if (!t.trim() && !imageUrl) return;
     setSending(true);
     try {
       const res = await fetch(`/api/rounds/${params.id}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: t, threadId: activeThread || undefined }),
+        body: JSON.stringify({ text: t.trim() || undefined, threadId: activeThread || undefined, imageUrl }),
         cache: 'no-store',
       });
       if (!res.ok) { const detail = await res.text(); throw new Error(`${res.status} ${detail.slice(0, 100)}`); }
@@ -120,6 +141,23 @@ export default function RoundChatPage() {
     } finally {
       setSending(false);
     }
+  }
+
+  async function send() {
+    if (!text.trim()) return;
+    const t = text.trim();
+    setText('');
+    await postMsg(t);
+  }
+
+  async function onPickImage(file: File) {
+    if (!file.type.startsWith('image/')) { toast('画像ファイルを選んでください', 'error'); return; }
+    setSending(true);
+    let dataUrl = '';
+    try { dataUrl = await resizeImage(file, 1000, 0.6); }
+    catch { setSending(false); toast('画像の読み込みに失敗しました', 'error'); return; }
+    setSending(false);
+    await postMsg('', dataUrl);
   }
 
   async function createThread() {
@@ -246,7 +284,12 @@ export default function RoundChatPage() {
                   className={`px-3.5 py-2.5 text-sm leading-relaxed ${mine ? 'bg-green text-white' : 'bg-card text-text shadow-card'}`}
                   style={{ borderRadius: mine ? '14px 14px 4px 14px' : '14px 14px 14px 4px' }}
                 >
-                  {m.text}
+                  {m.imageUrl && (
+                    <a href={m.imageUrl} target="_blank" rel="noopener noreferrer" className="block mb-1">
+                      <img src={m.imageUrl} alt="画像" className="rounded-lg max-w-full max-h-60 object-cover" />
+                    </a>
+                  )}
+                  {m.text && <div className="whitespace-pre-wrap">{m.text}</div>}
                   <div className={`text-[10px] mt-1 text-right ${mine ? 'text-white/60' : 'text-muted'}`}>
                     {new Date(m.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
                   </div>
@@ -287,6 +330,21 @@ export default function RoundChatPage() {
             className={'flex-shrink-0 w-10 h-10 rounded-full text-base font-black border-[1.5px] ' + (showMention ? 'bg-green text-white border-green' : 'bg-bg border-border text-sub')}
           >@</button>
         )}
+        {/* 画像添付 */}
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={sending}
+          aria-label="画像を送る"
+          className="self-end flex-shrink-0 w-10 h-10 rounded-full text-lg border-[1.5px] bg-bg border-border text-sub disabled:opacity-50"
+        >📷</button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) onPickImage(f); if (fileRef.current) fileRef.current.value = ''; }}
+        />
         {/* 改行はEnterで入力可。送信は右の送信ボタンのみ（Enterでは送らない）。 */}
         <textarea
           value={text}

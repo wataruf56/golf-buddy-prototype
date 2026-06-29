@@ -42,9 +42,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const reqBody = await req.json();
   const { text } = reqBody;
   const threadId = reqBody?.threadId ? String(reqBody.threadId) : undefined;
-  if (!text || !String(text).trim()) return NextResponse.json({ error: 'empty' }, { status: 400, headers: noStore });
-  const trimmed = String(text).trim();
-  const message = await db.addRoundMessage(params.id, meId, trimmed, threadId);
+  // 画像（リサイズ済みデータURL）。テキストが空でも画像があれば送信可。
+  const imageUrl = (typeof reqBody?.imageUrl === 'string' && reqBody.imageUrl.startsWith('data:image/'))
+    ? reqBody.imageUrl.slice(0, 1500000) : undefined;
+  const trimmed = text ? String(text).trim() : '';
+  if (!trimmed && !imageUrl) return NextResponse.json({ error: 'empty' }, { status: 400, headers: noStore });
+  const message = await db.addRoundMessage(params.id, meId, trimmed, threadId, imageUrl);
   // Notify other participants. A user mentioned via "@名前" gets a mention
   // notification (gated on their "mention" pref); everyone else gets the
   // general round-chat notification (gated on "roundChat", off by default).
@@ -52,7 +55,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (recipients.length) {
     const me = await db.getUser(meId);
     const senderName = me?.displayName || '参加者';
-    const preview = trimmed.length > 60 ? trimmed.slice(0, 60) + '…' : trimmed;
+    const preview = trimmed ? (trimmed.length > 60 ? trimmed.slice(0, 60) + '…' : trimmed) : '📷 画像';
     const others = (await Promise.all(recipients.map((id) => db.getUser(id)))).filter(Boolean) as any[];
 
     // A recipient is "mentioned" if their display name appears after an @.

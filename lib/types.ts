@@ -181,6 +181,8 @@ export type Message = {
   text: string;
   createdAt: number;
   read: boolean;
+  // 画像メッセージ（リサイズ済みのデータURL）。テキストは空でも可。
+  imageUrl?: string;
   // For round group chat: which thread this message belongs to. Undefined/empty
   // = the main (本流) chat. Set = a named sub-thread (e.g. 配車相談).
   threadId?: string;
