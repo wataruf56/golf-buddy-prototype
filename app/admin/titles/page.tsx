@@ -35,16 +35,17 @@ function Inner() {
   }, [tokenFromUrl]);
 
   useEffect(() => {
-    // タイトルの取得はトークン不要（公開GET）。先に表示しておく。
+    // admin ホストでは /api/admin/* のみ通るため、管理用ルートから取得（要トークン）。
+    if (!token) return;
     (async () => {
       try {
-        const r = await fetch('/api/round-titles', { cache: 'no-store' });
+        const r = await fetch(`/api/admin/round-titles?token=${encodeURIComponent(token)}`, { cache: 'no-store' });
         const j = await r.json();
         if (r.ok && Array.isArray(j.titles)) setText(j.titles.join('\n'));
       } catch {}
       setLoaded(true);
     })();
-  }, []);
+  }, [token]);
 
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
 
@@ -52,7 +53,7 @@ function Inner() {
     if (!token) { setMsg('管理者トークンが見つかりません'); return; }
     setSaving(true); setMsg('');
     try {
-      const r = await fetch(`/api/round-titles?token=${encodeURIComponent(token)}`, {
+      const r = await fetch(`/api/admin/round-titles?token=${encodeURIComponent(token)}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ titles: lines }), cache: 'no-store',
       });
