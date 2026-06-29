@@ -106,6 +106,30 @@ export default function RoundChatPage() {
   const countFor = (tid: string) => messages.filter((m) => m.threadId === tid).length;
   const activeThreadObj = threads.find((t) => t.id === activeThread);
 
+  // メンション着色用：このラウンドの参加者の表示名（長い順＝部分一致の取りこぼし防止）。
+  const memberNames = useMemo(() => {
+    const ids = [round?.hostId, ...((round?.applicantIds) || [])].filter(Boolean) as string[];
+    const names = Array.from(new Set(ids.map((id) => users.find((u) => u.id === id)?.displayName).filter(Boolean))) as string[];
+    return names.sort((a, b) => b.length - a.length);
+  }, [round, users]);
+
+  // 本文中の「@表示名 / ＠表示名」を青くハイライト（LINE風）。
+  function renderText(text: string, mine: boolean) {
+    if (!text) return null;
+    if (!memberNames.length) return text;
+    const esc = memberNames.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const re = new RegExp(`[@＠](?:${esc.join('|')})`, 'g');
+    const out: any[] = [];
+    let last = 0; let k = 0; let m: RegExpExecArray | null;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) out.push(text.slice(last, m.index));
+      out.push(<span key={k++} className={mine ? 'font-black underline' : 'text-blue font-black'}>{m[0]}</span>);
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) out.push(text.slice(last));
+    return out;
+  }
+
   // メンション候補：このラウンドの参加者（主催者＋承認済み）から自分を除く。
   const mentionMembers = useMemo(() => {
     if (!round) return [] as { id: string; displayName: string }[];
@@ -297,7 +321,7 @@ export default function RoundChatPage() {
                       <img src={m.imageUrl} alt="画像" className="rounded-lg max-w-full max-h-60 object-cover" />
                     </a>
                   )}
-                  {m.text && <div className="whitespace-pre-wrap">{m.text}</div>}
+                  {m.text && <div className="whitespace-pre-wrap">{renderText(m.text, mine)}</div>}
                   <div className={`text-[10px] mt-1 text-right ${mine ? 'text-white/60' : 'text-muted'}`}>
                     {new Date(m.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
                   </div>
