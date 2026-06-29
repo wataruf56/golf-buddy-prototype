@@ -114,7 +114,7 @@ export default function CreatePage() {
       title: title || (type === 'confirmed' ? 'ラウンド募集' : 'コース未定の募集'),
       type,
       courseName: type === 'confirmed' ? courseName : undefined,
-      area: type === 'flexible' ? area : undefined,
+      area: area || undefined,
       dateType: (type === 'confirmed' ? 'fixed' : dateType) as 'fixed' | 'range',
       date: type === 'confirmed' ? date : (dateType === 'fixed' ? date : undefined),
       dateRange: type === 'flexible' && dateType === 'range' ? dateRange : undefined,
@@ -256,6 +256,12 @@ export default function CreatePage() {
             <>
               <Field label="ゴルフ場名" required>
                 <input value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="例: 湘南カントリークラブ" className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+              </Field>
+              <Field label="都道府県" required>
+                <select value={area} onChange={(e) => setArea(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none">
+                  <option value="">選択してください</option>
+                  {allAreas.map((a) => <option key={a}>{a}</option>)}
+                </select>
               </Field>
               <Field label="プレー日" required>
                 <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />

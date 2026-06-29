@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { toast } from '@/components/Toast';
@@ -38,6 +38,7 @@ function resizeImage(file: File, max: number, q: number): Promise<string> {
 export default function RoundChatPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const search = useSearchParams();
   const meId = useStore((s) => s.meId);
   const storeRound = useStore((s) => s.rounds.find((r) => r.id === params.id));
   const users = useStore((s) => s.users);
@@ -81,6 +82,13 @@ export default function RoundChatPage() {
     try { await navigator.clipboard.writeText(url); toast('リンクをコピーしました'); }
     catch { window.prompt('このリンクをコピーして共有してください', url); }
   }
+
+  // 通知URLに ?thread=... が付いていたら、そのスレッドを直接開く（メンション導線）。
+  useEffect(() => {
+    const tid = search?.get('thread');
+    if (tid) setActiveThread(tid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   useEffect(() => {
     if (!params.id) return;

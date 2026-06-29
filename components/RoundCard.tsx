@@ -12,7 +12,10 @@ export function RoundCard({ round, host }: { round: Round; host?: User }) {
   const hasUnread = unreadRoundIds.has(round.id);
   const isComp = round.maxSpots >= 5;
   const dateLabel = round.dateType === 'range' ? round.dateRange : formatDate(round.date);
-  const placeLabel = round.type === 'confirmed' ? round.courseName : round.area;
+  // コース名の横に（都道府県）を表示。確定＝コース名（県）、未定＝エリア。
+  const placeLabel = round.type === 'confirmed'
+    ? `${round.courseName || ''}${round.area ? `（${round.area}）` : ''}`
+    : round.area;
   const placeIcon = round.type === 'confirmed' ? '⛳' : '📍';
   const pickup = round.pickupStations || [];
   // 金額表示は「円」を付ける。¥は重複するので除去してから付与。

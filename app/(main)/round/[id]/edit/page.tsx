@@ -190,6 +190,7 @@ export default function EditRoundPage() {
     };
     if (isConfirmed) {
       patch.courseName = courseName;
+      patch.area = area; // 都道府県
       patch.dateType = 'fixed';
       patch.date = date;
       patch.startTime = startTime;
@@ -240,6 +241,12 @@ export default function EditRoundPage() {
             <>
               <Field label="ゴルフ場名" required>
                 <input value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="例: 湘南カントリークラブ" className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+              </Field>
+              <Field label="都道府県" required>
+                <select value={area} onChange={(e) => setArea(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none">
+                  <option value="">選択してください</option>
+                  {allAreas.map((a) => <option key={a}>{a}</option>)}
+                </select>
               </Field>
               <Field label="プレー日" required>
                 <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />

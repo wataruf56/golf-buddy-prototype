@@ -71,27 +71,29 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     // off. (General round-chat messages are intentionally NOT inboxed — they are
     // already surfaced by the in-app round-chat unread badge, and inboxing every
     // message would flood the お知らせ list.)
+    // スレッド内の発言なら、そのスレッドへ直接飛べるよう ?thread= を付ける。
+    const chatPath = `/round/${params.id}/chat${threadId ? `?thread=${encodeURIComponent(threadId)}` : ''}`;
     if (mentioned.length) {
       const { addNotificationMany } = await import('@/lib/notifications');
       addNotificationMany(
         mentioned.map((u) => u.id),
         'mention',
         `📣 ${senderName} さんが「${round.title}」のチャットであなたにメンションしました`,
-        `/round/${params.id}/chat`,
+        chatPath,
       ).catch(() => {});
     }
 
     const mentionTargets = mentioned.filter((u) => isNotifyEnabled(u, 'mention')).map((u) => u.id);
     if (mentionTargets.length) {
-      pushToMany(mentionTargets, `📣 ${round.title}\n${senderName} さんがあなたをメンションしました\n${preview}`, liffUrl(`/round/${params.id}/chat`)).catch(() => {});
-      webPushToMany(mentionTargets, `📣 ${senderName} さんからメンション`, preview, `/round/${params.id}/chat`, `mention-${params.id}`).catch(() => {});
+      pushToMany(mentionTargets, `📣 ${round.title}\n${senderName} さんがあなたをメンションしました\n${preview}`, liffUrl(chatPath)).catch(() => {});
+      webPushToMany(mentionTargets, `📣 ${senderName} さんからメンション`, preview, chatPath, `mention-${params.id}`).catch(() => {});
     }
 
     // Everyone else (not mentioned) → general round-chat pref.
     const chatTargets = rest.filter((u) => isNotifyEnabled(u, 'roundChat')).map((u) => u.id);
     if (chatTargets.length) {
-      pushToMany(chatTargets, `🏌️ ${round.title}\n${senderName}: ${preview}`, liffUrl(`/round/${params.id}/chat`)).catch(() => {});
-      webPushToMany(chatTargets, `🏌️ ${round.title}`, `${senderName}: ${preview}`, `/round/${params.id}/chat`, `roundchat-${params.id}`).catch(() => {});
+      pushToMany(chatTargets, `🏌️ ${round.title}\n${senderName}: ${preview}`, liffUrl(chatPath)).catch(() => {});
+      webPushToMany(chatTargets, `🏌️ ${round.title}`, `${senderName}: ${preview}`, chatPath, `roundchat-${params.id}`).catch(() => {});
     }
   }
   return NextResponse.json({ message }, { headers: noStore });
