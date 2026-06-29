@@ -41,8 +41,27 @@ export default function GuidePage() {
           <div className="text-[14px] font-black text-green">これだけ！</div>
           <p className="text-[12px] text-sub mt-1">あとは一緒に回って、楽しいゴルフを。</p>
         </div>
+
+        {/* 規約・運営情報（ホームから移管） */}
+        <div className="mt-8 text-[11px] font-black text-sub mb-2">規約・運営情報</div>
+        <div className="bg-card rounded-card shadow-card overflow-hidden border-2 border-border">
+          <LinkRow icon="📄" label="利用規約" href="/legal/terms" />
+          <LinkRow icon="🔒" label="プライバシーポリシー" href="/legal/privacy" />
+          <LinkRow icon="🏢" label="運営会社・特商法表記" href="/legal/terms" last />
+        </div>
+        <div className="text-[10px] text-muted text-center mt-3">ゴルトモ © 2026</div>
       </div>
     </div>
+  );
+}
+
+function LinkRow({ icon, label, href, last }: { icon: string; label: string; href: string; last?: boolean }) {
+  return (
+    <Link href={href} className={'flex items-center gap-2.5 px-3.5 py-3 text-[13px] font-bold ' + (last ? '' : 'border-b-2 border-hair')}>
+      <span className="text-base w-5 text-center">{icon}</span>
+      <span className="flex-1">{label}</span>
+      <span className="text-muted">›</span>
+    </Link>
   );
 }
 
