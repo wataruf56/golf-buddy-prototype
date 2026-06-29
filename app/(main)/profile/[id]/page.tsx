@@ -211,7 +211,6 @@ export default function ProfilePage() {
                     <span className={`text-[10px] font-bold px-1.5 py-[1px] rounded-full ${demo?.gender === 'male' ? 'bg-blue-light text-blue' : 'bg-pink-100 text-pink-600'}`}>{genderLabel}</span>
                   )}
                 </div>
-                <span className="text-[13px] text-yellow">{'★'.repeat(rv.stars)}{'☆'.repeat(5 - rv.stars)}</span>
               </div>
               {Array.isArray(rv.tags) && rv.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1 mb-1">

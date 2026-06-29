@@ -11,6 +11,26 @@ import type { Round } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Stepper } from '@/components/Stepper';
 
+// 募集タイトルのプルダウン既定値。管理画面で編集されると /api/round-titles で上書き。
+const DEFAULT_TITLE_PRESETS = [
+  '初心者歓迎！のんびりラウンド',
+  'ワイワイ楽しく18ホール',
+  '同世代でゆるっとゴルフ',
+  '真剣勝負！スコアアップラウンド',
+  '平日ゆったりラウンド',
+  '土日にラウンドしましょう！',
+  '朝活ゴルフ',
+  '早朝スルーでサクッと',
+  '仕事終わりにサクッとハーフ',
+  'ナイターで一緒に回りましょう',
+  '女性も安心♪エンジョイゴルフ',
+  '20〜30代で集まりましょう',
+  '40〜50代でゆったりゴルフ',
+  'コンペ前の練習ラウンド',
+  '一緒に上達しましょう！',
+  '気軽にゴルフ仲間募集',
+];
+
 export default function EditRoundPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -25,6 +45,8 @@ export default function EditRoundPage() {
 
   // form state
   const [title, setTitle] = useState('');
+  const [titlePresets, setTitlePresets] = useState<string[]>(DEFAULT_TITLE_PRESETS);
+  const [titleFree, setTitleFree] = useState(false);
   const [courseName, setCourseName] = useState('');
   const [date, setDate] = useState('');
   const [startTime, setStartTime] = useState('8:00');
@@ -43,6 +65,14 @@ export default function EditRoundPage() {
   const [pickupStations, setPickupStations] = useState<string[]>([]);
   const [pickupCapacity, setPickupCapacity] = useState(0);
   const [openChatUrl, setOpenChatUrl] = useState('');
+
+  // 管理画面で編集されたタイトル定型文を取得（失敗時は既定値のまま）。
+  useEffect(() => {
+    fetch('/api/round-titles', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => { if (Array.isArray(d.titles) && d.titles.length) setTitlePresets(d.titles); })
+      .catch(() => {});
+  }, []);
 
   // Pull the round directly if it isn't in the store (e.g. cold load on edit URL).
   useEffect(() => {
@@ -234,7 +264,28 @@ export default function EditRoundPage() {
       <div className="px-5">
         <div className="bg-card rounded-card p-5 shadow-card">
           <Field label="タイトル">
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="例: 初心者歓迎！のんびりラウンド" className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+            <select
+              value={titleFree ? '__free__' : (titlePresets.includes(title) ? title : (title ? '__free__' : ''))}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === '__free__') { setTitleFree(true); setTitle(''); }
+                else { setTitleFree(false); setTitle(v); }
+              }}
+              className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
+            >
+              <option value="">選択してください</option>
+              {titlePresets.map((t) => <option key={t} value={t}>{t}</option>)}
+              <option value="__free__">✏️ 自由入力</option>
+            </select>
+            {(titleFree || (title && !titlePresets.includes(title))) && (
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value.slice(0, 60))}
+                placeholder="タイトルを自由に入力（例: 朝イチ集合・早上がり）"
+                maxLength={60}
+                className="w-full mt-2 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
+              />
+            )}
           </Field>
 
           {isConfirmed ? (

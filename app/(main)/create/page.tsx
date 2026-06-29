@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { allAreas } from '@/lib/mockData';
 import { BEGINNER_FRIENDLY_SCORES } from '@/lib/roundEligibility';
@@ -13,7 +13,8 @@ import { cn } from '@/lib/utils';
 import { Stepper } from '@/components/Stepper';
 
 // 毎回タイトルを考えなくて済むよう、よく使う募集タイトルの定型文。
-const TITLE_PRESETS = [
+// 既定値。管理画面で編集された場合は /api/round-titles の内容で上書きされる。
+const DEFAULT_TITLE_PRESETS = [
   '初心者歓迎！のんびりラウンド',
   'ワイワイ楽しく18ホール',
   '同世代でゆるっとゴルフ',
@@ -43,6 +44,7 @@ export default function CreatePage() {
 
   // form state
   const [title, setTitle] = useState('');
+  const [titlePresets, setTitlePresets] = useState<string[]>(DEFAULT_TITLE_PRESETS);
   const [courseName, setCourseName] = useState('');
   const [date, setDate] = useState('');
   const [startTime, setStartTime] = useState('8:00');
@@ -70,6 +72,14 @@ export default function CreatePage() {
   const extTotal = externalMale + externalFemale;                 // 知り合い合計
   const slots = Math.max(0, maxSpots - 1 - extTotal);            // ゴルトモで募集する枠
   const spotsAny = Math.max(0, slots - spotsMale - spotsFemale);  // どちらでもOK（自動）
+
+  // 管理画面で編集されたタイトル定型文を取得（失敗時は既定値のまま）。
+  useEffect(() => {
+    fetch('/api/round-titles', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => { if (Array.isArray(d.titles) && d.titles.length) setTitlePresets(d.titles); })
+      .catch(() => {});
+  }, []);
 
   // 募集枠を再クランプ（知り合い/合計が変わったとき）
   function reflowSpots(ns: number) {
@@ -246,7 +256,7 @@ export default function CreatePage() {
         <div className="bg-card rounded-card p-5 shadow-card">
           <Field label="タイトル">
             <select
-              value={titleFree ? '__free__' : (TITLE_PRESETS.includes(title) ? title : (title ? '__free__' : ''))}
+              value={titleFree ? '__free__' : (titlePresets.includes(title) ? title : (title ? '__free__' : ''))}
               onChange={(e) => {
                 const v = e.target.value;
                 if (v === '__free__') { setTitleFree(true); setTitle(''); }
@@ -255,10 +265,10 @@ export default function CreatePage() {
               className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
             >
               <option value="">選択してください</option>
-              {TITLE_PRESETS.map((t) => <option key={t} value={t}>{t}</option>)}
+              {titlePresets.map((t) => <option key={t} value={t}>{t}</option>)}
               <option value="__free__">✏️ 自由入力</option>
             </select>
-            {(titleFree || (title && !TITLE_PRESETS.includes(title))) && (
+            {(titleFree || (title && !titlePresets.includes(title))) && (
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value.slice(0, 60))}

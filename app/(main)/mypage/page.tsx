@@ -11,7 +11,7 @@ import { NotifySettings } from '@/components/NotifySettings';
 import { AppUpdateButton } from '@/components/AppUpdateButton';
 import { track } from '@/lib/telemetry';
 import type { Review } from '@/lib/types';
-import { formatDate, formatRating } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 
 const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 const BOT_BASIC_ID = process.env.NEXT_PUBLIC_LINE_BOT_BASIC_ID || '';
@@ -41,22 +41,22 @@ export default function MyPage() {
       r.status === 'completed' && (r.hostId === s.meId || r.applicantIds.includes(s.meId))
     ).length
   );
-  // "ゴル友" = people I rounded with AND completed a mutual review with.
-  // buddyIds is computed server-side in /api/bootstrap as the mutual-review
-  // set, so its length is the live count. Max with the stored buddyCount in
-  // case some buddies fall outside the current bootstrap window.
-  const buddyIdsCount = useStore((s) => s.buddyIds.length);
-  const buddyCount = Math.max(me.buddyCount || 0, buddyIdsCount);
   // Pending applications waiting for ME to approve (across rounds I host)
   const myHostedRounds = useStore((s) => s.rounds.filter((r) => r.hostId === s.meId));
   const pendingForMeAsHost = myHostedRounds.flatMap((r) =>
     (r.pendingApplicantIds || []).map((uid) => ({ round: r, applicantId: uid }))
   );
   const [myReviews, setMyReviews] = useState<Review[]>([]);
+  // 実績ベース評価：一緒に回った人のうち「また回りたい」を押した人数（相手にも見える指標）。
+  const [trackRecord, setTrackRecord] = useState<{ roundedWith: number; againCount: number } | null>(null);
   const users = useStore((s) => s.users);
 
   useEffect(() => {
     if (!meId) return;
+    fetch(`/api/users/${encodeURIComponent(meId)}/track-record`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => setTrackRecord({ roundedWith: d.roundedWith || 0, againCount: d.againCount || 0 }))
+      .catch(() => {});
     track('mypage_render', {
       meId,
       displayName: me.displayName,
@@ -143,10 +143,12 @@ export default function MyPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Stat value={me.reviewCount ? `★${formatRating(me.reviewAvg)}` : '初参加'} label="平均レビュー" color="text-green" />
+            <Stat value={trackRecord ? `${trackRecord.againCount}/${trackRecord.roundedWith}` : '—'} label="また回りたい" color="text-green" />
             <Stat value={`${Math.max(me.roundCount || 0, myCompletedRoundCount)}回`} label="ラウンド" />
-            <Stat value={`${buddyCount}人`} label="ゴル友" color="text-orange" />
             <Stat value={`${myHostedRounds.length}回`} label="募集" />
+          </div>
+          <div className="mt-2 text-[10px] text-muted leading-relaxed">
+            「また回りたい」は、一緒に回った{trackRecord ? trackRecord.roundedWith : 0}人のうち{trackRecord ? trackRecord.againCount : 0}人が「また一緒に回りたい」と回答した実績です（プロフィールを見た相手にも表示されます）。
           </div>
         </div>
 
@@ -204,7 +206,6 @@ export default function MyPage() {
                     <span className={`text-[10px] font-bold px-1.5 py-[1px] rounded-full ${demo?.gender === 'male' ? 'bg-blue-light text-blue' : 'bg-pink-100 text-pink-600'}`}>{genderLabel}</span>
                   )}
                 </div>
-                <span className="text-[13px] text-yellow">{'★'.repeat(rv.stars)}{'☆'.repeat(5 - rv.stars)}</span>
               </div>
               {rv.tags && rv.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1">
