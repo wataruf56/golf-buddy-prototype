@@ -287,14 +287,15 @@ export default function RoundChatPage() {
             className={'flex-shrink-0 w-10 h-10 rounded-full text-base font-black border-[1.5px] ' + (showMention ? 'bg-green text-white border-green' : 'bg-bg border-border text-sub')}
           >@</button>
         )}
-        <input
+        {/* 改行はEnterで入力可。送信は右の送信ボタンのみ（Enterでは送らない）。 */}
+        <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
-          placeholder={activeThread ? `「${activeThreadObj?.name || 'スレッド'}」に返信...` : 'メッセージを入力...'}
-          className="flex-1 px-4 py-2.5 border-[1.5px] border-border rounded-full text-sm outline-none bg-bg"
+          rows={1}
+          placeholder={activeThread ? `「${activeThreadObj?.name || 'スレッド'}」に返信...` : 'メッセージを入力...（改行OK）'}
+          className="flex-1 px-4 py-2.5 border-[1.5px] border-border rounded-[18px] text-sm outline-none bg-bg resize-none max-h-28"
         />
-        <button onClick={send} disabled={sending} className="px-4 py-2.5 bg-green text-white rounded-full text-[13px] font-bold disabled:opacity-50">送信</button>
+        <button onClick={send} disabled={sending} aria-label="送信" className="self-end flex-shrink-0 w-10 h-10 bg-green text-white rounded-full text-base font-bold disabled:opacity-50">➤</button>
       </div>
     </div>
   );
