@@ -655,19 +655,9 @@
           ${detailFieldsHTML(code)}
         </div>
         <div class="sigbox" id="sigbox">
-          <div class="sigttl">🔔 同じ【${nk.n}】と相性のいいラウンドが立ったら<br>LINEで先にお知らせ</div>
-          <div class="siglbl">行けるエリア（複数選択）</div>
-          <div class="sigchips" id="sigAreas">${AREAS.map(a=>`<button type="button" class="sigchip" data-area="${a}">${a}</button>`).join('')}</div>
-          <div class="siglbl">行ける日</div>
-          <div class="sigchips" id="sigDays">${DAYS.map(d=>`<button type="button" class="sigchip" data-day="${d}">${d}</button>`).join('')}</div>
-          <div class="siglbl">クルマ・送迎について</div>
-          <div class="sigchips" id="sigPickup">${PICKUP.map(p=>`<button type="button" class="sigchip" data-pickup="${p}">${p}</button>`).join('')}</div>
-          <div id="sigPlacesWrap" style="display:none">
-            <div class="siglbl">ピックアップ場所（複数選択）</div>
-            <div class="sigchips" id="sigPlaces">${PICKUP_PLACES.map(p=>`<button type="button" class="sigchip" data-place="${p}">${p}</button>`).join('')}</div>
-          </div>
-          <a class="bigcta sigcta" id="sigSubmit" href="https://line.me/R/ti/p/@711xiyrs"><img class="li-logo" src="/line-logo.png" alt="LINE" width="184" height="183">LINEで通知を受け取る</a>
-          <div class="signote">条件に合うラウンドが立ったらLINEでお知らせします（無料）</div>
+          <div class="sigttl">🔔 同じ【${nk.n}】と相性のいいゴルフ友達・ラウンドを探す</div>
+          <div class="signote" style="margin-top:0;margin-bottom:14px">行けるエリア・曜日・送迎を選んで、条件に合う相手が見つかったらLINEでお知らせ（無料）</div>
+          <a class="bigcta sigcta" id="findFromResult" href="#" style="margin-top:0">🏌️ ゴルフ友達を探す</a>
         </div>
         <div class="share">
           <button class="sbtn" id="shareBtn" style="flex:1">📤 結果をシェアする</button>
@@ -694,27 +684,9 @@
       try{ await navigator.clipboard.writeText(shareUrl); alert('結果のリンクをコピーしました！'); }
       catch(e){ prompt('コピーしてください',shareUrl); }
     });
-    // 興味シグナル（行けるエリア×曜日）。診断結果＝雰囲気タグとして resultType を同送。
-    const selA=new Set(), selD=new Set(), selPlaces=new Set(); let selP='';
-    document.querySelectorAll('#sigAreas .sigchip').forEach(b=>b.addEventListener('click',()=>{ const a=b.dataset.area; if(selA.has(a)){selA.delete(a);b.classList.remove('on');}else{selA.add(a);b.classList.add('on');} }));
-    document.querySelectorAll('#sigDays .sigchip').forEach(b=>b.addEventListener('click',()=>{ const d=b.dataset.day; if(selD.has(d)){selD.delete(d);b.classList.remove('on');}else{selD.add(d);b.classList.add('on');} }));
-    // ピックアップは単一選択。可能/希望のときだけ「場所」選択を表示。
-    const placesWrap=document.getElementById('sigPlacesWrap');
-    document.querySelectorAll('#sigPickup .sigchip').forEach(b=>b.addEventListener('click',()=>{
-      selP=(selP===b.dataset.pickup)?'':b.dataset.pickup;
-      document.querySelectorAll('#sigPickup .sigchip').forEach(x=>x.classList.toggle('on', x.dataset.pickup===selP));
-      const showPlaces=(selP==='ピックアップ可能'||selP==='送迎してくれるなら行きたい');
-      if(placesWrap) placesWrap.style.display=showPlaces?'block':'none';
-      if(!showPlaces){ selPlaces.clear(); document.querySelectorAll('#sigPlaces .sigchip').forEach(x=>x.classList.remove('on')); }
-    }));
-    document.querySelectorAll('#sigPlaces .sigchip').forEach(b=>b.addEventListener('click',()=>{ const p=b.dataset.place; if(selPlaces.has(p)){selPlaces.delete(p);b.classList.remove('on');}else{selPlaces.add(p);b.classList.add('on');} }));
-    const sigBtn=document.getElementById('sigSubmit');
-    if(sigBtn) sigBtn.addEventListener('click',(e)=>{
-      // LIFF経由でアプリの /lp-link へ。LINEログイン後、診断結果・エリア・曜日を
-      // 実LINEアカウントに紐付けて保存し、友だち追加へ進む。失敗時は href の友だち追加へ。
-      e.preventDefault();
-      if(!gotoLineSignal(code,[...selA],[...selD],selP,[...selPlaces],'line-signal')) window.location.href=FRIEND_ADD;
-    });
+    // 診断結果の「ゴルフ友達を探す」→ 条件選択画面(#sgScreen)を開く。診断タイプも渡す。
+    const findBtn=document.getElementById('findFromResult');
+    if(findBtn) findBtn.addEventListener('click',(e)=>{ e.preventDefault(); openSignalScreen('result', code); });
     const againBtn=document.getElementById('again');
     if(againBtn) againBtn.addEventListener('click',()=>{ step=0; ans.length=0; resultwrap.classList.add('hidden'); resultwrap.innerHTML=''; quiz.classList.remove('hidden'); calcbox.classList.add('hidden'); quiz.scrollIntoView({behavior:'smooth'}); renderQ(); });
     bindCTA();
@@ -844,11 +816,13 @@
     }));
     PL.querySelectorAll('.sigchip').forEach(b=>b.addEventListener('click',()=>{ const p=b.dataset.place; if(selPlaces.has(p)){selPlaces.delete(p);b.classList.remove('on');}else{selPlaces.add(p);b.classList.add('on');} }));
     const sub=document.getElementById('sgSubmit');
-    if(sub) sub.addEventListener('click',(e)=>{ e.preventDefault(); if(!gotoLineSignal('',[...selA],[...selD],selP,[...selPlaces],'signal-screen')) window.location.href=FRIEND_ADD; });
+    if(sub) sub.addEventListener('click',(e)=>{ e.preventDefault(); if(!gotoLineSignal(SG_CODE,[...selA],[...selD],selP,[...selPlaces],'signal-screen')) window.location.href=FRIEND_ADD; });
     const xb=document.getElementById('sgClose'); if(xb) xb.addEventListener('click',closeSignalScreen);
     screen.addEventListener('click',(e)=>{ if(e.target===screen) closeSignalScreen(); });
   }
-  function openSignalScreen(where){ const s=document.getElementById('sgScreen'); if(!s)return; track('signal_open',{where:where||''}); s.classList.add('show'); s.setAttribute('aria-hidden','false'); document.body.style.overflow='hidden'; s.scrollTop=0; }
+  // 条件選択画面に渡す診断タイプ（診断結果から開いた場合のみ入る。findbar等は空）。
+  let SG_CODE='';
+  function openSignalScreen(where,code){ SG_CODE=code||''; const s=document.getElementById('sgScreen'); if(!s)return; track('signal_open',{where:where||'', resultType:SG_CODE}); s.classList.add('show'); s.setAttribute('aria-hidden','false'); document.body.style.overflow='hidden'; s.scrollTop=0; }
   function closeSignalScreen(){ const s=document.getElementById('sgScreen'); if(!s)return; s.classList.remove('show'); s.setAttribute('aria-hidden','true'); document.body.style.overflow=''; }
   setupSignalScreen();
   // CTA（直接LINEに飛んでいた導線）→ まず条件選択オーバーレイを表示してからLINEへ。

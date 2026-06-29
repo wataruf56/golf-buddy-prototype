@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ModeSelector } from '@/components/swing/ModeSelector';
 import { VideoUploader } from '@/components/swing/VideoUploader';
 import { toast } from '@/components/Toast';
 import { getMe, useStore } from '@/lib/store';
@@ -138,8 +137,39 @@ export default function NewSwingPage() {
         </ul>
       </details>
 
-      <div className="text-xs font-bold text-sub mb-2">① 分析モードを選ぶ</div>
-      <ModeSelector value={mode} onChange={setMode} />
+      <div className="text-xs font-bold text-sub mb-2">① 解析の種類を選ぶ</div>
+      {(() => {
+        const isCompareGroup = mode === 'compare' || mode === 'past' || mode === 'range_vs_round';
+        const opt = (active: boolean) => `flex items-center gap-3 p-3.5 rounded-xl border-[1.5px] text-left w-full ${active ? 'border-green bg-green-light' : 'border-border bg-card'}`;
+        return (
+          <div className="flex flex-col gap-2">
+            <button type="button" onClick={() => setMode('self')} className={opt(mode === 'self')}>
+              <span className="text-2xl">🏌️</span>
+              <div className="flex-1 min-w-0"><div className="text-sm font-bold">自分のスイング解析</div><div className="text-[11px] text-sub mt-0.5">7フェーズ評価＋改善点TOP3</div></div>
+            </button>
+
+            <button type="button" onClick={() => { if (!isCompareGroup) setMode('compare'); }} className={opt(isCompareGroup)}>
+              <span className="text-2xl">🆚</span>
+              <div className="flex-1 min-w-0"><div className="text-sm font-bold">2つの動画を比較</div><div className="text-[11px] text-sub mt-0.5">プロ／過去の自分／練習場↔本番 と比べる</div></div>
+            </button>
+            {isCompareGroup && (
+              <div className="ml-3 pl-3 border-l-2 border-green">
+                <div className="text-[11px] font-bold text-sub mb-1">比較する相手を選ぶ</div>
+                <select value={mode} onChange={(e) => setMode(e.target.value as SwingMode)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none">
+                  <option value="compare">プロのお手本と比較</option>
+                  <option value="past">過去の自分と比較</option>
+                  <option value="range_vs_round">練習場 と 本番ラウンドを比較</option>
+                </select>
+              </div>
+            )}
+
+            <button type="button" onClick={() => setMode('question')} className={opt(mode === 'question')}>
+              <span className="text-2xl">❓</span>
+              <div className="flex-1 min-w-0"><div className="text-sm font-bold">自由質問</div><div className="text-[11px] text-sub mt-0.5">動画について自由に質問</div></div>
+            </button>
+          </div>
+        );
+      })()}
 
       {mode && (
         <>
