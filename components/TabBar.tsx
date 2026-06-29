@@ -27,7 +27,7 @@ export function TabBar({ onBlock }: { onBlock?: (href: string) => boolean }) {
     mypage: totalUnread,
   };
   return (
-    <div className="tab-bar h-[82px] bg-card border-t border-border flex items-start pt-2 flex-shrink-0">
+    <div className="tab-bar h-[82px] bg-card border-t-2 border-border flex items-start pt-2 flex-shrink-0">
       {tabs.map((t) => {
         const active = pathname?.startsWith(t.href);
         const Icon = t.icon;
@@ -38,7 +38,7 @@ export function TabBar({ onBlock }: { onBlock?: (href: string) => boolean }) {
         );
         const inner = (
           <>
-            <div className="relative">
+            <div className={cn('relative px-3 py-0.5 rounded-full transition-colors', active && 'bg-green-light')}>
               <Icon size={24} strokeWidth={2} />
               {badge > 0 && (
                 <span className="absolute -top-1 -right-2 bg-red text-white text-[9px] font-black rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">

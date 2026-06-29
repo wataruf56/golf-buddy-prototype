@@ -8,7 +8,7 @@ import { Avatar } from '@/components/Avatar';
 import { GolmotiBadge } from '@/components/GolmotiBadge';
 import { toast } from '@/components/Toast';
 import type { Review, User } from '@/lib/types';
-import { chatIdFor, formatRating, carLabel } from '@/lib/utils';
+import { chatIdFor, carLabel } from '@/lib/utils';
 
 export default function ProfilePage() {
   const params = useParams<{ id: string }>();
@@ -23,7 +23,7 @@ export default function ProfilePage() {
 
   const [user, setUser] = useState<User | undefined>(cachedUser);
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [track, setTrack] = useState<{ roundedWith: number; againCount: number } | null>(null);
+  const [track, setTrack] = useState<{ roundedWith: number; againCount: number; hostedCount: number; joinedCount: number } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
@@ -36,7 +36,7 @@ export default function ProfilePage() {
       .catch(() => {});
     fetch(`/api/users/${encodeURIComponent(params.id)}/track-record`, { cache: 'no-store' })
       .then((r) => r.json())
-      .then((d) => setTrack({ roundedWith: d.roundedWith || 0, againCount: d.againCount || 0 }))
+      .then((d) => setTrack({ roundedWith: d.roundedWith || 0, againCount: d.againCount || 0, hostedCount: d.hostedCount || 0, joinedCount: d.joinedCount || 0 }))
       .catch(() => {});
   }, [params.id]);
 
@@ -124,16 +124,16 @@ export default function ProfilePage() {
 
       <div className="flex gap-2 mb-5">
         <div className="flex-1 bg-card rounded-xl p-3.5 text-center shadow-card">
-          <div className={`font-black text-green ${user.reviewCount ? 'text-2xl' : 'text-lg pt-1'}`}>{user.reviewCount ? `★${formatRating(user.reviewAvg)}` : '🆕 初参加'}</div>
-          <div className="text-[10px] text-muted mt-0.5">{user.reviewCount ? `${user.reviewCount}件のレビュー` : 'まだレビューがありません'}</div>
+          <div className="text-2xl font-black text-green">{track ? `${track.againCount}/${track.roundedWith}` : '—'}</div>
+          <div className="text-[10px] text-muted mt-0.5">また回りたい</div>
         </div>
         <div className="flex-1 bg-card rounded-xl p-3.5 text-center shadow-card">
-          <div className="text-2xl font-black text-blue">{user.scoreRange}</div>
-          <div className="text-[10px] text-muted mt-0.5">スコア帯</div>
+          <div className="text-2xl font-black text-orange">{track ? track.hostedCount : '—'}</div>
+          <div className="text-[10px] text-muted mt-0.5">募集回数</div>
         </div>
         <div className="flex-1 bg-card rounded-xl p-3.5 text-center shadow-card">
-          <div className="text-2xl font-black">{user.roundCount}</div>
-          <div className="text-[10px] text-muted mt-0.5">ラウンド</div>
+          <div className="text-2xl font-black">{track ? track.joinedCount : '—'}</div>
+          <div className="text-[10px] text-muted mt-0.5">参加回数</div>
         </div>
       </div>
 

@@ -151,16 +151,6 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* ホーム最上部：ゴルトモ公式の直近コンペ・イベント */}
-      {officialComp && (
-        <section className="px-5 pb-3">
-          <div className="text-[13px] font-black text-orange mb-2 flex items-center gap-1.5">
-            🏆 ゴルトモ公式コンペ・イベント
-          </div>
-          <RoundCard round={officialComp} host={users.find((u) => u.id === officialComp.hostId)} />
-        </section>
-      )}
-
       <HomeUpdateCard />
 
       {showAddBot && (
@@ -221,23 +211,28 @@ export default function HomePage() {
         </div>
       )}
 
+      {/* プロフィール（タップでマイページ／鉛筆で編集）。統計はマイページに集約。 */}
       <div className="px-5 pb-3">
-        <div className="bg-card rounded-card p-5 shadow-card">
-          <div className="flex items-center gap-3 mb-4">
-            <Avatar user={me} size={52} />
-            <div>
-              <div className="text-[17px] font-black">{me.displayName}</div>
-              <div className="text-xs text-sub">
-                {[me.age ? `${me.age}歳` : null, me.scoreRange ? `スコア ${me.scoreRange}` : null, me.area || null].filter(Boolean).join(' ・ ') || 'プロフィールを設定しましょう'}
-              </div>
+        <div className="bg-card rounded-card p-3.5 shadow-card flex items-center gap-3">
+          <Link href="/mypage" className="flex items-center gap-3 flex-1 min-w-0">
+            <Avatar user={me} size={46} />
+            <div className="min-w-0">
+              <div className="text-[16px] font-black truncate">{me.displayName || 'プロフィール'}</div>
+              <div className="text-[11px] text-muted">タップでプロフィール</div>
             </div>
-          </div>
-          <div className="flex gap-2">
-            <Stat value={me.reviewCount ? me.reviewAvg.toFixed(1) : '初参加'} label="レビュー平均" color="text-green" />
-            <Stat value={String(Math.max(me.roundCount || 0, myCompletedRoundCount))} label="ラウンド回数" color="text-blue" />
-            <Stat value={String(buddyCount)} label="ゴル友" color="text-orange" />
-          </div>
+          </Link>
+          <Link href="/mypage/edit" className="flex-shrink-0 px-3 py-2 bg-bg border-2 border-border rounded-full text-xs font-bold">✏️ 編集</Link>
         </div>
+      </div>
+
+      {/* 募集する／さがす */}
+      <div className="px-5 pb-3 grid grid-cols-2 gap-3">
+        <Link href="/create" className="bg-orange text-white border-2 border-border rounded-card shadow-card py-4 text-center font-black">
+          <div className="text-2xl leading-none mb-1">＋</div>ラウンドを募集
+        </Link>
+        <Link href="/search" className="bg-green text-white border-2 border-border rounded-card shadow-card py-4 text-center font-black">
+          <div className="text-2xl leading-none mb-1">🔍</div>募集をさがす
+        </Link>
       </div>
 
       {/* 未読がある時だけ、上部にインライン表示。既読・過去はベルから確認。 */}
@@ -258,17 +253,18 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* 募集は「同じ流れ」に埋もれないよう、独立したゾーンとして強調表示する。 */}
+      {/* 募集中のラウンド。公式コンペは同じカード形式で先頭に置く。 */}
       <section className="mt-2 bg-green-light border-y-2 border-green pt-4 pb-3">
-        <div className="px-5 flex items-center justify-between mb-3">
+        <div className="px-5 mb-3">
           <div className="text-xl font-black flex items-center gap-2 text-green-dark">
-            <span>⛳</span>
-            <span>新着ラウンド募集</span>
+            <span>🏌️</span>
+            <span>募集中のラウンド</span>
             {rounds.length > 0 && (
-              <span className="text-[12px] font-black text-white bg-orange px-2.5 py-1 rounded-full leading-none">{rounds.length}件募集中</span>
+              <span className="text-[12px] font-black text-white bg-orange px-2.5 py-1 rounded-full leading-none">{rounds.length}件</span>
             )}
+            <Link href="/search" className="ml-auto text-xs font-black text-green whitespace-nowrap">もっと見る ›</Link>
           </div>
-          <Link href="/search" className="text-xs font-black text-green whitespace-nowrap">もっと見る ›</Link>
+          <div className="text-[12px] text-sub font-bold mt-1">一緒に回るメンバーを募集しています</div>
         </div>
         <div className="px-5">
           {rounds.length === 0 ? (
@@ -281,8 +277,8 @@ export default function HomePage() {
               </Link>
             </div>
           ) : (
-            rounds.filter((r) => r.id !== officialComp?.id).map((r) => (
-              <RoundCard key={r.id} round={r} host={users.find((u) => u.id === r.hostId)} />
+            [...(officialComp ? [officialComp] : []), ...rounds.filter((r) => r.id !== officialComp?.id)].map((r) => (
+              <RoundCard key={r.id} round={r} />
             ))
           )}
         </div>

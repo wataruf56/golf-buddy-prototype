@@ -258,6 +258,16 @@ export default function RoundDetailPage() {
       <div className="flex items-center justify-between mb-4">
         <button onClick={() => router.back()} className="text-sm text-blue font-semibold">← 戻る</button>
         <div className="flex items-center gap-2">
+          {!isHost && (
+            <button
+              onClick={onToggleInterest}
+              className={'px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 border-[1.5px] ' + (iAmInterested ? 'bg-pink-100 border-pink-500 text-pink-600' : 'bg-bg border-border')}
+              aria-label="気になる"
+            >
+              <span>{iAmInterested ? '❤️' : '🤍'}</span>
+              <span>気になる</span>
+            </button>
+          )}
           <button
             onClick={shareRound}
             className="px-3 py-1.5 bg-bg border-[1.5px] border-border rounded-full text-xs font-bold flex items-center gap-1"
@@ -286,6 +296,11 @@ export default function RoundDetailPage() {
           <span className="inline-block px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-[#EFEFEC] text-sub mb-3 ml-2">📍 コース未定</span>
         )}
         <div className="text-xl font-black mb-4">{round.title}</div>
+
+        {/* 自由記入のコメント（投稿の一番上に表示） */}
+        {round.description && (
+          <div className="mb-4 p-3 bg-bg rounded-xl text-[13px] text-text leading-relaxed whitespace-pre-wrap">{round.description}</div>
+        )}
 
         <div className="grid grid-cols-2 gap-2.5 mb-4">
           <Cell label="日時">{dateLabel} {round.startTime || ''}</Cell>
@@ -363,28 +378,7 @@ export default function RoundDetailPage() {
         {/* 🚗 送迎（主催者＋車ありの参加者） */}
         <PickupInfo round={round} meId={meId} users={users} isHost={isHost} isApproved={isApproved} />
 
-        {round.description && (
-          <div className="mb-4 p-3 bg-bg rounded-xl text-[13px] text-text leading-relaxed">{round.description}</div>
-        )}
-
-        {/* ♡「気になる」toggle — anyone but the host. Lets you bookmark a round
-            and get a "締切間近" nudge; the host can also invite you from here. */}
-        {!isHost && (
-          <button
-            onClick={onToggleInterest}
-            className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl mb-4 text-sm font-bold border-[1.5px] transition-colors ${
-              iAmInterested
-                ? 'bg-pink-100 text-pink-600 border-pink-300'
-                : 'bg-card text-sub border-border'
-            }`}
-          >
-            <span className="text-base">{iAmInterested ? '❤️' : '🤍'}</span>
-            {iAmInterested ? '気になるに追加済み' : '気になる'}
-            {interestedUsers.length > 0 && (
-              <span className="text-[11px] font-bold opacity-80">（{interestedUsers.length}）</span>
-            )}
-          </button>
-        )}
+        {/* 気になるは画面上部（シェアの左）に移動。説明文は投稿冒頭に表示。 */}
 
         {/* Group chat entry */}
         {canChatGroup && (

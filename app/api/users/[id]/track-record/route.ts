@@ -22,6 +22,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     ]);
     const seenRounds = new Set<string>();
     const partners = new Set<string>();
+    let hostedCount = 0;   // 募集回数（完了ラウンドで主催）
+    let joinedCount = 0;   // 参加回数（完了ラウンドに参加者として参加）
     const consider = (doc: any) => {
       if (seenRounds.has(doc.id)) return;
       seenRounds.add(doc.id);
@@ -29,6 +31,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       if (r.status !== 'completed') return;
       const members: string[] = [r.hostId, ...((r.applicantIds as string[]) || [])].filter(Boolean);
       if (!members.includes(id)) return;
+      if (r.hostId === id) hostedCount++; else joinedCount++;
       for (const m of members) if (m && m !== id) partners.add(m);
     };
     asApplicant.docs.forEach(consider);
@@ -42,8 +45,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       if (x.kind === 'again' && x.from) againFrom.add(x.from);
     });
 
-    return NextResponse.json({ roundedWith: partners.size, againCount: againFrom.size }, { headers: noStore });
+    return NextResponse.json({ roundedWith: partners.size, againCount: againFrom.size, hostedCount, joinedCount }, { headers: noStore });
   } catch (e) {
-    return NextResponse.json({ roundedWith: 0, againCount: 0, error: (e as Error).message }, { headers: noStore });
+    return NextResponse.json({ roundedWith: 0, againCount: 0, hostedCount: 0, joinedCount: 0, error: (e as Error).message }, { headers: noStore });
   }
 }

@@ -249,7 +249,7 @@ export default function EditRoundPage() {
                 </select>
               </Field>
               <Field label="プレー日" required>
-                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full min-w-0 max-w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none appearance-none" style={{ boxSizing: 'border-box' }} />
               </Field>
               <Field label="スタート時間" required>
                 <select value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none">

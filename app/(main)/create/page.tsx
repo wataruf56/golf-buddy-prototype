@@ -19,11 +19,17 @@ const TITLE_PRESETS = [
   '同世代でゆるっとゴルフ',
   '真剣勝負！スコアアップラウンド',
   '平日ゆったりラウンド',
+  '土日にラウンドしましょう！',
   '朝活ゴルフ',
+  '早朝スルーでサクッと',
   '仕事終わりにサクッとハーフ',
+  'ナイターで一緒に回りましょう',
   '女性も安心♪エンジョイゴルフ',
+  '20〜30代で集まりましょう',
+  '40〜50代でゆったりゴルフ',
   'コンペ前の練習ラウンド',
   '一緒に上達しましょう！',
+  '気軽にゴルフ仲間募集',
 ];
 
 export default function CreatePage() {
@@ -41,6 +47,7 @@ export default function CreatePage() {
   const [date, setDate] = useState('');
   const [startTime, setStartTime] = useState('8:00');
   const [meetingInfo, setMeetingInfo] = useState('');
+  const [titleFree, setTitleFree] = useState(false);
   const [area, setArea] = useState('');
   const [dateType, setDateType] = useState<DateType>('fixed');
   const [dateRange, setDateRange] = useState('');
@@ -238,18 +245,28 @@ export default function CreatePage() {
       <div className="px-5">
         <div className="bg-card rounded-card p-5 shadow-card">
           <Field label="タイトル">
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="例: 初心者歓迎！のんびりラウンド" className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
-            <div className="text-[10px] text-muted mt-2 mb-1">よく使うタイトルから選ぶ（選んでから編集もできます）</div>
-            <div className="flex flex-wrap gap-1.5">
-              {TITLE_PRESETS.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setTitle(t)}
-                  className={'px-2.5 py-1.5 rounded-full text-[11px] font-bold border-[1.5px] ' + (title === t ? 'bg-green text-white border-green' : 'bg-bg border-border text-sub')}
-                >{t}</button>
-              ))}
-            </div>
+            <select
+              value={titleFree ? '__free__' : (TITLE_PRESETS.includes(title) ? title : (title ? '__free__' : ''))}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === '__free__') { setTitleFree(true); setTitle(''); }
+                else { setTitleFree(false); setTitle(v); }
+              }}
+              className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
+            >
+              <option value="">選択してください</option>
+              {TITLE_PRESETS.map((t) => <option key={t} value={t}>{t}</option>)}
+              <option value="__free__">✏️ 自由入力</option>
+            </select>
+            {(titleFree || (title && !TITLE_PRESETS.includes(title))) && (
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value.slice(0, 60))}
+                placeholder="タイトルを自由に入力（例: 朝イチ集合・早上がり）"
+                maxLength={60}
+                className="w-full mt-2 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
+              />
+            )}
           </Field>
 
           {isConfirmed ? (
@@ -264,7 +281,7 @@ export default function CreatePage() {
                 </select>
               </Field>
               <Field label="プレー日" required>
-                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full min-w-0 max-w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none appearance-none" style={{ boxSizing: 'border-box' }} />
               </Field>
               <Field label="スタート時間" required>
                 <select value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none">
@@ -298,7 +315,7 @@ export default function CreatePage() {
                   <button onClick={() => setDateType('range')} className={cn('flex-1 py-2.5 text-sm font-bold rounded-[10px] border-[1.5px]', dateType === 'range' ? 'border-green bg-green-light text-green' : 'border-border bg-card text-text')}>📆 期間で希望</button>
                 </div>
                 {dateType === 'fixed' ? (
-                  <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+                  <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full min-w-0 max-w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none appearance-none" style={{ boxSizing: 'border-box' }} />
                 ) : (
                   <input value={dateRange} onChange={(e) => setDateRange(e.target.value)} placeholder="例: 5月の土日 / 5/10〜5/25のどこか" className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
                 )}
