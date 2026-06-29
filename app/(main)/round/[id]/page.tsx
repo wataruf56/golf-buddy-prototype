@@ -905,7 +905,8 @@ function ConfirmCourseModal({ roundId, initialPrice, onClose }: { roundId: strin
   const [price, setPrice] = useState(initialPrice || '');
   const [busy, setBusy] = useState(false);
   const timeSlots: string[] = [];
-  for (let h = 6; h <= 14; h++) for (let m = 0; m < 60; m += 5) timeSlots.push(`${h}:${String(m).padStart(2, '0')}`);
+  for (let h = 6; h <= 23; h++) for (let m = 0; m < 60; m += 5) timeSlots.push(`${h}:${String(m).padStart(2, '0')}`);
+  timeSlots.push('24:00'); // ナイター対応（深夜0時まで選択可）
 
   async function submit() {
     if (!courseName || !date || !startTime) {

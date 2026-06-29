@@ -139,9 +139,10 @@ export default function EditRoundPage() {
     return 'any';
   }
   const timeSlots: string[] = [];
-  for (let h = 6; h <= 14; h++) {
+  for (let h = 6; h <= 23; h++) {
     for (let m = 0; m < 60; m += 5) timeSlots.push(`${h}:${String(m).padStart(2, '0')}`);
   }
+  timeSlots.push('24:00'); // ナイター対応（深夜0時まで選択可）
 
   // Guard: only the host may edit.
   if (round && meId && round.hostId !== meId) {
