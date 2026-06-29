@@ -45,12 +45,14 @@ export default function HomePage() {
   useEffect(() => {
     if (!BOT_BASIC_ID || me.notifyOff) return;
     if (typeof window === 'undefined') return;
+    // 公式LINEを友だち追加済みと判定できた人には出さない（LIFFのgetFriendship由来）。
+    if (me.botFollowed === true) return;
     if (localStorage.getItem('gb_add_bot_dismissed') === '1') return;
     // Same marker the mypage modal sets when the user confirms they added
     // the bot — once that happens we never show the home banner either.
     if (localStorage.getItem('gb_bot_added') === '1') return;
     setShowAddBot(true);
-  }, [me.notifyOff]);
+  }, [me.notifyOff, me.botFollowed]);
   // マッチ通知が来たらポップアップ。localStorageで既読管理し再表示を防ぐ。
   useEffect(() => {
     if (typeof window === 'undefined') return;

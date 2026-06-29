@@ -13,6 +13,9 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'bad json' }, { status: 400 }); }
   const idToken: string = body?.idToken || '';
   if (!idToken) return NextResponse.json({ error: 'idToken required' }, { status: 400 });
+  // LIFF の liff.getFriendship() で取得した「公式LINE友だち追加済みか」。
+  // 取得できなかった環境では undefined（保存しない）。
+  const friendFlag: boolean | undefined = typeof body?.friendFlag === 'boolean' ? body.friendFlag : undefined;
 
   // Verify with LINE
   const params = new URLSearchParams();
@@ -65,6 +68,15 @@ export async function POST(req: NextRequest) {
     }
   } catch (e) {
     console.error('[liff auth] upsert failed', e);
+  }
+
+  // 公式LINE友だち状態を保存（取得できた場合のみ）。新規・既存どちらも更新する。
+  if (friendFlag !== undefined) {
+    try {
+      await db.upsertUser({ id: userId, botFollowed: friendFlag, botFollowedAt: Date.now() } as any);
+    } catch (e) {
+      console.error('[liff auth] botFollowed update failed', e);
+    }
   }
 
   // Notify admins on new signup (LINE push). Best-effort, never block login.

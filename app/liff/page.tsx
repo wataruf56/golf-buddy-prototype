@@ -60,10 +60,18 @@ function LiffEntryInner() {
         const idToken = liff.getIDToken();
         if (!idToken) throw new Error('idToken が取得できませんでした');
 
+        // 公式LINEアカウントの友だち追加状況を取得（プロバイダーにOAが
+        // 紐付いている場合のみ有効。取得できなければ undefined のまま送る）。
+        let friendFlag: boolean | undefined = undefined;
+        try {
+          const fs = await liff.getFriendship();
+          if (fs && typeof fs.friendFlag === 'boolean') friendFlag = fs.friendFlag;
+        } catch { /* getFriendship 非対応環境では無視 */ }
+
         const res = await fetch('/api/auth/liff', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ idToken }),
+          body: JSON.stringify({ idToken, friendFlag }),
           cache: 'no-store',
           credentials: 'include',
         });

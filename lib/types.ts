@@ -28,6 +28,11 @@ export type User = {
   blockedUserIds?: string[];
   recentScores?: ScoreEntry[];
   notifyOff?: boolean;        // legacy master switch (true = all notifications off)
+  // 公式LINEアカウントを友だち追加済みか。LIFF の liff.getFriendship() で取得し、
+  // ログイン時に保存する。true=登録済み（ホームの「LINEで通知を受け取る」案内を出さない）。
+  // undefined=未判定（友だち判定がLIFFで使えない環境）。
+  botFollowed?: boolean;
+  botFollowedAt?: number;     // 上記を最後に更新した時刻
   // Per-type notification preferences for the LINE official account + web push.
   // Keys are NotifyType (lib/notifyPrefs). Missing key → that type's default.
   notifyPrefs?: Record<string, boolean>;
