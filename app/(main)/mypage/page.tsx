@@ -10,7 +10,6 @@ import { GolmotiBadge } from '@/components/GolmotiBadge';
 import { NotifySettings } from '@/components/NotifySettings';
 import { AppUpdateButton } from '@/components/AppUpdateButton';
 import { track } from '@/lib/telemetry';
-import type { Review } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
 
 const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
@@ -46,7 +45,6 @@ export default function MyPage() {
   const pendingForMeAsHost = myHostedRounds.flatMap((r) =>
     (r.pendingApplicantIds || []).map((uid) => ({ round: r, applicantId: uid }))
   );
-  const [myReviews, setMyReviews] = useState<Review[]>([]);
   // 実績ベース評価：一緒に回った人のうち「また回りたい」を押した人数（相手にも見える指標）。
   const [trackRecord, setTrackRecord] = useState<{ roundedWith: number; againCount: number } | null>(null);
   const users = useStore((s) => s.users);
@@ -65,10 +63,6 @@ export default function MyPage() {
       hasAvatarUrl: !!me.avatarUrl,
       avatarUrlLength: me.avatarUrl?.length || 0,
     });
-    fetch(`/api/reviews?userId=${encodeURIComponent(meId)}`)
-      .then((r) => r.json())
-      .then((d) => setMyReviews(d.reviews || []))
-      .catch(() => {});
   }, [meId, me.displayName, me.avatarUrl]);
 
   function logout() {
@@ -182,46 +176,6 @@ export default function MyPage() {
           </div>
         </details>
 
-        <details className="bg-card rounded-card shadow-card mb-4">
-          <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
-            <span className="text-[13px] font-bold">自分へのレビュー</span>
-            <span className="text-[11px] text-muted">{myReviews.length}件 ▾</span>
-          </summary>
-          <div className="px-4 pb-4">
-          {myReviews.length === 0 ? (
-            <div className="text-xs text-muted py-3 text-center">まだレビューがありません</div>
-          ) : myReviews.map((rv) => {
-            const demo = (rv as any).reviewer as { ageBucket?: string; gender?: string } | undefined;
-            const genderLabel = demo?.gender === 'male' ? '👨 男性'
-              : demo?.gender === 'female' ? '👩 女性' : null;
-            return (
-            <div key={rv.id} className="p-2.5 bg-bg rounded-[10px] mb-2">
-              <div className="flex justify-between items-center mb-1 gap-2 flex-wrap">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[10px] text-muted font-bold">匿名レビュー</span>
-                  {demo?.ageBucket && (
-                    <span className="text-[10px] font-bold px-1.5 py-[1px] rounded-full bg-card text-sub border border-border">{demo.ageBucket}歳</span>
-                  )}
-                  {genderLabel && (
-                    <span className={`text-[10px] font-bold px-1.5 py-[1px] rounded-full ${demo?.gender === 'male' ? 'bg-blue-light text-blue' : 'bg-pink-100 text-pink-600'}`}>{genderLabel}</span>
-                  )}
-                </div>
-              </div>
-              {rv.tags && rv.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {rv.tags.map((tag, i) => (
-                    <span key={i} className="text-[11px] bg-green-light text-green px-2 py-0.5 rounded-full font-medium">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {rv.comment && <div className="text-[13px] mt-1.5">{rv.comment}</div>}
-            </div>
-            );
-          })}
-          </div>
-        </details>
 
         <details className="bg-card rounded-card shadow-card mb-4">
           <summary className="flex items-center justify-between p-4 cursor-pointer list-none">

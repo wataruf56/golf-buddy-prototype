@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { allAreas } from '@/lib/mockData';
-import { BEGINNER_FRIENDLY_SCORES } from '@/lib/roundEligibility';
 import { PickupStationPicker } from '@/components/PickupStationPicker';
 import { PriceField } from '@/components/PriceField';
 import { store, useStore } from '@/lib/store';
@@ -418,25 +417,6 @@ export default function EditRoundPage() {
               <span className="block text-[10px] text-muted font-medium mt-0.5">「どちらでもOK」は残り枠から自動計算されます</span>
             </div>
           </Field>
-
-          <Field label="参加条件 - レベル">
-            <div className="flex gap-1.5 flex-wrap">
-              <button
-                onClick={() => setBeginnerOnly(false)}
-                className={cn('px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px]', !beginnerOnly ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub')}
-              >誰でも・初心者OK</button>
-              <button
-                onClick={() => setBeginnerOnly(true)}
-                className={cn('px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px]', beginnerOnly ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub')}
-              >初心者のみ</button>
-            </div>
-            {beginnerOnly && (
-              <div className="mt-2 px-3 py-2 bg-bg rounded-lg text-[11px] text-sub leading-relaxed">
-                スコア帯 <b>{BEGINNER_FRIENDLY_SCORES.join(' / ')}</b> の人だけ参加申込できます。
-              </div>
-            )}
-          </Field>
-
 
           <Field label="🚗 ピックアップできる駅" hint="（送迎できる駅・複数選択・任意入力OK）">
             <PickupStationPicker value={pickupStations} onChange={setPickupStations} />
