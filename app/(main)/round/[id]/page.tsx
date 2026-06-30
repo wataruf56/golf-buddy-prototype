@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useRouter } from 'next/navigation';
 import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
@@ -13,7 +14,7 @@ import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
 import { GroupAssignment } from '@/components/GroupAssignment';
 import { PickupStationPicker } from '@/components/PickupStationPicker';
 import { MatchPicker } from '@/components/MatchPicker';
-import type { Round, User } from '@/lib/types';
+import type { Round, User, PickupStatus } from '@/lib/types';
 
 // Brand launch URL — handled by middleware, redirects to liff.line.me/{id}
 // while preserving the ?to= query so the recipient lands directly on the
@@ -965,112 +966,238 @@ function Field({ label, required, children }: { label: string; required?: boolea
   );
 }
 
-// 🚗 送迎情報。主催者(round.pickupStations)＋車ありの参加者
-// (round.participantPickups[uid]) をまとめて表示。さらに「自分が車あり参加者」
-// なら、自分の送迎できる駅をその場で登録・更新できる。
+// 🚗 ピックアップ（送迎）情報。主催者(round.pickupStations)＋各参加者の回答
+// (round.participantPickups[uid]) をまとめて表示。承認済み参加者は自分の回答
+// （送迎できる/しない・してほしい/不要＋駅）をその場で登録・更新できる。普段は
+// アコーディオンで閉じており、未回答の間はタブ直上に赤いフロートで入力を促す。
 function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; meId: string; users: User[]; isHost: boolean; isApproved: boolean }) {
   const meUser = users.find((u) => u.id === meId);
-  const canRegister = !isHost && isApproved && meUser?.car === 'have';
+  const canRespond = !isHost && isApproved;
+  // 役割：車ありは「送迎可能側」、それ以外は「送迎希望側」。
+  const role: 'provider' | 'seeker' = meUser?.car === 'have' ? 'provider' : 'seeker';
   const mine = round.participantPickups?.[meId];
+  // 旧データ（statusなし＋駅あり）は送迎可能(can)とみなす。
+  const mineStatus: PickupStatus | undefined = mine?.status || (mine?.stations?.length ? 'can' : undefined);
+
+  const [status, setStatus] = useState<PickupStatus | undefined>(mineStatus);
   const [myStations, setMyStations] = useState<string[]>(mine?.stations || []);
   const [myCapacity, setMyCapacity] = useState<number>(mine?.capacity || 0);
-  const [saved, setSaved] = useState<{ stations: string[]; capacity: number }>({ stations: mine?.stations || [], capacity: mine?.capacity || 0 });
+  const [saved, setSaved] = useState<{ status?: PickupStatus; stations: string[]; capacity: number }>({ status: mineStatus, stations: mine?.stations || [], capacity: mine?.capacity || 0 });
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
-  // 登録済みの値が（ラウンド取得タイミングの都合で）エディタに反映されない
-  // ことがあったため、編集中でない時は最新の登録値へ同期する＝いつでも修正可能に。
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  // 取得タイミングのズレに備え、未編集時は最新の登録値へ同期＝いつでも修正可能。
   const mineKey = JSON.stringify(mine || null);
   useEffect(() => {
-    if (editing) return; // 編集中はユーザー入力を上書きしない
+    if (editing) return;
+    setStatus(mineStatus);
     setMyStations(mine?.stations || []);
     setMyCapacity(mine?.capacity || 0);
-    setSaved({ stations: mine?.stations || [], capacity: mine?.capacity || 0 });
+    setSaved({ status: mineStatus, stations: mine?.stations || [], capacity: mine?.capacity || 0 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mineKey, editing]);
+
+  const needsStations = status === 'can' || status === 'want';
 
   async function save() {
     setSaving(true);
     try {
+      const stationsToSend = needsStations ? myStations : [];
       const res = await fetch(`/api/rounds/${round.id}/pickup`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stations: myStations, capacity: myCapacity || undefined }), cache: 'no-store', credentials: 'include',
+        body: JSON.stringify({ status, stations: stationsToSend, capacity: status === 'can' ? (myCapacity || undefined) : undefined }), cache: 'no-store', credentials: 'include',
       });
       if (!res.ok) throw new Error(String(res.status));
-      setSaved({ stations: myStations, capacity: myCapacity });
+      setSaved({ status, stations: stationsToSend, capacity: myCapacity });
       setEditing(false);
       store.refreshRounds().catch(() => {});
-      toast(myStations.length ? '送迎できる駅を保存しました🚗' : '送迎の登録を解除しました');
+      toast('ピックアップの回答を保存しました🚗');
     } catch (e) { toast('保存に失敗しました', 'error'); }
     finally { setSaving(false); }
   }
 
-  // 表示用：主催者＋各参加者（自分の最新保存値で上書き）
-  const people: { id: string; name: string; stations: string[]; capacity?: number; host: boolean }[] = [];
-  if ((round.pickupStations?.length ?? 0) > 0) {
-    people.push({ id: round.hostId, name: users.find((u) => u.id === round.hostId)?.displayName || '主催者', stations: round.pickupStations!, capacity: round.pickupCapacity, host: true });
-  }
+  // 保存済みの回答が「完了」しているか（フロート表示の判定に使う）。
+  const savedComplete =
+    saved.status === 'cannot' || saved.status === 'no_need' ||
+    ((saved.status === 'can' || saved.status === 'want') && saved.stations.length > 0);
+
+  // 表示用リスト：送迎できる人(provider)とピックアップ希望者(seeker)。自分の分は最新保存値で上書き。
   const pp = { ...(round.participantPickups || {}) };
-  if (canRegister) { if (saved.stations.length) pp[meId] = { stations: saved.stations, capacity: saved.capacity || undefined }; else delete pp[meId]; }
+  if (canRespond) {
+    if (saved.status) pp[meId] = { status: saved.status, stations: saved.stations, capacity: saved.capacity || undefined };
+    else delete pp[meId];
+  }
+  const providers: { id: string; name: string; stations: string[]; capacity?: number; host: boolean }[] = [];
+  if ((round.pickupStations?.length ?? 0) > 0) {
+    providers.push({ id: round.hostId, name: users.find((u) => u.id === round.hostId)?.displayName || '主催者', stations: round.pickupStations!, capacity: round.pickupCapacity, host: true });
+  }
+  const seekers: { id: string; name: string; stations: string[] }[] = [];
   Object.entries(pp).forEach(([uid, v]) => {
+    const st: PickupStatus | undefined = v?.status || (v?.stations?.length ? 'can' : undefined);
     const sts = v?.stations || [];
-    if (sts.length) people.push({ id: uid, name: users.find((u) => u.id === uid)?.displayName || 'メンバー', stations: sts, capacity: v?.capacity, host: false });
+    const name = users.find((u) => u.id === uid)?.displayName || 'メンバー';
+    if (st === 'can' && sts.length) providers.push({ id: uid, name, stations: sts, capacity: v?.capacity, host: false });
+    else if (st === 'want' && sts.length) seekers.push({ id: uid, name, stations: sts });
   });
 
-  if (people.length === 0 && !canRegister) return null;
+  const hasAny = providers.length > 0 || seekers.length > 0;
+  if (!hasAny && !canRespond) return null;
+
+  // フロート：承認済み参加者が未回答の間だけ、タブ直上に赤く固定表示。
+  const showFloat = canRespond && !savedComplete && !open;
+  function openSection() {
+    setOpen(true);
+    requestAnimationFrame(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+  }
+
+  const myLabel = !canRespond ? '' :
+    saved.status === 'can' ? '🚗 送迎できる' :
+    saved.status === 'want' ? '🙋 希望中' :
+    saved.status === 'cannot' ? '送迎しない' :
+    saved.status === 'no_need' ? '不要' :
+    '未回答';
 
   return (
-    <div className="mb-4 p-3 bg-green-light rounded-xl border-[1.5px] border-green">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-[13px] font-black text-white bg-green px-2 py-0.5 rounded-full">ピックアップ場所</span>
-        <span className="text-[12px] font-bold text-green">送迎できる人</span>
-      </div>
-      {people.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          {people.map((p) => (
-            <div key={p.id + (p.host ? '_h' : '')} className="bg-white rounded-lg p-2">
-              <div className="text-[12px] font-bold text-text mb-1">
-                {p.name}
-                {p.host && <span className="ml-1 text-[10px] text-green font-black">主催者</span>}
-                {p.capacity ? <span className="ml-1.5 text-[10px] text-sub font-bold">自分含め{p.capacity}名</span> : null}
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {p.stations.map((st) => (
-                  <span key={st} className="px-2 py-0.5 bg-green-light text-green rounded-full text-[11px] font-bold border border-green">{st}駅</span>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-[11px] text-green font-semibold">まだ送迎できる人がいません。車をお持ちなら下から登録できます。</div>
-      )}
+    <div ref={ref} className="mb-4">
+      <details open={open} onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)} className="bg-green-light rounded-xl border-[1.5px] border-green overflow-hidden">
+        <summary className="flex items-center gap-2 px-3 py-2.5 cursor-pointer list-none">
+          <span className="text-[13px] font-black text-white bg-green px-2 py-0.5 rounded-full">ピックアップ</span>
+          <span className="text-[11px] font-bold text-green flex-1">
+            {providers.length > 0 ? `送迎できる人 ${providers.length}人` : '送迎の相談'}
+          </span>
+          {myLabel && (
+            <span className={`text-[10px] font-black px-1.5 py-[1px] rounded-full ${savedComplete ? 'bg-white text-green border border-green' : 'bg-red text-white'}`}>{myLabel}</span>
+          )}
+          <span className="text-green transition-transform" style={{ transform: open ? 'rotate(90deg)' : 'none' }}>›</span>
+        </summary>
 
-      {canRegister && (
-        <div className="mt-3 pt-3 border-t border-green/40">
-          <div className="text-[11px] font-black text-green mb-1.5">🚗 あなたが送迎できる駅（車あり）</div>
-          <div className="bg-white rounded-lg p-2">
-            <PickupStationPicker value={myStations} onChange={(v) => { setEditing(true); setMyStations(v); }} />
-            {myStations.length > 0 && (
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-[11px] font-bold text-sub">自分含め乗れる人数</span>
-                <input
-                  type="number" min={1} max={8} inputMode="numeric"
-                  value={myCapacity || ''}
-                  onChange={(e) => { setEditing(true); setMyCapacity(Math.max(0, Math.min(8, Number(e.target.value) || 0))); }}
-                  placeholder="例: 4"
-                  className="w-14 px-2 py-1 border-[1.5px] border-border rounded-[8px] text-sm bg-bg outline-none text-center"
-                />
-                <span className="text-[11px] text-sub">名</span>
+        <div className="px-3 pb-3">
+          {providers.length > 0 && (
+            <div className="flex flex-col gap-2 mb-2">
+              <div className="text-[11px] font-black text-green">🚗 送迎できる人</div>
+              {providers.map((p) => (
+                <div key={p.id + (p.host ? '_h' : '')} className="bg-white rounded-lg p-2">
+                  <div className="text-[12px] font-bold text-text mb-1">
+                    {p.name}
+                    {p.host && <span className="ml-1 text-[10px] text-green font-black">主催者</span>}
+                    {p.capacity ? <span className="ml-1.5 text-[10px] text-sub font-bold">自分含め{p.capacity}名</span> : null}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {p.stations.map((st) => (
+                      <span key={st} className="px-2 py-0.5 bg-green-light text-green rounded-full text-[11px] font-bold border border-green">{st}駅</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {seekers.length > 0 && (
+            <div className="flex flex-col gap-2 mb-2">
+              <div className="text-[11px] font-black text-orange">🙋 ピックアップを希望している人</div>
+              {seekers.map((p) => (
+                <div key={p.id} className="bg-white rounded-lg p-2">
+                  <div className="text-[12px] font-bold text-text mb-1">{p.name}</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {p.stations.map((st) => (
+                      <span key={st} className="px-2 py-0.5 bg-orange-light text-orange rounded-full text-[11px] font-bold border border-orange">{st}駅</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!hasAny && !canRespond && (
+            <div className="text-[11px] text-green font-semibold">まだピックアップの回答がありません。</div>
+          )}
+
+          {canRespond && (
+            <div className="mt-2 pt-3 border-t border-green/40">
+              <div className="text-[11px] font-black text-green mb-1.5">あなたのピックアップ回答</div>
+              <div className="flex gap-1.5 mb-2">
+                {role === 'provider' ? (
+                  <>
+                    <SegBtn active={status === 'can'} onClick={() => { setEditing(true); setStatus('can'); }}>🚗 送迎できる</SegBtn>
+                    <SegBtn active={status === 'cannot'} onClick={() => { setEditing(true); setStatus('cannot'); }}>送迎しない</SegBtn>
+                  </>
+                ) : (
+                  <>
+                    <SegBtn active={status === 'want'} onClick={() => { setEditing(true); setStatus('want'); }}>🙋 してほしい</SegBtn>
+                    <SegBtn active={status === 'no_need'} onClick={() => { setEditing(true); setStatus('no_need'); }}>不要</SegBtn>
+                  </>
+                )}
               </div>
-            )}
-          </div>
-          <button onClick={save} disabled={saving} className="mt-2 w-full py-2.5 bg-green text-white rounded-full text-[13px] font-bold disabled:opacity-50">
-            {saving ? '保存中…' : (saved.stations.length ? '送迎できる駅を更新する' : '送迎できる駅を登録する')}
-          </button>
-          <div className="text-[10px] text-green/80 text-center mt-1">登録後もいつでも変更・解除できます</div>
+
+              {needsStations && (
+                <div className="bg-white rounded-lg p-2">
+                  {myStations.length === 0 && (
+                    <div className="text-[11px] font-bold text-red mb-1.5">
+                      {role === 'provider' ? 'ピックアップ可能な場合は、その場所を入力してください' : 'ピックアップしてほしい場所を入力してください'}
+                    </div>
+                  )}
+                  <PickupStationPicker value={myStations} onChange={(v) => { setEditing(true); setMyStations(v); }} />
+                  {status === 'can' && myStations.length > 0 && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-sub">自分含め乗れる人数</span>
+                      <input
+                        type="number" min={1} max={8} inputMode="numeric"
+                        value={myCapacity || ''}
+                        onChange={(e) => { setEditing(true); setMyCapacity(Math.max(0, Math.min(8, Number(e.target.value) || 0))); }}
+                        placeholder="例: 4"
+                        className="w-14 px-2 py-1 border-[1.5px] border-border rounded-[8px] text-sm bg-bg outline-none text-center"
+                      />
+                      <span className="text-[11px] text-sub">名</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <button onClick={save} disabled={saving || !status} className="mt-2 w-full py-2.5 bg-green text-white rounded-full text-[13px] font-bold disabled:opacity-50">
+                {saving ? '保存中…' : '回答を保存する'}
+              </button>
+              <div className="text-[10px] text-green/80 text-center mt-1">回答後もいつでも変更できます</div>
+            </div>
+          )}
         </div>
+      </details>
+
+      {showFloat && (
+        <PhonePortal>
+          <div className="absolute left-0 right-0 bottom-[82px] z-40 px-3 pb-2 pointer-events-none">
+            <button
+              onClick={openSection}
+              className="pointer-events-auto w-full flex items-center justify-center gap-2 py-2.5 rounded-full bg-red text-white text-[13px] font-black shadow-[0_4px_12px_rgba(0,0,0,0.25)] border-2 border-white"
+            >
+              🚗 ピックアップについて回答してください
+              <span className="text-white">›</span>
+            </button>
+          </div>
+        </PhonePortal>
       )}
     </div>
   );
+}
+
+// ピックアップ回答のトグルボタン（送迎できる/しない・してほしい/不要）。
+function SegBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={'flex-1 py-2 text-[12px] font-bold rounded-[10px] border-[1.5px] ' + (active ? 'border-green bg-green text-white' : 'border-green/40 bg-white text-green')}
+    >{children}</button>
+  );
+}
+
+// タブ直上などフレーム基準で固定配置したい要素を .phone 直下へ移すポータル。
+function PhonePortal({ children }: { children: React.ReactNode }) {
+  const [el, setEl] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setEl((document.querySelector('.phone') as HTMLElement) || null);
+  }, []);
+  if (!el) return null;
+  return createPortal(children, el);
 }
 

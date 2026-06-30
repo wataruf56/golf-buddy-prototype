@@ -1,6 +1,13 @@
 export type Gender = 'male' | 'female' | 'other';
 export type CarStatus = 'have' | 'none';
 
+// 参加者ごとのピックアップ回答ステータス。
+//   can     : 送迎可能（車あり）→ 送れる駅を入力
+//   cannot  : 送迎不可（車あり）→ 駅入力なし
+//   want    : ピックアップしてほしい（車なし）→ 希望する駅を入力
+//   no_need : ピックアップ不要（車なし）→ 駅入力なし
+export type PickupStatus = 'can' | 'cannot' | 'want' | 'no_need';
+
 export type User = {
   id: string;
   displayName: string;
@@ -135,9 +142,12 @@ export type Round = {
   pickupStations?: string[];
   // 主催者が送迎で乗せられる人数（運転者である自分を含む）。
   pickupCapacity?: number;
-  // 参加者（車あり）が自分で送迎できる駅＋定員を登録したもの。
-  // userId → { stations, capacity(自分含む) }。コンペも含め車ありの参加者が設定可。
-  participantPickups?: Record<string, { stations: string[]; capacity?: number }>;
+  // 参加者ごとのピックアップ回答。userId → { status, stations, capacity }。
+  //   status='can'  : 送れる駅 stations ＋ capacity(自分含む)
+  //   status='want' : 希望する駅 stations
+  //   status='cannot' / 'no_need' : stations なし（回答のみ記録）
+  // 旧データ（status未設定で stations あり）は「送迎可能(can)」とみなす。
+  participantPickups?: Record<string, { stations: string[]; capacity?: number; status?: PickupStatus }>;
   // ゴルトモ未登録のゲスト参加者（主催者が名前で追加）。組み分けに入れられる。
   // RoundGroup.memberIds にはこの guest.id（"gst_..."）も入りうる。
   guests?: RoundGuest[];
