@@ -90,6 +90,9 @@ export async function POST(req: NextRequest) {
   };
   try {
     const created = await db.createRound(round);
+    // アンケート（LP診断シグナル）で希望エリアにこの県を登録した人へ、
+    // 「条件に一致する募集が投稿されました」と通知（best-effort・投稿は止めない）。
+    import('@/lib/surveyMatch').then((m) => m.notifyMatchingSignals(created)).catch(() => {});
     return NextResponse.json({ round: created });
   } catch (e) {
     const msg = (e as Error).message;
