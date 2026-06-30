@@ -195,6 +195,13 @@
   #dbg.show{display:block}#dbg h4{color:var(--mustard);font-size:12px;margin-bottom:6px;display:flex;justify-content:space-between}#dbg pre{white-space:pre-wrap;word-break:break-all;font-family:ui-monospace,monospace}#dbg .x{color:#fff;background:#c0392b;border:none;border-radius:6px;padding:2px 8px;font-weight:900;cursor:pointer}
   .reveal{opacity:0;transform:translateY(22px);transition:opacity .55s ease,transform .55s cubic-bezier(.2,.8,.2,1.05)}.reveal.in{opacity:1;transform:none}
   .hidden{display:none}
+  /* 診断結果ページ右上のハンバーガーメニュー（結果表示後のみ出現） */
+  .hmwrap{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:210;pointer-events:none}
+  .hmbtn{position:absolute;top:12px;right:14px;pointer-events:auto;width:46px;height:46px;border-radius:14px;background:var(--cream);border:2.5px solid var(--ink);box-shadow:3px 3px 0 var(--ink);font-size:20px;font-weight:900;color:var(--ink);cursor:pointer;display:grid;place-items:center;line-height:1}
+  .hmbtn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+  .hmmenu{position:absolute;top:66px;right:14px;pointer-events:auto;background:var(--cream);border:2.5px solid var(--ink);border-radius:14px;box-shadow:5px 5px 0 var(--ink);padding:8px;min-width:212px;display:flex;flex-direction:column;gap:6px}
+  .hmitem{font-family:inherit;text-align:left;background:var(--paper);border:2px solid var(--ink);border-radius:10px;padding:11px 13px;font-weight:900;font-size:13.5px;color:var(--ink);cursor:pointer;transition:transform .1s}
+  .hmitem:active{transform:translate(2px,2px)}
 </style>
 </head>
 <body>
@@ -244,6 +251,16 @@
   <footer>
     <div class="fl">⛳ ゴルフ性格診断 GOLMOTI</div>© 2026 Goltomo
   </footer>
+</div>
+
+<!-- 診断結果ページ右上のハンバーガー（結果表示後のみ表示。軸の説明・他タイプ図鑑をここから開く） -->
+<div class="hmwrap">
+  <button id="hmBtn" class="hmbtn hidden" aria-label="メニュー" aria-expanded="false">☰</button>
+  <div id="hmMenu" class="hmmenu hidden" role="menu">
+    <button class="hmitem" data-hm="axes" role="menuitem">📐 4つの診断軸</button>
+    <button class="hmitem" data-hm="types" role="menuitem">★ 他のタイプも見てみる</button>
+    <button class="hmitem" data-hm="again" role="menuitem">🔄 もう一度診断する</button>
+  </div>
 </div>
 
 <!-- 固定CTAバー：LINEで友だち追加（相性のいいゴルフ仲間探し） -->
@@ -614,6 +631,16 @@
     }
     const nk=NICK[code]||{e:'⛳',n:'ゴルファー',t:''};
     RESULT_SHOWN=true;
+    // 診断結果表示時は「自分の結果のみ」にする：ヒーロー・軸の説明・他タイプ図鑑を隠し、
+    // 右上ハンバーガーから開けるようにする。
+    try{
+      const hero=document.querySelector('.hero'); if(hero) hero.style.display='none';
+      const ax=document.querySelector('.axexplain'); if(ax) ax.style.display='none';
+      const cat=document.getElementById('catalog'); if(cat) cat.style.display='none';
+      const hmb=document.getElementById('hmBtn'); if(hmb) hmb.classList.remove('hidden');
+      const hmm=document.getElementById('hmMenu'); if(hmm) hmm.classList.add('hidden');
+      if(hmb) hmb.setAttribute('aria-expanded','false');
+    }catch(e){}
     if(shared){ track('viewShared',{resultType:code}); }
     else { const pattern=ans.map((a,i)=>`q${i+1}:${a.ax}${a.pole}${a.w}`); track('complete',{resultType:code, pattern, total:QS.length, msTotal:(T_START?Date.now()-T_START:0), answered:ans.length}); }
 
@@ -688,7 +715,7 @@
     const findBtn=document.getElementById('findFromResult');
     if(findBtn) findBtn.addEventListener('click',(e)=>{ e.preventDefault(); openSignalScreen('result', code); });
     const againBtn=document.getElementById('again');
-    if(againBtn) againBtn.addEventListener('click',()=>{ step=0; ans.length=0; resultwrap.classList.add('hidden'); resultwrap.innerHTML=''; quiz.classList.remove('hidden'); calcbox.classList.add('hidden'); quiz.scrollIntoView({behavior:'smooth'}); renderQ(); });
+    if(againBtn) againBtn.addEventListener('click',restartQuiz);
     bindCTA();
     resultwrap.scrollIntoView({behavior:'smooth',block:'start'});
   }
@@ -696,6 +723,40 @@
   function bindCTA(){
     document.querySelectorAll('[data-cta]').forEach(el=>{ if(el._b)return; el._b=true; el.addEventListener('click',()=>track('cta',{where:el.dataset.cta})); });
   }
+
+  // もう一度診断する：結果と各セクションを片付けて、最初の状態（ヒーロー＋クイズ）へ戻す。
+  function restartQuiz(){
+    step=0; ans.length=0;
+    resultwrap.classList.add('hidden'); resultwrap.innerHTML='';
+    quiz.classList.remove('hidden'); calcbox.classList.add('hidden');
+    try{
+      const hero=document.querySelector('.hero'); if(hero) hero.style.display='';
+      const ax=document.querySelector('.axexplain'); if(ax) ax.style.display='';
+      const cat=document.getElementById('catalog'); if(cat) cat.style.display='';
+      const hmb=document.getElementById('hmBtn'); if(hmb){ hmb.classList.add('hidden'); hmb.setAttribute('aria-expanded','false'); }
+      const hmm=document.getElementById('hmMenu'); if(hmm) hmm.classList.add('hidden');
+    }catch(e){}
+    RESULT_SHOWN=false;
+    quiz.scrollIntoView({behavior:'smooth'});
+    renderQ();
+  }
+
+  // 右上ハンバーガーメニュー：診断結果ページから「4つの診断軸」「他のタイプ」を開く。
+  (function(){
+    const btn=document.getElementById('hmBtn');
+    const menu=document.getElementById('hmMenu');
+    if(!btn||!menu) return;
+    function openMenu(o){ menu.classList.toggle('hidden',!o); btn.setAttribute('aria-expanded', o?'true':'false'); }
+    btn.addEventListener('click',(e)=>{ e.stopPropagation(); openMenu(menu.classList.contains('hidden')); });
+    // メニュー外タップで閉じる
+    document.addEventListener('click',(e)=>{ if(menu.classList.contains('hidden')) return; if(menu.contains(e.target)||btn.contains(e.target)) return; openMenu(false); });
+    menu.querySelectorAll('.hmitem').forEach(it=>it.addEventListener('click',()=>{
+      const k=it.dataset.hm; openMenu(false);
+      if(k==='again'){ restartQuiz(); return; }
+      const target = k==='axes' ? document.querySelector('.axexplain') : document.getElementById('catalog');
+      if(target){ target.style.display=''; track('menu',{item:k}); requestAnimationFrame(()=>target.scrollIntoView({behavior:'smooth',block:'start'})); }
+    }));
+  })();
 
   /* ===== タイプ説明の合成（コード→プレースタイル解説） ===== */
   function poleOf(ax,letter){ return AX[ax].left.c===letter?AX[ax].left:AX[ax].right; }
