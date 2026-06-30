@@ -196,14 +196,6 @@ export default function MyPage() {
               <span className="text-sm font-medium">🔔 LINE通知の設定</span>
               <span className="text-muted">›</span>
             </button>
-            <Link href="/legal/terms" className="bg-bg rounded-xl px-4 py-3 flex justify-between items-center">
-              <span className="text-sm font-medium">利用規約</span>
-              <span className="text-muted">›</span>
-            </Link>
-            <Link href="/legal/privacy" className="bg-bg rounded-xl px-4 py-3 flex justify-between items-center">
-              <span className="text-sm font-medium">プライバシーポリシー</span>
-              <span className="text-muted">›</span>
-            </Link>
             <button onClick={logout} className="w-full bg-bg rounded-xl px-4 py-3 flex justify-between items-center text-left">
               <span className="text-sm font-medium text-red">ログアウト</span>
               <span className="text-muted">›</span>

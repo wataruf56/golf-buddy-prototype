@@ -1,8 +1,19 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 
-// 使い方・ヘルプ。「はじめての方へ」（タップで開く説明）＋「規約・運営情報」。
+// 各画面のスクショ（/guide-shots/{key}.png）。差し替えは同じファイル名で上書きするだけ。
+const SCREENS: { key: string; label: string; desc: string }[] = [
+  { key: 'home', label: 'ホーム', desc: '募集中のラウンドや公式コンペが一覧で見られます' },
+  { key: 'search', label: 'さがす', desc: 'エリア・日程・費用などで募集を絞り込めます' },
+  { key: 'create', label: 'ラウンド募集', desc: 'コース・日時・人数などを入力して募集を投稿' },
+  { key: 'swing', label: 'スイング解析', desc: '動画を送るとAIがスイングを解析します' },
+  { key: 'buddies', label: 'ゴル友', desc: '両想いになった相手とメッセージできます' },
+  { key: 'mypage', label: 'マイページ', desc: 'プロフィール編集・参加予定・通知設定など' },
+];
+
+// 使い方・ヘルプ。「はじめての方へ」＋「各画面の見方」＋「規約・運営情報」。
 export default function GuidePage() {
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden bg-bg">
@@ -41,6 +52,22 @@ export default function GuidePage() {
           </Accordion>
         </div>
 
+        {/* 各画面の見方（スクリーンショット） */}
+        <div className="text-[11px] font-black text-sub mb-2">各画面の見方</div>
+        <div className="flex flex-col gap-2.5 mb-7">
+          {SCREENS.map((s) => (
+            <div key={s.key} className="bg-card rounded-card shadow-card border-2 border-border overflow-hidden">
+              <div className="px-4 pt-3 pb-1">
+                <div className="text-[13px] font-black">{s.label}</div>
+                <div className="text-[11px] text-sub mt-0.5">{s.desc}</div>
+              </div>
+              <div className="px-4 pb-4 pt-2">
+                <Shot sectionKey={s.key} title={s.label} />
+              </div>
+            </div>
+          ))}
+        </div>
+
         {/* 規約・運営情報 */}
         <div className="text-[11px] font-black text-sub mb-2">規約・運営情報</div>
         <div className="bg-card rounded-card shadow-card overflow-hidden border-2 border-border">
@@ -50,6 +77,31 @@ export default function GuidePage() {
         </div>
         <div className="text-[10px] text-muted text-center mt-3">ゴルトモ © 2026</div>
       </div>
+    </div>
+  );
+}
+
+// スクリーンショット枠。/guide-shots/{key}.png を読み込み、無ければ「準備中」を表示。
+// 差し替えは public/guide-shots/{key}.png を同名で上書きするだけ。
+function Shot({ sectionKey, title }: { sectionKey: string; title: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <div className="rounded-xl border-2 border-dashed border-border bg-bg h-48 flex flex-col items-center justify-center text-center gap-1.5">
+        <span className="text-3xl">📷</span>
+        <span className="text-[12px] text-muted font-semibold">「{title}」の画面イメージは準備中です</span>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-xl overflow-hidden border border-border bg-card">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={`/guide-shots/${sectionKey}.png`}
+        alt={`${title}の画面`}
+        className="block w-full max-w-full h-auto"
+        onError={() => setFailed(true)}
+      />
     </div>
   );
 }
