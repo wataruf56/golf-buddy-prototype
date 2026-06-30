@@ -92,6 +92,11 @@ export type Round = {
   applicantIds: string[];
   pendingApplicantIds?: string[];
   price?: string;
+  // 男女別料金（無料・割引プランなどで男女で参加費が異なる場合）。
+  // priceMale と priceFemale の両方が入っているときだけ「男女別」が有効になり、
+  // 閲覧者の性別に応じて出し分ける。未設定なら price（男女同額）を表示。
+  priceMale?: string;
+  priceFemale?: string;
   // Free-form display label kept for back-compat (mock data uses strings
   // like "初心者OK"). Auto-derived from beginnerOnly + genderCondition for
   // new rounds, used only for display.

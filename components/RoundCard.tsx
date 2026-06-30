@@ -2,14 +2,15 @@
 
 import Link from 'next/link';
 import type { Round, User } from '@/lib/types';
-import { useStore } from '@/lib/store';
+import { useStore, getMe } from '@/lib/store';
 import { useUnreadCounts } from '@/lib/useUnread';
-import { formatDate } from '@/lib/utils';
+import { formatDate, priceLabelForGender } from '@/lib/utils';
 
 // コンパクトな募集カード。投稿者名は表示しない。参加状況バーの上に男女比を出す。
 export function RoundCard({ round }: { round: Round; host?: User }) {
   const { unreadRoundIds } = useUnreadCounts();
   const users = useStore((s) => s.users);
+  const me = useStore(getMe);
   const hasUnread = unreadRoundIds.has(round.id);
   const isComp = round.maxSpots >= 5;
   const dateLabel = round.dateType === 'range' ? round.dateRange : formatDate(round.date);
@@ -18,8 +19,8 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
     : round.area;
   const placeIcon = round.type === 'confirmed' ? '⛳' : '📍';
   const pickup = round.pickupStations || [];
-  const priceRaw = (round.price || '').replace(/[¥￥]/g, '').trim();
-  const priceLabel = priceRaw ? (priceRaw.includes('円') ? priceRaw : `${priceRaw}円`) : '';
+  // 費用は閲覧者の性別に応じて表示（男女別料金が設定されている場合）。
+  const priceLabel = priceLabelForGender(round, me?.gender);
 
   // 参加確定メンバーの男女内訳（主催者＋承認済み＋知り合い枠）。
   let male = round.externalMale || 0;

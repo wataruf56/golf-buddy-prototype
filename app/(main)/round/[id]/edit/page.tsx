@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { allAreas } from '@/lib/mockData';
 import { BEGINNER_FRIENDLY_SCORES } from '@/lib/roundEligibility';
 import { PickupStationPicker } from '@/components/PickupStationPicker';
+import { PriceField } from '@/components/PriceField';
 import { store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import type { Round } from '@/lib/types';
@@ -60,6 +61,9 @@ export default function EditRoundPage() {
   const [spotsMale, setSpotsMale] = useState(0);
   const [spotsFemale, setSpotsFemale] = useState(0);
   const [price, setPrice] = useState('');
+  const [splitPrice, setSplitPrice] = useState(false);
+  const [priceMale, setPriceMale] = useState('');
+  const [priceFemale, setPriceFemale] = useState('');
   const [beginnerOnly, setBeginnerOnly] = useState(false);
   const [description, setDescription] = useState('');
   const [pickupStations, setPickupStations] = useState<string[]>([]);
@@ -122,6 +126,9 @@ export default function EditRoundPage() {
       setSpotsMale(0); setSpotsFemale(0);
     }
     setPrice(round.price || '');
+    setPriceMale(round.priceMale || '');
+    setPriceFemale(round.priceFemale || '');
+    setSplitPrice(!!(round.priceMale && round.priceFemale));
     setBeginnerOnly(!!round.beginnerOnly);
     setDescription(round.description || '');
     setPickupStations(round.pickupStations || []);
@@ -210,7 +217,9 @@ export default function EditRoundPage() {
       spotsMale,
       spotsFemale,
       spotsAny,
-      price: price || '',
+      price: splitPrice ? '' : (price || ''),
+      priceMale: splitPrice ? (priceMale || '') : '',
+      priceFemale: splitPrice ? (priceFemale || '') : '',
       beginnerOnly,
       genderCondition: deriveGenderCondition(),
       description: description || '',
@@ -317,7 +326,13 @@ export default function EditRoundPage() {
                 <div className="text-[10px] text-muted text-right mt-0.5">{meetingInfo.length}/200</div>
               </Field>
               <Field label="プレー費の目安">
-                <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="例: ¥8,000〜" className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+                <PriceField
+                  split={splitPrice} onSplitChange={setSplitPrice}
+                  price={price} onPriceChange={setPrice}
+                  priceMale={priceMale} onPriceMaleChange={setPriceMale}
+                  priceFemale={priceFemale} onPriceFemaleChange={setPriceFemale}
+                  singlePlaceholder="例: ¥8,000〜"
+                />
               </Field>
             </>
           ) : (
@@ -340,7 +355,13 @@ export default function EditRoundPage() {
                 )}
               </Field>
               <Field label="予算の目安">
-                <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="例: ¥6,000〜8,000" className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+                <PriceField
+                  split={splitPrice} onSplitChange={setSplitPrice}
+                  price={price} onPriceChange={setPrice}
+                  priceMale={priceMale} onPriceMaleChange={setPriceMale}
+                  priceFemale={priceFemale} onPriceFemaleChange={setPriceFemale}
+                  singlePlaceholder="例: ¥6,000〜8,000"
+                />
               </Field>
             </>
           )}

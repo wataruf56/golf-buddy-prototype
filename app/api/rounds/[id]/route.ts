@@ -59,6 +59,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (has('dateRange')) patch.dateRange = body.dateRange ? String(body.dateRange).slice(0, 80) : '';
   if (has('startTime')) patch.startTime = body.startTime ? String(body.startTime) : '';
   if (has('price')) patch.price = body.price ? String(body.price).slice(0, 40) : '';
+  // 男女別料金。空文字で送れば解除（＝男女同額に戻る）。
+  if (has('priceMale')) patch.priceMale = body.priceMale ? String(body.priceMale).slice(0, 40) : '';
+  if (has('priceFemale')) patch.priceFemale = body.priceFemale ? String(body.priceFemale).slice(0, 40) : '';
   if (has('description')) patch.description = body.description ? String(body.description).slice(0, 200) : '';
   if (has('meetingInfo')) patch.meetingInfo = body.meetingInfo ? String(body.meetingInfo).slice(0, 200) : '';
   if (has('pickupStations')) patch.pickupStations = Array.isArray(body.pickupStations)

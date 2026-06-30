@@ -8,7 +8,7 @@ import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { Avatar } from '@/components/Avatar';
 import { track } from '@/lib/telemetry';
-import { chatIdFor, formatDate, ratingLabel, carLabel } from '@/lib/utils';
+import { chatIdFor, formatDate, ratingLabel, carLabel, priceLabelForGender, isSplitPrice } from '@/lib/utils';
 import { levelConditionLabel } from '@/lib/roundEligibility';
 import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
 import { GroupAssignment } from '@/components/GroupAssignment';
@@ -307,7 +307,7 @@ export default function RoundDetailPage() {
           <Cell label="日時">{dateLabel} {round.startTime || ''}</Cell>
           <Cell label={round.type === 'confirmed' ? 'コース' : 'エリア'}>{round.type === 'confirmed' ? round.courseName : round.area}</Cell>
           <Cell label="レベル">{levelConditionLabel(round)}</Cell>
-          <Cell label="費用目安">{round.price ? (() => { const p = round.price.replace(/[¥￥]/g, '').trim(); return p.includes('円') ? p : `${p}円`; })() : '—'}</Cell>
+          <Cell label="費用目安">{priceLabelForGender(round, me?.gender) || '—'}{isSplitPrice(round) && me?.gender ? <span className="ml-1 text-[9px] text-muted font-bold">（{me.gender === 'female' ? '女性' : '男性'}）</span> : null}</Cell>
         </div>
 
         {/* 集合場所・集合時間（日時のすぐ下）。主催者が記入していれば表示。 */}

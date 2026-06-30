@@ -68,7 +68,10 @@ export async function POST(req: NextRequest) {
     externalFemale,
     currentCount: 1 + externalTotal, // 主催者 + 知り合いは最初から参加扱い
     applicantIds: [],
-    price: body.price,
+    price: body.price ? String(body.price).slice(0, 40) : undefined,
+    // 男女別料金（両方あるときだけ有効）。
+    priceMale: body.priceMale ? String(body.priceMale).slice(0, 40) : undefined,
+    priceFemale: body.priceFemale ? String(body.priceFemale).slice(0, 40) : undefined,
     beginnerOnly,
     genderCondition,
     // Derive the display label from the structured fields so older list/card

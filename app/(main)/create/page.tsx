@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { allAreas } from '@/lib/mockData';
 import { BEGINNER_FRIENDLY_SCORES } from '@/lib/roundEligibility';
 import { PickupStationPicker } from '@/components/PickupStationPicker';
+import { PriceField } from '@/components/PriceField';
 import { store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { track } from '@/lib/telemetry';
@@ -60,6 +61,10 @@ export default function CreatePage() {
   const [spotsMale, setSpotsMale] = useState(0);
   const [spotsFemale, setSpotsFemale] = useState(0);
   const [price, setPrice] = useState('');
+  // 男女別料金（無料・割引プランなどで男女で参加費が異なる場合）。
+  const [splitPrice, setSplitPrice] = useState(false);
+  const [priceMale, setPriceMale] = useState('');
+  const [priceFemale, setPriceFemale] = useState('');
   // Replaced free-form levelCondition string with two structured selectors.
   const [beginnerOnly, setBeginnerOnly] = useState<boolean>(false);
   const [description, setDescription] = useState('');
@@ -143,7 +148,9 @@ export default function CreatePage() {
       spotsMale,
       spotsFemale,
       spotsAny,
-      price: price || undefined,
+      price: splitPrice ? undefined : (price || undefined),
+      priceMale: splitPrice ? (priceMale || undefined) : undefined,
+      priceFemale: splitPrice ? (priceFemale || undefined) : undefined,
       beginnerOnly,
       genderCondition: deriveGenderCondition(),
       description: description || undefined,
@@ -308,7 +315,13 @@ export default function CreatePage() {
                 <div className="text-[10px] text-muted text-right mt-0.5">{meetingInfo.length}/200</div>
               </Field>
               <Field label="プレー費の目安">
-                <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="例: ¥8,000〜" className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+                <PriceField
+                  split={splitPrice} onSplitChange={setSplitPrice}
+                  price={price} onPriceChange={setPrice}
+                  priceMale={priceMale} onPriceMaleChange={setPriceMale}
+                  priceFemale={priceFemale} onPriceFemaleChange={setPriceFemale}
+                  singlePlaceholder="例: ¥8,000〜"
+                />
               </Field>
             </>
           ) : (
@@ -331,7 +344,13 @@ export default function CreatePage() {
                 )}
               </Field>
               <Field label="予算の目安">
-                <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="例: ¥6,000〜8,000" className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+                <PriceField
+                  split={splitPrice} onSplitChange={setSplitPrice}
+                  price={price} onPriceChange={setPrice}
+                  priceMale={priceMale} onPriceMaleChange={setPriceMale}
+                  priceFemale={priceFemale} onPriceFemaleChange={setPriceFemale}
+                  singlePlaceholder="例: ¥6,000〜8,000"
+                />
               </Field>
             </>
           )}

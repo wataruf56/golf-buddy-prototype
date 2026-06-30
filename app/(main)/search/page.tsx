@@ -3,9 +3,9 @@
 import { useMemo, useState } from 'react';
 import { RoundCard } from '@/components/RoundCard';
 import { allAreas } from '@/lib/mockData';
-import { useStore } from '@/lib/store';
+import { useStore, getMe } from '@/lib/store';
 import type { Round } from '@/lib/types';
-import { cn } from '@/lib/utils';
+import { cn, priceValueForGender } from '@/lib/utils';
 
 type Period = 'all' | 'upcoming' | 'past' | 'thisWeek' | 'thisMonth';
 type CourseFilter = 'all' | 'confirmed' | 'flexible';
@@ -41,6 +41,7 @@ function parseDate(d?: string): number | null {
 export default function SearchPage() {
   const rounds = useStore((s) => s.rounds);
   const users = useStore((s) => s.users);
+  const me = useStore(getMe);
 
   // Draft = what's in the form. Applied = what actually filters the list.
   const [draft, setDraft] = useState<Filters>(defaultFilters);
@@ -101,10 +102,9 @@ export default function SearchPage() {
     // Price max
     if (filterPriceMax) {
       const max = parseInt(filterPriceMax.replace(/[^0-9]/g, ''), 10);
-      if (max && r.price) {
-        const p = parseInt(r.price.replace(/[^0-9]/g, ''), 10);
-        if (p && p > max) return false;
-      }
+      // 男女別料金は閲覧者の性別の金額で判定。
+      const p = priceValueForGender(r, me?.gender);
+      if (max && Number.isFinite(p) && p > max) return false;
     }
     // Period (date-based)
     const ms = parseDate(r.date);
@@ -147,14 +147,14 @@ export default function SearchPage() {
     }
     return list;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rounds, filterCourse, filterCompOnly, filterGender, filterBeginnerOnly, filterArea, filterPeriod, filterStatus, filterHasSpots, filterPriceMax, keyword, sortBy]);
+  }, [rounds, filterCourse, filterCompOnly, filterGender, filterBeginnerOnly, filterArea, filterPeriod, filterStatus, filterHasSpots, filterPriceMax, keyword, sortBy, me?.gender]);
 
   const filteredUndecided = useMemo(() => {
     if (filterPeriod === 'past' || filterPeriod === 'thisWeek' || filterPeriod === 'thisMonth') return [];
     return rounds.filter((r) => matches(r) && !r.date)
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rounds, filterCourse, filterCompOnly, filterGender, filterBeginnerOnly, filterArea, filterPeriod, filterStatus, filterHasSpots, filterPriceMax, keyword]);
+  }, [rounds, filterCourse, filterCompOnly, filterGender, filterBeginnerOnly, filterArea, filterPeriod, filterStatus, filterHasSpots, filterPriceMax, keyword, me?.gender]);
 
   const total = filteredFixed.length + filteredUndecided.length;
 
