@@ -202,6 +202,21 @@
   .hmmenu{position:absolute;top:66px;right:14px;pointer-events:auto;background:var(--cream);border:2.5px solid var(--ink);border-radius:14px;box-shadow:5px 5px 0 var(--ink);padding:8px;min-width:212px;display:flex;flex-direction:column;gap:6px}
   .hmitem{font-family:inherit;text-align:left;background:var(--paper);border:2px solid var(--ink);border-radius:10px;padding:11px 13px;font-weight:900;font-size:13.5px;color:var(--ink);cursor:pointer;transition:transform .1s}
   .hmitem:active{transform:translate(2px,2px)}
+  /* .hmbtn/.hmmenu は .hidden より後に定義しているため、隠す指定を詳細度で明示的に優先させる */
+  .hmbtn.hidden,.hmmenu.hidden{display:none}
+  /* 4タイプ傾向（パッと見で「自分はどっち寄りか」が分かる新デザイン） */
+  .axbars2{margin:16px 16px 0;background:var(--cream);border:2.5px solid var(--ink);border-radius:16px;padding:16px 16px 18px;box-shadow:5px 5px 0 var(--ink)}
+  .axbars2 h4{font-weight:900;font-size:13px;text-align:center;color:#8a7256;margin-bottom:6px}
+  .axbars2 .note{text-align:center;font-size:11px;font-weight:700;color:#b3a489;margin-bottom:14px}
+  .ax2{margin-bottom:13px}.ax2:last-child{margin-bottom:0}
+  .ax2 .hd{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .ax2 .hd .e{font-size:21px;line-height:1}
+  .ax2 .hd .n{font-weight:900;font-size:16px;color:var(--orange)}
+  .ax2 .hd .s{margin-left:auto;font-weight:900;font-size:11px;color:var(--cream);background:var(--teal);border:2px solid var(--ink);border-radius:999px;padding:2px 11px}
+  .ax2 .bar{height:14px;background:#e7d9bb;border:2px solid var(--ink);border-radius:99px;overflow:hidden}
+  .ax2 .bar .fl{height:100%;background:var(--mustard);border-radius:99px;min-width:8px}
+  .ax2 .sub{margin-top:5px;font-size:11px;font-weight:800;color:#9b876a;text-align:center}
+  .ax2 .sub .pick{color:var(--ink)}.ax2 .sub .dim{opacity:.45}
 </style>
 </head>
 <body>
@@ -652,11 +667,17 @@
     const partnerCode=code.split('').map((ch,i)=>{ const ax=AXORDER[i]; if(ax==='B'){ return ch===AX.B.left.c?AX.B.right.c:AX.B.left.c; } return ch; }).join('');
     const pk=NICK[partnerCode]||{e:'⛳',n:'ゴルファー'};
 
+    // 4軸：選ばれた側を主役にして「どちら寄り・どのくらい強いか」をパッと見で示す。
     const axBar=(ax)=>{
-      const L=AX[ax].left,R=AX[ax].right,p=pos[ax].leftPct,isLeft=pos[ax].score>=0;
-      return `<div class="abar">
-        <div class="lab"><span class="${isLeft?'on':'dim'}">${L.e} ${L.l}(${L.c})</span><span class="${!isLeft?'on':'dim'}">(${R.c})${R.l} ${R.e}</span></div>
-        <div class="track"><div class="fill" style="width:${p}%"></div><div class="dot" style="left:${p}%"></div></div>
+      const L=AX[ax].left,R=AX[ax].right; const s=pos[ax].score; const isLeft=s>=0;
+      const pick=isLeft?L:R, other=isLeft?R:L;
+      const mag=Math.min(100,Math.round(Math.abs(s)/6*100));   // 0..100 = どれだけ寄っているか
+      const strength = mag>=67 ? 'しっかり' : mag>=34 ? 'ほどよく' : 'ややフラット';
+      const width=Math.max(12,mag);                            // 視認用に最低幅を確保
+      return `<div class="ax2">
+        <div class="hd"><span class="e">${pick.e}</span><span class="n">${pick.l}</span><span class="s">${strength}</span></div>
+        <div class="bar"><div class="fl" style="width:${width}%"></div></div>
+        <div class="sub"><span class="pick">${pick.e} ${pick.l}(${pick.c})</span> <span class="dim">⇄ ${other.l}(${other.c}) ${other.e}</span></div>
       </div>`;
     };
 
@@ -673,8 +694,9 @@
         </div>
         <div class="rdesc">${(DETAIL[code]||{}).desc || `${traits[0].d}で、${traits[2].d}。${traits[1].d}、${traits[3].d}タイプです。`}</div>
         <div class="kw">${kws.map(k=>`<span>${k}</span>`).join('')}</div>
-        <div class="axbars">
-          <h4>あなたの4軸バランス</h4>
+        <div class="axbars2">
+          <h4>あなたの4タイプ傾向</h4>
+          <div class="note">4つの軸で、あなたがどちら寄りかを表示</div>
           ${AXORDER.map(axBar).join('')}
         </div>
         <div class="panel" style="padding-top:14px">
