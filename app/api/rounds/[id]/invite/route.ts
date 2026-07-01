@@ -21,9 +21,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   let userId = '';
+  let inviteMessage = '';
   try {
     const body = await req.json();
     userId = String(body?.userId || '').trim();
+    inviteMessage = String(body?.message || '').trim().slice(0, 200);
   } catch { /* ignore */ }
   if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 });
   if (userId === meId) return NextResponse.json({ error: 'cannot_invite_self' }, { status: 400 });
@@ -48,7 +50,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const invitee = await db.getUser(userId);
     const host = await db.getUser(meId);
     const hostName = host?.displayName || '募集者';
-    const msg = `💌 ${hostName} さんから「${existing.title}」に招待が届きました`;
+    const baseMsg = `💌 ${hostName} さんから「${existing.title}」に招待が届きました`;
+    const msg = inviteMessage ? `${baseMsg}\n「${inviteMessage}」` : baseMsg;
     const { addNotification } = await import('@/lib/notifications');
     addNotification(userId, 'invited', msg, `/round/${params.id}`).catch(() => {});
     if (isNotifyEnabled(invitee as any, 'invited')) {

@@ -38,7 +38,9 @@ export default function RoundDetailPage() {
   const me = useStore(getMe);
   const profileReady = isProfileComplete(me?.age);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteMessage, setInviteMessage] = useState('');
   const [interestedOpen, setInterestedOpen] = useState(false);
   // Host-only: kanji full names of participants (for golf-course registration).
   const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
@@ -198,6 +200,32 @@ export default function RoundDetailPage() {
       window.prompt('このリンクをコピーして共有してください', url);
     }
   }
+  // LINEなどにそのまま貼れる、簡潔なテキストを組み立ててクリップボードへコピー。
+  // 日時・スタート時間・ゴルフ場・金額を含める（金額は男女別なら両方併記）。
+  async function copyShareText() {
+    const r = round!;
+    const url = `https://app.goltomo.com/round/${r.id}`;
+    const place = r.type === 'confirmed'
+      ? `${r.courseName || 'コース調整中'}${r.area ? `（${r.area}）` : ''}`
+      : (r.area || 'エリア未定');
+    const priceStr = priceLabelForGender(r, undefined); // 両性別を併記（受け取る側に合わせて判断できる）
+    const lines = [
+      `⛳ ${r.title}`,
+      `📅 ${dateLabel}${r.startTime ? ` ${r.startTime}` : ''}`,
+      `📍 ${place}`,
+      priceStr ? `💰 参加費 ${priceStr}` : '',
+      '',
+      url,
+    ].filter((l) => l !== '');
+    const text = lines.join('\n');
+    track('share_round_text', { roundId: r.id });
+    try {
+      await navigator.clipboard.writeText(text);
+      toast('テキストをコピーしました');
+    } catch {
+      window.prompt('このテキストをコピーして共有してください', text);
+    }
+  }
   async function leave() {
     if (!confirm('このラウンドから抜けますか？')) return;
     try { await store.leaveRound(round!.id); toast('離脱しました'); router.push('/home'); }
@@ -248,7 +276,7 @@ export default function RoundDetailPage() {
   }
   async function invite(userId: string, name: string) {
     try {
-      const updated = await store.inviteToRound(round!.id, userId);
+      const updated = await store.inviteToRound(round!.id, userId, inviteMessage.trim() || undefined);
       if (!storeRound && updated) setFetchedRound((prev) => (prev ? { ...prev, ...updated } : prev));
       toast(`${name}さんを招待しました`);
     } catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
@@ -270,7 +298,7 @@ export default function RoundDetailPage() {
             </button>
           )}
           <button
-            onClick={shareRound}
+            onClick={() => setShareOpen(true)}
             className="px-3 py-1.5 bg-bg border-[1.5px] border-border rounded-full text-xs font-bold flex items-center gap-1"
             aria-label="この募集を友達にシェア"
           >
@@ -623,8 +651,40 @@ export default function RoundDetailPage() {
         />
       )}
 
+      {shareOpen && (
+        <div className="absolute inset-0 bg-black/50 z-[150] flex items-end justify-center p-5 backdrop-blur-sm" onClick={() => setShareOpen(false)}>
+          <div className="bg-card rounded-card p-5 w-full max-w-[350px] shadow-lg mb-6" onClick={(e) => e.stopPropagation()}>
+            <div className="text-base font-black mb-1 text-center">シェア方法を選ぶ</div>
+            <div className="text-[12px] text-sub text-center mb-4">友達への送り方を選んでください</div>
+            <button
+              onClick={() => { setShareOpen(false); shareRound(); }}
+              className="w-full py-3.5 bg-bg border-[1.5px] border-border rounded-xl text-sm font-bold mb-2 flex items-center justify-center gap-2"
+            >
+              🔗 URLをシェア<span className="text-[11px] text-muted font-medium">（リンクを送る）</span>
+            </button>
+            <button
+              onClick={() => { setShareOpen(false); copyShareText(); }}
+              className="w-full py-3.5 bg-green text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2"
+            >
+              📋 テキストをコピー<span className="text-[11px] opacity-80 font-medium">（日時・場所・費用）</span>
+            </button>
+            <button onClick={() => setShareOpen(false)} className="w-full py-2.5 mt-2 text-muted text-xs font-bold">キャンセル</button>
+          </div>
+        </div>
+      )}
+
       {inviteOpen && (
         <PickerModal title="ゴルトモを招待する" onClose={() => setInviteOpen(false)}>
+          <div className="mb-3">
+            <label className="block text-[11px] font-bold text-sub mb-1">一言メッセージ（任意・招待通知に添えられます）</label>
+            <textarea
+              value={inviteMessage}
+              onChange={(e) => setInviteMessage(e.target.value.slice(0, 200))}
+              placeholder="例: 久しぶりに一緒に回りませんか？🏌️"
+              className="w-full h-16 p-2.5 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-none"
+            />
+            <div className="text-[10px] text-muted text-right mt-0.5">{inviteMessage.length}/200</div>
+          </div>
           <InviteSearch inviteState={inviteState} onInvite={invite} />
         </PickerModal>
       )}

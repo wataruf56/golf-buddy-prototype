@@ -245,9 +245,9 @@ export const store = {
     }
   },
 
-  inviteToRound: async (roundId: string, userId: string) => {
+  inviteToRound: async (roundId: string, userId: string, message?: string) => {
     const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/invite`, {
-      method: 'POST', body: JSON.stringify({ userId }),
+      method: 'POST', body: JSON.stringify({ userId, message: message || undefined }),
     });
     setState({ rounds: state.rounds.map((r) => (r.id === roundId ? { ...r, ...round } : r)) });
     return round;

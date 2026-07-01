@@ -58,8 +58,8 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
 
       {/* 日付＋金額（1行）→ コース名（県）→ タイトル */}
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[14px] font-black">📅 {dateLabel}{round.startTime ? ` ${round.startTime}` : ''}</span>
-        {priceLabel && <span className="text-[13px] font-black text-orange whitespace-nowrap">💰{priceLabel}</span>}
+        <span className="text-[14px] font-black">📅 {dateLabel}</span>
+        {priceLabel && <span className="text-[13px] font-black text-orange whitespace-nowrap">参加費 {priceLabel}</span>}
       </div>
       <div className="text-[12px] font-bold text-sub mt-0.5">{placeIcon} {placeLabel || (round.type === 'confirmed' ? 'コース調整中' : 'コース未定')}</div>
       <div className="text-[14px] font-black leading-snug mt-0.5">{round.title}</div>

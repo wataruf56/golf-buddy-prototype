@@ -41,11 +41,15 @@ export function carLabel(car?: 'have' | 'none'): string {
   return '';
 }
 
-// 金額表記の整形：¥記号を除き、円が無ければ付ける（"8000"→"8000円"、"¥8,000〜"→"8,000〜円"）。
+// 金額表記の整形：¥記号を除き、数字は3桁カンマ区切り、円が無ければ付ける
+// （"14900"→"14,900円"、"¥6000〜8000"→"6,000〜8,000円"）。
 function fmtYen(s?: string): string {
   if (!s) return '';
-  const p = String(s).replace(/[¥￥]/g, '').trim();
-  return p ? (p.includes('円') ? p : `${p}円`) : '';
+  let p = String(s).replace(/[¥￥]/g, '').trim();
+  if (!p) return '';
+  // 連続する数字のかたまりごとに3桁区切りを入れる（範囲「〜」やレンジも保持）。
+  p = p.replace(/\d{4,}/g, (n) => Number(n).toLocaleString('en-US'));
+  return p.includes('円') ? p : `${p}円`;
 }
 
 type PriceFields = { price?: string; priceMale?: string; priceFemale?: string };
