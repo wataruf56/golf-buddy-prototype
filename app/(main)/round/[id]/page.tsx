@@ -209,11 +209,20 @@ export default function RoundDetailPage() {
       ? `${r.courseName || 'コース調整中'}${r.area ? `（${r.area}）` : ''}`
       : (r.area || 'エリア未定');
     const priceStr = priceLabelForGender(r, undefined); // 両性別を併記（受け取る側に合わせて判断できる）
+    // 参加人数と男女内訳（主催者＋承認済み参加者＋知り合い枠）。
+    let male = r.externalMale || 0;
+    let female = r.externalFemale || 0;
+    for (const id of [r.hostId, ...(r.applicantIds || [])]) {
+      const u = users.find((x) => x.id === id);
+      if (u?.gender === 'male') male++;
+      else if (u?.gender === 'female') female++;
+    }
     const lines = [
       `⛳ ${r.title}`,
       `📅 ${dateLabel}${r.startTime ? ` ${r.startTime}` : ''}`,
       `📍 ${place}`,
       priceStr ? `💰 参加費 ${priceStr}` : '',
+      `👥 参加 ${r.currentCount}/${r.maxSpots}人（👨 男性${male}・👩 女性${female}）`,
       '',
       url,
     ].filter((l) => l !== '');
@@ -652,8 +661,8 @@ export default function RoundDetailPage() {
       )}
 
       {shareOpen && (
-        <div className="absolute inset-0 bg-black/50 z-[150] flex items-end justify-center p-5 backdrop-blur-sm" onClick={() => setShareOpen(false)}>
-          <div className="bg-card rounded-card p-5 w-full max-w-[350px] shadow-lg mb-6" onClick={(e) => e.stopPropagation()}>
+        <div className="absolute inset-0 bg-black/50 z-[150] flex items-center justify-center p-5 backdrop-blur-sm" onClick={() => setShareOpen(false)}>
+          <div className="bg-card rounded-card p-5 w-full max-w-[350px] shadow-lg" onClick={(e) => e.stopPropagation()}>
             <div className="text-base font-black mb-1 text-center">シェア方法を選ぶ</div>
             <div className="text-[12px] text-sub text-center mb-4">友達への送り方を選んでください</div>
             <button

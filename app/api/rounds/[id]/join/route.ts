@@ -19,10 +19,13 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   const existing = await db.getRound(params.id);
   if (!existing) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
-  // 部分制限：この主催者のラウンドへの参加申込が禁止されている場合は弾く。
+  // 部分制限：参加申込の全面禁止／特定主催者のラウンドへの申込禁止。
   try {
     const { getRestriction } = await import('@/lib/banAccess');
     const rst = await getRestriction(meId);
+    if (rst.noApplyAll) {
+      return NextResponse.json({ error: 'restricted', message: '参加申込の利用が制限されています。' }, { status: 403 });
+    }
     if ((rst.applyBlockHostIds || []).includes(existing.hostId)) {
       return NextResponse.json({ error: 'restricted', message: 'この主催者のラウンドには参加申込できません。' }, { status: 403 });
     }

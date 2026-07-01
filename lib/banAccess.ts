@@ -57,10 +57,29 @@ export async function getBannedIdSet(): Promise<Set<string>> {
 // ============ 部分制限（通報対応などで機能の一部だけ止める） ============
 // 赤バン（全停止）とは別に、ユーザーごとに個別機能だけを制限する。
 //   noCreate         : ラウンド募集ができない
+//   noApplyAll       : すべてのラウンドに参加申込できない
+//   applyBlockHostIds: この主催者(ID)のラウンドだけ参加申込できない
 //   noInvite         : ゴルトモ招待が使えない
-//   applyBlockHostIds: この主催者(ID)のラウンドには参加申込できない
+//   noChat           : ラウンドのグループチャットに投稿できない
+//   noDM             : 1:1 のダイレクトメッセージを送れない
+//   noInterest       : ラウンドに「気になる」ができない
+//   noReview         : レビューを投稿できない
 // Firestore `_banAccess/restrictions` の map フィールドに保存。30秒キャッシュ。
-export type UserRestriction = { noCreate?: boolean; noInvite?: boolean; applyBlockHostIds?: string[] };
+export type UserRestriction = {
+  noCreate?: boolean;
+  noApplyAll?: boolean;
+  noInvite?: boolean;
+  noChat?: boolean;
+  noDM?: boolean;
+  noInterest?: boolean;
+  noReview?: boolean;
+  applyBlockHostIds?: string[];
+};
+
+// 真偽フラグのキー一覧（保存・正規化で使う）。
+export const RESTRICTION_FLAGS: Array<keyof UserRestriction> = [
+  'noCreate', 'noApplyAll', 'noInvite', 'noChat', 'noDM', 'noInterest', 'noReview',
+];
 
 let _rcache: { map: Record<string, UserRestriction>; ts: number } | null = null;
 
@@ -97,15 +116,18 @@ export async function setRestriction(userId: string, patch: UserRestriction): Pr
   const snap = await ref.get();
   const map: Record<string, UserRestriction> = snap.exists ? (snap.data()?.map || {}) : {};
   const cur = map[userId] || {};
-  // 正規化：applyBlockHostIds は重複除去。全項目が空なら丸ごと削除。
+  // 正規化：真偽フラグを取り込み、applyBlockHostIds は重複除去。全項目が空なら削除。
   const next: UserRestriction = {
-    noCreate: patch.noCreate ?? cur.noCreate ?? false,
-    noInvite: patch.noInvite ?? cur.noInvite ?? false,
     applyBlockHostIds: Array.from(new Set(
       (patch.applyBlockHostIds ?? cur.applyBlockHostIds ?? []).map((s) => String(s).trim()).filter(Boolean),
     )).slice(0, 200),
   };
-  const isEmpty = !next.noCreate && !next.noInvite && (next.applyBlockHostIds || []).length === 0;
+  for (const f of RESTRICTION_FLAGS) {
+    const v = (patch as any)[f] ?? (cur as any)[f] ?? false;
+    if (v) (next as any)[f] = true;
+  }
+  const anyFlag = RESTRICTION_FLAGS.some((f) => (next as any)[f]);
+  const isEmpty = !anyFlag && (next.applyBlockHostIds || []).length === 0;
   if (isEmpty) delete map[userId]; else map[userId] = next;
   await ref.set({ map, updatedAt: Date.now() }, { merge: true });
   invalidateRestrictionCache();

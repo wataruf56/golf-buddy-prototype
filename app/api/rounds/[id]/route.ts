@@ -62,6 +62,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   // 男女別料金。空文字で送れば解除（＝男女同額に戻る）。
   if (has('priceMale')) patch.priceMale = body.priceMale ? String(body.priceMale).slice(0, 40) : '';
   if (has('priceFemale')) patch.priceFemale = body.priceFemale ? String(body.priceFemale).slice(0, 40) : '';
+  // ゴルトモ公式 ⇄ 個人 の切替。管理者（福田渉）のみ有効。クライアント申告は信用せず再検証。
+  if (has('asOfficial')) {
+    const { isAdminUserId } = await import('@/lib/adminAccess');
+    patch.isOfficial = !!body.asOfficial && isAdminUserId(meId);
+  }
   if (has('description')) patch.description = body.description ? String(body.description).slice(0, 200) : '';
   if (has('meetingInfo')) patch.meetingInfo = body.meetingInfo ? String(body.meetingInfo).slice(0, 200) : '';
   if (has('pickupStations')) patch.pickupStations = Array.isArray(body.pickupStations)

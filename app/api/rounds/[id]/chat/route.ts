@@ -29,8 +29,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const meId = await getMeId();
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: noStore });
-  const { blockedIfBanned } = await import('@/lib/banGuard');
+  const { blockedIfBanned, blockedByRestriction } = await import('@/lib/banGuard');
   const ban = await blockedIfBanned(meId); if (ban) return ban;
+  const rstChat = await blockedByRestriction(meId, 'noChat', 'チャットの利用が制限されています。'); if (rstChat) return rstChat;
   const me = await db.getUser(meId);
   if (!isMatchingAllowedByAge(me?.age)) {
     return NextResponse.json({ error: 'age_restricted', message: '20〜30代の方のみご利用いただけます' }, { status: 403, headers: noStore });

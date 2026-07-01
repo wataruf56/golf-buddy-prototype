@@ -26,7 +26,12 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400, headers: noStore });
   const patch: UserRestriction = {
     noCreate: !!body?.noCreate,
+    noApplyAll: !!body?.noApplyAll,
     noInvite: !!body?.noInvite,
+    noChat: !!body?.noChat,
+    noDM: !!body?.noDM,
+    noInterest: !!body?.noInterest,
+    noReview: !!body?.noReview,
     applyBlockHostIds: Array.isArray(body?.applyBlockHostIds) ? body.applyBlockHostIds.map((s: any) => String(s)) : [],
   };
   try {

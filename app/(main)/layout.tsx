@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { PhoneFrame } from '@/components/PhoneFrame';
 import { TabBar } from '@/components/TabBar';
@@ -10,7 +10,7 @@ import { ToastHost } from '@/components/Toast';
 import { AgeGateScreen } from '@/components/AgeGateScreen';
 import { MatchingBanner } from '@/components/MatchingBanner';
 import { UpdateBanner } from '@/components/UpdateBanner';
-import { getMe, useStore } from '@/lib/store';
+import { getMe, store, useStore } from '@/lib/store';
 import { isMatchingAllowedByAge } from '@/lib/ageGate';
 
 // Routes that don't require matching access (always available, regardless of age)
@@ -47,6 +47,32 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       setBlockerOpen(false);
     }
   }, [pendingCount, blockerOpen]);
+
+  // リアルタイム更新：画面遷移・タブ再表示のたびに最新状態を取り込む（招待承認・
+  // 参加確定などが、アプリを開き直さなくても反映されるように）。過剰取得を避け
+  // 直近4秒はスキップする軽いスロットル付き。
+  const lastRefreshRef = useRef(0);
+  function refreshData() {
+    if (!store.get().hydrated) return;
+    const now = Date.now();
+    if (now - lastRefreshRef.current < 4000) return;
+    lastRefreshRef.current = now;
+    store.hydrate().catch(() => {});
+  }
+  useEffect(() => {
+    refreshData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') refreshData(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function onTabBlock(href?: string) {
     // Allow マイページ even with pending reviews so the user can edit profile

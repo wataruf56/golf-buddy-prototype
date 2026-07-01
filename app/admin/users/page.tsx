@@ -19,8 +19,23 @@ type Row = {
   createdAt: number | null;
   swingAllowed: boolean;
   banned?: boolean;
-  restriction?: { noCreate?: boolean; noInvite?: boolean; applyBlockHostIds?: string[] };
+  restriction?: {
+    noCreate?: boolean; noApplyAll?: boolean; noInvite?: boolean;
+    noChat?: boolean; noDM?: boolean; noInterest?: boolean; noReview?: boolean;
+    applyBlockHostIds?: string[];
+  };
 };
+
+// 部分制限のチェックボックス定義（表示順・ラベル）。
+const RESTRICTION_ITEMS: { key: 'noCreate' | 'noApplyAll' | 'noInvite' | 'noChat' | 'noDM' | 'noInterest' | 'noReview'; label: string }[] = [
+  { key: 'noCreate', label: 'ラウンド募集を禁止' },
+  { key: 'noApplyAll', label: '参加申込を全面禁止（全ラウンド）' },
+  { key: 'noInvite', label: 'ゴルトモ招待を禁止' },
+  { key: 'noChat', label: 'グループチャット投稿を禁止' },
+  { key: 'noDM', label: 'ダイレクトメッセージを禁止' },
+  { key: 'noInterest', label: '「気になる」を禁止' },
+  { key: 'noReview', label: 'レビュー投稿を禁止' },
+];
 
 export default function AdminUsersPage() {
   return (
@@ -123,7 +138,12 @@ function Inner() {
         body: JSON.stringify({
           userId: u.id,
           noCreate: !!u.restriction?.noCreate,
+          noApplyAll: !!u.restriction?.noApplyAll,
           noInvite: !!u.restriction?.noInvite,
+          noChat: !!u.restriction?.noChat,
+          noDM: !!u.restriction?.noDM,
+          noInterest: !!u.restriction?.noInterest,
+          noReview: !!u.restriction?.noReview,
           applyBlockHostIds: u.restriction?.applyBlockHostIds || [],
         }),
       });
@@ -221,19 +241,22 @@ function Inner() {
             <details className="mt-2 bg-bg rounded-lg border-[1.5px] border-border">
               <summary className="px-3 py-2 text-[11px] font-bold text-sub cursor-pointer list-none flex items-center justify-between">
                 <span>⚙️ 部分制限（通報対応）</span>
-                {((u.restriction?.noCreate || u.restriction?.noInvite || (u.restriction?.applyBlockHostIds || []).length > 0)) && (
+                {((RESTRICTION_ITEMS.some((it) => (u.restriction as any)?.[it.key]) || (u.restriction?.applyBlockHostIds || []).length > 0)) && (
                   <span className="text-[9px] font-black text-white bg-orange rounded-full px-2 py-[1px]">制限中</span>
                 )}
               </summary>
               <div className="px-3 pb-3 pt-1 flex flex-col gap-2">
-                <label className="flex items-center gap-2 text-[12px] font-bold">
-                  <input type="checkbox" className="w-4 h-4 accent-orange" checked={!!u.restriction?.noCreate} onChange={(e) => editRestriction(u.id, { noCreate: e.target.checked })} />
-                  ラウンド募集を禁止
-                </label>
-                <label className="flex items-center gap-2 text-[12px] font-bold">
-                  <input type="checkbox" className="w-4 h-4 accent-orange" checked={!!u.restriction?.noInvite} onChange={(e) => editRestriction(u.id, { noInvite: e.target.checked })} />
-                  ゴルトモ招待を禁止
-                </label>
+                {RESTRICTION_ITEMS.map((it) => (
+                  <label key={it.key} className="flex items-center gap-2 text-[12px] font-bold">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 accent-orange"
+                      checked={!!(u.restriction as any)?.[it.key]}
+                      onChange={(e) => editRestriction(u.id, { [it.key]: e.target.checked } as any)}
+                    />
+                    {it.label}
+                  </label>
+                ))}
                 <div>
                   <div className="text-[11px] font-bold mb-1">参加申込を禁止する主催者ID（1行1ID）</div>
                   <textarea

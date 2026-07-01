@@ -24,8 +24,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const meId = await getMeId();
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  const { blockedIfBanned } = await import('@/lib/banGuard');
+  const { blockedIfBanned, blockedByRestriction } = await import('@/lib/banGuard');
   const ban = await blockedIfBanned(meId); if (ban) return ban;
+  const rstDM = await blockedByRestriction(meId, 'noDM', 'メッセージ送信の利用が制限されています。'); if (rstDM) return rstDM;
   const body = await req.json();
   const { chatId, text, otherUserId } = body || {};
   if (!chatId || !text || !otherUserId) return NextResponse.json({ error: 'invalid' }, { status: 400 });

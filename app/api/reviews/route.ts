@@ -39,8 +39,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const meId = await getMeId();
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  const { blockedIfBanned } = await import('@/lib/banGuard');
+  const { blockedIfBanned, blockedByRestriction } = await import('@/lib/banGuard');
   const ban = await blockedIfBanned(meId); if (ban) return ban;
+  const rstReview = await blockedByRestriction(meId, 'noReview', 'レビュー投稿の利用が制限されています。'); if (rstReview) return rstReview;
   const body = await req.json();
   const { pendingId, revieweeId, roundId, stars, tags, comment } = body || {};
   if (!revieweeId || !roundId || !stars) {

@@ -35,7 +35,9 @@ export default function EditRoundPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const meId = useStore((s) => s.meId);
+  const isAdmin = useStore((s) => s.isAdmin);
   const storeRound = useStore((s) => s.rounds.find((r) => r.id === params.id));
+  const [postAsOfficial, setPostAsOfficial] = useState(false);
 
   const [round, setRound] = useState<Round | null>(storeRound || null);
   const [loadState, setLoadState] = useState<'idle' | 'loading' | 'notfound' | 'forbidden'>('idle');
@@ -133,6 +135,7 @@ export default function EditRoundPage() {
     setPickupStations(round.pickupStations || []);
     setPickupCapacity(round.pickupCapacity || 0);
     setOpenChatUrl(round.openChatUrl || '');
+    setPostAsOfficial(!!round.isOfficial);
   }, [round]);
 
   const isConfirmed = round?.type === 'confirmed';
@@ -208,9 +211,11 @@ export default function EditRoundPage() {
 
   async function save() {
     setSaving(true);
-    const patch: Partial<Round> = {
+    const patch: Partial<Round> & { asOfficial?: boolean } = {
       title: title || round!.title,
       maxSpots,
+      // ゴルトモ公式 ⇄ 個人 の切替（管理者のみ。サーバーで再検証）。
+      ...(isAdmin ? { asOfficial: postAsOfficial } : {}),
       externalMale,
       externalFemale,
       spotsMale,
@@ -271,6 +276,22 @@ export default function EditRoundPage() {
 
       <div className="px-5">
         <div className="bg-card rounded-card p-5 shadow-card">
+          {isAdmin && (
+            <Field label="投稿の種類（管理者のみ）">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPostAsOfficial(false)}
+                  className={cn('flex-1 py-2.5 text-sm font-bold rounded-[10px] border-[1.5px]', !postAsOfficial ? 'border-green bg-green-light text-green' : 'border-border bg-card text-text')}
+                >👤 個人投稿</button>
+                <button
+                  type="button"
+                  onClick={() => setPostAsOfficial(true)}
+                  className={cn('flex-1 py-2.5 text-sm font-bold rounded-[10px] border-[1.5px]', postAsOfficial ? 'border-green bg-green text-white' : 'border-border bg-card text-text')}
+                >✓ ゴルトモ公式</button>
+              </div>
+            </Field>
+          )}
           <Field label="タイトル">
             <select
               value={titleFree ? '__free__' : (titlePresets.includes(title) ? title : (title ? '__free__' : ''))}
