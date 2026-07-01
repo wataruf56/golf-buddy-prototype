@@ -56,11 +56,8 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
         </div>
       )}
 
-      {/* 日付＋金額（1行）→ コース名（県）→ タイトル */}
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[14px] font-black">📅 {dateLabel}</span>
-        {priceLabel && <span className="text-[13px] font-black text-orange whitespace-nowrap">参加費 {priceLabel}</span>}
-      </div>
+      {/* 日付 → コース名（県）→ タイトル（金額は男女比の行の左に表示） */}
+      <div className="text-[14px] font-black">📅 {dateLabel}</div>
       <div className="text-[12px] font-bold text-sub mt-0.5">{placeIcon} {placeLabel || (round.type === 'confirmed' ? 'コース調整中' : 'コース未定')}</div>
       <div className="text-[14px] font-black leading-snug mt-0.5">{round.title}</div>
 
@@ -69,8 +66,11 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
         <div className="mt-1.5 text-[11px] font-bold text-green">🚗 ピックアップ：{pickup.join('・')}{round.pickupCapacity ? `（自分含め${round.pickupCapacity}名）` : ''}</div>
       )}
 
-      {/* 男女比 → 参加状況バー */}
-      <div className="mt-2 text-[11px] font-bold text-sub">👨 男性 {male} ・ 👩 女性 {female}</div>
+      {/* 参加費（左）＋男女比 → 参加状況バー */}
+      <div className="mt-2 flex items-center gap-2.5 text-[11px] font-bold">
+        {priceLabel && <span className="text-orange whitespace-nowrap">参加費 {priceLabel}</span>}
+        <span className="text-sub">👨 男性 {male} ・ 👩 女性 {female}</span>
+      </div>
       <div className="flex items-center gap-2 mt-1">
         <div className="flex-1 h-2 bg-bg rounded overflow-hidden border border-hair">
           <div className="h-full bg-orange rounded" style={{ width: `${pct}%` }} />
