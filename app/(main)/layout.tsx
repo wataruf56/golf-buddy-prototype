@@ -37,7 +37,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const matchingAllowed = isMatchingAllowedByAge(me?.age);
   const ageGated = hydrated && needsMatchingAccess(pathname) && !matchingAllowed;
   const banned = useStore((s) => s.banned);
-  const banGated = hydrated && banned && needsMatchingAccess(pathname);
+  // 赤バン（アカウント停止）は全画面を遮断（ログイン中でも一切使えない状態にする）。
+  const banGated = hydrated && banned;
 
   useEffect(() => {
     if (pendingCount > 0 && !blockerOpen) setOverlayOpen(true);

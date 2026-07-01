@@ -16,6 +16,13 @@ export async function POST(req: NextRequest) {
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const { blockedIfBanned } = await import('@/lib/banGuard');
   const ban = await blockedIfBanned(meId); if (ban) return ban;
+  // 部分制限：ラウンド募集の停止。
+  try {
+    const { getRestriction } = await import('@/lib/banAccess');
+    if ((await getRestriction(meId)).noCreate) {
+      return NextResponse.json({ error: 'restricted', message: 'ラウンド募集の利用が制限されています。' }, { status: 403 });
+    }
+  } catch { /* 判定不能時は許可 */ }
   const me = await db.getUser(meId);
   if (!isMatchingAllowedByAge(me?.age)) {
     return NextResponse.json({ error: 'age_restricted', message: '20〜30代の方のみご利用いただけます' }, { status: 403 });

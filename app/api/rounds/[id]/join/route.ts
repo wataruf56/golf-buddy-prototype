@@ -19,6 +19,15 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   const existing = await db.getRound(params.id);
   if (!existing) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
+  // 部分制限：この主催者のラウンドへの参加申込が禁止されている場合は弾く。
+  try {
+    const { getRestriction } = await import('@/lib/banAccess');
+    const rst = await getRestriction(meId);
+    if ((rst.applyBlockHostIds || []).includes(existing.hostId)) {
+      return NextResponse.json({ error: 'restricted', message: 'この主催者のラウンドには参加申込できません。' }, { status: 403 });
+    }
+  } catch { /* 判定不能時は許可 */ }
+
   // Cohort isolation: applicant must be in the same age cohort as the host's round.
   const myCohort = getCohort(me?.age);
   if (!existing.hostCohort || !myCohort || existing.hostCohort !== myCohort) {

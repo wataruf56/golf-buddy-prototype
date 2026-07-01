@@ -13,6 +13,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const { blockedIfBanned } = await import('@/lib/banGuard');
   const ban = await blockedIfBanned(meId); if (ban) return ban;
+  // 部分制限：ゴルトモ招待の停止。
+  try {
+    const { getRestriction } = await import('@/lib/banAccess');
+    if ((await getRestriction(meId)).noInvite) {
+      return NextResponse.json({ error: 'restricted', message: 'ゴルトモ招待の利用が制限されています。' }, { status: 403 });
+    }
+  } catch { /* 判定不能時は許可 */ }
 
   const existing = await db.getRound(params.id);
   if (!existing) return NextResponse.json({ error: 'not_found' }, { status: 404 });

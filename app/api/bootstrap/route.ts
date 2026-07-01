@@ -79,9 +79,19 @@ export async function GET() {
     } catch {}
   }));
 
+  // 赤バン（アカウント停止）ユーザーは他ユーザーから完全に見えないよう、
+  // クライアントに渡す users から除外する（自分自身は除外しない）。これにより
+  // 招待候補・ゴル友・気になる一覧・参加者名など全ての表示から消える。
+  let visibleUsers = users;
+  try {
+    const { getBannedIdSet } = await import('@/lib/banAccess');
+    const bset = await getBannedIdSet();
+    if (bset.size) visibleUsers = users.filter((u) => u.id === meId || !bset.has(u.id));
+  } catch { /* 判定不能時はそのまま */ }
+
   // Strip private real names from everyone but the current user before sending.
   const { stripPrivateMany } = await import('@/lib/sanitizeUser');
-  const safeUsers = stripPrivateMany(users, meId);
+  const safeUsers = stripPrivateMany(visibleUsers, meId);
 
   // 赤バン状態（コミュニティ機能のUIゲート用）。
   let banned = false;

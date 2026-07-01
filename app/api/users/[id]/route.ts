@@ -16,6 +16,11 @@ function ageBucket(age: number | undefined): string {
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const user = await db.getUser(params.id);
   if (!user) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  // 赤バン（アカウント停止）ユーザーのプロフィールは他者から見えない。
+  try {
+    const { isBanned } = await import('@/lib/banAccess');
+    if (await isBanned(params.id)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  } catch { /* 判定不能時は通常表示 */ }
   const reviews = await db.listReviewsForUser(params.id);
 
   // Recompute live stats — the stored counters can lag (roundCount only bumps

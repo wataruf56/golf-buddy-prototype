@@ -19,6 +19,7 @@ type Row = {
   createdAt: number | null;
   swingAllowed: boolean;
   banned?: boolean;
+  restriction?: { noCreate?: boolean; noInvite?: boolean; applyBlockHostIds?: string[] };
 };
 
 export default function AdminUsersPage() {
@@ -49,15 +50,17 @@ function Inner() {
   async function load() {
     if (!token) { setErr('ADMIN_LOG_TOKEN を ?token= か /admin で設定してください'); return; }
     try {
-      const [r, banRes] = await Promise.all([
+      const [r, banRes, rstRes] = await Promise.all([
         fetch(`/api/admin/users?token=${encodeURIComponent(token)}`, { cache: 'no-store' }),
         fetch(`/api/admin/ban?token=${encodeURIComponent(token)}`, { cache: 'no-store' }),
+        fetch(`/api/admin/restrict?token=${encodeURIComponent(token)}`, { cache: 'no-store' }),
       ]);
       if (!r.ok) throw new Error(`${r.status}`);
       const d = await r.json();
       const bannedIds: string[] = banRes.ok ? ((await banRes.json()).ids || []) : [];
+      const rstMap: Record<string, any> = rstRes.ok ? ((await rstRes.json()).map || {}) : {};
       const bset = new Set(bannedIds);
-      setUsers((d.users || []).map((u: Row) => ({ ...u, banned: bset.has(u.id) })));
+      setUsers((d.users || []).map((u: Row) => ({ ...u, banned: bset.has(u.id), restriction: rstMap[u.id] || {} })));
       setAllowedCount(d.allowedCount || 0);
       setErr('');
     } catch (e) {
@@ -89,7 +92,7 @@ function Inner() {
   async function toggleBan(u: Row) {
     if (!token) return;
     const next = !u.banned;
-    if (next && !confirm(`${u.displayName || 'このユーザー'} を「赤バン」しますか？\n募集・参加・チャット・気になる・招待・DM・レビューが利用できなくなります。`)) return;
+    if (next && !confirm(`${u.displayName || 'このユーザー'} を「赤バン」しますか？\nログイン不可・他ユーザーから完全非表示・招待候補からも除外され、一切利用できなくなります。`)) return;
     setBusyId(u.id);
     try {
       const r = await fetch(`/api/admin/ban?token=${encodeURIComponent(token)}`, {
@@ -99,6 +102,35 @@ function Inner() {
       });
       if (!r.ok) throw new Error(`${r.status}`);
       setUsers((prev) => prev?.map((x) => x.id === u.id ? { ...x, banned: next } : x) || null);
+    } catch (e) {
+      alert(`失敗: ${(e as Error).message}`);
+    } finally {
+      setBusyId('');
+    }
+  }
+
+  // 部分制限のローカル編集（保存ボタンで永続化）。
+  function editRestriction(id: string, patch: Partial<NonNullable<Row['restriction']>>) {
+    setUsers((prev) => prev?.map((x) => x.id === id ? { ...x, restriction: { ...(x.restriction || {}), ...patch } } : x) || null);
+  }
+  async function saveRestriction(u: Row) {
+    if (!token) return;
+    setBusyId(u.id);
+    try {
+      const r = await fetch(`/api/admin/restrict?token=${encodeURIComponent(token)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: u.id,
+          noCreate: !!u.restriction?.noCreate,
+          noInvite: !!u.restriction?.noInvite,
+          applyBlockHostIds: u.restriction?.applyBlockHostIds || [],
+        }),
+      });
+      if (!r.ok) throw new Error(`${r.status}`);
+      const d = await r.json();
+      setUsers((prev) => prev?.map((x) => x.id === u.id ? { ...x, restriction: d.restriction || {} } : x) || null);
+      alert('部分制限を保存しました');
     } catch (e) {
       alert(`失敗: ${(e as Error).message}`);
     } finally {
@@ -182,8 +214,43 @@ function Inner() {
                   : 'bg-bg text-red-600 border-[1.5px] border-red-200'
               } ${busyId === u.id ? 'opacity-50' : ''}`}
             >
-              {busyId === u.id ? '...' : u.banned ? '🚫 赤バン中（タップで解除）' : '🚫 赤バンする（コミュニティ利用停止）'}
+              {busyId === u.id ? '...' : u.banned ? '🚫 赤バン中（タップで解除）' : '🚫 赤バン（ログイン不可・完全非表示）'}
             </button>
+
+            {/* 部分制限（通報対応で機能を一部だけ止める） */}
+            <details className="mt-2 bg-bg rounded-lg border-[1.5px] border-border">
+              <summary className="px-3 py-2 text-[11px] font-bold text-sub cursor-pointer list-none flex items-center justify-between">
+                <span>⚙️ 部分制限（通報対応）</span>
+                {((u.restriction?.noCreate || u.restriction?.noInvite || (u.restriction?.applyBlockHostIds || []).length > 0)) && (
+                  <span className="text-[9px] font-black text-white bg-orange rounded-full px-2 py-[1px]">制限中</span>
+                )}
+              </summary>
+              <div className="px-3 pb-3 pt-1 flex flex-col gap-2">
+                <label className="flex items-center gap-2 text-[12px] font-bold">
+                  <input type="checkbox" className="w-4 h-4 accent-orange" checked={!!u.restriction?.noCreate} onChange={(e) => editRestriction(u.id, { noCreate: e.target.checked })} />
+                  ラウンド募集を禁止
+                </label>
+                <label className="flex items-center gap-2 text-[12px] font-bold">
+                  <input type="checkbox" className="w-4 h-4 accent-orange" checked={!!u.restriction?.noInvite} onChange={(e) => editRestriction(u.id, { noInvite: e.target.checked })} />
+                  ゴルトモ招待を禁止
+                </label>
+                <div>
+                  <div className="text-[11px] font-bold mb-1">参加申込を禁止する主催者ID（1行1ID）</div>
+                  <textarea
+                    value={(u.restriction?.applyBlockHostIds || []).join('\n')}
+                    onChange={(e) => editRestriction(u.id, { applyBlockHostIds: e.target.value.split('\n').map((s) => s.trim()).filter(Boolean) })}
+                    rows={3}
+                    placeholder="Uxxxxxxxx...（このユーザーが申込できない主催者）"
+                    className="w-full p-2 border-[1.5px] border-border rounded text-[11px] font-mono bg-card outline-none resize-y"
+                  />
+                </div>
+                <button
+                  onClick={() => saveRestriction(u)}
+                  disabled={busyId === u.id}
+                  className="w-full py-2 bg-orange text-white rounded-lg text-xs font-bold disabled:opacity-50"
+                >{busyId === u.id ? '...' : '部分制限を保存'}</button>
+              </div>
+            </details>
 
             <details className="mt-2">
               <summary className="text-[10px] text-muted cursor-pointer">userId / 詳細</summary>

@@ -39,6 +39,17 @@ export async function POST(req: NextRequest) {
   const userId: string = verified?.sub || '';
   if (!userId) return NextResponse.json({ error: 'no sub in verified token' }, { status: 401 });
 
+  // 赤バン（アカウント停止）ユーザーはログイン自体を拒否＝一切利用できない。
+  try {
+    const { isBanned } = await import('@/lib/banAccess');
+    if (await isBanned(userId)) {
+      return NextResponse.json(
+        { error: 'banned', message: 'このアカウントはご利用いただけません。運営にお問い合わせください。' },
+        { status: 403 },
+      );
+    }
+  } catch { /* 判定不能時はログインを妨げない */ }
+
   const displayName: string = verified?.name || 'ゴルファー';
   const picture: string | undefined = verified?.picture;
 
