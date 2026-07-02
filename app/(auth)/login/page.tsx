@@ -1,6 +1,5 @@
 'use client';
 
-import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { PhoneFrame } from '@/components/PhoneFrame';
 
@@ -19,9 +18,13 @@ export default function LoginPage() {
     } catch {}
     if (isDemo) {
       router.push(cb);
-    } else {
-      signIn('line', { callbackUrl: cb });
+      return;
     }
+    // ブラウザ（Safari/Chrome）でも LIFF 経由でログインする。Firebase Hosting は
+    // `__session` Cookie しか Cloud Run へ転送しないため、NextAuth の Cookie では
+    // セッションが確立できずログイン画面をループしてしまう。/liff は idToken を
+    // 検証して __session を発行し、ログイン後は ?to= のページへ戻す。
+    window.location.href = `/liff?to=${encodeURIComponent(cb)}`;
   }
 
   return (

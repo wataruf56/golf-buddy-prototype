@@ -336,7 +336,7 @@ export default function RoundDetailPage() {
             ログインすると、参加申込・ピックアップの登録・「気になる」などの操作ができます。
           </div>
           <a
-            href={`/login?callbackUrl=${encodeURIComponent(typeof window !== 'undefined' ? window.location.pathname + window.location.search : `/round/${params.id}`)}`}
+            href={`/liff?to=${encodeURIComponent(typeof window !== 'undefined' ? window.location.pathname + window.location.search : `/round/${params.id}`)}`}
             className="block w-full py-3 bg-green text-white rounded-xl text-sm font-black text-center"
           >
             ここからログインする →
