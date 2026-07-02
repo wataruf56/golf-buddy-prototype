@@ -10,10 +10,17 @@ export default function LoginPage() {
   const router = useRouter();
 
   function handleLogin() {
+    // 共有リンク等から ?callbackUrl=/round/xxx が付いていれば、ログイン後そこへ戻す。
+    // 安全のため内部パス（/始まり・//除く）のみ許可。無ければホームへ。
+    let cb = '/home';
+    try {
+      const p = new URLSearchParams(window.location.search).get('callbackUrl');
+      if (p && p.startsWith('/') && !p.startsWith('//')) cb = p;
+    } catch {}
     if (isDemo) {
-      router.push('/home');
+      router.push(cb);
     } else {
-      signIn('line', { callbackUrl: '/home' });
+      signIn('line', { callbackUrl: cb });
     }
   }
 

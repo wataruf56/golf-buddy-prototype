@@ -35,6 +35,7 @@ export default function RoundDetailPage() {
   const storeRound = useStore((s) => s.rounds.find((r) => r.id === params.id));
   const storeUsers = useStore((s) => s.users);
   const meId = useStore((s) => s.meId);
+  const hydrated = useStore((s) => s.hydrated);
   const me = useStore(getMe);
   const profileReady = isProfileComplete(me?.age);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -325,6 +326,24 @@ export default function RoundDetailPage() {
           )}
         </div>
       </div>
+
+      {/* 未ログイン通知：共有リンクをブラウザで開いた人向け。ログインすると
+          参加・ピックアップなどの操作ができる。ログイン後はこのページへ戻る。 */}
+      {hydrated && !meId && (
+        <div className="mb-4 bg-orange-light border-[1.5px] border-orange rounded-card p-4">
+          <div className="text-[13px] font-black text-orange mb-1">🔒 未ログインです</div>
+          <div className="text-[12px] text-sub leading-relaxed mb-3">
+            ログインすると、参加申込・ピックアップの登録・「気になる」などの操作ができます。
+          </div>
+          <a
+            href={`/login?callbackUrl=${encodeURIComponent(typeof window !== 'undefined' ? window.location.pathname + window.location.search : `/round/${params.id}`)}`}
+            className="block w-full py-3 bg-green text-white rounded-xl text-sm font-black text-center"
+          >
+            ここからログインする →
+          </a>
+          <div className="text-[10px] text-muted text-center mt-1.5">ログイン後、このページに戻ります</div>
+        </div>
+      )}
 
       <div className="bg-card rounded-card p-5 shadow-card">
         {isComp && (
