@@ -175,6 +175,11 @@ export type RoundGuest = {
   name: string;
 };
 
+// ラウンド後の相手への判定。星評価は廃止し、この4択に。
+//   again    : また回りたい / romantic : 異性として気になる（また回りたいを内包）
+//   never    : 二度と回りたくない / either : どっちでもいい
+export type ReviewVerdict = 'again' | 'romantic' | 'never' | 'either';
+
 export type Review = {
   id: string;
   roundId: string;
@@ -183,6 +188,7 @@ export type Review = {
   stars: number;
   tags: string[];
   comment?: string;
+  verdict?: ReviewVerdict;
   createdAt: number;
   isAnonymous: true;
 };

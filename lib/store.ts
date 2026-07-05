@@ -303,12 +303,12 @@ export const store = {
     });
   },
 
-  submitReview: async (pendingId: string, stars: number, tags: string[], comment?: string) => {
+  submitReview: async (pendingId: string, stars: number, tags: string[], comment?: string, verdict?: string) => {
     const pending = state.pendingReviews.find((p) => p.id === pendingId);
     if (!pending) return;
     await api('/api/reviews', {
       method: 'POST',
-      body: JSON.stringify({ pendingId, revieweeId: pending.revieweeId, roundId: pending.roundId, stars, tags, comment }),
+      body: JSON.stringify({ pendingId, revieweeId: pending.revieweeId, roundId: pending.roundId, stars, tags, comment, verdict }),
     });
     setState({
       pendingReviews: state.pendingReviews.map((p) =>

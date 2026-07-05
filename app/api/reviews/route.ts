@@ -43,17 +43,20 @@ export async function POST(req: NextRequest) {
   const ban = await blockedIfBanned(meId); if (ban) return ban;
   const rstReview = await blockedByRestriction(meId, 'noReview', 'レビュー投稿の利用が制限されています。'); if (rstReview) return rstReview;
   const body = await req.json();
-  const { pendingId, revieweeId, roundId, stars, tags, comment } = body || {};
+  const { pendingId, revieweeId, roundId, stars, tags, comment, verdict } = body || {};
   if (!revieweeId || !roundId) {
     return NextResponse.json({ error: 'invalid: revieweeId/roundId required' }, { status: 400 });
   }
-  // 星評価は廃止。レビューは「また回りたいか」＋コメントのみ（stars は 0 固定）。
+  // 星評価は廃止。レビューは4択判定（verdict）＋コメント（stars は 0 固定）。
   const tagList = Array.isArray(tags) ? tags.filter((t: any) => typeof t === 'string' && t.trim()) : [];
+  const VERDICTS = ['again', 'romantic', 'never', 'either'];
+  const v = VERDICTS.includes(verdict) ? verdict : undefined;
   try {
     const review = await db.createReview({
       roundId, reviewerId: meId, revieweeId,
       stars: Number(stars) || 0, tags: tagList,
       comment: comment ? String(comment) : '',
+      ...(v ? { verdict: v } : {}),
       createdAt: Date.now(), isAnonymous: true,
     });
     if (pendingId) {

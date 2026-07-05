@@ -5,12 +5,12 @@ import { store, useStore, getMe } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { toast } from '@/components/Toast';
 import { track } from '@/lib/telemetry';
-import type { User } from '@/lib/types';
+import type { User, ReviewVerdict } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
-// ラウンド後のレビュー。星評価は廃止。全員について「また一緒に回りたいか」
-// （＋異性の相手のみ「異性として気になる」）を選び、まとめて送信する。
-type Row = { want: 'yes' | 'no' | null; romantic: boolean; comment: string };
+// ラウンド後のレビュー。星評価は廃止。全員について4択（また回りたい／異性として
+// 気になる／二度と回りたくない／どっちでもいい）を選び、まとめて送信する。
+type Row = { verdict: ReviewVerdict | null; comment: string };
 
 export function ReviewOverlay() {
   const me = useStore(getMe);
@@ -23,10 +23,10 @@ export function ReviewOverlay() {
 
   if (pending.length === 0) return null;
 
-  const get = (id: string): Row => rows[id] || { want: null, romantic: false, comment: '' };
+  const get = (id: string): Row => rows[id] || { verdict: null, comment: '' };
   const upd = (id: string, patch: Partial<Row>) => setRows((p) => ({ ...p, [id]: { ...get(id), ...patch } }));
 
-  const answered = (r?: Row) => !!r && (r.romantic || r.want !== null);
+  const answered = (r?: Row) => !!r && r.verdict !== null;
   const ratedCount = pending.filter((p) => answered(rows[p.id])).length;
   const allRated = ratedCount === pending.length;
 
@@ -55,14 +55,17 @@ export function ReviewOverlay() {
       for (const p of pending) {
         const r = get(p.id);
         if (!answered(r)) continue;
-        // 星は廃止。レビュー記録はコメントのみ（pending解消のために送信）。
-        await store.submitReview(p.id, 0, [], r.comment || undefined);
-        const target = users.find((u) => u.id === p.revieweeId);
-        const opp = isOpp(target);
-        // 「また回りたい」= はい選択、または「異性として気になる」（=また回りたいを内包）。
-        const effAgain = r.want === 'yes' || (opp && r.romantic);
-        if (opp && r.romantic) await sendLike(p.roundId, p.revieweeId, 'romantic');
-        if (effAgain) await sendLike(p.roundId, p.revieweeId, 'again');
+        // 星は廃止。verdict（4択）＋コメントを送信（pending解消も兼ねる）。
+        await store.submitReview(p.id, 0, [], r.comment || undefined, r.verdict || undefined);
+        // マッチング（両思い方式）：また回りたい／異性として気になる のみ like を送る。
+        // 「異性として気になる」は「また回りたい」を内包。
+        if (r.verdict === 'romantic') {
+          await sendLike(p.roundId, p.revieweeId, 'romantic');
+          await sendLike(p.roundId, p.revieweeId, 'again');
+        } else if (r.verdict === 'again') {
+          await sendLike(p.roundId, p.revieweeId, 'again');
+        }
+        // never / either は誰にも通知されない（負の相互マッチは存在しない）。
       }
       toast('レビューを送信しました');
     } catch (e) {
@@ -104,36 +107,24 @@ export function ReviewOverlay() {
                   </div>
                 </div>
 
-                {/* また回りたいか（星評価は廃止）。異性の相手は「異性として気になる」も選べ、
-                    選択中は専用ボタン1つに切り替える（また回りたいを内包）。 */}
+                {/* 4択（星評価は廃止）。単一選択。異性として気になるは異性の相手のみ。 */}
                 <div className="mt-1">
-                  <div className="text-[12px] font-black text-center mb-1.5">また一緒に回りたいですか？</div>
-                  {opp && r.romantic ? (
-                    <button
-                      onClick={() => upd(p.id, { romantic: false })}
-                      className="w-full py-2.5 rounded-full text-[12px] font-bold border-[1.5px] bg-pink-600 text-white border-pink-600"
-                    >✓ 💘 異性として気になる（「また回りたい」も含む）</button>
-                  ) : (
-                    <>
-                      <div className="flex gap-1.5">
-                        <button
-                          onClick={() => upd(p.id, { want: 'yes' })}
-                          className={cn('flex-1 py-2.5 rounded-full text-[12px] font-bold border-[1.5px]', r.want === 'yes' ? 'bg-green text-white border-green' : 'bg-card border-border text-sub')}
-                        >{r.want === 'yes' ? '✓ ' : ''}🏌️ また回りたい</button>
-                        <button
-                          onClick={() => upd(p.id, { want: 'no' })}
-                          className={cn('flex-1 py-2.5 rounded-full text-[12px] font-bold border-[1.5px]', r.want === 'no' ? 'bg-[#9b876a] text-white border-[#9b876a]' : 'bg-card border-border text-sub')}
-                        >{r.want === 'no' ? '✓ ' : ''}🙅 今回はいいかな</button>
-                      </div>
-                      {opp && (
-                        <button
-                          onClick={() => upd(p.id, { romantic: true, want: 'yes' })}
-                          className="w-full mt-1.5 py-2.5 rounded-full text-[12px] font-bold border-[1.5px] bg-card border-border text-sub"
-                        >💘 異性として気になる</button>
-                      )}
-                    </>
-                  )}
-                  {opp && r.romantic && (
+                  <div className="text-[12px] font-black text-center mb-1.5">この人とまた回りたいですか？</div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {([
+                      { key: 'again', label: '🏌️ また回りたい', sel: 'bg-green text-white border-green', show: true },
+                      { key: 'romantic', label: '💘 異性として気になる', sel: 'bg-pink-600 text-white border-pink-600', show: opp },
+                      { key: 'never', label: '🙅 二度と回りたくない', sel: 'bg-[#C0392B] text-white border-[#C0392B]', show: true },
+                      { key: 'either', label: '🤷 どっちでもいい', sel: 'bg-[#9b876a] text-white border-[#9b876a]', show: true },
+                    ] as const).filter((o) => o.show).map((o) => (
+                      <button
+                        key={o.key}
+                        onClick={() => upd(p.id, { verdict: o.key })}
+                        className={cn('py-2.5 rounded-[12px] text-[12px] font-bold border-[1.5px] leading-tight', r.verdict === o.key ? o.sel : 'bg-card border-border text-sub')}
+                      >{r.verdict === o.key ? '✓ ' : ''}{o.label}</button>
+                    ))}
+                  </div>
+                  {r.verdict === 'romantic' && (
                     <div className="text-[10px] text-pink-600 font-bold mt-1 text-center">「また一緒に回りたい」も自動で含まれます</div>
                   )}
                 </div>
