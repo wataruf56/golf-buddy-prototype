@@ -157,6 +157,7 @@ class MemoryDB implements DB {
     const r = this.rounds.find((x) => x.id === id);
     if (!r) throw new Error('round not found');
     r.status = 'completed';
+    r.completedAt = Date.now();
     const participants = [r.hostId, ...r.applicantIds];
     // BUG FIX: bump roundCount for every participant. Previously this never
     // incremented, so profile "ラウンド回数" stayed at 0 forever.
@@ -529,8 +530,9 @@ class FirestoreDB implements DB {
     const snap = await ref.get();
     if (!snap.exists) throw new Error('round not found');
     const data = snap.data() as Omit<Round, 'id'>;
-    await ref.set({ status: 'completed' }, { merge: true });
-    const round = { ...data, id: snap.id, status: 'completed' as const };
+    const completedAt = Date.now();
+    await ref.set({ status: 'completed', completedAt }, { merge: true });
+    const round = { ...data, id: snap.id, status: 'completed' as const, completedAt };
     const participants = [round.hostId, ...(round.applicantIds || [])];
 
     // BUG FIX: bump roundCount on every participant's user doc. Previously
