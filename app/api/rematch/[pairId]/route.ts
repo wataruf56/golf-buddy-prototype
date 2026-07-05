@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMeId } from '@/lib/session';
 import { db } from '@/lib/db';
-import { getSession, membersOfPair, overlapDates, recordRematchEvent } from '@/lib/rematch';
+import { getSession, membersOfPair, overlapDates, recordRematchEvent, listSessionsForUser } from '@/lib/rematch';
 import { getRematchConfig } from '@/lib/rematchConfig';
 
 // GET /api/rematch/[pairId] — 1ペアの状態（自分視点：自分/相手の候補日・重なり・status）。
@@ -26,10 +26,25 @@ export async function GET(_req: NextRequest, { params }: { params: { pairId: str
   const theirs = (isA ? s.candidatesB : s.candidatesA) || [];
   const [other, cfg] = await Promise.all([db.getUser(otherId), getRematchConfig()]);
 
+  // 過去の入力の再利用：自分が他のペアで出した候補日（今後の範囲内）をまとめて返す。
+  const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+  const maxDate = new Date(Date.now() + (9 * 3600 + cfg.candidateWindowDays * 86400) * 1000).toISOString().slice(0, 10);
+  const pastSet = new Set<string>();
+  try {
+    const allSessions = await listSessionsForUser(meId);
+    for (const os of allSessions) {
+      if (os.pairId === pairId) continue;
+      const cand = os.userA === meId ? os.candidatesA : os.candidatesB;
+      (cand || []).forEach((d) => { if (d >= today && d <= maxDate) pastSet.add(d); });
+    }
+  } catch { /* best-effort */ }
+  const myPastCandidates = Array.from(pastSet).sort();
+
   return NextResponse.json({
     pairId,
     status: s.status,
     candidateWindowDays: cfg.candidateWindowDays,
+    myPastCandidates,
     courseName: s.courseName || '',
     roundDate: s.roundDate || '',
     matchKind: s.matchKind,

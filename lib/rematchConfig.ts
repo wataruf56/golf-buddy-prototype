@@ -9,7 +9,8 @@ export type RematchConfig = {
   maxCycles: number;           // 同一ペアへの再会通知の最大回数
   candidateWindowDays: number; // 候補日カレンダーの選択可能範囲（今後N日）
   enabled: boolean;            // 機能全体のON/OFF
-  testMode: boolean;           // ON=テストアカウント(test_)同士のペアにしか通知しない安全弁
+  testMode: boolean;           // ON=テストアカウント同士のペアにしか通知しない安全弁
+  testUserIds: string[];       // 管理画面で登録した「テスト扱い」の実LINEユーザーID
 };
 
 export const DEFAULT_REMATCH_CONFIG: RematchConfig = {
@@ -18,7 +19,13 @@ export const DEFAULT_REMATCH_CONFIG: RematchConfig = {
   candidateWindowDays: 45,
   enabled: true,
   testMode: true, // 誤爆防止：既定はテストのみ。本番運用時に管理画面でOFFにする
+  testUserIds: [],
 };
+
+// そのユーザーを「テスト扱い」とみなすか。test_ 始まり or 管理画面で登録したLINE ID。
+export function isRematchTestUser(id: string, cfg: RematchConfig): boolean {
+  return !!id && (id.startsWith('test_') || (cfg.testUserIds || []).includes(id));
+}
 
 let _cache: { cfg: RematchConfig; ts: number } | null = null;
 const CACHE_MS = 30 * 1000;
@@ -41,6 +48,7 @@ export async function getRematchConfig(): Promise<RematchConfig> {
       candidateWindowDays: clamp(d?.candidateWindowDays, 7, 180, DEFAULT_REMATCH_CONFIG.candidateWindowDays),
       enabled: d?.enabled !== false,
       testMode: d?.testMode !== false, // 既定 true（未設定＝安全側）
+      testUserIds: Array.isArray(d?.testUserIds) ? d.testUserIds.map((s: any) => String(s).trim()).filter(Boolean) : [],
     };
     _cache = { cfg, ts: Date.now() };
     return cfg;
@@ -61,6 +69,9 @@ export async function setRematchConfig(patch: Partial<RematchConfig>): Promise<R
     candidateWindowDays: patch.candidateWindowDays != null ? clamp(patch.candidateWindowDays, 7, 180, cur.candidateWindowDays) : cur.candidateWindowDays,
     enabled: patch.enabled != null ? !!patch.enabled : cur.enabled,
     testMode: patch.testMode != null ? !!patch.testMode : cur.testMode,
+    testUserIds: patch.testUserIds != null
+      ? Array.from(new Set(patch.testUserIds.map((s) => String(s).trim()).filter(Boolean))).slice(0, 100)
+      : cur.testUserIds,
   };
   await db.collection('_config').doc('rematch').set({ ...next, updatedAt: Date.now() }, { merge: true });
   invalidateRematchConfigCache();

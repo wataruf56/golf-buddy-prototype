@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { toast } from '@/components/Toast';
 
@@ -13,6 +13,7 @@ type Data = {
   roundDate: string;
   matchKind: 'again' | 'romantic';
   myCandidates: string[];
+  myPastCandidates?: string[];
   theirCandidates: string[];
   overlap: string[];
   agreedDate: string | null;
@@ -33,6 +34,11 @@ export default function RematchPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  // 表示中の月（その月の1日）。左右で切替。
+  const [monthCursor, setMonthCursor] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  // 過去入力の反映プロンプト。
+  const [pastPrompt, setPastPrompt] = useState(false);
+  const touchX = useRef<number | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -41,21 +47,22 @@ export default function RematchPage() {
       const d: Data = await r.json();
       setData(d);
       setMine(new Set(d.myCandidates || []));
+      // 自分の候補が未入力で、過去に他ペアで入れた候補があれば反映を提案。
+      if ((d.myCandidates || []).length === 0 && (d.myPastCandidates || []).length > 0) setPastPrompt(true);
     } catch { setNotFound(true); }
     setLoading(false);
   }, [params.pairId]);
 
   useEffect(() => { load(); }, [load]);
 
-  const days = useMemo(() => {
-    const win = data?.candidateWindowDays || 45;
-    const start = new Date(); start.setHours(0, 0, 0, 0);
-    const arr: Date[] = [];
-    for (let i = 0; i < win; i++) { const d = new Date(start); d.setDate(start.getDate() + i); arr.push(d); }
-    return arr;
-  }, [data?.candidateWindowDays]);
-
   const theirSet = useMemo(() => new Set(data?.theirCandidates || []), [data]);
+  const win = data?.candidateWindowDays || 45;
+  // 選択可能な範囲 [今日, 今日+win日]。
+  const range = useMemo(() => {
+    const t = new Date(); t.setHours(0, 0, 0, 0);
+    const mx = new Date(t); mx.setDate(t.getDate() + win);
+    return { today: iso(t), maxDate: iso(mx), minMonth: new Date(t.getFullYear(), t.getMonth(), 1), maxMonth: new Date(mx.getFullYear(), mx.getMonth(), 1) };
+  }, [win]);
 
   if (loading) return <div className="p-6 text-sub text-sm">読み込み中...</div>;
   if (notFound || !data) return <div className="p-6 text-sub text-sm">この再会は見つかりませんでした。</div>;
@@ -65,10 +72,27 @@ export default function RematchPage() {
   const overlapNow = Array.from(mine).filter((d) => theirSet.has(d)).sort();
   const bothEntered = mine.size > 0 && theirSet.size > 0;
 
+  const inWindow = (k: string) => k >= range.today && k <= range.maxDate;
   function toggle(k: string) {
-    if (agreed) return;
+    if (agreed || !inWindow(k)) return;
     setMine((prev) => { const n = new Set(prev); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   }
+  function applyPast() {
+    const past = (data!.myPastCandidates || []).filter((d) => inWindow(d));
+    setMine((prev) => { const n = new Set(prev); past.forEach((d) => n.add(d)); return n; });
+    setPastPrompt(false);
+  }
+  function changeMonth(delta: number) {
+    setMonthCursor((c) => {
+      const n = new Date(c.getFullYear(), c.getMonth() + delta, 1);
+      if (n < range.minMonth || n > range.maxMonth) return c;
+      return n;
+    });
+  }
+  const canPrev = new Date(monthCursor.getFullYear(), monthCursor.getMonth(), 1) > range.minMonth;
+  const canNext = new Date(monthCursor.getFullYear(), monthCursor.getMonth(), 1) < range.maxMonth;
+  const monthLead = new Date(monthCursor.getFullYear(), monthCursor.getMonth(), 1).getDay();
+  const daysInMonth = new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 0).getDate();
 
   async function saveCandidates() {
     setSaving(true);
@@ -104,8 +128,6 @@ export default function RematchPage() {
     } catch { toast('失敗しました', 'error'); }
   }
 
-  const leadBlanks = days.length ? days[0].getDay() : 0;
-
   return (
     <div className="px-5 py-3 pb-10">
       <div className="flex items-center justify-between mb-3">
@@ -140,29 +162,59 @@ export default function RematchPage() {
       ) : (
         <>
           <div className="text-[13px] font-black mb-1">📅 行ける日をタップ</div>
-          <div className="text-[11px] text-sub mb-2">お互いに行ける日を出し合うと、重なった日が青で表示されます。</div>
+          <div className="text-[11px] text-sub mb-2">お互いに行ける日を出し合うと、重なった日が青で表示されます。左右で月を切り替え。</div>
 
-          {/* カレンダー */}
-          <div className="bg-card rounded-card p-3 shadow-card mb-2">
+          {/* 過去入力の反映プロンプト */}
+          {pastPrompt && (
+            <div className="bg-yellow-light border-[1.5px] border-orange rounded-card p-3 mb-2">
+              <div className="text-[12px] font-black text-orange mb-1.5">過去に入力した候補日を反映しますか？</div>
+              <div className="text-[11px] text-sub mb-2">他の人との調整で出した候補日（{(data.myPastCandidates || []).filter(inWindow).length}日）をまとめてセットできます。反映後に個別で外せます。</div>
+              <div className="flex gap-2">
+                <button onClick={applyPast} className="flex-1 py-2 bg-orange text-white rounded-lg text-[12px] font-black">はい、反映する</button>
+                <button onClick={() => setPastPrompt(false)} className="flex-1 py-2 bg-bg border-[1.5px] border-border rounded-lg text-[12px] font-bold">いいえ</button>
+              </div>
+            </div>
+          )}
+
+          {/* カレンダー（月表示・左右で切替） */}
+          <div
+            className="bg-card rounded-card p-3 shadow-card mb-2 select-none"
+            onTouchStart={(e) => { touchX.current = e.changedTouches[0].clientX; }}
+            onTouchEnd={(e) => {
+              if (touchX.current == null) return;
+              const dx = e.changedTouches[0].clientX - touchX.current; touchX.current = null;
+              if (dx <= -40) changeMonth(1); else if (dx >= 40) changeMonth(-1);
+            }}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <button onClick={() => changeMonth(-1)} disabled={!canPrev} className="w-8 h-8 rounded-full bg-bg border border-border text-sm font-black disabled:opacity-30">‹</button>
+              <div className="text-[14px] font-black">{monthCursor.getFullYear()}年{monthCursor.getMonth() + 1}月</div>
+              <button onClick={() => changeMonth(1)} disabled={!canNext} className="w-8 h-8 rounded-full bg-bg border border-border text-sm font-black disabled:opacity-30">›</button>
+            </div>
             <div className="grid grid-cols-7 gap-1 mb-1">
               {DOW.map((w, i) => <div key={w} className={`text-center text-[10px] font-bold ${i === 0 ? 'text-red' : i === 6 ? 'text-blue' : 'text-muted'}`}>{w}</div>)}
             </div>
             <div className="grid grid-cols-7 gap-1">
-              {Array.from({ length: leadBlanks }).map((_, i) => <div key={`b${i}`} />)}
-              {days.map((d) => {
-                const k = iso(d);
+              {Array.from({ length: monthLead }).map((_, i) => <div key={`b${i}`} />)}
+              {Array.from({ length: daysInMonth }).map((_, i) => {
+                const dnum = i + 1;
+                const dt = new Date(monthCursor.getFullYear(), monthCursor.getMonth(), dnum);
+                const k = iso(dt);
+                const usable = inWindow(k);
                 const isMine = mine.has(k);
                 const isTheirs = theirSet.has(k);
                 const isOverlap = isMine && isTheirs;
                 let style: React.CSSProperties = {};
-                if (isOverlap) style = { background: '#3AA0C9', color: '#fff', borderColor: '#33271B' };
+                if (!usable) style = { background: '#f3f1ea', color: '#c9c3b8', borderColor: '#eee' };
+                else if (isOverlap) style = { background: '#3AA0C9', color: '#fff', borderColor: '#33271B' };
                 else if (isMine) style = { background: '#F6C445', color: '#33271B', borderColor: '#33271B' };
                 else if (isTheirs) style = { background: '#DADADA', color: '#6b5440', borderColor: '#c9c3b8' };
+                else style = { background: '#fff', borderColor: '#e3ddd0' };
                 return (
-                  <button key={k} onClick={() => toggle(k)}
+                  <button key={k} onClick={() => toggle(k)} disabled={!usable}
                     className="aspect-square rounded-lg border text-[12px] font-bold flex items-center justify-center"
-                    style={style.background ? style : { background: 'var(--color-bg, #f3f1ea)', borderColor: '#e3ddd0' }}
-                  >{d.getDate()}</button>
+                    style={style}
+                  >{dnum}</button>
                 );
               })}
             </div>
@@ -173,8 +225,8 @@ export default function RematchPage() {
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#3AA0C9' }} />重なり</span>
           </div>
 
-          <button onClick={saveCandidates} disabled={saving} className="w-full py-3 bg-green text-white rounded-xl text-sm font-bold disabled:opacity-50 mb-3">
-            {saving ? '保存中…' : '候補日を保存する'}
+          <button onClick={saveCandidates} disabled={saving} className="w-full py-3 bg-green text-white rounded-xl text-sm font-black disabled:opacity-50 mb-3">
+            {saving ? '送信中…' : `この候補日で確定して相手に送る（${mine.size}日）`}
           </button>
 
           {/* 重なり / ガイド */}

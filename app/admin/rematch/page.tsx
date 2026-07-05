@@ -11,7 +11,7 @@ export default function AdminRematchPage() {
   return <Suspense fallback={null}><Inner /></Suspense>;
 }
 
-type Cfg = { intervalDays: number; maxCycles: number; candidateWindowDays: number; enabled: boolean; testMode: boolean };
+type Cfg = { intervalDays: number; maxCycles: number; candidateWindowDays: number; enabled: boolean; testMode: boolean; testUserIds: string[] };
 const FUNNEL_LABELS: { key: string; label: string }[] = [
   { key: 'rematch_notify_open', label: '① 通知タップ' },
   { key: 'rematch_input_one', label: '② 片方が候補入力' },
@@ -110,9 +110,19 @@ function Inner() {
             </label>
             <div className={`text-[11px] mb-3 leading-relaxed ${cfg.testMode ? 'text-green' : 'text-red-600 font-bold'}`}>
               {cfg.testMode
-                ? 'ON：test_ で始まるテストアカウント同士のペアにしか再会通知は飛びません。実ユーザーには一切飛びません（安全）。'
+                ? 'ON：テスト扱いユーザー同士のペアにしか再会通知は飛びません。実ユーザーには一切飛びません（安全）。'
                 : '⚠️ OFF：実ユーザーにも再会通知が飛びます。過去に相互マッチした実ユーザーへ通知される可能性があります。本番運用の準備が整ってからOFFにしてください。'}
             </div>
+            <Field label="テスト扱いにするLINEユーザーID（1行1つ）" hint="自分のスマホでテストする用">
+              <textarea
+                value={(cfg.testUserIds || []).join('\n')}
+                onChange={(e) => setCfg({ ...cfg, testUserIds: e.target.value.split('\n').map((s) => s.trim()).filter(Boolean) })}
+                rows={3}
+                placeholder="Uxxxxxxxxxxxxxxxx...（自分や仲間のLINE userId）"
+                className="w-full p-2.5 border-[1.5px] border-border rounded-lg text-[11px] font-mono bg-bg outline-none resize-y"
+              />
+              <div className="text-[10px] text-muted mt-1">※ ここに入れたIDは test_ アカウントと同じく「テスト扱い」になり、テストモード中でも再会通知の対象になります。自分のuserIdは「👥 ユーザー管理」で確認できます。</div>
+            </Field>
             <Field label="通知までの日数（前回完了から / サイクル間隔）" hint="テストは 0（=即時）">
               <input type="number" min={0} max={365} value={cfg.intervalDays}
                 onChange={(e) => setCfg({ ...cfg, intervalDays: Math.max(0, Math.min(365, Number(e.target.value) || 0)) })}

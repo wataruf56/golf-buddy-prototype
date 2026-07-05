@@ -107,6 +107,18 @@ export function overlapDates(a: string[], b: string[]): string[] {
   return Array.from(new Set(a.filter((d) => setB.has(d)))).sort();
 }
 
+// 2人が相互マッチしているか（romantic優先）。していなければ null。
+export async function mutualMatchKind(a: string, b: string): Promise<'again' | 'romantic' | null> {
+  const db = getAdminDb() as any;
+  if (!db || !a || !b || a === b) return null;
+  const exists = async (id: string) => { try { return (await db.collection('_matchLikes').doc(id).get()).exists; } catch { return false; } };
+  for (const kind of ['romantic', 'again'] as const) {
+    const [ab, ba] = await Promise.all([exists(`${kind}__${a}__${b}`), exists(`${kind}__${b}__${a}`)]);
+    if (ab && ba) return kind;
+  }
+  return null;
+}
+
 // あるラウンド参加者の中で「相互マッチ（again/romantic のどちらか両思い）」の
 // ペア一覧を返す。_matchLikes docId=`${kind}__${from}__${to}`。
 export async function mutualPairsInRound(memberIds: string[]): Promise<Array<{ a: string; b: string; kind: 'again' | 'romantic' }>> {

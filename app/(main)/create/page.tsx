@@ -101,8 +101,7 @@ export default function CreatePage() {
         if (!d) return;
         setRematchPartnerId(d.other?.id || '');
         setRematchPartnerName(d.other?.displayName || '');
-        setType('confirmed');
-        setStep('form');
+        // タイプ（未定/予約済み）は通常どおりユーザーに選ばせる。合意日だけプリセット。
         if (d.agreedDate) setDate(d.agreedDate);
         if (d.other?.displayName && !title) setTitle(`${d.other.displayName}さんと再会ラウンド`);
       })
@@ -188,14 +187,13 @@ export default function CreatePage() {
     try {
       const created = await store.addRound(payload as Partial<Round>);
       track('round_create_success', { title: payload.title });
-      // 再会エンジン経由なら、相手を自動で招待し、成立を記録（ファネル最終段）。
+      // 再会エンジン経由なら、相手を「誘う/承認」なしで自動参加確定＋成立を記録。
       if (rematchPairId && created?.id) {
         try {
-          if (rematchPartnerId) await store.inviteToRound(created.id, rematchPartnerId, '再会ラウンドに招待します🏌️');
           await fetch(`/api/rematch/${encodeURIComponent(rematchPairId)}/posted`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roundId: created.id }), cache: 'no-store',
           });
-        } catch { /* 招待/記録の失敗は投稿自体を妨げない */ }
+        } catch { /* 参加確定/記録の失敗は投稿自体を妨げない */ }
       }
       toast(isComp ? 'コンペ募集を公開しました' : '募集を公開しました');
       router.push('/home');
@@ -297,7 +295,7 @@ export default function CreatePage() {
           {rematchPairId && rematchPartnerName && (
             <div className="mb-4 bg-green-light border-[1.5px] border-green rounded-xl p-3">
               <div className="text-[12px] font-black text-green">🔁 {rematchPartnerName}さんとの再会ラウンド</div>
-              <div className="text-[11px] text-sub mt-0.5">合意した日程をセットしました。投稿すると{rematchPartnerName}さんを自動で招待します。</div>
+              <div className="text-[11px] text-sub mt-0.5">合意した日程をセットしました。「未定」でも「予約済み」でもOK。投稿すると{rematchPartnerName}さんは招待・承認なしで自動で参加確定になります。</div>
             </div>
           )}
           <Field label="タイトル">

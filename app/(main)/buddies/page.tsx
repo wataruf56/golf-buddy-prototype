@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useStore, getMe } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
+import { toast } from '@/components/Toast';
 import { chatIdFor } from '@/lib/utils';
 
 type MatchInfo = { again: boolean; romantic: boolean };
@@ -20,7 +21,22 @@ export default function BuddiesPage() {
 
 function Inner() {
   const search = useSearchParams();
+  const router = useRouter();
   const meId = useStore((s) => s.meId);
+  // 「候補日」→ 再会セッションを用意してカレンダーへ（お知らせを待たず直接開始）。
+  const [rematchBusy, setRematchBusy] = useState('');
+  async function startRematch(partnerId: string) {
+    setRematchBusy(partnerId);
+    try {
+      const r = await fetch('/api/rematch/ensure', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ partnerId }), cache: 'no-store', credentials: 'include',
+      });
+      const d = await r.json();
+      if (r.ok && d?.pairId) router.push(`/rematch/${d.pairId}`);
+      else toast('再会の準備に失敗しました', 'error');
+    } catch { toast('通信に失敗しました', 'error'); }
+    finally { setRematchBusy(''); }
+  }
   const me = useStore(getMe);
   const chats = useStore((s) => s.chats);
   const users = useStore((s) => s.users);
@@ -130,6 +146,7 @@ function Inner() {
         {tab === 'romantic' && (
           <MatchList
             ids={romanticIds} matchUsers={matchUsers} storeUsers={users} meId={meId} chats={chats}
+            onRematch={startRematch} rematchBusy={rematchBusy}
             badge="💘 マッチしました" badgeClass="text-pink-600 bg-pink-100 border-pink-600"
             note="「異性として気になる」を双方が選んだ時のみ、ここに相手が追加されます。"
             emptyTitle="まだマッチがいません" emptyDesc="ラウンド後のレビューで「💘 異性として気になる」を送り、相手も同じなら両思い成立！"
@@ -139,8 +156,9 @@ function Inner() {
         {tab === 'again' && (
           <MatchList
             ids={againIds} matchUsers={matchUsers} storeUsers={users} meId={meId} chats={chats}
+            onRematch={startRematch} rematchBusy={rematchBusy}
             badge="🏌️ マッチしました" badgeClass="text-green bg-green-light border-green"
-            note="「また一緒に回りたい」を双方が選んだ時のみ、ここに相手が追加されます。"
+            note="「また一緒に回りたい」を双方が選んだ時のみ、ここに相手が追加されます。「📅 候補日」から再会の日程調整を始められます。"
             emptyTitle="まだマッチがいません" emptyDesc="ラウンド後のレビューで「🏌️ また一緒に回りたい」を送り、相手も同じなら両思い成立！"
           />
         )}
@@ -149,8 +167,9 @@ function Inner() {
   );
 }
 
-function MatchList({ ids, matchUsers, storeUsers, meId, chats, badge, badgeClass, note, emptyTitle, emptyDesc }: {
+function MatchList({ ids, matchUsers, storeUsers, meId, chats, onRematch, rematchBusy, badge, badgeClass, note, emptyTitle, emptyDesc }: {
   ids: string[]; matchUsers: Record<string, MUser>; storeUsers: any[]; meId: string; chats: any[];
+  onRematch: (id: string) => void; rematchBusy: string;
   badge: string; badgeClass: string; note: string; emptyTitle: string; emptyDesc: string;
 }) {
   return (
@@ -176,7 +195,14 @@ function MatchList({ ids, matchUsers, storeUsers, meId, chats, badge, badgeClass
                   <span className={'inline-block mt-1 text-[10px] font-black px-2 py-0.5 rounded-full border ' + badgeClass}>{badge}</span>
                 </div>
               </Link>
-              <Link href={hasChat ? `/chat/${cid}?other=${id}` : `/profile/${id}`} className="flex-shrink-0 text-lg">💬</Link>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={() => onRematch(id)}
+                  disabled={rematchBusy === id}
+                  className="px-2.5 py-1.5 bg-green text-white rounded-full text-[11px] font-black disabled:opacity-50"
+                >{rematchBusy === id ? '…' : '📅 候補日'}</button>
+                <Link href={hasChat ? `/chat/${cid}?other=${id}` : `/profile/${id}`} className="text-lg">💬</Link>
+              </div>
             </div>
           );
         })

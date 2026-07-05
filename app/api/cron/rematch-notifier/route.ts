@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { pushTo, liffUrl } from '@/lib/linePush';
 import { webPushText } from '@/lib/webPush';
 import { isNotifyEnabled } from '@/lib/notifyPrefs';
-import { getRematchConfig } from '@/lib/rematchConfig';
+import { getRematchConfig, isRematchTestUser } from '@/lib/rematchConfig';
 import { getSession, saveSession, pairIdOf, mutualPairsInRound, rematchDayMs } from '@/lib/rematch';
 
 // ①再会通知バッチ。完了ラウンドの相互マッチ済みペアへ「そろそろまた行きませんか？」
@@ -60,8 +60,9 @@ export async function runRematchNotifier(limit = MAX_PER_TICK): Promise<{ ok: bo
     const pairs = await mutualPairsInRound(members);
     for (const { a, b, kind } of pairs) {
       if (sent >= limit) break;
-      // 安全弁：テストモード中はテストアカウント(test_)同士のペアにしか通知しない。
-      if (cfg.testMode && !(a.startsWith('test_') && b.startsWith('test_'))) continue;
+      // 安全弁：テストモード中はテスト扱いユーザー同士のペアにしか通知しない
+      // （test_ 始まり or 管理画面で登録したLINE ID）。
+      if (cfg.testMode && !(isRematchTestUser(a, cfg) && isRematchTestUser(b, cfg))) continue;
       const pairId = pairIdOf(a, b);
       if (seen.has(pairId)) continue;
       seen.add(pairId);
