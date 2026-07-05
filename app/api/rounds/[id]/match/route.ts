@@ -3,6 +3,9 @@ import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { addNotification } from '@/lib/notifications';
 import { getAdminDb } from '@/lib/firebase';
+import { pushTo, liffUrl } from '@/lib/linePush';
+import { webPushText } from '@/lib/webPush';
+import { isNotifyEnabled } from '@/lib/notifyPrefs';
 
 // ラウンド後のマッチング。2種類の「いいね」を独立に扱う:
 //   again    = また一緒に回りたい（ゴル友的・同性/異性問わず）
@@ -104,16 +107,24 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       const meName = me?.displayName || '相手';
       const otherName = other?.displayName || '相手';
       const link = `/round/${params.id}`;
+      // アプリ内通知に加えて、設定ONならLINE push＋Web pushも送る（両思いは重要イベント）。
+      const notifyMatch = async (rid: string, ruser: any, text: string) => {
+        await addNotification(rid, 'match', text, link);
+        if (isNotifyEnabled(ruser, 'match')) {
+          pushTo(rid, text, liffUrl(link)).catch(() => {});
+          webPushText(rid, '💘 マッチ成立', text, link, `match-${params.id}-${rid}`).catch(() => {});
+        }
+      };
       if (kind === 'again') {
         // 「異性として気になる」も両思いなら、そちらを優先して again の通知はしない。
         const romanticMutual = (await likeExists(docId('romantic', meId, toUserId))) && (await likeExists(docId('romantic', toUserId, meId)));
         if (!romanticMutual) {
-          await addNotification(toUserId, 'match', `🏌️ ${meName}さんから「また一緒に回りたい」という回答があり、両思いになりました！`, link);
-          await addNotification(meId, 'match', `🏌️ ${otherName}さんから「また一緒に回りたい」という回答があり、両思いになりました！`, link);
+          await notifyMatch(toUserId, other, `🏌️ ${meName}さんから「また一緒に回りたい」という回答があり、両思いになりました！`);
+          await notifyMatch(meId, me, `🏌️ ${otherName}さんから「また一緒に回りたい」という回答があり、両思いになりました！`);
         }
       } else {
-        await addNotification(toUserId, 'match', `💘 ${meName}さんから「異性として気になる」という回答があり、両思いになりました！`, link);
-        await addNotification(meId, 'match', `💘 ${otherName}さんから「異性として気になる」という回答があり、両思いになりました！`, link);
+        await notifyMatch(toUserId, other, `💘 ${meName}さんから「異性として気になる」という回答があり、両思いになりました！`);
+        await notifyMatch(meId, me, `💘 ${otherName}さんから「異性として気になる」という回答があり、両思いになりました！`);
       }
     }
   }

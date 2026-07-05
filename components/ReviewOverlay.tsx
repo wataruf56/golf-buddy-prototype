@@ -8,10 +8,9 @@ import { track } from '@/lib/telemetry';
 import type { User } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
-// ラウンド後のレビュー。4人/コンペなど複数人でも、1画面に全員を並べて
-// スクロールしながら一気に「★評価」と（異性の相手のみ）「また回りたい/異性として
-// 気になる」を入力し、まとめて送信する。
-type Row = { stars: number; again: boolean; romantic: boolean; comment: string };
+// ラウンド後のレビュー。星評価は廃止。全員について「また一緒に回りたいか」
+// （＋異性の相手のみ「異性として気になる」）を選び、まとめて送信する。
+type Row = { want: 'yes' | 'no' | null; romantic: boolean; comment: string };
 
 export function ReviewOverlay() {
   const me = useStore(getMe);
@@ -24,10 +23,11 @@ export function ReviewOverlay() {
 
   if (pending.length === 0) return null;
 
-  const get = (id: string): Row => rows[id] || { stars: 0, again: false, romantic: false, comment: '' };
+  const get = (id: string): Row => rows[id] || { want: null, romantic: false, comment: '' };
   const upd = (id: string, patch: Partial<Row>) => setRows((p) => ({ ...p, [id]: { ...get(id), ...patch } }));
 
-  const ratedCount = pending.filter((p) => (rows[p.id]?.stars || 0) > 0).length;
+  const answered = (r?: Row) => !!r && (r.romantic || r.want !== null);
+  const ratedCount = pending.filter((p) => answered(rows[p.id])).length;
   const allRated = ratedCount === pending.length;
 
   function isOpp(target?: User): boolean {
@@ -54,12 +54,13 @@ export function ReviewOverlay() {
     try {
       for (const p of pending) {
         const r = get(p.id);
-        if (r.stars <= 0) continue;
-        await store.submitReview(p.id, r.stars, [], r.comment || undefined);
+        if (!answered(r)) continue;
+        // 星は廃止。レビュー記録はコメントのみ（pending解消のために送信）。
+        await store.submitReview(p.id, 0, [], r.comment || undefined);
         const target = users.find((u) => u.id === p.revieweeId);
         const opp = isOpp(target);
-        // 「異性として気になる」は「また一緒に回りたい」を内包する。
-        const effAgain = r.again || (opp && r.romantic);
+        // 「また回りたい」= はい選択、または「異性として気になる」（=また回りたいを内包）。
+        const effAgain = r.want === 'yes' || (opp && r.romantic);
         if (opp && r.romantic) await sendLike(p.roundId, p.revieweeId, 'romantic');
         if (effAgain) await sendLike(p.roundId, p.revieweeId, 'again');
       }
@@ -77,7 +78,7 @@ export function ReviewOverlay() {
         {/* ヘッダー（固定） */}
         <div className="px-5 pt-5 pb-3 border-b border-border flex-shrink-0">
           <h3 className="text-lg font-black">ラウンドレビュー</h3>
-          <div className="text-[12px] text-sub mt-0.5">一緒に回った{pending.length}人を評価してください（{ratedCount}/{pending.length}）</div>
+          <div className="text-[12px] text-sub mt-0.5">一緒に回った{pending.length}人に「また回りたいか」を選んでください（{ratedCount}/{pending.length}）</div>
           <div className="mt-2.5 px-3 py-2.5 bg-green-light rounded-xl text-[12px] text-green font-bold leading-relaxed">
             🔒 「また回りたい」「異性として気になる」は<u>お互いが両思いだった時だけ</u>通知されます。<br />
             相手が選ばなかった場合、あなたの選択が相手に知られることは一切ありません。
@@ -103,36 +104,34 @@ export function ReviewOverlay() {
                   </div>
                 </div>
 
-                {/* 星評価 */}
-                <div className="flex gap-1 justify-center mb-1">
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <button key={n} onClick={() => upd(p.id, { stars: n })} className="text-[30px] leading-none" style={{ color: n <= r.stars ? '#E8A93C' : '#E8E6E1' }}>
-                      {n <= r.stars ? '★' : '☆'}
-                    </button>
-                  ))}
-                </div>
-
-                {/* マッチング：また回りたいは全員。異性として気になる(異性のみ)は
-                    「また回りたい」を内包するため、選択中は専用ボタン1つに切り替える。 */}
-                <div className="mt-2">
+                {/* また回りたいか（星評価は廃止）。異性の相手は「異性として気になる」も選べ、
+                    選択中は専用ボタン1つに切り替える（また回りたいを内包）。 */}
+                <div className="mt-1">
+                  <div className="text-[12px] font-black text-center mb-1.5">また一緒に回りたいですか？</div>
                   {opp && r.romantic ? (
                     <button
                       onClick={() => upd(p.id, { romantic: false })}
-                      className="w-full py-2 rounded-full text-[12px] font-bold border-[1.5px] bg-pink-600 text-white border-pink-600"
+                      className="w-full py-2.5 rounded-full text-[12px] font-bold border-[1.5px] bg-pink-600 text-white border-pink-600"
                     >✓ 💘 異性として気になる（「また回りたい」も含む）</button>
                   ) : (
-                    <div className="flex gap-1.5">
-                      <button
-                        onClick={() => upd(p.id, { again: !r.again })}
-                        className={cn('flex-1 py-2 rounded-full text-[12px] font-bold border-[1.5px]', r.again ? 'bg-green text-white border-green' : 'bg-card border-border text-sub')}
-                      >{r.again ? '✓ ' : ''}🏌️ また回りたい</button>
+                    <>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => upd(p.id, { want: 'yes' })}
+                          className={cn('flex-1 py-2.5 rounded-full text-[12px] font-bold border-[1.5px]', r.want === 'yes' ? 'bg-green text-white border-green' : 'bg-card border-border text-sub')}
+                        >{r.want === 'yes' ? '✓ ' : ''}🏌️ また回りたい</button>
+                        <button
+                          onClick={() => upd(p.id, { want: 'no' })}
+                          className={cn('flex-1 py-2.5 rounded-full text-[12px] font-bold border-[1.5px]', r.want === 'no' ? 'bg-[#9b876a] text-white border-[#9b876a]' : 'bg-card border-border text-sub')}
+                        >{r.want === 'no' ? '✓ ' : ''}🙅 今回はいいかな</button>
+                      </div>
                       {opp && (
                         <button
-                          onClick={() => upd(p.id, { romantic: true, again: false })}
-                          className="flex-1 py-2 rounded-full text-[12px] font-bold border-[1.5px] bg-card border-border text-sub"
+                          onClick={() => upd(p.id, { romantic: true, want: 'yes' })}
+                          className="w-full mt-1.5 py-2.5 rounded-full text-[12px] font-bold border-[1.5px] bg-card border-border text-sub"
                         >💘 異性として気になる</button>
                       )}
-                    </div>
+                    </>
                   )}
                   {opp && r.romantic && (
                     <div className="text-[10px] text-pink-600 font-bold mt-1 text-center">「また一緒に回りたい」も自動で含まれます</div>
@@ -159,7 +158,7 @@ export function ReviewOverlay() {
             disabled={!allRated || busy}
             className={cn('w-full py-3.5 rounded-xl text-[15px] font-bold', allRated && !busy ? 'bg-green text-white' : 'bg-border text-muted cursor-not-allowed')}
           >
-            {busy ? '送信中...' : allRated ? `全員分のレビューを送信する（${pending.length}人）` : `全員を評価してください（${ratedCount}/${pending.length}）`}
+            {busy ? '送信中...' : allRated ? `送信する（${pending.length}人）` : `全員に回答してください（${ratedCount}/${pending.length}）`}
           </button>
         </div>
       </div>

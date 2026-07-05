@@ -44,15 +44,15 @@ export async function POST(req: NextRequest) {
   const rstReview = await blockedByRestriction(meId, 'noReview', 'レビュー投稿の利用が制限されています。'); if (rstReview) return rstReview;
   const body = await req.json();
   const { pendingId, revieweeId, roundId, stars, tags, comment } = body || {};
-  if (!revieweeId || !roundId || !stars) {
-    return NextResponse.json({ error: 'invalid: revieweeId/roundId/stars required' }, { status: 400 });
+  if (!revieweeId || !roundId) {
+    return NextResponse.json({ error: 'invalid: revieweeId/roundId required' }, { status: 400 });
   }
-  // タグは任意（レビュー画面のタグUIは廃止し、評価＋マッチングに変更）。
+  // 星評価は廃止。レビューは「また回りたいか」＋コメントのみ（stars は 0 固定）。
   const tagList = Array.isArray(tags) ? tags.filter((t: any) => typeof t === 'string' && t.trim()) : [];
   try {
     const review = await db.createReview({
       roundId, reviewerId: meId, revieweeId,
-      stars: Number(stars), tags: tagList,
+      stars: Number(stars) || 0, tags: tagList,
       comment: comment ? String(comment) : '',
       createdAt: Date.now(), isAnonymous: true,
     });
