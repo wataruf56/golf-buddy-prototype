@@ -30,6 +30,8 @@ function Inner() {
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState('');
+  // テストユーザーIDはテキストのまま保持（改行できるよう、保存時にだけ整形する）。
+  const [testIdsText, setTestIdsText] = useState('');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -50,7 +52,7 @@ function Inner() {
     try {
       const r = await fetch(`/api/admin/rematch-config?token=${encodeURIComponent(token)}`, { cache: 'no-store' });
       const j = await r.json();
-      if (r.ok) { setCfg(j.config); setFunnel(j.funnel || {}); }
+      if (r.ok) { setCfg(j.config); setFunnel(j.funnel || {}); setTestIdsText(((j.config?.testUserIds) || []).join('\n')); }
     } catch {}
     setLoaded(true);
   }
@@ -60,12 +62,14 @@ function Inner() {
     if (!cfg || !token) return;
     setSaving(true); setMsg('');
     try {
+      const testUserIds = testIdsText.split('\n').map((s) => s.trim()).filter(Boolean);
       const r = await fetch(`/api/admin/rematch-config?token=${encodeURIComponent(token)}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg), cache: 'no-store',
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...cfg, testUserIds }), cache: 'no-store',
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j?.error || `${r.status}`);
       setCfg(j.config);
+      setTestIdsText(((j.config?.testUserIds) || []).join('\n'));
       setMsg('保存しました ✅');
     } catch (e) { setMsg('保存失敗: ' + (e as Error).message); }
     setSaving(false);
@@ -129,10 +133,10 @@ function Inner() {
             </div>
             <Field label="テスト扱いにするLINEユーザーID（1行1つ）" hint="自分のスマホでテストする用">
               <textarea
-                value={(cfg.testUserIds || []).join('\n')}
-                onChange={(e) => setCfg({ ...cfg, testUserIds: e.target.value.split('\n').map((s) => s.trim()).filter(Boolean) })}
-                rows={3}
-                placeholder="Uxxxxxxxxxxxxxxxx...（自分や仲間のLINE userId）"
+                value={testIdsText}
+                onChange={(e) => setTestIdsText(e.target.value)}
+                rows={4}
+                placeholder={'Uxxxxxxxxxxxxxxxx\nUyyyyyyyyyyyyyyyy\n（1行1つ・自分や仲間のLINE userId）'}
                 className="w-full p-2.5 border-[1.5px] border-border rounded-lg text-[11px] font-mono bg-bg outline-none resize-y"
               />
               <div className="text-[10px] text-muted mt-1">※ ここに入れたIDは test_ アカウントと同じく「テスト扱い」になり、テストモード中でも再会通知の対象になります。自分のuserIdは「👥 ユーザー管理」で確認できます。</div>
