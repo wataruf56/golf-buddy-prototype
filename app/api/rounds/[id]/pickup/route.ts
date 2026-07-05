@@ -24,6 +24,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   let body: any = {};
   try { body = await req.json(); } catch {}
+  // 主催者は他の参加者の代理入力ができる（body.userId 指定時）。それ以外は自分のみ。
+  const targetId = (body?.userId && round.hostId === meId && members.has(String(body.userId)))
+    ? String(body.userId) : meId;
   const status: PickupStatus | undefined = VALID_STATUS.has(body?.status) ? body.status : undefined;
   // 駅は「可能」「してほしい」のときだけ意味を持つ。
   const rawStations: string[] = Array.isArray(body?.stations)
@@ -37,12 +40,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const next = { ...(round.participantPickups || {}) };
   if (status) {
     // ステータスが選ばれていれば、駅が無くても回答として記録する（不要/不可の保持）。
-    next[meId] = { status, stations, ...(capacity ? { capacity } : {}) };
+    next[targetId] = { status, stations, ...(capacity ? { capacity } : {}) };
   } else if (stations.length) {
     // 後方互換：status未指定で駅だけ来たら従来どおり保存。
-    next[meId] = { stations, ...(capacity ? { capacity } : {}) };
+    next[targetId] = { stations, ...(capacity ? { capacity } : {}) };
   } else {
-    delete next[meId];
+    delete next[targetId];
   }
 
   try {
@@ -50,5 +53,5 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
   }
-  return NextResponse.json({ ok: true, status, stations, capacity }, { headers: noStore });
+  return NextResponse.json({ ok: true, targetId, status, stations, capacity }, { headers: noStore });
 }

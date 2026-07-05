@@ -1120,7 +1120,9 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
   });
 
   const hasAny = providers.length > 0 || seekers.length > 0;
-  if (!hasAny && !canRespond) return null;
+  // 承認済み参加者（代理入力の対象。主催者を除く）。
+  const applicants = (round.applicantIds || []).map((id) => users.find((u) => u.id === id)).filter(Boolean) as User[];
+  if (!hasAny && !canRespond && !isHost) return null;
 
   // フロート：承認済み参加者が未回答の間だけ、タブ直上に赤く固定表示。
   const showFloat = canRespond && !savedComplete && !open;
@@ -1238,6 +1240,23 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
               <div className="text-[10px] text-green/80 text-center mt-1">回答後もいつでも変更できます</div>
             </div>
           )}
+
+          {/* 主催者：参加者の代理でピックアップを入力できる */}
+          {isHost && (
+            <div className="mt-2 pt-3 border-t border-green/40">
+              <div className="text-[11px] font-black text-green mb-0.5">🧑‍✈️ 参加者の代理で入力（主催者）</div>
+              <div className="text-[10px] text-muted mb-2">聞き取った送迎の可否・場所を、参加者の代わりに登録できます。</div>
+              {applicants.length === 0 ? (
+                <div className="text-[11px] text-muted">まだ参加者がいません。</div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {applicants.map((m) => (
+                    <ProxyPickupRow key={m.id} roundId={round.id} member={m} entry={round.participantPickups?.[m.id]} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </details>
 
@@ -1254,6 +1273,79 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
           </div>
         </PhonePortal>
       )}
+    </div>
+  );
+}
+
+// 主催者が参加者の代理でピックアップを入力する1行エディタ。
+function ProxyPickupRow({ roundId, member, entry }: {
+  roundId: string;
+  member: User;
+  entry?: { stations: string[]; capacity?: number; status?: PickupStatus };
+}) {
+  const role: 'provider' | 'seeker' = member.car === 'have' ? 'provider' : 'seeker';
+  const initStatus: PickupStatus | undefined = entry?.status || (entry?.stations?.length ? 'can' : undefined);
+  const [status, setStatus] = useState<PickupStatus | undefined>(initStatus);
+  const [stations, setStations] = useState<string[]>(entry?.stations || []);
+  const [capacity, setCapacity] = useState<number>(entry?.capacity || 0);
+  const [saving, setSaving] = useState(false);
+  const needsStations = status === 'can' || status === 'want';
+
+  async function save() {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/rounds/${roundId}/pickup`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: member.id, status, stations: needsStations ? stations : [], capacity: status === 'can' ? (capacity || undefined) : undefined }),
+        cache: 'no-store', credentials: 'include',
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      store.refreshRounds().catch(() => {});
+      toast(`${member.displayName}さんのピックアップを保存しました🚗`);
+    } catch { toast('保存に失敗しました', 'error'); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div className="bg-white rounded-lg p-2">
+      <div className="text-[12px] font-bold text-text mb-1.5">
+        {member.displayName}
+        <span className="ml-1.5 text-[10px] text-sub font-bold">{role === 'provider' ? '🚗 車あり' : '🚶 車なし'}</span>
+      </div>
+      <div className="flex gap-1.5 mb-1.5">
+        {role === 'provider' ? (
+          <>
+            <SegBtn active={status === 'can'} onClick={() => setStatus('can')}>🚗 送迎できる</SegBtn>
+            <SegBtn active={status === 'cannot'} onClick={() => setStatus('cannot')}>送迎しない</SegBtn>
+          </>
+        ) : (
+          <>
+            <SegBtn active={status === 'want'} onClick={() => setStatus('want')}>🙋 してほしい</SegBtn>
+            <SegBtn active={status === 'no_need'} onClick={() => setStatus('no_need')}>不要</SegBtn>
+          </>
+        )}
+      </div>
+      {needsStations && (
+        <div className="bg-bg rounded-lg p-2 mb-1.5">
+          <PickupStationPicker value={stations} onChange={setStations} />
+          {status === 'can' && stations.length > 0 && (
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-[11px] font-bold text-sub">自分含め乗れる人数</span>
+              <input
+                type="number" min={1} max={8} inputMode="numeric"
+                value={capacity || ''}
+                onChange={(e) => setCapacity(Math.max(0, Math.min(8, Number(e.target.value) || 0)))}
+                placeholder="例: 4"
+                className="w-14 px-2 py-1 border-[1.5px] border-border rounded-[8px] text-sm bg-card outline-none text-center"
+              />
+              <span className="text-[11px] text-sub">名</span>
+            </div>
+          )}
+        </div>
+      )}
+      <button onClick={save} disabled={saving || !status} className="w-full py-2 bg-green text-white rounded-full text-[12px] font-bold disabled:opacity-50">
+        {saving ? '保存中…' : '代理で保存する'}
+      </button>
     </div>
   );
 }
