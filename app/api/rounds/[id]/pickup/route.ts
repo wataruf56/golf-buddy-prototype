@@ -24,8 +24,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   let body: any = {};
   try { body = await req.json(); } catch {}
-  // 主催者は他の参加者の代理入力ができる（body.userId 指定時）。それ以外は自分のみ。
-  const targetId = (body?.userId && round.hostId === meId && members.has(String(body.userId)))
+  // 主催者は他の参加者・ゲストの代理入力ができる（body.userId 指定時）。それ以外は自分のみ。
+  const proxyTargets = new Set([...members, ...((round.guests || []).map((g) => g.id))]);
+  const targetId = (body?.userId && round.hostId === meId && proxyTargets.has(String(body.userId)))
     ? String(body.userId) : meId;
   const status: PickupStatus | undefined = VALID_STATUS.has(body?.status) ? body.status : undefined;
   // 駅は「可能」「してほしい」のときだけ意味を持つ。

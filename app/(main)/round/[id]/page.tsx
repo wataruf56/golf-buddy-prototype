@@ -503,10 +503,10 @@ export default function RoundDetailPage() {
           </div>
         ) : null}
 
-        {/* Approved applicants */}
-        {applicants.length > 0 && (
+        {/* Approved applicants + ゲスト。レビュー/初参加の代わりにピックアップ状態を表示。 */}
+        {(applicants.length > 0 || (round.guests?.length ?? 0) > 0) && (
           <div className="mb-4">
-            <div className="text-[13px] font-bold mb-2">参加確定（{applicants.length}名）</div>
+            <div className="text-[13px] font-bold mb-2">参加確定（{applicants.length + (round.guests?.length ?? 0)}名）</div>
             {applicants.map((u) => u && (
               <div key={u.id} className="flex items-center gap-2 p-2.5 bg-bg rounded-[10px] mb-1.5">
                 <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
@@ -516,7 +516,7 @@ export default function RoundDetailPage() {
                     {isHost && participantNames[u.id] && (
                       <div className="text-[10px] text-green font-bold">📋 {participantNames[u.id]}</div>
                     )}
-                    <div className="text-[10px] text-sub">{describeUser(u)} ・ {ratingLabel(u)}</div>
+                    <div className="text-[10px] text-sub">{describeUser(u)} ・ {pickupStatusLabel(round.participantPickups?.[u.id])}</div>
                   </div>
                 </Link>
                 {!isHost && u.id !== meId && (
@@ -528,6 +528,15 @@ export default function RoundDetailPage() {
                     <button onClick={() => kick(u.id, u.displayName)} className="px-2.5 py-1 bg-card text-red border border-red rounded text-[11px] font-bold flex-shrink-0">外す</button>
                   </>
                 )}
+              </div>
+            ))}
+            {(round.guests || []).map((g) => (
+              <div key={g.id} className="flex items-center gap-2 p-2.5 bg-bg rounded-[10px] mb-1.5">
+                <div className="w-9 h-9 rounded-full bg-card flex items-center justify-center text-base flex-shrink-0 border border-border">👤</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-semibold truncate">{g.name} <span className="text-[10px] text-muted font-bold">ゲスト</span></div>
+                  <div className="text-[10px] text-sub">{pickupStatusLabel(round.participantPickups?.[g.id])}</div>
+                </div>
               </div>
             ))}
           </div>
@@ -1043,6 +1052,16 @@ function Field({ label, required, children }: { label: string; required?: boolea
   );
 }
 
+// 参加者ごとのピックアップ状態ラベル（参加確定一覧に表示）。
+function pickupStatusLabel(entry?: { stations?: string[]; status?: PickupStatus }): string {
+  const st: PickupStatus | undefined = entry?.status || (entry?.stations?.length ? 'can' : undefined);
+  return st === 'can' ? '🚗 ピックアップ可能'
+    : st === 'want' ? '🙋 ピックアップ希望'
+    : st === 'cannot' ? '🚫 ピックアップ不可'
+    : st === 'no_need' ? '— ピックアップ不要'
+    : '⚪ ピックアップ未回答';
+}
+
 // 🚗 ピックアップ（送迎）情報。主催者(round.pickupStations)＋各参加者の回答
 // (round.participantPickups[uid]) をまとめて表示。承認済み参加者は自分の回答
 // （送迎できる/しない・してほしい/不要＋駅）をその場で登録・更新できる。普段は
@@ -1245,13 +1264,16 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
           {isHost && (
             <div className="mt-2 pt-3 border-t border-green/40">
               <div className="text-[11px] font-black text-green mb-0.5">🧑‍✈️ 参加者の代理で入力（主催者）</div>
-              <div className="text-[10px] text-muted mb-2">聞き取った送迎の可否・場所を、参加者の代わりに登録できます。</div>
-              {applicants.length === 0 ? (
+              <div className="text-[10px] text-muted mb-2">聞き取った送迎の可否・場所を、参加者・ゲストの代わりに登録できます。</div>
+              {applicants.length === 0 && (round.guests?.length ?? 0) === 0 ? (
                 <div className="text-[11px] text-muted">まだ参加者がいません。</div>
               ) : (
                 <div className="flex flex-col gap-2">
                   {applicants.map((m) => (
                     <ProxyPickupRow key={m.id} roundId={round.id} member={m} entry={round.participantPickups?.[m.id]} />
+                  ))}
+                  {(round.guests || []).map((g) => (
+                    <ProxyPickupRow key={g.id} roundId={round.id} member={{ id: g.id, displayName: g.name }} entry={round.participantPickups?.[g.id]} guest />
                   ))}
                 </div>
               )}
@@ -1277,12 +1299,15 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
   );
 }
 
-// 主催者が参加者の代理でピックアップを入力する1行エディタ。
-function ProxyPickupRow({ roundId, member, entry }: {
+// 主催者が参加者・ゲストの代理でピックアップを入力する1行エディタ。
+function ProxyPickupRow({ roundId, member, entry, guest }: {
   roundId: string;
-  member: User;
+  member: { id: string; displayName: string; car?: string };
   entry?: { stations: string[]; capacity?: number; status?: PickupStatus };
+  guest?: boolean;
 }) {
+  // 車の有無が分かるなら役割で2択。ゲスト等で不明なら4状態すべて出す。
+  const carKnown = member.car === 'have' || member.car === 'none';
   const role: 'provider' | 'seeker' = member.car === 'have' ? 'provider' : 'seeker';
   const initStatus: PickupStatus | undefined = entry?.status || (entry?.stations?.length ? 'can' : undefined);
   const [status, setStatus] = useState<PickupStatus | undefined>(initStatus);
@@ -1310,21 +1335,30 @@ function ProxyPickupRow({ roundId, member, entry }: {
     <div className="bg-white rounded-lg p-2">
       <div className="text-[12px] font-bold text-text mb-1.5">
         {member.displayName}
-        <span className="ml-1.5 text-[10px] text-sub font-bold">{role === 'provider' ? '🚗 車あり' : '🚶 車なし'}</span>
+        <span className="ml-1.5 text-[10px] text-sub font-bold">{guest ? 'ゲスト' : role === 'provider' ? '🚗 車あり' : '🚶 車なし'}</span>
       </div>
-      <div className="flex gap-1.5 mb-1.5">
-        {role === 'provider' ? (
-          <>
-            <SegBtn active={status === 'can'} onClick={() => setStatus('can')}>🚗 送迎できる</SegBtn>
-            <SegBtn active={status === 'cannot'} onClick={() => setStatus('cannot')}>送迎しない</SegBtn>
-          </>
-        ) : (
-          <>
-            <SegBtn active={status === 'want'} onClick={() => setStatus('want')}>🙋 してほしい</SegBtn>
-            <SegBtn active={status === 'no_need'} onClick={() => setStatus('no_need')}>不要</SegBtn>
-          </>
-        )}
-      </div>
+      {carKnown ? (
+        <div className="flex gap-1.5 mb-1.5">
+          {role === 'provider' ? (
+            <>
+              <SegBtn active={status === 'can'} onClick={() => setStatus('can')}>🚗 送迎できる</SegBtn>
+              <SegBtn active={status === 'cannot'} onClick={() => setStatus('cannot')}>送迎しない</SegBtn>
+            </>
+          ) : (
+            <>
+              <SegBtn active={status === 'want'} onClick={() => setStatus('want')}>🙋 してほしい</SegBtn>
+              <SegBtn active={status === 'no_need'} onClick={() => setStatus('no_need')}>不要</SegBtn>
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-1.5 mb-1.5">
+          <SegBtn active={status === 'can'} onClick={() => setStatus('can')}>🚗 送迎できる</SegBtn>
+          <SegBtn active={status === 'want'} onClick={() => setStatus('want')}>🙋 してほしい</SegBtn>
+          <SegBtn active={status === 'cannot'} onClick={() => setStatus('cannot')}>送迎しない</SegBtn>
+          <SegBtn active={status === 'no_need'} onClick={() => setStatus('no_need')}>不要</SegBtn>
+        </div>
+      )}
       {needsStations && (
         <div className="bg-bg rounded-lg p-2 mb-1.5">
           <PickupStationPicker value={stations} onChange={setStations} />
