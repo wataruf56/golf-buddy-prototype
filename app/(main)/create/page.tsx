@@ -64,6 +64,10 @@ export default function CreatePage() {
   const [splitPrice, setSplitPrice] = useState(false);
   const [priceMale, setPriceMale] = useState('');
   const [priceFemale, setPriceFemale] = useState('');
+  // 再会エンジンからの遷移（?rematch=pairId）。相手を自動招待＋合意日をプリセット。
+  const [rematchPairId, setRematchPairId] = useState('');
+  const [rematchPartnerId, setRematchPartnerId] = useState('');
+  const [rematchPartnerName, setRematchPartnerName] = useState('');
   // Replaced free-form levelCondition string with two structured selectors.
   const [beginnerOnly, setBeginnerOnly] = useState<boolean>(false);
   const [description, setDescription] = useState('');
@@ -83,6 +87,27 @@ export default function CreatePage() {
       .then((r) => r.json())
       .then((d) => { if (Array.isArray(d.titles) && d.titles.length) setTitlePresets(d.titles); })
       .catch(() => {});
+  }, []);
+
+  // 再会エンジン（?rematch=pairId）：コース確定フォームに合意日をプリセット。
+  useEffect(() => {
+    let rp = '';
+    try { rp = new URLSearchParams(window.location.search).get('rematch') || ''; } catch {}
+    if (!rp) return;
+    setRematchPairId(rp);
+    fetch(`/api/rematch/${encodeURIComponent(rp)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return;
+        setRematchPartnerId(d.other?.id || '');
+        setRematchPartnerName(d.other?.displayName || '');
+        setType('confirmed');
+        setStep('form');
+        if (d.agreedDate) setDate(d.agreedDate);
+        if (d.other?.displayName && !title) setTitle(`${d.other.displayName}さんと再会ラウンド`);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 募集枠を再クランプ（知り合い/合計が変わったとき）
@@ -161,8 +186,17 @@ export default function CreatePage() {
     };
     track('round_create_click', { ...payload, isComp });
     try {
-      await store.addRound(payload as Partial<Round>);
+      const created = await store.addRound(payload as Partial<Round>);
       track('round_create_success', { title: payload.title });
+      // 再会エンジン経由なら、相手を自動で招待し、成立を記録（ファネル最終段）。
+      if (rematchPairId && created?.id) {
+        try {
+          if (rematchPartnerId) await store.inviteToRound(created.id, rematchPartnerId, '再会ラウンドに招待します🏌️');
+          await fetch(`/api/rematch/${encodeURIComponent(rematchPairId)}/posted`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roundId: created.id }), cache: 'no-store',
+          });
+        } catch { /* 招待/記録の失敗は投稿自体を妨げない */ }
+      }
       toast(isComp ? 'コンペ募集を公開しました' : '募集を公開しました');
       router.push('/home');
     } catch (e) {
@@ -260,6 +294,12 @@ export default function CreatePage() {
 
       <div className="px-5">
         <div className="bg-card rounded-card p-5 shadow-card">
+          {rematchPairId && rematchPartnerName && (
+            <div className="mb-4 bg-green-light border-[1.5px] border-green rounded-xl p-3">
+              <div className="text-[12px] font-black text-green">🔁 {rematchPartnerName}さんとの再会ラウンド</div>
+              <div className="text-[11px] text-sub mt-0.5">合意した日程をセットしました。投稿すると{rematchPartnerName}さんを自動で招待します。</div>
+            </div>
+          )}
           <Field label="タイトル">
             <select
               value={titleFree ? '__free__' : (titlePresets.includes(title) ? title : (title ? '__free__' : ''))}

@@ -1,0 +1,205 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { toast } from '@/components/Toast';
+
+// 再会エンジンの画面：候補日カレンダー → 3色重なり → この日で決定 → ラウンド投稿へ。
+type Data = {
+  pairId: string;
+  status: 'notified' | 'inputting' | 'agreed' | 'posted' | 'optedout';
+  candidateWindowDays: number;
+  courseName: string;
+  roundDate: string;
+  matchKind: 'again' | 'romantic';
+  myCandidates: string[];
+  theirCandidates: string[];
+  overlap: string[];
+  agreedDate: string | null;
+  postedRoundId: string | null;
+  optedOut: boolean;
+  other: { id: string; displayName: string; avatar: string; avatarUrl?: string; age?: number };
+};
+
+const DOW = ['日', '月', '火', '水', '木', '金', '土'];
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const mdLabel = (s: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s); return m ? `${Number(m[2])}/${Number(m[3])}` : s; };
+
+export default function RematchPage() {
+  const params = useParams<{ pairId: string }>();
+  const router = useRouter();
+  const [data, setData] = useState<Data | null>(null);
+  const [mine, setMine] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [notFound, setNotFound] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/rematch/${encodeURIComponent(params.pairId)}`, { cache: 'no-store' });
+      if (!r.ok) { setNotFound(true); setLoading(false); return; }
+      const d: Data = await r.json();
+      setData(d);
+      setMine(new Set(d.myCandidates || []));
+    } catch { setNotFound(true); }
+    setLoading(false);
+  }, [params.pairId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const days = useMemo(() => {
+    const win = data?.candidateWindowDays || 45;
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    const arr: Date[] = [];
+    for (let i = 0; i < win; i++) { const d = new Date(start); d.setDate(start.getDate() + i); arr.push(d); }
+    return arr;
+  }, [data?.candidateWindowDays]);
+
+  const theirSet = useMemo(() => new Set(data?.theirCandidates || []), [data]);
+
+  if (loading) return <div className="p-6 text-sub text-sm">読み込み中...</div>;
+  if (notFound || !data) return <div className="p-6 text-sub text-sm">この再会は見つかりませんでした。</div>;
+
+  const other = data.other;
+  const agreed = data.status === 'agreed' || data.status === 'posted';
+  const overlapNow = Array.from(mine).filter((d) => theirSet.has(d)).sort();
+  const bothEntered = mine.size > 0 && theirSet.size > 0;
+
+  function toggle(k: string) {
+    if (agreed) return;
+    setMine((prev) => { const n = new Set(prev); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+  }
+
+  async function saveCandidates() {
+    setSaving(true);
+    try {
+      const r = await fetch(`/api/rematch/${encodeURIComponent(params.pairId)}/candidates`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dates: Array.from(mine) }), cache: 'no-store',
+      });
+      if (!r.ok) throw new Error(String(r.status));
+      toast('候補日を保存しました📅');
+      await load();
+    } catch { toast('保存に失敗しました', 'error'); }
+    setSaving(false);
+  }
+
+  async function agree(date: string) {
+    if (!confirm(`${mdLabel(date)} で再会を決定しますか？`)) return;
+    try {
+      const r = await fetch(`/api/rematch/${encodeURIComponent(params.pairId)}/agree`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date }), cache: 'no-store',
+      });
+      if (!r.ok) throw new Error(String(r.status));
+      toast('再会が決まりました🎉');
+      await load();
+    } catch { toast('失敗しました', 'error'); }
+  }
+
+  async function optout() {
+    if (!confirm('この相手との再会通知を今後止めますか？')) return;
+    try {
+      await fetch(`/api/rematch/${encodeURIComponent(params.pairId)}/optout`, { method: 'POST', cache: 'no-store' });
+      toast('再会通知を停止しました');
+      router.push('/home');
+    } catch { toast('失敗しました', 'error'); }
+  }
+
+  const leadBlanks = days.length ? days[0].getDay() : 0;
+
+  return (
+    <div className="px-5 py-3 pb-10">
+      <div className="flex items-center justify-between mb-3">
+        <button onClick={() => router.back()} className="text-sm text-blue font-semibold">← 戻る</button>
+        <button onClick={optout} className="text-[11px] text-muted underline">この再会通知を止める</button>
+      </div>
+
+      {/* 相手カード */}
+      <div className="bg-green-light border-[1.5px] border-green rounded-card p-4 mb-4 flex items-center gap-3">
+        <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center overflow-hidden text-3xl flex-shrink-0 border border-border">
+          {other.avatarUrl ? <img src={other.avatarUrl} alt="" className="w-full h-full object-cover" /> : (other.avatar || '⛳')}
+        </div>
+        <div className="min-w-0">
+          <div className="text-[11px] font-black text-green">🔁 また回りたい相手との再会</div>
+          <div className="text-base font-black truncate">{other.displayName} さん</div>
+          <div className="text-[11px] text-sub">
+            {data.roundDate ? `前回 ${mdLabel(data.roundDate)} に` : '前回'}{data.courseName ? `「${data.courseName}」で` : ''}一緒に回りました
+          </div>
+        </div>
+      </div>
+
+      {agreed && data.agreedDate ? (
+        <div className="bg-card rounded-card p-5 shadow-card text-center">
+          <div className="text-3xl mb-1">🎉</div>
+          <div className="text-lg font-black mb-1">{mdLabel(data.agreedDate)} で再会決定！</div>
+          <div className="text-[12px] text-sub mb-4">このままラウンドを立てて、集合場所などを相談しましょう。</div>
+          <a
+            href={`/create?rematch=${encodeURIComponent(params.pairId)}`}
+            className="block w-full py-3.5 bg-orange text-white rounded-xl text-sm font-black"
+          >🏌️ このままラウンドを立てる</a>
+        </div>
+      ) : (
+        <>
+          <div className="text-[13px] font-black mb-1">📅 行ける日をタップ</div>
+          <div className="text-[11px] text-sub mb-2">お互いに行ける日を出し合うと、重なった日が青で表示されます。</div>
+
+          {/* カレンダー */}
+          <div className="bg-card rounded-card p-3 shadow-card mb-2">
+            <div className="grid grid-cols-7 gap-1 mb-1">
+              {DOW.map((w, i) => <div key={w} className={`text-center text-[10px] font-bold ${i === 0 ? 'text-red' : i === 6 ? 'text-blue' : 'text-muted'}`}>{w}</div>)}
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {Array.from({ length: leadBlanks }).map((_, i) => <div key={`b${i}`} />)}
+              {days.map((d) => {
+                const k = iso(d);
+                const isMine = mine.has(k);
+                const isTheirs = theirSet.has(k);
+                const isOverlap = isMine && isTheirs;
+                let style: React.CSSProperties = {};
+                if (isOverlap) style = { background: '#3AA0C9', color: '#fff', borderColor: '#33271B' };
+                else if (isMine) style = { background: '#F6C445', color: '#33271B', borderColor: '#33271B' };
+                else if (isTheirs) style = { background: '#DADADA', color: '#6b5440', borderColor: '#c9c3b8' };
+                return (
+                  <button key={k} onClick={() => toggle(k)}
+                    className="aspect-square rounded-lg border text-[12px] font-bold flex items-center justify-center"
+                    style={style.background ? style : { background: 'var(--color-bg, #f3f1ea)', borderColor: '#e3ddd0' }}
+                  >{d.getDate()}</button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="flex items-center gap-3 text-[10px] font-bold text-sub mb-3">
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#F6C445', border: '1px solid #33271B' }} />自分</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#DADADA' }} />相手</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#3AA0C9' }} />重なり</span>
+          </div>
+
+          <button onClick={saveCandidates} disabled={saving} className="w-full py-3 bg-green text-white rounded-xl text-sm font-bold disabled:opacity-50 mb-3">
+            {saving ? '保存中…' : '候補日を保存する'}
+          </button>
+
+          {/* 重なり / ガイド */}
+          {overlapNow.length > 0 ? (
+            <div className="bg-blue-light border-[1.5px] border-blue rounded-card p-4">
+              <div className="text-[12px] font-black text-blue mb-2">🔵 両者が行ける日（タップで決定）</div>
+              <div className="flex flex-wrap gap-2">
+                {overlapNow.map((d) => (
+                  <button key={d} onClick={() => agree(d)} className="px-3 py-2 bg-blue text-white rounded-full text-[13px] font-black">
+                    {mdLabel(d)} で決定 →
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : theirSet.size === 0 ? (
+            <div className="text-[12px] text-sub bg-bg rounded-xl p-3 text-center">
+              あなたの候補を保存しました。相手が候補を入れると、重なった日がここに表示されます。
+            </div>
+          ) : bothEntered ? (
+            <div className="text-[12px] text-sub bg-bg rounded-xl p-3 text-center leading-relaxed">
+              今回は都合が合いませんでした。候補日を増やすか、また後日お声がけします。
+            </div>
+          ) : null}
+        </>
+      )}
+    </div>
+  );
+}

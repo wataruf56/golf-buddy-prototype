@@ -111,6 +111,8 @@ export type Round = {
   // 集合場所・集合時間などの詳細（自由記入）。日時のすぐ下に表示。
   meetingInfo?: string;
   status: RoundStatus;
+  // ラウンドが完了(completed)になった時刻。再会エンジンのトリガー基準に使う。
+  completedAt?: number;
   isCompetition: boolean;
   // True when the host is a ゴルトモ admin (set server-side at creation from
   // isAdminUserId — cannot be spoofed by the client). Official rounds render
