@@ -9,6 +9,7 @@ export type RematchConfig = {
   maxCycles: number;           // 同一ペアへの再会通知の最大回数
   candidateWindowDays: number; // 候補日カレンダーの選択可能範囲（今後N日）
   enabled: boolean;            // 機能全体のON/OFF
+  testMode: boolean;           // ON=テストアカウント(test_)同士のペアにしか通知しない安全弁
 };
 
 export const DEFAULT_REMATCH_CONFIG: RematchConfig = {
@@ -16,6 +17,7 @@ export const DEFAULT_REMATCH_CONFIG: RematchConfig = {
   maxCycles: 2,
   candidateWindowDays: 45,
   enabled: true,
+  testMode: true, // 誤爆防止：既定はテストのみ。本番運用時に管理画面でOFFにする
 };
 
 let _cache: { cfg: RematchConfig; ts: number } | null = null;
@@ -38,6 +40,7 @@ export async function getRematchConfig(): Promise<RematchConfig> {
       maxCycles: clamp(d?.maxCycles, 1, 10, DEFAULT_REMATCH_CONFIG.maxCycles),
       candidateWindowDays: clamp(d?.candidateWindowDays, 7, 180, DEFAULT_REMATCH_CONFIG.candidateWindowDays),
       enabled: d?.enabled !== false,
+      testMode: d?.testMode !== false, // 既定 true（未設定＝安全側）
     };
     _cache = { cfg, ts: Date.now() };
     return cfg;
@@ -57,6 +60,7 @@ export async function setRematchConfig(patch: Partial<RematchConfig>): Promise<R
     maxCycles: patch.maxCycles != null ? clamp(patch.maxCycles, 1, 10, cur.maxCycles) : cur.maxCycles,
     candidateWindowDays: patch.candidateWindowDays != null ? clamp(patch.candidateWindowDays, 7, 180, cur.candidateWindowDays) : cur.candidateWindowDays,
     enabled: patch.enabled != null ? !!patch.enabled : cur.enabled,
+    testMode: patch.testMode != null ? !!patch.testMode : cur.testMode,
   };
   await db.collection('_config').doc('rematch').set({ ...next, updatedAt: Date.now() }, { merge: true });
   invalidateRematchConfigCache();

@@ -11,7 +11,7 @@ export default function AdminRematchPage() {
   return <Suspense fallback={null}><Inner /></Suspense>;
 }
 
-type Cfg = { intervalDays: number; maxCycles: number; candidateWindowDays: number; enabled: boolean };
+type Cfg = { intervalDays: number; maxCycles: number; candidateWindowDays: number; enabled: boolean; testMode: boolean };
 const FUNNEL_LABELS: { key: string; label: string }[] = [
   { key: 'rematch_notify_open', label: '① 通知タップ' },
   { key: 'rematch_input_one', label: '② 片方が候補入力' },
@@ -104,6 +104,15 @@ function Inner() {
               <span className="text-[13px] font-bold">機能を有効にする</span>
               <input type="checkbox" className="w-5 h-5 accent-green" checked={cfg.enabled} onChange={(e) => setCfg({ ...cfg, enabled: e.target.checked })} />
             </label>
+            <label className={`flex items-center justify-between mb-2 p-2.5 rounded-lg border-[1.5px] ${cfg.testMode ? 'border-green bg-green-light' : 'border-red-300 bg-red-50'}`}>
+              <span className="text-[13px] font-bold">🧪 テストモード（テストアカウントのみに通知）</span>
+              <input type="checkbox" className="w-5 h-5 accent-green" checked={cfg.testMode} onChange={(e) => setCfg({ ...cfg, testMode: e.target.checked })} />
+            </label>
+            <div className={`text-[11px] mb-3 leading-relaxed ${cfg.testMode ? 'text-green' : 'text-red-600 font-bold'}`}>
+              {cfg.testMode
+                ? 'ON：test_ で始まるテストアカウント同士のペアにしか再会通知は飛びません。実ユーザーには一切飛びません（安全）。'
+                : '⚠️ OFF：実ユーザーにも再会通知が飛びます。過去に相互マッチした実ユーザーへ通知される可能性があります。本番運用の準備が整ってからOFFにしてください。'}
+            </div>
             <Field label="通知までの日数（前回完了から / サイクル間隔）" hint="テストは 0（=即時）">
               <input type="number" min={0} max={365} value={cfg.intervalDays}
                 onChange={(e) => setCfg({ ...cfg, intervalDays: Math.max(0, Math.min(365, Number(e.target.value) || 0)) })}

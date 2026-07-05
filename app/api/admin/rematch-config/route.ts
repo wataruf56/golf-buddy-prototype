@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
       maxCycles: body?.maxCycles,
       candidateWindowDays: body?.candidateWindowDays,
       enabled: body?.enabled,
+      testMode: body?.testMode,
     });
     return NextResponse.json({ ok: true, config }, { headers: noStore });
   } catch (e) {

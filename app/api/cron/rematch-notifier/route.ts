@@ -60,6 +60,8 @@ export async function runRematchNotifier(limit = MAX_PER_TICK): Promise<{ ok: bo
     const pairs = await mutualPairsInRound(members);
     for (const { a, b, kind } of pairs) {
       if (sent >= limit) break;
+      // 安全弁：テストモード中はテストアカウント(test_)同士のペアにしか通知しない。
+      if (cfg.testMode && !(a.startsWith('test_') && b.startsWith('test_'))) continue;
       const pairId = pairIdOf(a, b);
       if (seen.has(pairId)) continue;
       seen.add(pairId);
