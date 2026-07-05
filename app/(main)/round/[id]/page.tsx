@@ -651,17 +651,6 @@ export default function RoundDetailPage() {
         </div>
       )}
 
-      {/* Score entry — visible to any participant once the round is marked
-          completed. The host triggers completion via the ラウンド完了 button
-          above; after that everyone in the round can fill in / edit scores. */}
-      {round.status === 'completed' && (isHost || isApproved) && (
-        <ScoreEntryCard
-          round={round}
-          host={host}
-          applicants={applicants as any}
-        />
-      )}
-
       {round.status === 'completed' && (isHost || isApproved) && (
         <div className="bg-card rounded-card p-4 mb-3 shadow-card">
           <div className="text-sm font-black mb-2">💘 ラウンド後のマッチング</div>

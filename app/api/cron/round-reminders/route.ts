@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
       addNotificationMany(
         participants,
         'reviewReminder',
-        `📝 「${roundName}」のレビュー・スコア入力をお願いします`,
+        `📝 「${roundName}」のレビューをお願いします`,
         `/round/${round.id}`,
       ).catch(() => {});
     }
@@ -87,11 +87,11 @@ export async function GET(req: NextRequest) {
       try {
         await pushToMany(
           targetIds,
-          `⛳ お疲れさまでした！\n「${roundName}」のレビューをお願いします。\nスコアの入力もこちらから。`,
+          `⛳ お疲れさまでした！\n「${roundName}」のレビューをお願いします。`,
           liffUrl(`/round/${round.id}`),
         );
         const { webPushToMany } = await import('@/lib/webPush');
-        await webPushToMany(targetIds, '⛳ お疲れさまでした！', `「${roundName}」のレビュー・スコア入力をお願いします`, `/round/${round.id}`, `reminder-${round.id}`).catch(() => {});
+        await webPushToMany(targetIds, '⛳ お疲れさまでした！', `「${roundName}」のレビューをお願いします`, `/round/${round.id}`, `reminder-${round.id}`).catch(() => {});
         sent++;
       } catch (e) {
         console.warn('[round-reminders] push failed', { roundId: round.id, err: (e as Error).message });

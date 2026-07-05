@@ -71,6 +71,20 @@ function Inner() {
     setSaving(false);
   }
 
+  async function resetData() {
+    if (!token) return;
+    if (!confirm('再会エンジンのテストデータ（セッション＋計測）を全削除しますか？\n進行中の候補日・決定済みもすべて消えます。')) return;
+    setRunning(true); setMsg('');
+    try {
+      const r = await fetch(`/api/admin/rematch-reset?token=${encodeURIComponent(token)}`, { method: 'POST', cache: 'no-store' });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || `${r.status}`);
+      setMsg(`リセットしました：セッション ${j.deletedSessions} 件 / 計測 ${j.deletedEvents} 件を削除`);
+      load();
+    } catch (e) { setMsg('リセット失敗: ' + (e as Error).message); }
+    setRunning(false);
+  }
+
   async function runNow() {
     if (!token) return;
     setRunning(true); setMsg('');
@@ -143,8 +157,11 @@ function Inner() {
             </button>
           </div>
 
-          <button onClick={runNow} disabled={running} className="w-full py-3 bg-orange text-white rounded-xl text-sm font-black disabled:opacity-50 mb-3">
+          <button onClick={runNow} disabled={running} className="w-full py-3 bg-orange text-white rounded-xl text-sm font-black disabled:opacity-50 mb-2">
             {running ? '実行中…' : '▶ 再会通知を今すぐ実行（テスト）'}
+          </button>
+          <button onClick={resetData} disabled={running} className="w-full py-2.5 bg-card border-[1.5px] border-red-300 text-red-600 rounded-xl text-[13px] font-bold disabled:opacity-50 mb-3">
+            🗑 テストデータをリセット（再会セッション全削除）
           </button>
           {msg && <div className="text-[12px] text-center mb-3 font-bold">{msg}</div>}
 
