@@ -102,8 +102,8 @@ export default function CreatePage() {
         setRematchPartnerId(d.other?.id || '');
         setRematchPartnerName(d.other?.displayName || '');
         // タイプ（未定/予約済み）は通常どおりユーザーに選ばせる。合意日だけプリセット。
+        // タイトルは通常投稿と同じく空白のまま（自動セットしない）。
         if (d.agreedDate) setDate(d.agreedDate);
-        if (d.other?.displayName && !title) setTitle(`${d.other.displayName}さんと再会ラウンド`);
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -106,7 +106,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       const other = await db.getUser(toUserId);
       const meName = me?.displayName || '相手';
       const otherName = other?.displayName || '相手';
-      const link = `/round/${params.id}`;
+      // 通知タップ先は「ゴル友」タブの該当マッチ一覧（また回りたい / 気になる）。
+      const link = kind === 'again' ? '/buddies?tab=again' : '/buddies?tab=romantic';
       // アプリ内通知に加えて、設定ONならLINE push＋Web pushも送る（両思いは重要イベント）。
       const notifyMatch = async (rid: string, ruser: any, text: string) => {
         await addNotification(rid, 'match', text, link);
@@ -119,12 +120,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         // 「異性として気になる」も両思いなら、そちらを優先して again の通知はしない。
         const romanticMutual = (await likeExists(docId('romantic', meId, toUserId))) && (await likeExists(docId('romantic', toUserId, meId)));
         if (!romanticMutual) {
-          await notifyMatch(toUserId, other, `🏌️ ${meName}さんから「また一緒に回りたい」という回答があり、両思いになりました！`);
-          await notifyMatch(meId, me, `🏌️ ${otherName}さんから「また一緒に回りたい」という回答があり、両思いになりました！`);
+          await notifyMatch(toUserId, other, `🏌️ ${meName}さんから「また一緒に回りたい」という回答があり、両思いになりました！「ゴル友」の「また回りたい」で確認できます👇`);
+          await notifyMatch(meId, me, `🏌️ ${otherName}さんから「また一緒に回りたい」という回答があり、両思いになりました！「ゴル友」の「また回りたい」で確認できます👇`);
         }
       } else {
-        await notifyMatch(toUserId, other, `💘 ${meName}さんから「異性として気になる」という回答があり、両思いになりました！`);
-        await notifyMatch(meId, me, `💘 ${otherName}さんから「異性として気になる」という回答があり、両思いになりました！`);
+        await notifyMatch(toUserId, other, `💘 ${meName}さんから「異性として気になる」という回答があり、両思いになりました！「ゴル友」の「気になる」で確認できます👇`);
+        await notifyMatch(meId, me, `💘 ${otherName}さんから「異性として気になる」という回答があり、両思いになりました！「ゴル友」の「気になる」で確認できます👇`);
       }
     }
   }

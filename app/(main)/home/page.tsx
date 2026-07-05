@@ -160,6 +160,7 @@ export default function HomePage() {
             href={`https://line.me/R/ti/p/${encodeURIComponent(BOT_BASIC_ID)}`}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => { try { localStorage.setItem('gb_bot_added', '1'); } catch {} setShowAddBot(false); }}
             className="flex items-center justify-center gap-2 w-full py-3 rounded-card border-2 border-border shadow-card font-black text-white"
             style={{ background: '#06C755' }}
           >

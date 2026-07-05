@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 
 // ラウンド後のレビュー。星評価は廃止。全員について4択（また回りたい／異性として
 // 気になる／二度と回りたくない／どっちでもいい）を選び、まとめて送信する。
-type Row = { verdict: ReviewVerdict | null; comment: string };
+type Row = { verdict: ReviewVerdict | null };
 
 export function ReviewOverlay() {
   const me = useStore(getMe);
@@ -23,7 +23,7 @@ export function ReviewOverlay() {
 
   if (pending.length === 0) return null;
 
-  const get = (id: string): Row => rows[id] || { verdict: null, comment: '' };
+  const get = (id: string): Row => rows[id] || { verdict: null };
   const upd = (id: string, patch: Partial<Row>) => setRows((p) => ({ ...p, [id]: { ...get(id), ...patch } }));
 
   const answered = (r?: Row) => !!r && r.verdict !== null;
@@ -55,8 +55,8 @@ export function ReviewOverlay() {
       for (const p of pending) {
         const r = get(p.id);
         if (!answered(r)) continue;
-        // 星は廃止。verdict（4択）＋コメントを送信（pending解消も兼ねる）。
-        await store.submitReview(p.id, 0, [], r.comment || undefined, r.verdict || undefined);
+        // 星・コメントは廃止。verdict（4択）のみ送信（pending解消も兼ねる）。
+        await store.submitReview(p.id, 0, [], undefined, r.verdict || undefined);
         // マッチング（両思い方式）：また回りたい／異性として気になる のみ like を送る。
         // 「異性として気になる」は「また回りたい」を内包。
         if (r.verdict === 'romantic') {
@@ -128,15 +128,6 @@ export function ReviewOverlay() {
                     <div className="text-[10px] text-pink-600 font-bold mt-1 text-center">「また一緒に回りたい」も自動で含まれます</div>
                   )}
                 </div>
-
-                {/* コメント（任意） */}
-                <input
-                  value={r.comment}
-                  onChange={(e) => upd(p.id, { comment: e.target.value })}
-                  placeholder="ひとこと（任意）"
-                  maxLength={200}
-                  className="w-full mt-2 px-3 py-2 border-[1.5px] border-border rounded-[10px] text-[13px] bg-card outline-none"
-                />
               </div>
             );
           })}
