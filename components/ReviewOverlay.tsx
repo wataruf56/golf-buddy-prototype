@@ -114,7 +114,7 @@ export function ReviewOverlay() {
                     {([
                       { key: 'again', label: '🏌️ また回りたい', sel: 'bg-green text-white border-green', show: true },
                       { key: 'romantic', label: '💘 異性として気になる', sel: 'bg-pink-600 text-white border-pink-600', show: opp },
-                      { key: 'never', label: '🙅 二度と回りたくない', sel: 'bg-[#C0392B] text-white border-[#C0392B]', show: true },
+                      { key: 'never', label: '🙇 ごめんなさい', sel: 'bg-[#C0392B] text-white border-[#C0392B]', show: true },
                       { key: 'either', label: '🤷 どっちでもいい', sel: 'bg-[#9b876a] text-white border-[#9b876a]', show: true },
                     ] as const).filter((o) => o.show).map((o) => (
                       <button
