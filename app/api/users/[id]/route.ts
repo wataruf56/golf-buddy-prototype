@@ -37,9 +37,25 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const reviewAvg = reviewCount
     ? Math.round((reviews.reduce((s, r) => s + (r.stars || 0), 0) / reviewCount) * 10) / 10
     : 0;
+
+  // 星評価に代わる判定スコア：また回りたい+1 / 異性として気になる+2 /
+  // どっちでもいい0 / ごめんなさい-1。受け取ったレビューの合計＝その人の評判スコア。
+  const VERDICT_POINTS: Record<string, number> = { again: 1, romantic: 2, either: 0, never: -1 };
+  const verdictBreakdown = { again: 0, romantic: 0, either: 0, never: 0 };
+  let verdictScore = 0;
+  let verdictReviewCount = 0;
+  for (const r of reviews) {
+    const v = (r as any).verdict as string | undefined;
+    if (v && v in VERDICT_POINTS) {
+      verdictScore += VERDICT_POINTS[v];
+      (verdictBreakdown as any)[v]++;
+      verdictReviewCount++;
+    }
+  }
+
   // Strip the private kanji real name before returning to any viewer.
   const { realNameLast, realNameFirst, ...safe } = user;
-  const publicUser = { ...safe, roundCount, reviewCount, reviewAvg };
+  const publicUser = { ...safe, roundCount, reviewCount, reviewAvg, verdictScore, verdictBreakdown, verdictReviewCount };
 
   // Enrich reviews with the reviewer's anonymised demographics (age bucket
   // + gender). Never include displayName / userId — reviews stay anonymous

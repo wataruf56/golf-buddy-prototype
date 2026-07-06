@@ -122,6 +122,32 @@ export default function ProfilePage() {
         )}
       </div>
 
+      {/* ゴルトモスコア（星評価の代わり）：受け取ったレビューの判定を合計。
+          また回りたい+1 / 異性として気になる+2 / どっちでもいい0 / ごめんなさい-1。 */}
+      {(() => {
+        const u = user as any;
+        const n = u?.verdictReviewCount || 0;
+        const score = u?.verdictScore || 0;
+        const b = u?.verdictBreakdown || { again: 0, romantic: 0, either: 0, never: 0 };
+        return (
+          <div className="bg-card rounded-card p-4 shadow-card mb-4 text-center">
+            <div className="text-[11px] font-black text-sub mb-0.5">ゴルトモスコア</div>
+            <div className="text-[40px] font-black leading-none" style={{ color: score > 0 ? '#2A8C82' : score < 0 ? '#C0392B' : '#8a7256' }}>
+              {score > 0 ? '+' : ''}{score}
+            </div>
+            <div className="text-[10px] text-muted mt-1">{n > 0 ? `${n}件のレビューから算出` : 'まだレビューがありません'}</div>
+            {n > 0 && (
+              <div className="flex justify-center gap-x-3 gap-y-1 mt-2 text-[10px] font-bold flex-wrap">
+                <span className="text-green">🏌️ また回りたい ×{b.again}</span>
+                <span className="text-pink-600">💘 気になる ×{b.romantic}</span>
+                <span className="text-sub">🤷 どっちでも ×{b.either}</span>
+                <span className="text-red-600">🙇 ごめんなさい ×{b.never}</span>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       <div className="flex gap-2 mb-5">
         <div className="flex-1 bg-card rounded-xl p-3.5 text-center shadow-card">
           <div className="text-2xl font-black text-green">{track ? `${track.againCount}/${track.roundedWith}` : '—'}</div>
