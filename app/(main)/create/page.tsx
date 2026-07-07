@@ -37,6 +37,7 @@ export default function CreatePage() {
   const router = useRouter();
   const meId = useStore((s) => s.meId);
   const isAdmin = useStore((s) => s.isAdmin);
+  const noCreate = useStore((s) => !!s.restrictions.noCreate);
   const [step, setStep] = useState<'select' | 'form'>('select');
   const [type, setType] = useState<RoundType>('confirmed');
   // Admin-only (福田渉): post as ゴルトモ公式 or as personal account.
@@ -202,6 +203,18 @@ export default function CreatePage() {
       track('round_create_error', { message: msg, payload });
       toast('失敗: ' + msg, 'error');
     }
+  }
+
+  // 募集が制限されている場合は、フォームに入らせず手前で止める。
+  if (noCreate) {
+    return (
+      <div className="px-5 py-16 text-center">
+        <div className="text-4xl mb-3">🚫</div>
+        <div className="text-sm font-black mb-1">ラウンド募集の利用が制限されています</div>
+        <div className="text-[12px] text-sub mb-6">ご不明な点は運営にお問い合わせください。</div>
+        <button onClick={() => router.push('/home')} className="px-5 py-2.5 bg-bg border-[1.5px] border-border rounded-xl text-sm font-bold">ホームに戻る</button>
+      </div>
+    );
   }
 
   if (step === 'select') {

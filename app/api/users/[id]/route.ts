@@ -38,24 +38,21 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     ? Math.round((reviews.reduce((s, r) => s + (r.stars || 0), 0) / reviewCount) * 10) / 10
     : 0;
 
-  // 星評価に代わる判定スコア：また回りたい+1 / 異性として気になる+2 /
-  // どっちでもいい0 / ごめんなさい-1。受け取ったレビューの合計＝その人の評判スコア。
-  const VERDICT_POINTS: Record<string, number> = { again: 1, romantic: 2, either: 0, never: -1 };
-  const verdictBreakdown = { again: 0, romantic: 0, either: 0, never: 0 };
-  let verdictScore = 0;
-  let verdictReviewCount = 0;
+  // 「評価」：Googleマップ/食べログ風の 0〜5（0.5刻み）平均。各レビューの4択判定を
+  // 0〜5に写像して平均する。異性として気になる=5 / また回りたい=4 / どっちでもいい=3 /
+  // ごめんなさい=1。rating=平均（0.5刻み）、ratingCount=評価した人数。
+  const VERDICT_RATING: Record<string, number> = { romantic: 5, again: 4, either: 3, never: 1 };
+  let ratingSum = 0;
+  let ratingCount = 0;
   for (const r of reviews) {
     const v = (r as any).verdict as string | undefined;
-    if (v && v in VERDICT_POINTS) {
-      verdictScore += VERDICT_POINTS[v];
-      (verdictBreakdown as any)[v]++;
-      verdictReviewCount++;
-    }
+    if (v && v in VERDICT_RATING) { ratingSum += VERDICT_RATING[v]; ratingCount++; }
   }
+  const rating = ratingCount ? Math.round((ratingSum / ratingCount) * 2) / 2 : 0;
 
   // Strip the private kanji real name before returning to any viewer.
   const { realNameLast, realNameFirst, ...safe } = user;
-  const publicUser = { ...safe, roundCount, reviewCount, reviewAvg, verdictScore, verdictBreakdown, verdictReviewCount };
+  const publicUser = { ...safe, roundCount, reviewCount, reviewAvg, rating, ratingCount };
 
   // Enrich reviews with the reviewer's anonymised demographics (age bucket
   // + gender). Never include displayName / userId — reviews stay anonymous

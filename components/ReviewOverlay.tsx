@@ -18,6 +18,7 @@ export function ReviewOverlay() {
     s.pendingReviews.filter((p) => p.reviewerId === s.meId && p.status === 'pending')
   );
   const users = useStore((s) => s.users);
+  const noReview = useStore((s) => !!s.restrictions.noReview);
   const [rows, setRows] = useState<Record<string, Row>>({});
   const [busy, setBusy] = useState(false);
 
@@ -49,6 +50,7 @@ export function ReviewOverlay() {
 
   async function submitAll() {
     if (!allRated || busy) return;
+    if (noReview) { toast('レビュー投稿の利用が制限されています。', 'error'); return; }
     setBusy(true);
     track('review_bulk_submit', { count: pending.length });
     try {
@@ -67,6 +69,9 @@ export function ReviewOverlay() {
         }
         // never / either は誰にも通知されない（負の相互マッチは存在しない）。
       }
+      // マッチが成立していれば通知が作られる。ホームの「マッチしました」ポップアップを
+      // 出すため、送信直後にお知らせを再取得しておく。
+      await store.refreshNotifications().catch(() => {});
       toast('レビューを送信しました');
     } catch (e) {
       toast('送信失敗: ' + (e as Error).message, 'error');

@@ -21,8 +21,22 @@ type Store = {
   buddyIds: string[];
   roundChatActivity: Record<string, number>;
   banned: boolean;
+  // 部分制限フラグ（noCreate / noDM / noChat / noInterest / noReview / noInvite /
+  // noApplyAll / applyBlockHostIds）。UIの事前ブロックに使う。
+  restrictions: UserRestriction;
   isAdmin: boolean;
   notifications: AppNotification[];
+};
+
+export type UserRestriction = {
+  noCreate?: boolean;
+  noApplyAll?: boolean;
+  noInvite?: boolean;
+  noChat?: boolean;
+  noDM?: boolean;
+  noInterest?: boolean;
+  noReview?: boolean;
+  applyBlockHostIds?: string[];
 };
 
 const initial: Store = {
@@ -35,6 +49,7 @@ const initial: Store = {
   buddyIds: [],
   roundChatActivity: {},
   banned: false,
+  restrictions: {},
   isAdmin: false,
   notifications: [],
 };
@@ -58,10 +73,23 @@ async function api<T = any>(path: string, init?: RequestInit): Promise<T> {
     cache: 'no-store',
   });
   if (!res.ok) {
-    let detail = '';
-    try { detail = await res.text(); } catch {}
-    const err = new Error(`${res.status} ${detail.slice(0, 200) || res.statusText}`);
-    console.error('[api]', path, err.message);
+    // サーバの日本語 message（{error, message}）だけをユーザー向け文言にする。
+    // 「403 {"error":...}」のようなシステム文字列はトーストに出さない。
+    let raw = '';
+    let msg = '';
+    try {
+      raw = await res.text();
+      const j = JSON.parse(raw);
+      if (j && typeof j.message === 'string' && j.message.trim()) msg = j.message.trim();
+    } catch { /* not json */ }
+    const clean = msg
+      || (res.status === 403 ? 'この操作は許可されていません。運営にお問い合わせください。'
+        : res.status === 401 ? 'ログインが必要です。'
+        : '通信に失敗しました。時間をおいて再度お試しください。');
+    const err = new Error(clean) as Error & { status?: number; raw?: string };
+    err.status = res.status;
+    err.raw = raw;
+    console.error('[api]', path, res.status, raw.slice(0, 200));
     throw err;
   }
   return res.json();
@@ -77,6 +105,7 @@ export const store = {
       meId: string; me: User; users: User[]; rounds: Round[];
       pendingReviews: PendingReview[]; chats: Chat[];
       buddyIds?: string[]; roundChatActivity?: Record<string, number>; banned?: boolean; isAdmin?: boolean;
+      restrictions?: UserRestriction;
       notifications?: AppNotification[];
     };
     // Transient failures are common in the LINE in-app webview (cold starts,
@@ -108,6 +137,7 @@ export const store = {
         buddyIds: data.buddyIds || [],
         roundChatActivity: data.roundChatActivity || {},
         banned: !!data.banned,
+        restrictions: data.restrictions || {},
         isAdmin: !!data.isAdmin,
         notifications: data.notifications || [],
       });
@@ -160,6 +190,18 @@ export const store = {
   refreshPending: async () => {
     const data = await api<{ pendingReviews: PendingReview[] }>('/api/bootstrap');
     setState({ pendingReviews: data.pendingReviews });
+  },
+
+  // お知らせ（マッチ通知など）を再取得。レビュー送信直後などに呼び、ホームの
+  // 「マッチしました」ポップアップを最新の通知で発火させる。
+  refreshNotifications: async () => {
+    try {
+      const data = await api<{ notifications?: AppNotification[]; pendingReviews?: PendingReview[] }>('/api/bootstrap');
+      setState({
+        notifications: data.notifications || [],
+        ...(data.pendingReviews ? { pendingReviews: data.pendingReviews } : {}),
+      });
+    } catch { /* non-fatal */ }
   },
 
   addRound: async (input: Partial<Round>) => {

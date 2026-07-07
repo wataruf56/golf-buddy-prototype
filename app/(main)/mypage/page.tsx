@@ -7,6 +7,7 @@ import { signOut } from 'next-auth/react';
 import { getMe, store, useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { GolmotiBadge } from '@/components/GolmotiBadge';
+import { GolfBallRating } from '@/components/GolfBallRating';
 import { NotifySettings } from '@/components/NotifySettings';
 import { AppUpdateButton } from '@/components/AppUpdateButton';
 import { track } from '@/lib/telemetry';
@@ -47,6 +48,7 @@ export default function MyPage() {
   );
   // 実績ベース評価：一緒に回った人のうち「また回りたい」を押した人数（相手にも見える指標）。
   const [trackRecord, setTrackRecord] = useState<{ roundedWith: number; againCount: number } | null>(null);
+  const [rating, setRating] = useState<{ value: number; count: number } | null>(null);
   const users = useStore((s) => s.users);
 
   useEffect(() => {
@@ -54,6 +56,10 @@ export default function MyPage() {
     fetch(`/api/users/${encodeURIComponent(meId)}/track-record`, { cache: 'no-store' })
       .then((r) => r.json())
       .then((d) => setTrackRecord({ roundedWith: d.roundedWith || 0, againCount: d.againCount || 0 }))
+      .catch(() => {});
+    fetch(`/api/users/${encodeURIComponent(meId)}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => { if (d.user) setRating({ value: d.user.rating || 0, count: d.user.ratingCount || 0 }); })
       .catch(() => {});
     track('mypage_render', {
       meId,
@@ -123,6 +129,11 @@ export default function MyPage() {
             <Avatar user={me} size={64} />
             <div>
               <div className="text-lg font-black">{me.displayName}</div>
+              {rating && (
+                <div className="mt-0.5 mb-0.5">
+                  <GolfBallRating value={rating.value} count={rating.count} size={16} />
+                </div>
+              )}
               <div className="text-xs text-sub">
                 {[me.age ? `${me.age}歳` : null, me.scoreRange ? `スコア ${me.scoreRange}` : null].filter(Boolean).join(' ・ ') || '—'}
               </div>

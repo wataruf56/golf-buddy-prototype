@@ -14,6 +14,7 @@ export default function ChatPage() {
   const meId = useStore((s) => s.meId);
   const chat = useStore((s) => s.chats.find((c) => c.id === params.chatId));
   const users = useStore((s) => s.users);
+  const noDM = useStore((s) => !!s.restrictions.noDM);
   const [text, setText] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -36,6 +37,22 @@ export default function ChatPage() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [chat?.messages.length]);
+
+  // DMが制限されている場合は、画面自体を開かせず手前で止める。
+  if (noDM) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="px-4 py-3 border-b border-border">
+          <button onClick={() => router.back()} className="text-sm text-blue font-semibold">← 戻る</button>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center px-5 text-center">
+          <div className="text-4xl mb-3">🚫</div>
+          <div className="text-sm font-black mb-1">ダイレクトメッセージの利用が制限されています</div>
+          <div className="text-[12px] text-sub">ご不明な点は運営にお問い合わせください。</div>
+        </div>
+      </div>
+    );
+  }
 
   if (!other) return <div className="p-5 text-sub">読み込み中...</div>;
   // No chat record yet: show empty thread, sending the first message will create it.

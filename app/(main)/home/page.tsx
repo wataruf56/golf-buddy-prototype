@@ -7,6 +7,8 @@ import { getMe, store, useStore } from '@/lib/store';
 import { RoundCard } from '@/components/RoundCard';
 import { Avatar } from '@/components/Avatar';
 import { HomeUpdateCard } from '@/components/HomeUpdateCard';
+import { toast } from '@/components/Toast';
+import { RESTRICTION_MSG } from '@/lib/restrictions';
 
 function relTime(ts: number): string {
   const diff = Date.now() - ts;
@@ -26,6 +28,7 @@ const BOT_BASIC_ID = process.env.NEXT_PUBLIC_LINE_BOT_BASIC_ID || '';
 export default function HomePage() {
   const router = useRouter();
   const me = useStore(getMe);
+  const restrictions = useStore((s) => s.restrictions);
   const notifications = useStore((s) => s.notifications);
   // Capture the "last read" timestamp ONCE on mount so unread highlights stay
   // stable while the user is looking at the list (we mark-read in the bg below).
@@ -160,7 +163,13 @@ export default function HomePage() {
             href={`https://line.me/R/ti/p/${encodeURIComponent(BOT_BASIC_ID)}`}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => { try { localStorage.setItem('gb_bot_added', '1'); } catch {} setShowAddBot(false); }}
+            onClick={() => {
+              // 先にフラグだけ立て、非表示は遅延させる。onClickで即 setState すると
+              // <a> がクリック処理中にアンマウントされ、Chrome等で遷移がキャンセル
+              // されることがあるため（Safariでは動くが他ブラウザで飛ばない不具合）。
+              try { localStorage.setItem('gb_bot_added', '1'); } catch {}
+              setTimeout(() => setShowAddBot(false), 800);
+            }}
             className="flex items-center justify-center gap-2 w-full py-3 rounded-card border-2 border-border shadow-card font-black text-white"
             style={{ background: '#06C755' }}
           >
@@ -227,7 +236,11 @@ export default function HomePage() {
 
       {/* 募集する／さがす */}
       <div className="px-5 pb-3 grid grid-cols-2 gap-3">
-        <Link href="/create" className="bg-orange text-white border-2 border-border rounded-card shadow-card py-4 text-center font-black">
+        <Link
+          href="/create"
+          onClick={(e) => { if (restrictions.noCreate) { e.preventDefault(); toast(RESTRICTION_MSG.noCreate, 'error'); } }}
+          className="bg-orange text-white border-2 border-border rounded-card shadow-card py-4 text-center font-black"
+        >
           <div className="text-2xl leading-none mb-1">＋</div>ラウンドを募集
         </Link>
         <Link href="/search" className="bg-green text-white border-2 border-border rounded-card shadow-card py-4 text-center font-black">
@@ -272,7 +285,7 @@ export default function HomePage() {
               <div className="text-4xl mb-3">⛳</div>
               <div className="text-sm font-bold mb-2">まだ募集がありません</div>
               <div className="text-xs text-sub mb-4">あなたが最初の募集を立ててみませんか？</div>
-              <Link href="/create" className="inline-block px-5 py-2.5 bg-green text-white rounded-xl text-sm font-bold">
+              <Link href="/create" onClick={(e) => { if (restrictions.noCreate) { e.preventDefault(); toast(RESTRICTION_MSG.noCreate, 'error'); } }} className="inline-block px-5 py-2.5 bg-green text-white rounded-xl text-sm font-bold">
                 募集を作成する
               </Link>
             </div>

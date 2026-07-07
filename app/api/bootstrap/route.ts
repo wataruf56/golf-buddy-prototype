@@ -97,6 +97,11 @@ export async function GET() {
   let banned = false;
   try { const { isBanned } = await import('@/lib/banAccess'); banned = await isBanned(meId); } catch {}
 
+  // 部分制限（機能ごとのUI事前ブロック用）。クライアントで募集/DM等のボタンを
+  // 押した瞬間に止められるよう、フラグをそのまま返す。
+  let restrictions: Record<string, any> = {};
+  try { const { getRestriction } = await import('@/lib/banAccess'); restrictions = await getRestriction(meId); } catch {}
+
   // 管理者（ゴルトモ公式アカウント）判定。投稿時に「公式 / 個人」を選べる
   // UIを出すかどうかのフラグ。サーバー側でも投稿時に再検証する。
   let isAdmin = false;
@@ -107,6 +112,6 @@ export async function GET() {
   try { const { listNotifications } = await import('@/lib/notifications'); notifications = await listNotifications(meId, 30); } catch {}
 
   return NextResponse.json({
-    ok: true, meId, me, users: safeUsers, rounds, pendingReviews, chats, buddyIds, roundChatActivity, banned, isAdmin, notifications,
+    ok: true, meId, me, users: safeUsers, rounds, pendingReviews, chats, buddyIds, roundChatActivity, banned, restrictions, isAdmin, notifications,
   });
 }

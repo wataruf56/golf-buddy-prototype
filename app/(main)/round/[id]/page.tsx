@@ -13,6 +13,8 @@ import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
 import { GroupAssignment } from '@/components/GroupAssignment';
 import { CarDispatch } from '@/components/CarDispatch';
 import { PickupStationPicker } from '@/components/PickupStationPicker';
+import { RESTRICTION_MSG } from '@/lib/restrictions';
+import { readApiError } from '@/lib/apiError';
 import { MatchPicker } from '@/components/MatchPicker';
 import type { Round, User, PickupStatus } from '@/lib/types';
 
@@ -35,6 +37,7 @@ export default function RoundDetailPage() {
   const storeRound = useStore((s) => s.rounds.find((r) => r.id === params.id));
   const storeUsers = useStore((s) => s.users);
   const meId = useStore((s) => s.meId);
+  const restrictions = useStore((s) => s.restrictions);
   const hydrated = useStore((s) => s.hydrated);
   const me = useStore(getMe);
   const profileReady = isProfileComplete(me?.age);
@@ -156,6 +159,9 @@ export default function RoundDetailPage() {
 
   async function join() {
     if (requireLogin()) return;
+    // 制限がかかっている場合は、申請の前に止める。
+    if (restrictions.noApplyAll) { toast(RESTRICTION_MSG.noApplyAll, 'error'); return; }
+    if ((restrictions.applyBlockHostIds || []).includes(round!.hostId)) { toast(RESTRICTION_MSG.applyBlockHostIds, 'error'); return; }
     track('join_round_click', { roundId: round!.id, hostId: round!.hostId });
     // Profile gate: a friend who arrived via a shared link can read the round
     // detail without registering, but joining requires a profile. Bounce them
@@ -172,7 +178,7 @@ export default function RoundDetailPage() {
       toast('参加申請を送信しました');
     } catch (e) {
       track('join_round_error', { message: (e as Error).message });
-      toast('失敗: ' + (e as Error).message, 'error');
+      toast((e as Error).message, 'error');
     }
   }
   async function shareRound() {
@@ -267,10 +273,11 @@ export default function RoundDetailPage() {
   }
   async function onToggleInterest() {
     if (requireLogin()) return;
+    if (restrictions.noInterest) { toast(RESTRICTION_MSG.noInterest, 'error'); return; }
     const next = !(round!.interestedIds || []).includes(meId);
     if (storeRound) {
       try { await store.toggleInterest(round!.id, next); }
-      catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
+      catch (e) { toast((e as Error).message, 'error'); }
     } else {
       // Round not in store (arrived via shared link) — call API + patch local copy.
       try {
@@ -278,18 +285,19 @@ export default function RoundDetailPage() {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ interested: next }), cache: 'no-store',
         });
-        if (!res.ok) throw new Error(String(res.status));
+        if (!res.ok) { toast(await readApiError(res), 'error'); return; }
         const j = await res.json();
         if (j.round) setFetchedRound((prev) => (prev ? { ...prev, ...j.round } : j.round));
-      } catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
+      } catch (e) { toast((e as Error).message, 'error'); }
     }
   }
   async function invite(userId: string, name: string) {
+    if (restrictions.noInvite) { toast(RESTRICTION_MSG.noInvite, 'error'); return; }
     try {
       const updated = await store.inviteToRound(round!.id, userId, inviteMessage.trim() || undefined);
       if (!storeRound && updated) setFetchedRound((prev) => (prev ? { ...prev, ...updated } : prev));
       toast(`${name}さんを招待しました`);
-    } catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
+    } catch (e) { toast((e as Error).message, 'error'); }
   }
 
   return (

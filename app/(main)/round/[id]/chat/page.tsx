@@ -42,6 +42,7 @@ export default function RoundChatPage() {
   const meId = useStore((s) => s.meId);
   const storeRound = useStore((s) => s.rounds.find((r) => r.id === params.id));
   const users = useStore((s) => s.users);
+  const noChat = useStore((s) => !!s.restrictions.noChat);
   const [fetchedRound, setFetchedRound] = useState<Round | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [threads, setThreads] = useState<RoundThread[]>([]);
@@ -165,11 +166,11 @@ export default function RoundChatPage() {
         body: JSON.stringify({ text: t.trim() || undefined, threadId: activeThread || undefined, imageUrl }),
         cache: 'no-store',
       });
-      if (!res.ok) { const detail = await res.text(); throw new Error(`${res.status} ${detail.slice(0, 100)}`); }
+      if (!res.ok) { const { readApiError } = await import('@/lib/apiError'); toast(await readApiError(res, '送信に失敗しました'), 'error'); return; }
       const d = await res.json();
       setMessages((prev) => [...prev, d.message]);
     } catch (e) {
-      toast('送信失敗: ' + (e as Error).message, 'error');
+      toast('送信に失敗しました', 'error');
     } finally {
       setSending(false);
     }
@@ -352,7 +353,14 @@ export default function RoundChatPage() {
         </div>
       )}
 
-      {/* Composer */}
+      {/* チャットが制限されている場合は入力欄を出さず、案内だけ表示。 */}
+      {noChat ? (
+        <div className="px-4 py-4 pb-7 bg-card border-t border-border flex-shrink-0 text-center">
+          <div className="text-[12px] font-bold text-sub">🚫 チャットの利用が制限されています</div>
+          <div className="text-[11px] text-muted mt-0.5">メッセージの閲覧のみ可能です。</div>
+        </div>
+      ) : (
+      /* Composer */
       <div className="flex gap-2 px-4 py-3 pb-7 bg-card border-t border-border flex-shrink-0">
         {mentionMembers.length > 0 && (
           <button
@@ -387,6 +395,7 @@ export default function RoundChatPage() {
         />
         <button onClick={send} disabled={sending} aria-label="送信" className="self-end flex-shrink-0 w-10 h-10 bg-green text-white rounded-full text-base font-bold disabled:opacity-50">➤</button>
       </div>
+      )}
     </div>
   );
 }
