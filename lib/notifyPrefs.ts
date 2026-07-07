@@ -17,7 +17,8 @@ export type NotifyType =
   | 'interestDeadline' // a round I'm "気になる" about is closing soon
   | 'match'            // 両思いマッチ成立（また回りたい / 異性として気になる）
   | 'surveyMatch'      // LP診断アンケートで希望した条件（県）に一致する募集が投稿された
-  | 'rematch';         // 再会エンジン：また回りたい相手との再会のお知らせ・候補日の往復
+  | 'rematch'          // 再会エンジン：また回りたい相手との再会のお知らせ・候補日の往復
+  | 'pickup';          // 主催者からピックアップ場所（駅）の提案が届いた
 
 // Display metadata for the settings UI. Order = display order.
 export const NOTIFY_TYPES: Array<{ key: NotifyType; label: string; desc: string; defaultOn: boolean }> = [
@@ -36,6 +37,7 @@ export const NOTIFY_TYPES: Array<{ key: NotifyType; label: string; desc: string;
   { key: 'match',            label: '💘 マッチ成立', desc: 'ラウンド後に両思いになったとき', defaultOn: true },
   { key: 'surveyMatch',      label: '🎯 希望条件に合う募集', desc: '診断アンケートで希望したエリアの募集が投稿されたとき', defaultOn: true },
   { key: 'rematch',          label: '🔁 再会のお知らせ', desc: 'また回りたい相手との再会・候補日のやり取りがあったとき', defaultOn: true },
+  { key: 'pickup',           label: '🚉 ピックアップの提案', desc: '主催者からピックアップ場所の提案が届いたとき', defaultOn: true },
 ];
 
 const DEFAULTS: Record<NotifyType, boolean> = NOTIFY_TYPES.reduce((acc, t) => {

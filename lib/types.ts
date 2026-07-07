@@ -155,11 +155,35 @@ export type Round = {
   //   status='cannot' / 'no_need' : stations なし（回答のみ記録）
   // 旧データ（status未設定で stations あり）は「送迎可能(can)」とみなす。
   participantPickups?: Record<string, { stations: string[]; capacity?: number; status?: PickupStatus }>;
+  // 主催者が「配車（車の割り振り）」で組んだ、車ごとの乗車メンバー。組み分けと同じ
+  // ドラッグ&ドロップで編集する。drivers＝送迎可能な人（主催者＋car=have回答者）、
+  // passengerIds＝その車に乗せる希望者。
+  carAssignments?: CarAssignment[];
+  // 主催者から各参加者への「この駅でどう？」というピックアップ場所の提案。
+  //   キー: 提案先のuserId → { station, by(主催者id), at }
+  //   受け手が「OK」or「相談したい」を押す、または主催者が取り消すと null にする
+  //   （Firestoreの merge 更新でキーを消せないため、クリアは null で表現する）。
+  pickupProposals?: Record<string, PickupProposal | null>;
   // ゴルトモ未登録のゲスト参加者（主催者が名前で追加）。組み分けに入れられる。
   // RoundGroup.memberIds にはこの guest.id（"gst_..."）も入りうる。
   guests?: RoundGuest[];
   // 開催前リマインドの送信記録。キー: 'd30'|'d7'|'d1' → 送信時刻(ms)。二重送信防止。
   upcomingRemindersSent?: Record<string, number>;
+};
+
+// 配車の1台分。driverId＝運転者（主催者 or 送迎可能な参加者）、passengerIds＝
+// その車に乗せる希望者、station＝集合/ピックアップ場所（任意）。
+export type CarAssignment = {
+  driverId: string;
+  passengerIds: string[];
+  station?: string;
+};
+
+// 主催者からのピックアップ場所の提案。
+export type PickupProposal = {
+  station: string;
+  by: string;   // 提案した主催者のid
+  at: number;   // 提案時刻(ms)
 };
 
 export type RoundGroup = {

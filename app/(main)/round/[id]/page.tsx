@@ -12,6 +12,7 @@ import { chatIdFor, formatDate, ratingLabel, carLabel, priceLabelForGender, isSp
 import { levelConditionLabel } from '@/lib/roundEligibility';
 import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
 import { GroupAssignment } from '@/components/GroupAssignment';
+import { CarDispatch } from '@/components/CarDispatch';
 import { PickupStationPicker } from '@/components/PickupStationPicker';
 import { MatchPicker } from '@/components/MatchPicker';
 import type { Round, User, PickupStatus } from '@/lib/types';
@@ -434,6 +435,11 @@ export default function RoundDetailPage() {
 
         {/* 🚗 送迎（主催者＋車ありの参加者） */}
         <PickupInfo round={round} meId={meId} users={users} isHost={isHost} isApproved={isApproved} />
+
+        {/* 🚗 配車（車の割り振り）。主催者は編集、参加者は確認のみ。 */}
+        {(isHost || isApproved) && round.status !== 'completed' && (
+          <CarDispatch round={round} users={users as User[]} isHost={isHost} />
+        )}
 
         {/* 気になるは画面上部（シェアの左）に移動。説明文は投稿冒頭に表示。 */}
 
@@ -1072,6 +1078,8 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
   // 役割：車ありは「送迎可能側」、それ以外は「送迎希望側」。
   const role: 'provider' | 'seeker' = meUser?.car === 'have' ? 'provider' : 'seeker';
   const mine = round.participantPickups?.[meId];
+  // 主催者からの自分宛てのピックアップ場所提案（null＝応答済み/取消）。
+  const myProposal = round.pickupProposals?.[meId] || null;
   // 旧データ（statusなし＋駅あり）は送迎可能(can)とみなす。
   const mineStatus: PickupStatus | undefined = mine?.status || (mine?.stations?.length ? 'can' : undefined);
 
@@ -1144,7 +1152,8 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
   if (!hasAny && !canRespond && !isHost) return null;
 
   // フロート：承認済み参加者が未回答の間だけ、タブ直上に赤く固定表示。
-  const showFloat = canRespond && !savedComplete && !open;
+  const hasProposal = canRespond && !!myProposal;
+  const showFloat = canRespond && (!savedComplete || hasProposal) && !open;
   function openSection() {
     setOpen(true);
     requestAnimationFrame(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
@@ -1165,6 +1174,9 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
           <span className="text-[11px] font-bold text-green flex-1">
             {providers.length > 0 ? `送迎できる人 ${providers.length}人` : '送迎の相談'}
           </span>
+          {hasProposal && (
+            <span className="text-[10px] font-black px-1.5 py-[1px] rounded-full bg-orange text-white">🚉 提案あり</span>
+          )}
           {myLabel && (
             <span className={`text-[10px] font-black px-1.5 py-[1px] rounded-full ${savedComplete ? 'bg-white text-green border border-green' : 'bg-red text-white'}`}>{myLabel}</span>
           )}
@@ -1172,6 +1184,11 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
         </summary>
 
         <div className="px-3 pb-3">
+          {/* 受け手：主催者からのピックアップ場所の提案 */}
+          {canRespond && myProposal && (
+            <PickupProposalBanner roundId={round.id} station={myProposal.station} />
+          )}
+
           {providers.length > 0 && (
             <div className="flex flex-col gap-2 mb-2">
               <div className="text-[11px] font-black text-green">🚗 送迎できる人</div>
@@ -1279,6 +1296,19 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
               )}
             </div>
           )}
+
+          {/* 主催者：ピックアップ場所を提案する（受け手がOK/相談を選べる） */}
+          {isHost && applicants.length > 0 && (
+            <div className="mt-2 pt-3 border-t border-green/40">
+              <div className="text-[11px] font-black text-green mb-0.5">🚉 ピックアップ場所を提案</div>
+              <div className="text-[10px] text-muted mb-2">「この駅でどう？」と提案できます。相手はOK（その駅に確定）か、相談（チャットで相談）を選べます。</div>
+              <div className="flex flex-col gap-2">
+                {applicants.map((m) => (
+                  <HostProposeRow key={m.id} roundId={round.id} member={m} proposal={round.pickupProposals?.[m.id] || null} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </details>
 
@@ -1287,9 +1317,9 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
           <div className="absolute left-0 right-0 bottom-[82px] z-40 px-3 pb-2 pointer-events-none">
             <button
               onClick={openSection}
-              className="pointer-events-auto w-full flex items-center justify-center gap-2 py-2.5 rounded-full bg-red text-white text-[13px] font-black shadow-[0_4px_12px_rgba(0,0,0,0.25)] border-2 border-white"
+              className={`pointer-events-auto w-full flex items-center justify-center gap-2 py-2.5 rounded-full text-white text-[13px] font-black shadow-[0_4px_12px_rgba(0,0,0,0.25)] border-2 border-white ${hasProposal ? 'bg-orange' : 'bg-red'}`}
             >
-              🚗 ピックアップについて回答してください
+              {hasProposal ? '🚉 主催者からピックアップの提案があります' : '🚗 ピックアップについて回答してください'}
               <span className="text-white">›</span>
             </button>
           </div>
@@ -1380,6 +1410,112 @@ function ProxyPickupRow({ roundId, member, entry, guest }: {
       <button onClick={save} disabled={saving || !status} className="w-full py-2 bg-green text-white rounded-full text-[12px] font-bold disabled:opacity-50">
         {saving ? '保存中…' : '代理で保存する'}
       </button>
+    </div>
+  );
+}
+
+// 受け手：主催者からのピックアップ場所提案に「OK」か「相談したい」で応答する。
+function PickupProposalBanner({ roundId, station }: { roundId: string; station: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState<'accept' | 'discuss' | null>(null);
+
+  async function respond(action: 'accept' | 'discuss') {
+    setBusy(action);
+    try {
+      const res = await fetch(`/api/rounds/${roundId}/pickup-proposal`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }), cache: 'no-store', credentials: 'include',
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const d = await res.json();
+      if (action === 'accept') {
+        await store.refreshRounds().catch(() => {});
+        toast(`ピックアップ場所を ${station}駅 にしました🚉`);
+      } else {
+        toast('相談スレッドを作成しました💬');
+        router.push(`/round/${roundId}/chat${d.threadId ? `?thread=${encodeURIComponent(d.threadId)}` : ''}`);
+      }
+    } catch { toast('処理に失敗しました', 'error'); }
+    finally { setBusy(null); }
+  }
+
+  return (
+    <div className="mb-3 bg-white rounded-xl border-2 border-orange p-3">
+      <div className="text-[11px] font-black text-orange mb-0.5">🚉 主催者からのピックアップ提案</div>
+      <div className="text-[13px] font-bold text-text mb-2">
+        「<span className="text-orange">{station}駅</span>」でのピックアップはどうですか？
+      </div>
+      <div className="flex gap-2">
+        <button onClick={() => respond('accept')} disabled={!!busy}
+          className="flex-1 py-2.5 bg-green text-white rounded-full text-[13px] font-bold disabled:opacity-50">
+          {busy === 'accept' ? '設定中…' : '✅ この駅にする'}
+        </button>
+        <button onClick={() => respond('discuss')} disabled={!!busy}
+          className="flex-1 py-2.5 bg-white text-orange border-[1.5px] border-orange rounded-full text-[13px] font-bold disabled:opacity-50">
+          {busy === 'discuss' ? '準備中…' : '💬 相談したい'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// 主催者：参加者ひとりに対してピックアップ場所（駅）を提案する1行。
+function HostProposeRow({ roundId, member, proposal }: {
+  roundId: string;
+  member: { id: string; displayName: string };
+  proposal: import('@/lib/types').PickupProposal | null;
+}) {
+  const [station, setStation] = useState(proposal?.station || '');
+  const [busy, setBusy] = useState(false);
+
+  async function propose() {
+    const s = station.trim();
+    if (!s) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/rounds/${roundId}/pickup-proposal`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'propose', userId: member.id, station: s }), cache: 'no-store', credentials: 'include',
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      await store.refreshRounds().catch(() => {});
+      toast(`${member.displayName}さんに ${s}駅 を提案しました🚉`);
+    } catch { toast('提案に失敗しました', 'error'); }
+    finally { setBusy(false); }
+  }
+
+  async function cancel() {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/rounds/${roundId}/pickup-proposal`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel', userId: member.id }), cache: 'no-store', credentials: 'include',
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      await store.refreshRounds().catch(() => {});
+      toast('提案を取り消しました');
+    } catch { toast('取り消しに失敗しました', 'error'); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="bg-white rounded-lg p-2">
+      <div className="text-[12px] font-bold text-text mb-1.5">
+        {member.displayName}
+        {proposal && <span className="ml-1.5 text-[10px] font-black text-orange">提案中: {proposal.station}駅</span>}
+      </div>
+      <div className="flex gap-1.5">
+        <input
+          value={station}
+          onChange={(e) => setStation(e.target.value.slice(0, 20))}
+          placeholder="提案する駅名"
+          className="flex-1 min-w-0 text-[13px] border-[1.5px] border-border rounded-lg px-2.5 py-1.5 bg-bg outline-none"
+        />
+        <button onClick={propose} disabled={busy || !station.trim()} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold disabled:opacity-50 flex-shrink-0">提案</button>
+        {proposal && (
+          <button onClick={cancel} disabled={busy} className="px-3 py-1.5 bg-white text-red border border-red rounded-lg text-xs font-bold disabled:opacity-50 flex-shrink-0">取消</button>
+        )}
+      </div>
     </div>
   );
 }
