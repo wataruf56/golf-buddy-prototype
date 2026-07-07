@@ -64,9 +64,17 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
   const [dirty, setDirty] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
-  // 乗客プール = 運転者でなく、どの車にも乗っていない参加者・ゲスト。
+  // 乗せる相手の候補＝「🙋 ピックアップ希望」か「未入力」の人（＝車がない人）だけ。
+  // 「一人で行きます(cannot)」「不要(no_need)」「送迎できる(can=運転者)」は対象外。
+  const isPassengerCandidate = (id: string) => {
+    if (driverSet.has(id)) return false;
+    const v = pp[id];
+    const st = v?.status || (v?.stations?.length ? 'can' : undefined);
+    return st === 'want' || !st; // 希望 or 未入力のみ
+  };
+  // 乗客プール = 候補のうち、どの車にも乗っていない人。
   const assigned = new Set(cars.flatMap((c) => c.passengerIds));
-  const pool = allPeople.filter((id) => !driverSet.has(id) && !assigned.has(id));
+  const pool = allPeople.filter((id) => !assigned.has(id) && isPassengerCandidate(id));
 
   // ---------- read-only view (participants) ----------
   if (!isHost) {
@@ -174,13 +182,9 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
     setCarsDirty(cars.map((c) => (c.driverId === did ? { ...c, station: s } : c)));
   }
 
-  // 送迎希望者を、空きのある車へ上から詰めていく自動割り当て。
+  // 未割り当ての候補（希望・未入力）を、空きのある車へ上から詰めていく自動割り当て。
   function autoAssign() {
-    const seekers = pool.filter((id) => {
-      const v = pp[id];
-      const st = v?.status || (v?.stations?.length ? 'can' : undefined);
-      return st === 'want' || isGuest(id) || !st;
-    });
+    const seekers = [...pool];
     let next = cars.map((c) => ({ ...c }));
     for (const sid of seekers) {
       // 定員（運転者含む）に空きがある最初の車へ。
