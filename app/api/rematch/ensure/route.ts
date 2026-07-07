@@ -21,10 +21,9 @@ export async function POST(req: NextRequest) {
   if (!kind) return NextResponse.json({ error: 'not_matched' }, { status: 403, headers: noStore });
 
   const pairId = pairIdOf(meId, partnerId);
-  const existing = await getSession(pairId);
-  if (existing) return NextResponse.json({ ok: true, pairId }, { headers: noStore });
 
   // 文脈：2人が一緒だった直近の完了ラウンド（コース名・日付を通知/表示に使う）。
+  // これが「今回のサイクル」の基準になる。
   let courseName = 'ゴルフ';
   let roundDate = '';
   let roundId = '';
@@ -35,8 +34,34 @@ export async function POST(req: NextRequest) {
     if (completed[0]) { courseName = completed[0].courseName || completed[0].title || 'ゴルフ'; roundDate = completed[0].date || ''; roundId = completed[0].id; }
   } catch { /* best-effort */ }
 
-  const [lo, hi] = meId < partnerId ? [meId, partnerId] : [partnerId, meId];
   const now = Date.now();
+  const existing = await getSession(pairId);
+  if (existing) {
+    // 「候補日」から再開するときは、前サイクルの名残（決定済み・投稿済み・辞退や、
+    // 直近の完了ラウンドが変わった＝新サイクル、過ぎた合意日）はリセットして必ず
+    // カレンダーから始める。進行中（notified/inputting）で同じラウンド由来のときだけ
+    // そのまま継続する（入力済みの候補日を保持）。
+    const today = new Date(now + 9 * 3600 * 1000).toISOString().slice(0, 10); // JST
+    const newerRound = !!roundId && existing.roundId !== roundId;
+    const agreedPast = !!existing.agreedDate && existing.agreedDate < today;
+    const concluded = existing.status === 'agreed' || existing.status === 'posted' || existing.status === 'optedout';
+    const stale = newerRound || agreedPast || concluded;
+    if (!stale) return NextResponse.json({ ok: true, pairId }, { headers: noStore });
+    // 新しいサイクル：文脈を更新し、候補日・合意・確定・辞退をクリアして最初から。
+    await saveSession(pairId, {
+      roundId: roundId || existing.roundId,
+      courseName, roundDate, matchKind: kind,
+      candidatesA: [], candidatesB: [],
+      agreedDate: null, agreedAt: null, postedRoundId: null,
+      optedOutBy: [],
+      status: 'notified',
+      notifyCount: (existing.notifyCount || 0) + 1,
+      lastNotifyAt: now,
+    });
+    return NextResponse.json({ ok: true, pairId, reset: true }, { headers: noStore });
+  }
+
+  const [lo, hi] = meId < partnerId ? [meId, partnerId] : [partnerId, meId];
   await saveSession(pairId, {
     pairId, userA: lo, userB: hi, roundId,
     courseName, roundDate, matchKind: kind,
