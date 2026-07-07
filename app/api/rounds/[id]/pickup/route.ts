@@ -24,20 +24,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   let body: any = {};
   try { body = await req.json(); } catch {}
-  // 入力対象。主催者は誰でも、本人は自分（scopeが'host'でなければ）、'all'の
-  // メンバーは誰でも入力できる。ゲストは主催者のみ。
+  // 入力できるのは主催者（誰の分でも代理可）か本人（自分の分のみ）だけ。ゲストは主催者のみ。
   const isHost = round.hostId === meId;
   const proxyTargets = new Set([...members, ...((round.guests || []).map((g) => g.id))]);
   const targetId = body?.userId ? String(body.userId) : meId;
   if (targetId !== meId && !proxyTargets.has(targetId)) {
     return NextResponse.json({ error: 'bad_target' }, { status: 400, headers: noStore });
   }
-  const scopes = (round.pickupInputScope || {}) as Record<string, string>;
-  const targetScope = scopes[targetId] || 'self';
-  const permitted =
-    isHost ||                                            // 主催者は常に可
-    (targetId === meId && targetScope !== 'host') ||     // 本人（host限定でなければ）
-    (targetId !== meId && targetScope === 'all');        // 全員入力可のメンバー
+  const permitted = isHost || targetId === meId;
   if (!permitted) {
     return NextResponse.json({ error: 'forbidden', message: '入力する権限がありません' }, { status: 403, headers: noStore });
   }

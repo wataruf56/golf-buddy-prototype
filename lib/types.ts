@@ -7,8 +7,6 @@ export type CarStatus = 'have' | 'none';
 //   want    : ピックアップしてほしい（車なし）→ 希望する駅を入力
 //   no_need : ピックアップ不要（車なし）→ 駅入力なし
 export type PickupStatus = 'can' | 'cannot' | 'want' | 'no_need';
-// 各メンバーのピックアップ回答を入力できる人の範囲。
-export type PickupInputScope = 'self' | 'host' | 'all';
 
 export type User = {
   id: string;
@@ -157,10 +155,6 @@ export type Round = {
   //   status='cannot' / 'no_need' : stations なし（回答のみ記録）
   // 旧データ（status未設定で stations あり）は「送迎可能(can)」とみなす。
   participantPickups?: Record<string, { stations: string[]; capacity?: number; status?: PickupStatus }>;
-  // 各メンバーのピックアップ回答を「誰が入力できるか」の範囲。主催者が設定する。
-  //   'self'（既定）: 本人のみ（＋主催者はいつでも可） / 'host': 主催者のみ /
-  //   'all': 参加者全員が入力可。キー: memberId（未登録ゲストは常に主催者のみ）。
-  pickupInputScope?: Record<string, PickupInputScope>;
   // 主催者が「配車（車の割り振り）」で組んだ、車ごとの乗車メンバー。組み分けと同じ
   // ドラッグ&ドロップで編集する。drivers＝送迎可能な人（主催者＋car=have回答者）、
   // passengerIds＝その車に乗せる希望者。

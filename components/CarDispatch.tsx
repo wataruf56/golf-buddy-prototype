@@ -243,7 +243,7 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
     return (
       <div className="bg-card rounded-card p-4 shadow-card mb-4">
         <div className="text-[13px] font-bold mb-1">🚗 配車（車の割り振り）</div>
-        <div className="text-[11px] text-muted">送迎できる人（車あり）がまだいません。ピックアップで「送迎できる」の回答が入ると、その人の車がここに表示されます。</div>
+        <div className="text-[11px] text-muted">送迎できる人（車あり）がまだいません。ピックアップで「🚗 ピックアップできます」の回答が入ると、その人の車がここに表示されます。</div>
       </div>
     );
   }
@@ -251,7 +251,7 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
   return (
     <div className="bg-card rounded-card p-4 shadow-card mb-4">
       <div className="text-[13px] font-bold mb-0.5">🚗 配車（車の割り振り）（主催者）</div>
-      <div className="text-[10px] text-muted mb-2.5">「未割り当て」から各車へドラッグ。運転者は「送迎できる」と答えた人です。定員は運転者を含みます。</div>
+      <div className="text-[10px] text-muted mb-2.5">「未割り当て」から各車へドラッグ。運転者は「ピックアップできます」と答えた人です。定員は運転者を含みます。</div>
 
       <div className="flex gap-2 mb-3">
         <button onClick={autoAssign} disabled={pool.length === 0} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold disabled:opacity-50">🪄 自動割り当て</button>

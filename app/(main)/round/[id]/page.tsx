@@ -14,7 +14,7 @@ import { GroupAssignment } from '@/components/GroupAssignment';
 import { CarDispatch } from '@/components/CarDispatch';
 import { PickupStationPicker } from '@/components/PickupStationPicker';
 import { MatchPicker } from '@/components/MatchPicker';
-import type { Round, User, PickupStatus, PickupInputScope } from '@/lib/types';
+import type { Round, User, PickupStatus } from '@/lib/types';
 
 // Brand launch URL — handled by middleware, redirects to liff.line.me/{id}
 // while preserving the ?to= query so the recipient lands directly on the
@@ -535,7 +535,7 @@ export default function RoundDetailPage() {
                     </>
                   )}
                 </div>
-                {(isHost || u.id === meId || (isApproved && (round.pickupInputScope?.[u.id] || 'self') === 'all')) && round.status !== 'completed' && (
+                {(isHost || u.id === meId) && round.status !== 'completed' && (
                   <PickupMemberControl round={round} member={u} meId={meId} isHost={isHost} />
                 )}
               </div>
@@ -1070,9 +1070,9 @@ function Field({ label, required, children }: { label: string; required?: boolea
 // 参加者ごとのピックアップ状態ラベル（参加確定一覧に表示）。
 function pickupStatusLabel(entry?: { stations?: string[]; status?: PickupStatus }): string {
   const st: PickupStatus | undefined = entry?.status || (entry?.stations?.length ? 'can' : undefined);
-  return st === 'can' ? '🚗 ピックアップ可能'
+  return st === 'can' ? '🚗 ピックアップできます'
     : st === 'want' ? '🙋 ピックアップ希望'
-    : st === 'cannot' ? '🚫 ピックアップ不可'
+    : st === 'cannot' ? '🚶 一人で行きます'
     : st === 'no_need' ? '— ピックアップ不要'
     : '⚪ ピックアップ未回答';
 }
@@ -1101,7 +1101,7 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
     const name = nameOf(uid);
     if (st === 'can' && sts.length) providers.push({ id: uid, name, stations: sts, capacity: v?.capacity, host: false });
     else if (st === 'want') seekers.push({ id: uid, name, stations: sts });
-    else if (st === 'cannot') others.push({ id: uid, name, label: '🚫 送迎不可' });
+    else if (st === 'cannot') others.push({ id: uid, name, label: '🚶 一人で行く' });
     else if (st === 'no_need') others.push({ id: uid, name, label: '— 送迎不要' });
   });
 
@@ -1111,7 +1111,7 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
   const summary = [
     providers.length ? `送迎できる ${providers.length}` : '',
     seekers.length ? `希望 ${seekers.length}` : '',
-    others.length ? `不要・不可 ${others.length}` : '',
+    others.length ? `送迎なし ${others.length}` : '',
   ].filter(Boolean).join(' ・ ');
 
   return (
@@ -1166,7 +1166,7 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
 
           {others.length > 0 && (
             <div className="flex flex-col gap-1.5">
-              <div className="text-[11px] font-black text-sub">🙅 送迎不要・不可</div>
+              <div className="text-[11px] font-black text-sub">🙅 送迎なし（一人で行く・不要）</div>
               <div className="bg-white rounded-lg p-2 flex flex-wrap gap-x-3 gap-y-1">
                 {others.map((o) => (
                   <span key={o.id} className="text-[12px] font-bold text-text">{o.name} <span className="text-[10px] text-muted font-normal">{o.label}</span></span>
@@ -1181,7 +1181,7 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
 }
 
 // ピックアップ回答（送迎できる/しない・希望/不要＋駅・定員）の入力フォーム。
-// 常に userId=member.id で送信し、入力可否はサーバ側の pickupInputScope で判定。
+// 常に userId=member.id で送信。入力できるのは主催者か本人のみ（サーバ側でも判定）。
 function PickupStatusEditor({ roundId, member, entry, guest, selfEdit }: {
   roundId: string;
   member: { id: string; displayName: string; car?: string };
@@ -1220,8 +1220,8 @@ function PickupStatusEditor({ roundId, member, entry, guest, selfEdit }: {
         <div className="flex gap-1.5 mb-1.5">
           {role === 'provider' ? (
             <>
-              <SegBtn active={status === 'can'} onClick={() => setStatus('can')}>🚗 送迎できる</SegBtn>
-              <SegBtn active={status === 'cannot'} onClick={() => setStatus('cannot')}>送迎しない</SegBtn>
+              <SegBtn active={status === 'can'} onClick={() => setStatus('can')}>🚗 ピックアップできます</SegBtn>
+              <SegBtn active={status === 'cannot'} onClick={() => setStatus('cannot')}>🚶 一人で行きます</SegBtn>
             </>
           ) : (
             <>
@@ -1232,9 +1232,9 @@ function PickupStatusEditor({ roundId, member, entry, guest, selfEdit }: {
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-1.5 mb-1.5">
-          <SegBtn active={status === 'can'} onClick={() => setStatus('can')}>🚗 送迎できる</SegBtn>
+          <SegBtn active={status === 'can'} onClick={() => setStatus('can')}>🚗 ピックアップできます</SegBtn>
           <SegBtn active={status === 'want'} onClick={() => setStatus('want')}>🙋 してほしい</SegBtn>
-          <SegBtn active={status === 'cannot'} onClick={() => setStatus('cannot')}>送迎しない</SegBtn>
+          <SegBtn active={status === 'cannot'} onClick={() => setStatus('cannot')}>🚶 一人で行きます</SegBtn>
           <SegBtn active={status === 'no_need'} onClick={() => setStatus('no_need')}>不要</SegBtn>
         </div>
       )}
@@ -1263,42 +1263,8 @@ function PickupStatusEditor({ roundId, member, entry, guest, selfEdit }: {
   );
 }
 
-// 主催者が「入力できる人の範囲」を選ぶ（本人／主催者のみ／全員）。
-function PickupScopeSelector({ roundId, memberId, scope }: { roundId: string; memberId: string; scope: PickupInputScope }) {
-  const [saving, setSaving] = useState<PickupInputScope | null>(null);
-  async function set(next: PickupInputScope) {
-    if (next === scope) return;
-    setSaving(next);
-    try {
-      const res = await fetch(`/api/rounds/${roundId}/pickup-scope`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: memberId, scope: next }), cache: 'no-store', credentials: 'include',
-      });
-      if (!res.ok) throw new Error(String(res.status));
-      await store.refreshRounds().catch(() => {});
-      toast('入力できる人を変更しました');
-    } catch { toast('変更に失敗しました', 'error'); }
-    finally { setSaving(null); }
-  }
-  const opts: { key: PickupInputScope; label: string }[] = [
-    { key: 'self', label: '本人' }, { key: 'host', label: '主催者のみ' }, { key: 'all', label: '全員' },
-  ];
-  return (
-    <div className="mb-2">
-      <div className="text-[10px] font-bold text-sub mb-1">入力できる人</div>
-      <div className="grid grid-cols-3 gap-1.5">
-        {opts.map((o) => (
-          <button key={o.key} onClick={() => set(o.key)} disabled={!!saving}
-            className={'py-1.5 text-[12px] font-bold rounded-[10px] border-[1.5px] disabled:opacity-60 ' + (scope === o.key ? 'border-green bg-green text-white' : 'border-green/40 bg-white text-green')}>
-            {o.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // 参加確定メンバー各行の「ピックアップについて」ボタン＋インライン開閉エディタ。
+// 入力できるのは主催者か本人のみ（このボタン自体が主催者/本人にしか表示されない）。
 function PickupMemberControl({ round, member, meId, isHost, guest }: {
   round: Round;
   member: { id: string; displayName: string; car?: string };
@@ -1306,15 +1272,11 @@ function PickupMemberControl({ round, member, meId, isHost, guest }: {
 }) {
   const [open, setOpen] = useState(false);
   const entry = round.participantPickups?.[member.id];
-  const scope = (round.pickupInputScope?.[member.id] as PickupInputScope) || 'self';
   const isSelf = member.id === meId;
   const isSeeker = entry?.status === 'want';
   const proposal = round.pickupProposals?.[member.id] || null;
-  // 入力可否：主催者は常に可 / 本人（host限定でなければ）/ 全員可のメンバー。
-  const canEdit = isHost || (isSelf && scope !== 'host') || (!isSelf && !guest && scope === 'all' && !!meId);
   // 自分宛ての提案（希望者のみ）。
   const showProposal = isSelf && isSeeker && !!proposal;
-  const scopeLabel = scope === 'self' ? '本人のみ' : scope === 'host' ? '主催者のみ' : '全員';
 
   return (
     <div className="mt-1">
@@ -1329,21 +1291,11 @@ function PickupMemberControl({ round, member, meId, isHost, guest }: {
 
       {open && (
         <div className="mt-1.5 bg-white rounded-lg border border-green/30 p-2.5">
-          {isHost && !guest && (
-            <PickupScopeSelector roundId={round.id} memberId={member.id} scope={scope} />
-          )}
-
           {showProposal && (
             <PickupProposalBanner roundId={round.id} station={proposal!.station} />
           )}
 
-          {canEdit ? (
-            <PickupStatusEditor roundId={round.id} member={member} entry={entry} guest={guest} selfEdit={isSelf} />
-          ) : (
-            <div className="text-[11px] text-muted">
-              入力できる人：<b className="text-sub">{scopeLabel}</b>{isSelf ? '（主催者にお願いしてください）' : ''}
-            </div>
-          )}
+          <PickupStatusEditor roundId={round.id} member={member} entry={entry} guest={guest} selfEdit={isSelf} />
 
           {/* 主催者：希望者にピックアップ場所を提案（登録メンバーのみ） */}
           {isHost && isSeeker && !guest && (
