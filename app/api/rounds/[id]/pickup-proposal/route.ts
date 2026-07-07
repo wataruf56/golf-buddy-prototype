@@ -33,6 +33,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!members.has(userId) || userId === meId || !station) {
       return NextResponse.json({ error: 'bad_request' }, { status: 400, headers: noStore });
     }
+    // 提案はピックアップ希望者（status='want'）にだけ行える。
+    const targetPickup = round.participantPickups?.[userId];
+    if (targetPickup?.status !== 'want') {
+      return NextResponse.json({ error: 'not_seeker', message: 'ピックアップ希望の人にのみ提案できます' }, { status: 400, headers: noStore });
+    }
     const proposal: PickupProposal = { station, by: meId, at: Date.now() };
     await db.updateRound(params.id, { pickupProposals: { [userId]: proposal } } as any);
 

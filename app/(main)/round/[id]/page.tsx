@@ -1,8 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
@@ -15,7 +14,7 @@ import { GroupAssignment } from '@/components/GroupAssignment';
 import { CarDispatch } from '@/components/CarDispatch';
 import { PickupStationPicker } from '@/components/PickupStationPicker';
 import { MatchPicker } from '@/components/MatchPicker';
-import type { Round, User, PickupStatus } from '@/lib/types';
+import type { Round, User, PickupStatus, PickupInputScope } from '@/lib/types';
 
 // Brand launch URL — handled by middleware, redirects to liff.line.me/{id}
 // while preserving the ?to= query so the recipient lands directly on the
@@ -514,35 +513,45 @@ export default function RoundDetailPage() {
           <div className="mb-4">
             <div className="text-[13px] font-bold mb-2">参加確定（{applicants.length + (round.guests?.length ?? 0)}名）</div>
             {applicants.map((u) => u && (
-              <div key={u.id} className="flex items-center gap-2 p-2.5 bg-bg rounded-[10px] mb-1.5">
-                <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
-                  <Avatar user={u} size={36} />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
-                    {isHost && participantNames[u.id] && (
-                      <div className="text-[10px] text-green font-bold">📋 {participantNames[u.id]}</div>
-                    )}
-                    <div className="text-[10px] text-sub">{describeUser(u)} ・ {pickupStatusLabel(round.participantPickups?.[u.id])}</div>
-                  </div>
-                </Link>
-                {!isHost && u.id !== meId && (
-                  <Link href={`/chat/${chatIdFor(meId, u.id)}?other=${u.id}`} className="px-2.5 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
-                )}
-                {isHost && (
-                  <>
+              <div key={u.id} className="mb-1.5">
+                <div className="flex items-center gap-2 p-2.5 bg-bg rounded-[10px]">
+                  <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
+                    <Avatar user={u} size={36} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
+                      {isHost && participantNames[u.id] && (
+                        <div className="text-[10px] text-green font-bold">📋 {participantNames[u.id]}</div>
+                      )}
+                      <div className="text-[10px] text-sub">{describeUser(u)} ・ {pickupStatusLabel(round.participantPickups?.[u.id])}</div>
+                    </div>
+                  </Link>
+                  {!isHost && u.id !== meId && (
                     <Link href={`/chat/${chatIdFor(meId, u.id)}?other=${u.id}`} className="px-2.5 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
-                    <button onClick={() => kick(u.id, u.displayName)} className="px-2.5 py-1 bg-card text-red border border-red rounded text-[11px] font-bold flex-shrink-0">外す</button>
-                  </>
+                  )}
+                  {isHost && (
+                    <>
+                      <Link href={`/chat/${chatIdFor(meId, u.id)}?other=${u.id}`} className="px-2.5 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
+                      <button onClick={() => kick(u.id, u.displayName)} className="px-2.5 py-1 bg-card text-red border border-red rounded text-[11px] font-bold flex-shrink-0">外す</button>
+                    </>
+                  )}
+                </div>
+                {(isHost || u.id === meId || (isApproved && (round.pickupInputScope?.[u.id] || 'self') === 'all')) && round.status !== 'completed' && (
+                  <PickupMemberControl round={round} member={u} meId={meId} isHost={isHost} />
                 )}
               </div>
             ))}
             {(round.guests || []).map((g) => (
-              <div key={g.id} className="flex items-center gap-2 p-2.5 bg-bg rounded-[10px] mb-1.5">
-                <div className="w-9 h-9 rounded-full bg-card flex items-center justify-center text-base flex-shrink-0 border border-border">👤</div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-semibold truncate">{g.name} <span className="text-[10px] text-muted font-bold">ゲスト</span></div>
-                  <div className="text-[10px] text-sub">{pickupStatusLabel(round.participantPickups?.[g.id])}</div>
+              <div key={g.id} className="mb-1.5">
+                <div className="flex items-center gap-2 p-2.5 bg-bg rounded-[10px]">
+                  <div className="w-9 h-9 rounded-full bg-card flex items-center justify-center text-base flex-shrink-0 border border-border">👤</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-semibold truncate">{g.name} <span className="text-[10px] text-muted font-bold">ゲスト</span></div>
+                    <div className="text-[10px] text-sub">{pickupStatusLabel(round.participantPickups?.[g.id])}</div>
+                  </div>
                 </div>
+                {isHost && round.status !== 'completed' && (
+                  <PickupMemberControl round={round} member={{ id: g.id, displayName: g.name }} meId={meId} isHost={isHost} guest />
+                )}
               </div>
             ))}
           </div>
@@ -1073,121 +1082,49 @@ function pickupStatusLabel(entry?: { stations?: string[]; status?: PickupStatus 
 // （送迎できる/しない・してほしい/不要＋駅）をその場で登録・更新できる。普段は
 // アコーディオンで閉じており、未回答の間はタブ直上に赤いフロートで入力を促す。
 function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; meId: string; users: User[]; isHost: boolean; isApproved: boolean }) {
-  const meUser = users.find((u) => u.id === meId);
-  const canRespond = !isHost && isApproved;
-  // 役割：車ありは「送迎可能側」、それ以外は「送迎希望側」。
-  const role: 'provider' | 'seeker' = meUser?.car === 'have' ? 'provider' : 'seeker';
-  const mine = round.participantPickups?.[meId];
-  // 主催者からの自分宛てのピックアップ場所提案（null＝応答済み/取消）。
-  const myProposal = round.pickupProposals?.[meId] || null;
-  // 旧データ（statusなし＋駅あり）は送迎可能(can)とみなす。
-  const mineStatus: PickupStatus | undefined = mine?.status || (mine?.stations?.length ? 'can' : undefined);
-
-  const [status, setStatus] = useState<PickupStatus | undefined>(mineStatus);
-  const [myStations, setMyStations] = useState<string[]>(mine?.stations || []);
-  const [myCapacity, setMyCapacity] = useState<number>(mine?.capacity || 0);
-  const [saved, setSaved] = useState<{ status?: PickupStatus; stations: string[]; capacity: number }>({ status: mineStatus, stations: mine?.stations || [], capacity: mine?.capacity || 0 });
-  const [saving, setSaving] = useState(false);
-  const [editing, setEditing] = useState(false);
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement | null>(null);
+  const nameOf = (id: string) =>
+    users.find((u) => u.id === id)?.displayName
+    || (round.guests || []).find((g) => g.id === id)?.name
+    || 'メンバー';
 
-  // 取得タイミングのズレに備え、未編集時は最新の登録値へ同期＝いつでも修正可能。
-  const mineKey = JSON.stringify(mine || null);
-  useEffect(() => {
-    if (editing) return;
-    setStatus(mineStatus);
-    setMyStations(mine?.stations || []);
-    setMyCapacity(mine?.capacity || 0);
-    setSaved({ status: mineStatus, stations: mine?.stations || [], capacity: mine?.capacity || 0 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mineKey, editing]);
-
-  const needsStations = status === 'can' || status === 'want';
-
-  async function save() {
-    setSaving(true);
-    try {
-      const stationsToSend = needsStations ? myStations : [];
-      const res = await fetch(`/api/rounds/${round.id}/pickup`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, stations: stationsToSend, capacity: status === 'can' ? (myCapacity || undefined) : undefined }), cache: 'no-store', credentials: 'include',
-      });
-      if (!res.ok) throw new Error(String(res.status));
-      setSaved({ status, stations: stationsToSend, capacity: myCapacity });
-      setEditing(false);
-      store.refreshRounds().catch(() => {});
-      toast('ピックアップの回答を保存しました🚗');
-    } catch (e) { toast('保存に失敗しました', 'error'); }
-    finally { setSaving(false); }
-  }
-
-  // 保存済みの回答が「完了」しているか（フロート表示の判定に使う）。
-  const savedComplete =
-    saved.status === 'cannot' || saved.status === 'no_need' ||
-    ((saved.status === 'can' || saved.status === 'want') && saved.stations.length > 0);
-
-  // 表示用リスト：送迎できる人(provider)とピックアップ希望者(seeker)。自分の分は最新保存値で上書き。
-  const pp = { ...(round.participantPickups || {}) };
-  if (canRespond) {
-    if (saved.status) pp[meId] = { status: saved.status, stations: saved.stations, capacity: saved.capacity || undefined };
-    else delete pp[meId];
-  }
+  // 送迎できる人 / 希望している人 / 不要・不可 の3グループに集約（読み取り専用）。
   const providers: { id: string; name: string; stations: string[]; capacity?: number; host: boolean }[] = [];
   if ((round.pickupStations?.length ?? 0) > 0) {
-    providers.push({ id: round.hostId, name: users.find((u) => u.id === round.hostId)?.displayName || '主催者', stations: round.pickupStations!, capacity: round.pickupCapacity, host: true });
+    providers.push({ id: round.hostId, name: nameOf(round.hostId), stations: round.pickupStations!, capacity: round.pickupCapacity, host: true });
   }
   const seekers: { id: string; name: string; stations: string[] }[] = [];
-  Object.entries(pp).forEach(([uid, v]) => {
+  const others: { id: string; name: string; label: string }[] = [];
+  Object.entries(round.participantPickups || {}).forEach(([uid, v]) => {
     const st: PickupStatus | undefined = v?.status || (v?.stations?.length ? 'can' : undefined);
     const sts = v?.stations || [];
-    const name = users.find((u) => u.id === uid)?.displayName || 'メンバー';
+    const name = nameOf(uid);
     if (st === 'can' && sts.length) providers.push({ id: uid, name, stations: sts, capacity: v?.capacity, host: false });
-    else if (st === 'want' && sts.length) seekers.push({ id: uid, name, stations: sts });
+    else if (st === 'want') seekers.push({ id: uid, name, stations: sts });
+    else if (st === 'cannot') others.push({ id: uid, name, label: '🚫 送迎不可' });
+    else if (st === 'no_need') others.push({ id: uid, name, label: '— 送迎不要' });
   });
 
-  const hasAny = providers.length > 0 || seekers.length > 0;
-  // 承認済み参加者（代理入力の対象。主催者を除く）。
-  const applicants = (round.applicantIds || []).map((id) => users.find((u) => u.id === id)).filter(Boolean) as User[];
-  if (!hasAny && !canRespond && !isHost) return null;
+  const hasAny = providers.length > 0 || seekers.length > 0 || others.length > 0;
+  if (!hasAny) return null;
 
-  // フロート：承認済み参加者が未回答の間だけ、タブ直上に赤く固定表示。
-  const hasProposal = canRespond && !!myProposal;
-  const showFloat = canRespond && (!savedComplete || hasProposal) && !open;
-  function openSection() {
-    setOpen(true);
-    requestAnimationFrame(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
-  }
-
-  const myLabel = !canRespond ? '' :
-    saved.status === 'can' ? '🚗 送迎できる' :
-    saved.status === 'want' ? '🙋 希望中' :
-    saved.status === 'cannot' ? '送迎しない' :
-    saved.status === 'no_need' ? '不要' :
-    '未回答';
+  const summary = [
+    providers.length ? `送迎できる ${providers.length}` : '',
+    seekers.length ? `希望 ${seekers.length}` : '',
+    others.length ? `不要・不可 ${others.length}` : '',
+  ].filter(Boolean).join(' ・ ');
 
   return (
-    <div ref={ref} className="mb-4">
+    <div className="mb-4">
       <details open={open} onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)} className="bg-green-light rounded-xl border-[1.5px] border-green overflow-hidden">
         <summary className="flex items-center gap-2 px-3 py-2.5 cursor-pointer list-none">
           <span className="text-[13px] font-black text-white bg-green px-2 py-0.5 rounded-full">ピックアップ</span>
-          <span className="text-[11px] font-bold text-green flex-1">
-            {providers.length > 0 ? `送迎できる人 ${providers.length}人` : '送迎の相談'}
-          </span>
-          {hasProposal && (
-            <span className="text-[10px] font-black px-1.5 py-[1px] rounded-full bg-orange text-white">🚉 提案あり</span>
-          )}
-          {myLabel && (
-            <span className={`text-[10px] font-black px-1.5 py-[1px] rounded-full ${savedComplete ? 'bg-white text-green border border-green' : 'bg-red text-white'}`}>{myLabel}</span>
-          )}
+          <span className="text-[11px] font-bold text-green flex-1">{summary || '送迎の状況'}</span>
           <span className="text-green transition-transform" style={{ transform: open ? 'rotate(90deg)' : 'none' }}>›</span>
         </summary>
 
         <div className="px-3 pb-3">
-          {/* 受け手：主催者からのピックアップ場所の提案 */}
-          {canRespond && myProposal && (
-            <PickupProposalBanner roundId={round.id} station={myProposal.station} />
-          )}
+          <div className="text-[10px] text-muted mb-2">回答は下の「参加確定」一覧の各メンバーの「🚗 ピックアップについて」から入力できます。</div>
 
           {providers.length > 0 && (
             <div className="flex flex-col gap-2 mb-2">
@@ -1215,126 +1152,42 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
               {seekers.map((p) => (
                 <div key={p.id} className="bg-white rounded-lg p-2">
                   <div className="text-[12px] font-bold text-text mb-1">{p.name}</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {p.stations.map((st) => (
-                      <span key={st} className="px-2 py-0.5 bg-orange-light text-orange rounded-full text-[11px] font-bold border border-orange">{st}駅</span>
-                    ))}
-                  </div>
+                  {p.stations.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {p.stations.map((st) => (
+                        <span key={st} className="px-2 py-0.5 bg-orange-light text-orange rounded-full text-[11px] font-bold border border-orange">{st}駅</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
 
-          {!hasAny && !canRespond && (
-            <div className="text-[11px] text-green font-semibold">まだピックアップの回答がありません。</div>
-          )}
-
-          {canRespond && (
-            <div className="mt-2 pt-3 border-t border-green/40">
-              <div className="text-[11px] font-black text-green mb-1.5">あなたのピックアップ回答</div>
-              <div className="flex gap-1.5 mb-2">
-                {role === 'provider' ? (
-                  <>
-                    <SegBtn active={status === 'can'} onClick={() => { setEditing(true); setStatus('can'); }}>🚗 送迎できる</SegBtn>
-                    <SegBtn active={status === 'cannot'} onClick={() => { setEditing(true); setStatus('cannot'); }}>送迎しない</SegBtn>
-                  </>
-                ) : (
-                  <>
-                    <SegBtn active={status === 'want'} onClick={() => { setEditing(true); setStatus('want'); }}>🙋 してほしい</SegBtn>
-                    <SegBtn active={status === 'no_need'} onClick={() => { setEditing(true); setStatus('no_need'); }}>不要</SegBtn>
-                  </>
-                )}
-              </div>
-
-              {needsStations && (
-                <div className="bg-white rounded-lg p-2">
-                  {myStations.length === 0 && (
-                    <div className="text-[11px] font-bold text-red mb-1.5">
-                      {role === 'provider' ? 'ピックアップ可能な場合は、その場所を入力してください' : 'ピックアップしてほしい場所を入力してください'}
-                    </div>
-                  )}
-                  <PickupStationPicker value={myStations} onChange={(v) => { setEditing(true); setMyStations(v); }} />
-                  {status === 'can' && myStations.length > 0 && (
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className="text-[11px] font-bold text-sub">自分含め乗れる人数</span>
-                      <input
-                        type="number" min={1} max={8} inputMode="numeric"
-                        value={myCapacity || ''}
-                        onChange={(e) => { setEditing(true); setMyCapacity(Math.max(0, Math.min(8, Number(e.target.value) || 0))); }}
-                        placeholder="例: 4"
-                        className="w-14 px-2 py-1 border-[1.5px] border-border rounded-[8px] text-sm bg-bg outline-none text-center"
-                      />
-                      <span className="text-[11px] text-sub">名</span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <button onClick={save} disabled={saving || !status} className="mt-2 w-full py-2.5 bg-green text-white rounded-full text-[13px] font-bold disabled:opacity-50">
-                {saving ? '保存中…' : '回答を保存する'}
-              </button>
-              <div className="text-[10px] text-green/80 text-center mt-1">回答後もいつでも変更できます</div>
-            </div>
-          )}
-
-          {/* 主催者：参加者の代理でピックアップを入力できる */}
-          {isHost && (
-            <div className="mt-2 pt-3 border-t border-green/40">
-              <div className="text-[11px] font-black text-green mb-0.5">🧑‍✈️ 参加者の代理で入力（主催者）</div>
-              <div className="text-[10px] text-muted mb-2">聞き取った送迎の可否・場所を、参加者・ゲストの代わりに登録できます。</div>
-              {applicants.length === 0 && (round.guests?.length ?? 0) === 0 ? (
-                <div className="text-[11px] text-muted">まだ参加者がいません。</div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {applicants.map((m) => (
-                    <ProxyPickupRow key={m.id} roundId={round.id} member={m} entry={round.participantPickups?.[m.id]} />
-                  ))}
-                  {(round.guests || []).map((g) => (
-                    <ProxyPickupRow key={g.id} roundId={round.id} member={{ id: g.id, displayName: g.name }} entry={round.participantPickups?.[g.id]} guest />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 主催者：ピックアップ場所を提案する（受け手がOK/相談を選べる） */}
-          {isHost && applicants.length > 0 && (
-            <div className="mt-2 pt-3 border-t border-green/40">
-              <div className="text-[11px] font-black text-green mb-0.5">🚉 ピックアップ場所を提案</div>
-              <div className="text-[10px] text-muted mb-2">「この駅でどう？」と提案できます。相手はOK（その駅に確定）か、相談（チャットで相談）を選べます。</div>
-              <div className="flex flex-col gap-2">
-                {applicants.map((m) => (
-                  <HostProposeRow key={m.id} roundId={round.id} member={m} proposal={round.pickupProposals?.[m.id] || null} />
+          {others.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <div className="text-[11px] font-black text-sub">🙅 送迎不要・不可</div>
+              <div className="bg-white rounded-lg p-2 flex flex-wrap gap-x-3 gap-y-1">
+                {others.map((o) => (
+                  <span key={o.id} className="text-[12px] font-bold text-text">{o.name} <span className="text-[10px] text-muted font-normal">{o.label}</span></span>
                 ))}
               </div>
             </div>
           )}
         </div>
       </details>
-
-      {showFloat && (
-        <PhonePortal>
-          <div className="absolute left-0 right-0 bottom-[82px] z-40 px-3 pb-2 pointer-events-none">
-            <button
-              onClick={openSection}
-              className={`pointer-events-auto w-full flex items-center justify-center gap-2 py-2.5 rounded-full text-white text-[13px] font-black shadow-[0_4px_12px_rgba(0,0,0,0.25)] border-2 border-white ${hasProposal ? 'bg-orange' : 'bg-red'}`}
-            >
-              {hasProposal ? '🚉 主催者からピックアップの提案があります' : '🚗 ピックアップについて回答してください'}
-              <span className="text-white">›</span>
-            </button>
-          </div>
-        </PhonePortal>
-      )}
     </div>
   );
 }
 
-// 主催者が参加者・ゲストの代理でピックアップを入力する1行エディタ。
-function ProxyPickupRow({ roundId, member, entry, guest }: {
+// ピックアップ回答（送迎できる/しない・希望/不要＋駅・定員）の入力フォーム。
+// 常に userId=member.id で送信し、入力可否はサーバ側の pickupInputScope で判定。
+function PickupStatusEditor({ roundId, member, entry, guest, selfEdit }: {
   roundId: string;
   member: { id: string; displayName: string; car?: string };
   entry?: { stations: string[]; capacity?: number; status?: PickupStatus };
   guest?: boolean;
+  selfEdit?: boolean;
 }) {
   // 車の有無が分かるなら役割で2択。ゲスト等で不明なら4状態すべて出す。
   const carKnown = member.car === 'have' || member.car === 'none';
@@ -1356,17 +1209,13 @@ function ProxyPickupRow({ roundId, member, entry, guest }: {
       });
       if (!res.ok) throw new Error(String(res.status));
       store.refreshRounds().catch(() => {});
-      toast(`${member.displayName}さんのピックアップを保存しました🚗`);
+      toast(selfEdit ? 'ピックアップの回答を保存しました🚗' : `${member.displayName}さんのピックアップを保存しました🚗`);
     } catch { toast('保存に失敗しました', 'error'); }
     finally { setSaving(false); }
   }
 
   return (
-    <div className="bg-white rounded-lg p-2">
-      <div className="text-[12px] font-bold text-text mb-1.5">
-        {member.displayName}
-        <span className="ml-1.5 text-[10px] text-sub font-bold">{guest ? 'ゲスト' : role === 'provider' ? '🚗 車あり' : '🚶 車なし'}</span>
-      </div>
+    <div>
       {carKnown ? (
         <div className="flex gap-1.5 mb-1.5">
           {role === 'provider' ? (
@@ -1408,8 +1257,102 @@ function ProxyPickupRow({ roundId, member, entry, guest }: {
         </div>
       )}
       <button onClick={save} disabled={saving || !status} className="w-full py-2 bg-green text-white rounded-full text-[12px] font-bold disabled:opacity-50">
-        {saving ? '保存中…' : '代理で保存する'}
+        {saving ? '保存中…' : '保存する'}
       </button>
+    </div>
+  );
+}
+
+// 主催者が「入力できる人の範囲」を選ぶ（本人／主催者のみ／全員）。
+function PickupScopeSelector({ roundId, memberId, scope }: { roundId: string; memberId: string; scope: PickupInputScope }) {
+  const [saving, setSaving] = useState<PickupInputScope | null>(null);
+  async function set(next: PickupInputScope) {
+    if (next === scope) return;
+    setSaving(next);
+    try {
+      const res = await fetch(`/api/rounds/${roundId}/pickup-scope`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: memberId, scope: next }), cache: 'no-store', credentials: 'include',
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      await store.refreshRounds().catch(() => {});
+      toast('入力できる人を変更しました');
+    } catch { toast('変更に失敗しました', 'error'); }
+    finally { setSaving(null); }
+  }
+  const opts: { key: PickupInputScope; label: string }[] = [
+    { key: 'self', label: '本人' }, { key: 'host', label: '主催者のみ' }, { key: 'all', label: '全員' },
+  ];
+  return (
+    <div className="mb-2">
+      <div className="text-[10px] font-bold text-sub mb-1">入力できる人</div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {opts.map((o) => (
+          <button key={o.key} onClick={() => set(o.key)} disabled={!!saving}
+            className={'py-1.5 text-[12px] font-bold rounded-[10px] border-[1.5px] disabled:opacity-60 ' + (scope === o.key ? 'border-green bg-green text-white' : 'border-green/40 bg-white text-green')}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// 参加確定メンバー各行の「ピックアップについて」ボタン＋インライン開閉エディタ。
+function PickupMemberControl({ round, member, meId, isHost, guest }: {
+  round: Round;
+  member: { id: string; displayName: string; car?: string };
+  meId: string; isHost: boolean; guest?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const entry = round.participantPickups?.[member.id];
+  const scope = (round.pickupInputScope?.[member.id] as PickupInputScope) || 'self';
+  const isSelf = member.id === meId;
+  const isSeeker = entry?.status === 'want';
+  const proposal = round.pickupProposals?.[member.id] || null;
+  // 入力可否：主催者は常に可 / 本人（host限定でなければ）/ 全員可のメンバー。
+  const canEdit = isHost || (isSelf && scope !== 'host') || (!isSelf && !guest && scope === 'all' && !!meId);
+  // 自分宛ての提案（希望者のみ）。
+  const showProposal = isSelf && isSeeker && !!proposal;
+  const scopeLabel = scope === 'self' ? '本人のみ' : scope === 'host' ? '主催者のみ' : '全員';
+
+  return (
+    <div className="mt-1">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border-[1.5px] text-[12px] font-bold ${open ? 'border-green bg-green-light text-green' : 'border-border bg-card text-sub'}`}
+      >
+        🚗 ピックアップについて
+        {showProposal && <span className="text-[10px] font-black px-1.5 py-[1px] rounded-full bg-orange text-white">🚉 提案あり</span>}
+        <span className="ml-auto">{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div className="mt-1.5 bg-white rounded-lg border border-green/30 p-2.5">
+          {isHost && !guest && (
+            <PickupScopeSelector roundId={round.id} memberId={member.id} scope={scope} />
+          )}
+
+          {showProposal && (
+            <PickupProposalBanner roundId={round.id} station={proposal!.station} />
+          )}
+
+          {canEdit ? (
+            <PickupStatusEditor roundId={round.id} member={member} entry={entry} guest={guest} selfEdit={isSelf} />
+          ) : (
+            <div className="text-[11px] text-muted">
+              入力できる人：<b className="text-sub">{scopeLabel}</b>{isSelf ? '（主催者にお願いしてください）' : ''}
+            </div>
+          )}
+
+          {/* 主催者：希望者にピックアップ場所を提案（登録メンバーのみ） */}
+          {isHost && isSeeker && !guest && (
+            <div className="mt-2 pt-2 border-t border-green/20">
+              <HostProposeRow roundId={round.id} member={member} proposal={proposal} />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1528,15 +1471,5 @@ function SegBtn({ active, onClick, children }: { active: boolean; onClick: () =>
       className={'flex-1 py-2 text-[12px] font-bold rounded-[10px] border-[1.5px] ' + (active ? 'border-green bg-green text-white' : 'border-green/40 bg-white text-green')}
     >{children}</button>
   );
-}
-
-// タブ直上などフレーム基準で固定配置したい要素を .phone 直下へ移すポータル。
-function PhonePortal({ children }: { children: React.ReactNode }) {
-  const [el, setEl] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    setEl((document.querySelector('.phone') as HTMLElement) || null);
-  }, []);
-  if (!el) return null;
-  return createPortal(children, el);
 }
 
