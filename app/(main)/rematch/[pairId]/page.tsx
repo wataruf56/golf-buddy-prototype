@@ -56,7 +56,7 @@ export default function RematchPage() {
   useEffect(() => { load(); }, [load]);
 
   const theirSet = useMemo(() => new Set(data?.theirCandidates || []), [data]);
-  const win = data?.candidateWindowDays || 45;
+  const win = data?.candidateWindowDays || 90;
   // 選択可能な範囲 [今日, 今日+win日]。
   const range = useMemo(() => {
     const t = new Date(); t.setHours(0, 0, 0, 0);

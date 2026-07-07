@@ -153,7 +153,7 @@ function Inner() {
             </Field>
             <Field label="候補日カレンダーの範囲（今後◯日）">
               <input type="number" min={7} max={180} value={cfg.candidateWindowDays}
-                onChange={(e) => setCfg({ ...cfg, candidateWindowDays: Math.max(7, Math.min(180, Number(e.target.value) || 45)) })}
+                onChange={(e) => setCfg({ ...cfg, candidateWindowDays: Math.max(7, Math.min(180, Number(e.target.value) || 90)) })}
                 className="w-full p-2.5 border-[1.5px] border-border rounded-lg text-sm bg-bg outline-none" />
             </Field>
             <button onClick={save} disabled={saving} className="w-full py-3 bg-green text-white rounded-xl text-sm font-bold disabled:opacity-50">

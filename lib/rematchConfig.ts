@@ -16,7 +16,7 @@ export type RematchConfig = {
 export const DEFAULT_REMATCH_CONFIG: RematchConfig = {
   intervalDays: 14,
   maxCycles: 2,
-  candidateWindowDays: 45,
+  candidateWindowDays: 90,
   enabled: true,
   testMode: true, // 誤爆防止：既定はテストのみ。本番運用時に管理画面でOFFにする
   testUserIds: [],
