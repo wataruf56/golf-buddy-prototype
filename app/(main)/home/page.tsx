@@ -159,8 +159,10 @@ export default function HomePage() {
       {/* 公式LINE未登録の人向け：最上部に「LINEで通知を受け取る」ボタン（押すと友だち追加へ） */}
       {showAddBot && (
         <div className="px-5 pb-3">
+          {/* 公式アカウントのfriend-add URLは @basicId をそのまま使う。
+              encodeURIComponentで @→%40 にすると解決できず汎用QRページに飛ぶ。 */}
           <a
-            href={`https://line.me/R/ti/p/${encodeURIComponent(BOT_BASIC_ID)}`}
+            href={`https://line.me/R/ti/p/@${BOT_BASIC_ID.replace(/^@/, '')}`}
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => {

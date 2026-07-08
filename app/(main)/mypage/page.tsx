@@ -246,7 +246,7 @@ function AddBotModal({ botBasicId, onConfirmed, onLater }: { botBasicId: string;
           下のボタンから追加してください。
         </div>
         <a
-          href={`https://line.me/R/ti/p/${encodeURIComponent(botBasicId)}`}
+          href={`https://line.me/R/ti/p/@${botBasicId.replace(/^@/, '')}`}
           target="_blank"
           rel="noopener noreferrer"
           className="block w-full py-3 bg-[#06C755] text-white text-sm font-bold rounded-xl text-center mb-2"
