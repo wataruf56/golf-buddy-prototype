@@ -59,7 +59,7 @@ export function ReviewOverlay() {
         if (!answered(r)) continue;
         // 星・コメントは廃止。verdict（4択）のみ送信（pending解消も兼ねる）。
         await store.submitReview(p.id, 0, [], undefined, r.verdict || undefined);
-        // マッチング（両思い方式）：また回りたい／異性として気になる のみ like を送る。
+        // マッチング（相互マッチ方式）：また回りたい／異性として気になる のみ like を送る。
         // 「異性として気になる」は「また回りたい」を内包。
         if (r.verdict === 'romantic') {
           await sendLike(p.roundId, p.revieweeId, 'romantic');
@@ -88,7 +88,7 @@ export function ReviewOverlay() {
           <h3 className="text-lg font-black">ラウンドレビュー</h3>
           <div className="text-[12px] text-sub mt-0.5">一緒に回った{pending.length}人に「また回りたいか」を選んでください（{ratedCount}/{pending.length}）</div>
           <div className="mt-2.5 px-3 py-2.5 bg-green-light rounded-xl text-[12px] text-green font-bold leading-relaxed">
-            🔒 「また回りたい」「異性として気になる」は<u>お互いが両思いだった時だけ</u>通知されます。<br />
+            🔒 「また回りたい」「異性として気になる」は<u>お互いがマッチした時だけ</u>通知されます。<br />
             相手が選ばなかった場合、あなたの選択が相手に知られることは一切ありません。
           </div>
         </div>

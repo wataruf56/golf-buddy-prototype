@@ -3,7 +3,7 @@ import { getMeId } from '@/lib/session';
 import { getAdminDb } from '@/lib/firebase';
 import { db as appDb } from '@/lib/db';
 
-// 自分が両思い（相互いいね）になっている相手の一覧。ゴル友画面で「マッチ済み」
+// 自分がマッチ（相互いいね）している相手の一覧。ゴル友画面で「マッチ済み」
 // バッジを出すのに使う。again=また回りたい / romantic=異性として気になる。
 const noStore = { 'Cache-Control': 'no-store' };
 

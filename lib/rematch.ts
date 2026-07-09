@@ -119,7 +119,7 @@ export async function mutualMatchKind(a: string, b: string): Promise<'again' | '
   return null;
 }
 
-// あるラウンド参加者の中で「相互マッチ（again/romantic のどちらか両思い）」の
+// あるラウンド参加者の中で「相互マッチ（again/romantic のどちらかで相互成立）」の
 // ペア一覧を返す。_matchLikes docId=`${kind}__${from}__${to}`。
 export async function mutualPairsInRound(memberIds: string[]): Promise<Array<{ a: string; b: string; kind: 'again' | 'romantic' }>> {
   const db = getAdminDb() as any;

@@ -105,7 +105,7 @@ function Inner() {
       <Link href={`/admin?token=${token}`} className="text-muted text-sm">‹ 管理</Link>
       <div className="text-2xl font-black mb-1 mt-1">🔁 再会エンジン</div>
       <div className="text-[12px] text-muted mb-4 leading-relaxed">
-        相互マッチ（また回りたい両思い）済みのペアに、前回完了から一定日数後に「再会のお知らせ」を送る機能の設定。<br />
+        相互マッチ（また回りたい）済みのペアに、前回完了から一定日数後に「再会のお知らせ」を送る機能の設定。<br />
         <b>テスト時は「通知までの日数」を 0 にして「今すぐ実行」</b>を押すと、完了済みラウンドの相互マッチ済みペアへ即通知されます。
       </div>
 

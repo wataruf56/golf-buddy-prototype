@@ -128,7 +128,7 @@ export async function DELETE(req: NextRequest) {
       await batch.commit();
 
       // このレビューに紐づく「いいね（again/romantic）」も取り消す。これをしないと
-      // 差し戻し後に再レビューしても「両思いは前から成立済み」とみなされ、
+      // 差し戻し後に再レビューしても「マッチは前から成立済み」とみなされ、
       // 「マッチしました」通知が再発火しない（再レビュー＝まっさらな状態にする）。
       for (const kind of ['again', 'romantic']) {
         try { await db.collection('_matchLikes').doc(`${kind}__${data.reviewerId}__${data.revieweeId}`).delete(); } catch { /* noop */ }

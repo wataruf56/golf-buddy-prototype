@@ -149,7 +149,7 @@ function Inner() {
             onRematch={startRematch} rematchBusy={rematchBusy}
             badge="💘 マッチしました" badgeClass="text-pink-600 bg-pink-100 border-pink-600"
             note="「異性として気になる」を双方が選んだ時のみ、ここに相手が追加されます。"
-            emptyTitle="まだマッチがいません" emptyDesc="ラウンド後のレビューで「💘 異性として気になる」を送り、相手も同じなら両思い成立！"
+            emptyTitle="まだマッチがいません" emptyDesc="ラウンド後のレビューで「💘 異性として気になる」を送り、相手も同じならマッチ成立！"
           />
         )}
 
@@ -159,7 +159,7 @@ function Inner() {
             onRematch={startRematch} rematchBusy={rematchBusy}
             badge="🏌️ マッチしました" badgeClass="text-green bg-green-light border-green"
             note="「また一緒に回りたい」を双方が選んだ時のみ、ここに相手が追加されます。「📅 候補日」から再会の日程調整を始められます。"
-            emptyTitle="まだマッチがいません" emptyDesc="ラウンド後のレビューで「🏌️ また一緒に回りたい」を送り、相手も同じなら両思い成立！"
+            emptyTitle="まだマッチがいません" emptyDesc="ラウンド後のレビューで「🏌️ また一緒に回りたい」を送り、相手も同じならマッチ成立！"
           />
         )}
       </div>

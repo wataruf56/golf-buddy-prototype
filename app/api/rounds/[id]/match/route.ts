@@ -10,7 +10,7 @@ import { isNotifyEnabled } from '@/lib/notifyPrefs';
 // ラウンド後のマッチング。2種類の「いいね」を独立に扱う:
 //   again    = また一緒に回りたい（ゴル友的・同性/異性問わず）
 //   romantic = 異性として気になる（恋愛的）
-// どちらも「両思い（相互いいね）」になった時だけ、双方に通知する。片思いの
+// どちらも「マッチ（相互いいね）」した時だけ、双方に通知する。片思いの
 // 間は相手に一切知られない。
 //
 // 保存: Firestore `_matchLikes` / docId = `${kind}__${from}__${to}`。
@@ -40,7 +40,7 @@ async function setLike(id: string, data: any, on: boolean) {
   } catch { /* noop */ }
 }
 
-// GET /api/rounds/[id]/match — 自分の各相手への like 状況と両思い状況
+// GET /api/rounds/[id]/match — 自分の各相手への like 状況と相互マッチ状況
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const meId = await getMeId();
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: noStore });
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       const otherName = other?.displayName || '相手';
       // 通知タップ先は「ゴル友」タブの該当マッチ一覧（また回りたい / 気になる）。
       const link = kind === 'again' ? '/buddies?tab=again' : '/buddies?tab=romantic';
-      // アプリ内通知に加えて、設定ONならLINE push＋Web pushも送る（両思いは重要イベント）。
+      // アプリ内通知に加えて、設定ONならLINE push＋Web pushも送る（マッチは重要イベント）。
       const notifyMatch = async (rid: string, ruser: any, text: string) => {
         await addNotification(rid, 'match', text, link);
         if (isNotifyEnabled(ruser, 'match')) {
@@ -117,15 +117,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         }
       };
       if (kind === 'again') {
-        // 「異性として気になる」も両思いなら、そちらを優先して again の通知はしない。
+        // 「異性として気になる」もマッチなら、そちらを優先して again の通知はしない。
         const romanticMutual = (await likeExists(docId('romantic', meId, toUserId))) && (await likeExists(docId('romantic', toUserId, meId)));
         if (!romanticMutual) {
-          await notifyMatch(toUserId, other, `🏌️ ${meName}さんから「また一緒に回りたい」という回答があり、両思いになりました！「ゴル友」の「また回りたい」で確認できます👇`);
-          await notifyMatch(meId, me, `🏌️ ${otherName}さんから「また一緒に回りたい」という回答があり、両思いになりました！「ゴル友」の「また回りたい」で確認できます👇`);
+          await notifyMatch(toUserId, other, `🏌️ ${meName}さんから「また一緒に回りたい」という回答があり、マッチしました！「ゴル友」の「また回りたい」で確認できます👇`);
+          await notifyMatch(meId, me, `🏌️ ${otherName}さんから「また一緒に回りたい」という回答があり、マッチしました！「ゴル友」の「また回りたい」で確認できます👇`);
         }
       } else {
-        await notifyMatch(toUserId, other, `💘 ${meName}さんから「異性として気になる」という回答があり、両思いになりました！「ゴル友」の「気になる」で確認できます👇`);
-        await notifyMatch(meId, me, `💘 ${otherName}さんから「異性として気になる」という回答があり、両思いになりました！「ゴル友」の「気になる」で確認できます👇`);
+        await notifyMatch(toUserId, other, `💘 ${meName}さんから「異性として気になる」という回答があり、マッチしました！「ゴル友」の「気になる」で確認できます👇`);
+        await notifyMatch(meId, me, `💘 ${otherName}さんから「異性として気になる」という回答があり、マッチしました！「ゴル友」の「気になる」で確認できます👇`);
       }
     }
   }

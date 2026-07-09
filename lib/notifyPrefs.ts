@@ -15,7 +15,7 @@ export type NotifyType =
   | 'invited'        // I was invited to a round by the host
   | 'interestReceived' // someone marked my round as "気になる" (host)
   | 'interestDeadline' // a round I'm "気になる" about is closing soon
-  | 'match'            // 両思いマッチ成立（また回りたい / 異性として気になる）
+  | 'match'            // マッチ成立（また回りたい / 異性として気になる）
   | 'surveyMatch'      // LP診断アンケートで希望した条件（県）に一致する募集が投稿された
   | 'rematch'          // 再会エンジン：また回りたい相手との再会のお知らせ・候補日の往復
   | 'pickup';          // 主催者からピックアップ場所（駅）の提案が届いた
@@ -34,7 +34,7 @@ export const NOTIFY_TYPES: Array<{ key: NotifyType; label: string; desc: string;
   { key: 'invited',          label: '💌 ラウンドに招待された', desc: '募集者からラウンドに招待されたとき', defaultOn: true },
   { key: 'interestReceived', label: '💚 「気になる」が押された', desc: '自分の募集に「気になる」が押されたとき', defaultOn: true },
   { key: 'interestDeadline', label: '⏰ 気になるラウンドの締切間近', desc: '「気になる」した募集の開催が近づいたとき', defaultOn: true },
-  { key: 'match',            label: '💘 マッチ成立', desc: 'ラウンド後に両思いになったとき', defaultOn: true },
+  { key: 'match',            label: '💘 マッチ成立', desc: 'ラウンド後にマッチしたとき', defaultOn: true },
   { key: 'surveyMatch',      label: '🎯 希望条件に合う募集', desc: '診断アンケートで希望したエリアの募集が投稿されたとき', defaultOn: true },
   { key: 'rematch',          label: '🔁 再会のお知らせ', desc: 'また回りたい相手との再会・候補日のやり取りがあったとき', defaultOn: true },
   { key: 'pickup',           label: '🚉 ピックアップの提案', desc: '主催者からピックアップ場所の提案が届いたとき', defaultOn: true },

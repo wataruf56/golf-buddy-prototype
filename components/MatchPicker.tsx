@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { toast } from '@/components/Toast';
 
 // ラウンドに参加した人を一覧表示し、「また回りたい」「異性として気になる」を
-// それぞれ選べるマッチングUI。両思い（相互に選択）になった時だけ双方に通知が
+// それぞれ選べるマッチングUI。マッチ（相互に選択）した時だけ双方に通知が
 // 届く。片思いの状態は相手に一切知られない。
 // 参加者・状態は /api/rounds/[id]/match から取得（自分以外の参加者を返す）。
 
@@ -51,7 +51,7 @@ export function MatchPicker({ roundId }: { roundId: string }) {
       const d = await res.json();
       if (res.ok && on && d?.matched) {
         setState((s) => ({ ...s, [toUserId]: { ...(s[toUserId] as MatchEntry), [kind === 'again' ? 'matchedAgain' : 'matchedRomantic']: true } }));
-        toast(kind === 'again' ? '🏌️ 両思い！「また回りたい」がマッチしました' : '💘 マッチ成立！気になる同士です');
+        toast(kind === 'again' ? '🏌️ マッチ成立！「また回りたい」同士です' : '💘 マッチ成立！気になる同士です');
       }
     } catch {
       toast('通信に失敗しました', 'error');
@@ -68,7 +68,7 @@ export function MatchPicker({ roundId }: { roundId: string }) {
     <div>
       {/* 注意書き（メモ欄） */}
       <div className="mb-3 px-3 py-2.5 bg-green-light rounded-lg text-[11px] text-green leading-relaxed">
-        💡 <b>両思いになった時だけ</b>、お互いに「マッチングしました」と通知されます。<br />
+        💡 <b>マッチした時だけ</b>、お互いに「マッチングしました」と通知されます。<br />
         <b>片方がマッチングを希望しなかった場合、相手に知られることはありません。</b>
       </div>
 
@@ -86,7 +86,7 @@ export function MatchPicker({ roundId }: { roundId: string }) {
                   {u.gender === 'male' ? ' 👨' : u.gender === 'female' ? ' 👩' : ''}
                   {u.age ? <span className="text-[11px] text-sub font-medium"> ・{u.age}歳</span> : null}
                 </div>
-                {e.matchedAgain && <span className="text-[10px] font-black text-green bg-green-light px-2 py-0.5 rounded-full border border-green">🏌️ 両思い</span>}
+                {e.matchedAgain && <span className="text-[10px] font-black text-green bg-green-light px-2 py-0.5 rounded-full border border-green">🏌️ マッチ</span>}
                 {e.matchedRomantic && <span className="text-[10px] font-black text-pink-600 bg-pink-100 px-2 py-0.5 rounded-full border border-pink-600">💘 マッチ</span>}
               </div>
               <div className="flex gap-1.5">
