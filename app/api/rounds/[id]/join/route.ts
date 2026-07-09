@@ -6,8 +6,26 @@ import { webPushText } from '@/lib/webPush';
 import { isNotifyEnabled } from '@/lib/notifyPrefs';
 import { isMatchingAllowedByAge, getCohort } from '@/lib/ageGate';
 import { checkRoundEligibility, canGenderJoin, genderFullMessage } from '@/lib/roundEligibility';
+import type { PickupStatus } from '@/lib/types';
 
-export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
+const VALID_PICKUP_STATUS = new Set<PickupStatus>(['can', 'cannot', 'want', 'no_need']);
+
+// 参加申込に同梱されたピックアップ回答を正規化する（pickup/route.ts と同じ規則）。
+// 申込直後はまだ承認前で participantPickups を単独更新できない（メンバー判定に
+// 引っかかる）ため、join と一緒にこの経路で保存する。
+function normalizePickup(raw: any): { status?: PickupStatus; stations: string[]; capacity?: number } | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const status: PickupStatus | undefined = VALID_PICKUP_STATUS.has(raw.status) ? raw.status : undefined;
+  if (!status) return null;
+  const stations = (status === 'can' || status === 'want') && Array.isArray(raw.stations)
+    ? raw.stations.map((x: any) => String(x).slice(0, 20)).filter(Boolean).slice(0, 20)
+    : [];
+  const capacity = status === 'can' && typeof raw.capacity === 'number' && raw.capacity > 0
+    ? Math.min(8, Math.floor(raw.capacity)) : undefined;
+  return { status, stations, ...(capacity ? { capacity } : {}) };
+}
+
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const meId = await getMeId();
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const { blockedIfBanned } = await import('@/lib/banGuard');
@@ -60,6 +78,20 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   }
 
   const round = await db.joinRound(params.id, meId);
+
+  // 参加申込と同時に送られてきたピックアップ回答を保存する（あれば）。updateRound は
+  // void を返すので、クライアントに返す round にはローカルでマージする。
+  try {
+    let body: any = {};
+    try { body = await req.json(); } catch {}
+    const pickup = normalizePickup(body?.pickup);
+    if (pickup) {
+      const next = { ...(round.participantPickups || {}), [meId]: pickup };
+      await db.updateRound(params.id, { participantPickups: next } as any);
+      round.participantPickups = next;
+    }
+  } catch { /* ピックアップ保存の失敗は申込自体を妨げない */ }
+
   const applicantName = me?.displayName || 'ゲスト';
   const msg = `🆕 ${applicantName} さんが「${existing.title}」に参加申請しました`;
   // Always record in the host's in-app inbox (home screen), even if LINE is off.

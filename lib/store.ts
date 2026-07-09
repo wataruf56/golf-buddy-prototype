@@ -1,7 +1,7 @@
 'use client';
 
 import { useSyncExternalStore } from 'react';
-import type { Chat, Message, PendingReview, Review, Round, User } from './types';
+import type { Chat, Message, PendingReview, Review, Round, User, PickupStatus } from './types';
 
 export type AppNotification = {
   id: string;
@@ -225,8 +225,10 @@ export const store = {
     setState({ rounds: state.rounds.filter((r) => r.id !== roundId) });
   },
 
-  joinRound: async (roundId: string) => {
-    const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/join`, { method: 'POST' });
+  joinRound: async (roundId: string, pickup?: { status?: PickupStatus; stations?: string[]; capacity?: number }) => {
+    const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/join`, {
+      method: 'POST', body: pickup ? JSON.stringify({ pickup }) : undefined,
+    });
     setState({ rounds: state.rounds.map((r) => (r.id === roundId ? round : r)) });
   },
 

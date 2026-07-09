@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { Avatar } from '@/components/Avatar';
@@ -34,6 +34,7 @@ const allAreas = ['東京都', '神奈川県', '千葉県', '埼玉県', '茨城
 export default function RoundDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const search = useSearchParams();
   const storeRound = useStore((s) => s.rounds.find((r) => r.id === params.id));
   const storeUsers = useStore((s) => s.users);
   const meId = useStore((s) => s.meId);
@@ -41,6 +42,12 @@ export default function RoundDetailPage() {
   const hydrated = useStore((s) => s.hydrated);
   const me = useStore(getMe);
   const profileReady = isProfileComplete(me?.age);
+  // ゴルフ場への届出用に漢字フルネームが必要。参加申込のゲートに使う。
+  const hasKanjiName = !!(me?.realNameLast?.trim() && me?.realNameFirst?.trim());
+  const joinReady = profileReady && hasKanjiName;
+  // 参加申込時のピックアップ回答モーダル。
+  const [pickupOpen, setPickupOpen] = useState(false);
+  const autoJoinHandled = useState({ done: false })[0];
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -99,6 +106,24 @@ export default function RoundDetailPage() {
   ]);
 
   const round = storeRound || fetchedRound;
+
+  // プロフィール入力から autojoin=1 で戻ってきたら、ピックアップ回答モーダルを
+  // 自動で開いて申込フローを続ける（ユーザーは参加ボタンを押し直さなくてよい）。
+  useEffect(() => {
+    if (autoJoinHandled.done) return;
+    if (!hydrated || !meId) return;
+    if (search?.get('autojoin') !== '1') return;
+    const r = storeRound || fetchedRound;
+    if (!r) return; // ラウンド読み込み待ち
+    autoJoinHandled.done = true;
+    router.replace(`/round/${r.id}`); // リロードで再発火しないようパラメータを除去
+    const participating = r.hostId === meId || r.applicantIds.includes(meId) || (r.pendingApplicantIds || []).includes(meId);
+    const full = r.currentCount >= r.maxSpots;
+    if (participating || full || r.status !== 'open') return;
+    if (!joinReady) return; // 名前がまだ未入力なら開かない
+    setPickupOpen(true);
+  }, [hydrated, meId, search, storeRound, fetchedRound, joinReady, router, autoJoinHandled]);
+
   // Merge users so the host/applicant lookups work whether the data came from
   // the store (bootstrap) or the fallback fetch.
   const users = storeRound ? storeUsers : [...storeUsers, ...fetchedUsers.filter((u) => !storeUsers.find((s) => s.id === u.id))];
@@ -157,24 +182,37 @@ export default function RoundDetailPage() {
     return true;
   }
 
+  // プロフィール（＋漢字フルネーム）入力へ誘導。保存後は autojoin=1 で戻り、
+  // ピックアップ回答モーダルが自動で開いて申込まで続く。
+  function goProfileForJoin() {
+    const back = `/round/${round!.id}?autojoin=1`;
+    router.push(`/mypage/edit?returnTo=${encodeURIComponent(back)}`);
+  }
+
   async function join() {
     if (requireLogin()) return;
     // 制限がかかっている場合は、申請の前に止める。
     if (restrictions.noApplyAll) { toast(RESTRICTION_MSG.noApplyAll, 'error'); return; }
     if ((restrictions.applyBlockHostIds || []).includes(round!.hostId)) { toast(RESTRICTION_MSG.applyBlockHostIds, 'error'); return; }
     track('join_round_click', { roundId: round!.id, hostId: round!.hostId });
-    // Profile gate: a friend who arrived via a shared link can read the round
-    // detail without registering, but joining requires a profile. Bounce them
-    // to the edit screen with returnTo so save sends them right back here.
-    if (!profileReady) {
-      track('join_round_profile_gate', { roundId: round!.id });
-      toast('参加にはプロフィール登録が必要です');
-      router.push(`/mypage/edit?returnTo=${encodeURIComponent(`/round/${round!.id}`)}`);
+    // ゲート：プロフィール未登録 or ゴルフ場届出用の漢字フルネーム未入力なら
+    // プロフィール編集へ。保存後に戻って自動継続する。
+    if (!joinReady) {
+      track('join_round_profile_gate', { roundId: round!.id, reason: !profileReady ? 'profile' : 'name' });
+      toast(!profileReady ? '参加にはプロフィール登録が必要です' : 'ゴルフ場への届出用に、お名前（漢字フルネーム）の入力が必要です');
+      goProfileForJoin();
       return;
     }
+    // 準備OK → ピックアップ回答モーダルへ（回答と一緒に申込む）。
+    setPickupOpen(true);
+  }
+
+  // ピックアップ回答を添えて参加申込を確定する。
+  async function submitJoin(pickup: { status?: PickupStatus; stations?: string[]; capacity?: number }) {
     try {
-      await store.joinRound(round!.id);
+      await store.joinRound(round!.id, pickup);
       track('join_round_success', { roundId: round!.id });
+      setPickupOpen(false);
       toast('参加申請を送信しました');
     } catch (e) {
       track('join_round_error', { message: (e as Error).message });
@@ -660,16 +698,20 @@ export default function RoundDetailPage() {
             <button onClick={join} className="w-full py-4 bg-green text-white rounded-xl text-[15px] font-bold mt-2">
               {!meId
                 ? `LINEログインして参加する（残り${remaining}枠）`
-                : profileReady
+                : joinReady
                   ? `参加を申請する（残り${remaining}枠）`
-                  : `プロフィール登録して参加する（残り${remaining}枠）`}
+                  : !profileReady
+                    ? `プロフィール登録して参加する（残り${remaining}枠）`
+                    : `お名前を登録して参加する（残り${remaining}枠）`}
             </button>
             <div className="text-[11px] text-muted text-center mt-2">
               {!meId
                 ? 'まずは中身を自由に閲覧できます。参加する時だけログインが必要です'
-                : profileReady
-                  ? '主催者が承認するまでお待ちください'
-                  : '次の画面でプロフィールを登録すると、戻ってきて参加申請できます'}
+                : joinReady
+                  ? '参加申請の前に、送迎（ピックアップ）についてうかがいます'
+                  : !profileReady
+                    ? '次の画面でプロフィールを登録すると、戻ってきて参加申請できます'
+                    : 'ゴルフ場への届出用に、お名前（漢字フルネーム）の登録が必要です'}
             </div>
           </>
         )}
@@ -698,6 +740,10 @@ export default function RoundDetailPage() {
           initialPrice={round.price}
           onClose={() => setConfirmOpen(false)}
         />
+      )}
+
+      {pickupOpen && (
+        <PickupJoinModal me={me} onClose={() => setPickupOpen(false)} onSubmit={submitJoin} />
       )}
 
       {shareOpen && (
@@ -1190,6 +1236,90 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
 
 // ピックアップ回答（送迎できる/しない・希望/不要＋駅・定員）の入力フォーム。
 // 常に userId=member.id で送信。入力できるのは主催者か本人のみ（サーバ側でも判定）。
+// 参加申込時のピックアップ回答モーダル。回答を親に返し、親が join API に同梱する
+// （申込直後は承認前でメンバー扱いされず /pickup を単独で叩けないため）。
+function PickupJoinModal({ me, onClose, onSubmit }: {
+  me: User | undefined;
+  onClose: () => void;
+  onSubmit: (p: { status?: PickupStatus; stations?: string[]; capacity?: number }) => Promise<void> | void;
+}) {
+  const carKnown = me?.car === 'have' || me?.car === 'none';
+  const role: 'provider' | 'seeker' = me?.car === 'have' ? 'provider' : 'seeker';
+  const [status, setStatus] = useState<PickupStatus | undefined>(undefined);
+  const [stations, setStations] = useState<string[]>([]);
+  const [capacity, setCapacity] = useState<number>(0);
+  const [busy, setBusy] = useState(false);
+  const needsStations = status === 'can' || status === 'want';
+
+  async function submit() {
+    if (!status || busy) return;
+    setBusy(true);
+    try {
+      await onSubmit({
+        status,
+        stations: needsStations ? stations : [],
+        capacity: status === 'can' ? (capacity || undefined) : undefined,
+      });
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <div className="absolute inset-0 bg-black/50 z-[150] flex items-center justify-center p-5 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-card rounded-card p-5 w-full max-w-[360px] shadow-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="text-base font-black mb-1">🚗 ピックアップ（送迎）について</div>
+        <div className="text-[12px] text-sub mb-3 leading-relaxed">このゴルフ場への行き方を教えてください。回答は参加申請と一緒に主催者へ伝わります。</div>
+        {carKnown ? (
+          <div className="flex gap-1.5 mb-2">
+            {role === 'provider' ? (
+              <>
+                <SegBtn active={status === 'can'} onClick={() => setStatus('can')}>🚗 ピックアップできます</SegBtn>
+                <SegBtn active={status === 'cannot'} onClick={() => setStatus('cannot')}>🚶 一人で行きます</SegBtn>
+              </>
+            ) : (
+              <>
+                <SegBtn active={status === 'want'} onClick={() => setStatus('want')}>🙋 してほしい</SegBtn>
+                <SegBtn active={status === 'no_need'} onClick={() => setStatus('no_need')}>不要</SegBtn>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-1.5 mb-2">
+            <SegBtn active={status === 'can'} onClick={() => setStatus('can')}>🚗 ピックアップできます</SegBtn>
+            <SegBtn active={status === 'want'} onClick={() => setStatus('want')}>🙋 してほしい</SegBtn>
+            <SegBtn active={status === 'cannot'} onClick={() => setStatus('cannot')}>🚶 一人で行きます</SegBtn>
+            <SegBtn active={status === 'no_need'} onClick={() => setStatus('no_need')}>不要</SegBtn>
+          </div>
+        )}
+        {needsStations && (
+          <div className="bg-bg rounded-lg p-2 mb-2">
+            <div className="text-[11px] font-bold text-sub mb-1">{status === 'can' ? '送迎できる駅' : '希望する駅'}</div>
+            <PickupStationPicker value={stations} onChange={setStations} />
+            {status === 'can' && stations.length > 0 && (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-[11px] font-bold text-sub">自分含め乗れる人数</span>
+                <input
+                  type="number" min={1} max={8} inputMode="numeric"
+                  value={capacity || ''}
+                  onChange={(e) => setCapacity(Math.max(0, Math.min(8, Number(e.target.value) || 0)))}
+                  placeholder="例: 4"
+                  className="w-14 px-2 py-1 border-[1.5px] border-border rounded-[8px] text-sm bg-card outline-none text-center"
+                />
+                <span className="text-[11px] text-sub">名</span>
+              </div>
+            )}
+          </div>
+        )}
+        <div className="flex gap-2 mt-3">
+          <button onClick={onClose} className="flex-1 py-3 bg-bg text-sub rounded-xl text-sm font-bold">やめる</button>
+          <button onClick={submit} disabled={busy || !status} className="flex-[2] py-3 bg-green text-white rounded-xl text-sm font-bold disabled:opacity-50">
+            {busy ? '送信中…' : 'この内容で参加を申請する'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PickupStatusEditor({ roundId, member, entry, guest, selfEdit }: {
   roundId: string;
   member: { id: string; displayName: string; car?: string };

@@ -50,6 +50,8 @@ export default function ProfileEditPage() {
   // same-origin paths to avoid open-redirect abuse.
   const returnToRaw = search?.get('returnTo') || '';
   const returnTo = returnToRaw.startsWith('/') && !returnToRaw.startsWith('//') ? returnToRaw : '';
+  // ラウンド参加フローから来たときは、ゴルフ場への届出用に漢字フルネームを必須にする。
+  const requireName = returnTo.includes('/round/');
   const hydrated = useStore((s) => s.hydrated);
   const me = useStore(getMe);
   const meId = useStore((s) => s.meId);
@@ -150,6 +152,7 @@ export default function ProfileEditPage() {
     if (!area) missing.push('エリア');
     if (!scoreRange) missing.push('スコア帯');
     if (!golfHistory) missing.push('ゴルフ歴');
+    if (requireName && (!realNameLast.trim() || !realNameFirst.trim())) missing.push('お名前（漢字フルネーム）');
     if (missing.length) {
       toast(`必須項目を入力してください: ${missing.join('・')}`, 'error');
       return;
@@ -283,7 +286,10 @@ export default function ProfileEditPage() {
           <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
         </Field>
 
-        <Field label="お名前（漢字フルネーム）" hint="（任意）">
+        <Field label="お名前（漢字フルネーム）" hint={requireName ? '（必須）' : '（任意）'}>
+          <div className="mb-2 p-2.5 rounded-[10px] bg-green-light text-green text-[12px] font-bold leading-relaxed">
+            🏌️ ゴルフ場に届け出るために、名前（フルネーム）が漢字で必要になります。
+          </div>
           <div className="flex items-center gap-2">
             <input
               value={realNameLast}
@@ -301,7 +307,6 @@ export default function ProfileEditPage() {
           <ul className="mt-2 text-[10px] text-muted leading-relaxed space-y-0.5">
             <li>・一般のユーザーや他の友だちには公開されません。</li>
             <li>・ラウンドを募集・参加した際、そのラウンドの<b className="text-sub">募集者にのみ</b>表示されます。</li>
-            <li>・ゴルフ場へフルネームでの届出が必要になるためです。</li>
           </ul>
         </Field>
 
