@@ -36,6 +36,25 @@ export async function GET() {
   } else {
     rounds = [];
   }
+
+  // テストアカウント（検証用）の扱い：一般ユーザーからはプロフィール＆募集を
+  // 隠し、機能フラグ（新機能の段階公開）を解決する。テストアカウント本人には
+  // 従来どおり全部見える（テスト同士は相互に見える）。
+  let isTestMe = false;
+  let hideTest = false;
+  let featureFlags: Record<string, boolean> = {};
+  let isTestId: (id: string) => boolean = () => false;
+  try {
+    const { getTestAccountConfig, isTestAccount } = await import('@/lib/testAccounts');
+    const { resolveFeatureFlags } = await import('@/lib/featureFlags');
+    const tcfg = await getTestAccountConfig();
+    isTestMe = await isTestAccount(meId);
+    const tset = new Set(tcfg.accounts.map((a) => a.id));
+    isTestId = (id: string) => !!id && (id.startsWith('test_') || tset.has(id));
+    hideTest = tcfg.hideFromGeneral && !isTestMe;
+    featureFlags = resolveFeatureFlags(isTestMe, tcfg.features);
+    if (hideTest) rounds = rounds.filter((r) => !isTestId(r.hostId));
+  } catch { /* 判定不能時はそのまま（隠さない） */ }
   // isOfficial is now an explicit stored flag (admin-toggled per round), so we
   // pass it through as-is — no read-time derivation.
   const pendingReviews = pendingReviewsRes.status === 'fulfilled' ? pendingReviewsRes.value : [];
@@ -89,6 +108,9 @@ export async function GET() {
     if (bset.size) visibleUsers = users.filter((u) => u.id === meId || !bset.has(u.id));
   } catch { /* 判定不能時はそのまま */ }
 
+  // テストアカウントを一般ユーザーの一覧から除外（自分自身は残す）。
+  if (hideTest) visibleUsers = visibleUsers.filter((u) => u.id === meId || !isTestId(u.id));
+
   // Strip private real names from everyone but the current user before sending.
   const { stripPrivateMany } = await import('@/lib/sanitizeUser');
   const safeUsers = stripPrivateMany(visibleUsers, meId);
@@ -113,5 +135,6 @@ export async function GET() {
 
   return NextResponse.json({
     ok: true, meId, me, users: safeUsers, rounds, pendingReviews, chats, buddyIds, roundChatActivity, banned, restrictions, isAdmin, notifications,
+    isTestAccount: isTestMe, featureFlags,
   });
 }

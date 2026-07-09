@@ -39,7 +39,6 @@ export async function POST(req: NextRequest) {
       candidateWindowDays: body?.candidateWindowDays,
       enabled: body?.enabled,
       testMode: body?.testMode,
-      testUserIds: Array.isArray(body?.testUserIds) ? body.testUserIds : undefined,
     });
     return NextResponse.json({ ok: true, config }, { headers: noStore });
   } catch (e) {

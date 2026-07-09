@@ -11,7 +11,7 @@ export default function AdminRematchPage() {
   return <Suspense fallback={null}><Inner /></Suspense>;
 }
 
-type Cfg = { intervalDays: number; maxCycles: number; candidateWindowDays: number; enabled: boolean; testMode: boolean; testUserIds: string[] };
+type Cfg = { intervalDays: number; maxCycles: number; candidateWindowDays: number; enabled: boolean; testMode: boolean };
 const FUNNEL_LABELS: { key: string; label: string }[] = [
   { key: 'rematch_notify_open', label: '① 通知タップ' },
   { key: 'rematch_input_one', label: '② 片方が候補入力' },
@@ -30,8 +30,6 @@ function Inner() {
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState('');
-  // テストユーザーIDはテキストのまま保持（改行できるよう、保存時にだけ整形する）。
-  const [testIdsText, setTestIdsText] = useState('');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -52,7 +50,7 @@ function Inner() {
     try {
       const r = await fetch(`/api/admin/rematch-config?token=${encodeURIComponent(token)}`, { cache: 'no-store' });
       const j = await r.json();
-      if (r.ok) { setCfg(j.config); setFunnel(j.funnel || {}); setTestIdsText(((j.config?.testUserIds) || []).join('\n')); }
+      if (r.ok) { setCfg(j.config); setFunnel(j.funnel || {}); }
     } catch {}
     setLoaded(true);
   }
@@ -62,14 +60,12 @@ function Inner() {
     if (!cfg || !token) return;
     setSaving(true); setMsg('');
     try {
-      const testUserIds = testIdsText.split('\n').map((s) => s.trim()).filter(Boolean);
       const r = await fetch(`/api/admin/rematch-config?token=${encodeURIComponent(token)}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...cfg, testUserIds }), cache: 'no-store',
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...cfg }), cache: 'no-store',
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j?.error || `${r.status}`);
       setCfg(j.config);
-      setTestIdsText(((j.config?.testUserIds) || []).join('\n'));
       setMsg('保存しました ✅');
     } catch (e) { setMsg('保存失敗: ' + (e as Error).message); }
     setSaving(false);
@@ -131,16 +127,12 @@ function Inner() {
                 ? 'ON：テスト扱いユーザー同士のペアにしか再会通知は飛びません。実ユーザーには一切飛びません（安全）。'
                 : '⚠️ OFF：実ユーザーにも再会通知が飛びます。過去に相互マッチした実ユーザーへ通知される可能性があります。本番運用の準備が整ってからOFFにしてください。'}
             </div>
-            <Field label="テスト扱いにするLINEユーザーID（1行1つ）" hint="自分のスマホでテストする用">
-              <textarea
-                value={testIdsText}
-                onChange={(e) => setTestIdsText(e.target.value)}
-                rows={4}
-                placeholder={'Uxxxxxxxxxxxxxxxx\nUyyyyyyyyyyyyyyyy\n（1行1つ・自分や仲間のLINE userId）'}
-                className="w-full p-2.5 border-[1.5px] border-border rounded-lg text-[11px] font-mono bg-bg outline-none resize-y"
-              />
-              <div className="text-[10px] text-muted mt-1">※ ここに入れたIDは test_ アカウントと同じく「テスト扱い」になり、テストモード中でも再会通知の対象になります。自分のuserIdは「👥 ユーザー管理」で確認できます。</div>
-            </Field>
+            <div className="mb-3 p-2.5 rounded-lg bg-bg border-[1.5px] border-border">
+              <div className="text-[11px] text-muted leading-relaxed mb-2">
+                テスト扱いにするユーザーの登録は「🧪 テストアカウント管理」に一元化しました。テストモード中は、そこに登録したアカウント同士のペアにのみ再会通知が飛びます（test_ 始まりも常にテスト扱い）。
+              </div>
+              <Link href={`/admin/test-accounts?token=${token}`} className="inline-block px-3 py-1.5 bg-sub text-white rounded-lg text-[12px] font-bold">🧪 テストアカウント管理を開く ›</Link>
+            </div>
             <Field label="通知までの日数（前回完了から / サイクル間隔）" hint="テストは 0（=即時）">
               <input type="number" min={0} max={365} value={cfg.intervalDays}
                 onChange={(e) => setCfg({ ...cfg, intervalDays: Math.max(0, Math.min(365, Number(e.target.value) || 0)) })}

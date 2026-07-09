@@ -3,7 +3,8 @@ import { db } from '@/lib/db';
 import { pushTo, liffUrl } from '@/lib/linePush';
 import { webPushText } from '@/lib/webPush';
 import { isNotifyEnabled } from '@/lib/notifyPrefs';
-import { getRematchConfig, isRematchTestUser } from '@/lib/rematchConfig';
+import { getRematchConfig } from '@/lib/rematchConfig';
+import { getTestAccountIdSet } from '@/lib/testAccounts';
 import { getSession, saveSession, pairIdOf, mutualPairsInRound, rematchDayMs } from '@/lib/rematch';
 
 // ①再会通知バッチ。完了ラウンドの相互マッチ済みペアへ「そろそろまた行きませんか？」
@@ -51,6 +52,11 @@ export async function runRematchNotifier(limit = MAX_PER_TICK): Promise<{ ok: bo
     .filter((r) => (r.completedAt || 0) > 0 && (r.completedAt || 0) <= threshold)
     .sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
 
+  // テスト扱いユーザーの集合（管理画面「🧪 テストアカウント管理」で一元管理）。
+  // testMode 中の安全弁に使う。test_ 始まりは常にテスト扱い。
+  const testIds = await getTestAccountIdSet();
+  const isTest = (id: string) => !!id && (id.startsWith('test_') || testIds.has(id));
+
   const seen = new Set<string>();
   let sent = 0;
 
@@ -61,8 +67,8 @@ export async function runRematchNotifier(limit = MAX_PER_TICK): Promise<{ ok: bo
     for (const { a, b, kind } of pairs) {
       if (sent >= limit) break;
       // 安全弁：テストモード中はテスト扱いユーザー同士のペアにしか通知しない
-      // （test_ 始まり or 管理画面で登録したLINE ID）。
-      if (cfg.testMode && !(isRematchTestUser(a, cfg) && isRematchTestUser(b, cfg))) continue;
+      // （test_ 始まり or 「🧪 テストアカウント管理」で登録したLINE ID）。
+      if (cfg.testMode && !(isTest(a) && isTest(b))) continue;
       const pairId = pairIdOf(a, b);
       if (seen.has(pairId)) continue;
       seen.add(pairId);

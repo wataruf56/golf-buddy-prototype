@@ -72,6 +72,7 @@ function Inner() {
     { href: `/admin/titles?token=${token}`, emoji: '✍️', title: 'タイトル定型文', desc: 'ラウンド募集タイトルのプルダウン選択肢を自由に編集' },
     { href: `/admin/reminders?token=${token}`, emoji: '⏰', title: '開催前リマインド設定', desc: '参加ラウンドの何日前に全体通知するか（1ヶ月前/1週間前/前日など）' },
     { href: `/admin/rematch?token=${token}`, emoji: '🔁', title: '再会エンジン', desc: '再会通知のタイミング設定・今すぐ実行（テスト）・5段ファネル' },
+    { href: `/admin/test-accounts?token=${token}`, emoji: '🧪', title: 'テストアカウント管理', desc: '検証用アカウントの登録 / 一般ユーザーから隠す / 新機能の段階公開' },
     { href: `/admin/reviews?token=${token}`, emoji: '📝', title: 'レビュー', desc: '編集・削除・差し戻し（再依頼）' },
     { href: `/admin/swing?token=${token}`, emoji: '🏌️', title: 'スイング解析モニタ', desc: '解析履歴・状態確認・スタック復旧' },
     { href: `/admin/system?token=${token}`, emoji: '🔧', title: 'システム状態', desc: '環境変数 / GCS / LINE Bot 接続確認' },
