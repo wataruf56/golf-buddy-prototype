@@ -74,27 +74,24 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     // message would flood the お知らせ list.)
     // スレッド内の発言なら、そのスレッドへ直接飛べるよう ?thread= を付ける。
     const chatPath = `/round/${params.id}/chat${threadId ? `?thread=${encodeURIComponent(threadId)}` : ''}`;
+    const { renderNotif } = await import('@/lib/notificationTemplateStore');
     if (mentioned.length) {
+      const nm = await renderNotif('mention', { '発言者名': senderName, '募集タイトル': round.title, '本文': preview });
       const { addNotificationMany } = await import('@/lib/notifications');
-      addNotificationMany(
-        mentioned.map((u) => u.id),
-        'mention',
-        `📣 ${senderName} さんが「${round.title}」のチャットであなたにメンションしました`,
-        chatPath,
-      ).catch(() => {});
-    }
-
-    const mentionTargets = mentioned.filter((u) => isNotifyEnabled(u, 'mention')).map((u) => u.id);
-    if (mentionTargets.length) {
-      pushToMany(mentionTargets, `📣 ${round.title}\n${senderName} さんがあなたをメンションしました\n${preview}`, liffUrl(chatPath)).catch(() => {});
-      webPushToMany(mentionTargets, `📣 ${senderName} さんからメンション`, preview, chatPath, `mention-${params.id}`).catch(() => {});
+      if (nm.inApp) addNotificationMany(mentioned.map((u) => u.id), 'mention', nm.inApp, chatPath).catch(() => {});
+      const mentionTargets = mentioned.filter((u) => isNotifyEnabled(u, 'mention')).map((u) => u.id);
+      if (mentionTargets.length) {
+        pushToMany(mentionTargets, nm.line, liffUrl(chatPath)).catch(() => {});
+        webPushToMany(mentionTargets, nm.webTitle, nm.webBody, chatPath, `mention-${params.id}`).catch(() => {});
+      }
     }
 
     // Everyone else (not mentioned) → general round-chat pref.
     const chatTargets = rest.filter((u) => isNotifyEnabled(u, 'roundChat')).map((u) => u.id);
     if (chatTargets.length) {
-      pushToMany(chatTargets, `🏌️ ${round.title}\n${senderName}: ${preview}`, liffUrl(chatPath)).catch(() => {});
-      webPushToMany(chatTargets, `🏌️ ${round.title}`, `${senderName}: ${preview}`, chatPath, `roundchat-${params.id}`).catch(() => {});
+      const nc = await renderNotif('roundChat', { '募集タイトル': round.title, '発言者名': senderName, '本文': preview });
+      pushToMany(chatTargets, nc.line, liffUrl(chatPath)).catch(() => {});
+      webPushToMany(chatTargets, nc.webTitle, nc.webBody, chatPath, `roundchat-${params.id}`).catch(() => {});
     }
   }
   return NextResponse.json({ message }, { headers: noStore });

@@ -44,14 +44,17 @@ export async function POST(req: NextRequest) {
   // Always record in the in-app inbox (home screen), even if LINE is off.
   const senderName = me?.displayName || 'ゴル友';
   const preview = text.length > 60 ? text.slice(0, 60) + '…' : text;
+  const dmLink = `/chat/${chatId}?other=${meId}`;
+  const { renderNotif } = await import('@/lib/notificationTemplateStore');
+  const n = await renderNotif('dm', { '送信者名': senderName, '本文': preview });
   {
     const { addNotification } = await import('@/lib/notifications');
-    addNotification(otherUserId, 'dm', `💬 ${senderName} さんからメッセージ`, `/chat/${chatId}?other=${meId}`).catch(() => {});
+    if (n.inApp) addNotification(otherUserId, 'dm', n.inApp, dmLink).catch(() => {});
   }
   // Fire-and-forget LINE + web push, gated on the recipient's "dm" preference.
   if (isNotifyEnabled(other as any, 'dm')) {
-    pushTo(otherUserId, `💬 ${senderName} さんからメッセージ\n${preview}`, liffUrl(`/chat/${chatId}?other=${meId}`)).catch(() => {});
-    webPushText(otherUserId, `💬 ${senderName}`, preview, `/chat/${chatId}?other=${meId}`, `chat-${chatId}`).catch(() => {});
+    pushTo(otherUserId, n.line, liffUrl(dmLink)).catch(() => {});
+    webPushText(otherUserId, n.webTitle, n.webBody, dmLink, `chat-${chatId}`).catch(() => {});
   }
   return NextResponse.json({ message });
 }

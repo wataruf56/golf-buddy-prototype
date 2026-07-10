@@ -35,12 +35,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const host = await db.getUser(existing.hostId);
     const me = await db.getUser(meId);
     const name = me?.displayName || 'ゲスト';
-    const msg = `💚 ${name} さんが「${existing.title}」を気になるに追加しました`;
+    const link = `/round/${params.id}`;
+    const { renderNotif } = await import('@/lib/notificationTemplateStore');
+    const n = await renderNotif('interestReceived', { '名前': name, '募集タイトル': existing.title });
     const { addNotification } = await import('@/lib/notifications');
-    addNotification(existing.hostId, 'interestReceived', msg, `/round/${params.id}`).catch(() => {});
+    if (n.inApp) addNotification(existing.hostId, 'interestReceived', n.inApp, link).catch(() => {});
     if (isNotifyEnabled(host as any, 'interestReceived')) {
-      pushTo(existing.hostId, msg, liffUrl(`/round/${params.id}`)).catch(() => {});
-      webPushText(existing.hostId, '「気になる」が押されました', msg, `/round/${params.id}`, `interest-${params.id}`).catch(() => {});
+      pushTo(existing.hostId, n.line, liffUrl(link)).catch(() => {});
+      webPushText(existing.hostId, n.webTitle, n.webBody, link, `interest-${params.id}`).catch(() => {});
     }
   }
 

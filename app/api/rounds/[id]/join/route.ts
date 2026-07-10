@@ -93,16 +93,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   } catch { /* ピックアップ保存の失敗は申込自体を妨げない */ }
 
   const applicantName = me?.displayName || 'ゲスト';
-  const msg = `🆕 ${applicantName} さんが「${existing.title}」に参加申請しました`;
+  const link = `/round/${params.id}`;
+  const { renderNotif } = await import('@/lib/notificationTemplateStore');
+  const n = await renderNotif('applyReceived', { '申請者名': applicantName, '募集タイトル': existing.title });
   // Always record in the host's in-app inbox (home screen), even if LINE is off.
   {
     const { addNotification } = await import('@/lib/notifications');
-    addNotification(existing.hostId, 'applyReceived', msg, `/round/${params.id}`).catch(() => {});
+    if (n.inApp) addNotification(existing.hostId, 'applyReceived', n.inApp, link).catch(() => {});
   }
   // Notify host of new application — gated on their "applyReceived" pref.
   if (isNotifyEnabled(host as any, 'applyReceived')) {
-    pushTo(existing.hostId, msg, liffUrl(`/round/${params.id}`)).catch(() => {});
-    webPushText(existing.hostId, '参加申請が届きました', msg, `/round/${params.id}`, `round-${params.id}`).catch(() => {});
+    pushTo(existing.hostId, n.line, liffUrl(link)).catch(() => {});
+    webPushText(existing.hostId, n.webTitle, n.webBody, link, `round-${params.id}`).catch(() => {});
   }
   return NextResponse.json({ round });
 }

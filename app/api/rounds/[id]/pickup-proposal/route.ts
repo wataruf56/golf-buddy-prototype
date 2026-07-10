@@ -46,14 +46,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       const [host, target] = await Promise.all([db.getUser(meId), db.getUser(userId)]);
       const hostName = host?.displayName || '主催者';
       const path = `/round/${params.id}`;
+      const { renderNotif } = await import('@/lib/notificationTemplateStore');
+      const n = await renderNotif('pickupPropose', { '主催者名': hostName, '募集タイトル': round.title, '駅': station });
       const { addNotification } = await import('@/lib/notifications');
-      addNotification(userId, 'pickup', `🚉 ${hostName} さんが「${round.title}」で ${station}駅 でのピックアップを提案しています`, path).catch(() => {});
+      if (n.inApp) addNotification(userId, 'pickup', n.inApp, path).catch(() => {});
       const { isNotifyEnabled } = await import('@/lib/notifyPrefs');
       if (target && isNotifyEnabled(target, 'pickup')) {
         const { pushTo, liffUrl } = await import('@/lib/linePush');
         const { webPushTo } = await import('@/lib/webPush');
-        pushTo(userId, `🚉 ${round.title}\n${hostName} さんが ${station}駅 でのピックアップを提案しています`, liffUrl(path)).catch(() => {});
-        webPushTo(userId, { title: '🚉 ピックアップの提案', body: `${station}駅でどうですか？`, url: path, tag: `pickup-${params.id}` }).catch(() => {});
+        pushTo(userId, n.line, liffUrl(path)).catch(() => {});
+        webPushTo(userId, { title: n.webTitle, body: n.webBody, url: path, tag: `pickup-${params.id}` }).catch(() => {});
       }
     } catch { /* 通知失敗は無視 */ }
 
@@ -106,14 +108,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     // 主催者へメンション通知。
     try {
       const chatPath = `/round/${params.id}/chat?thread=${encodeURIComponent(thread.id)}`;
+      const { renderNotif } = await import('@/lib/notificationTemplateStore');
+      const n = await renderNotif('mentionPickupDiscuss', { '相談者名': myName, '募集タイトル': round.title });
       const { addNotification } = await import('@/lib/notifications');
-      addNotification(round.hostId, 'mention', `📣 ${myName} さんが「${round.title}」のピックアップについて相談したいそうです`, chatPath).catch(() => {});
+      if (n.inApp) addNotification(round.hostId, 'mention', n.inApp, chatPath).catch(() => {});
       const { isNotifyEnabled } = await import('@/lib/notifyPrefs');
       if (host && isNotifyEnabled(host, 'mention')) {
         const { pushTo, liffUrl } = await import('@/lib/linePush');
         const { webPushTo } = await import('@/lib/webPush');
-        pushTo(round.hostId, `📣 ${round.title}\n${myName} さんがピックアップについて相談したいそうです`, liffUrl(chatPath)).catch(() => {});
-        webPushTo(round.hostId, { title: `📣 ${myName} さんから相談`, body: 'ピックアップについて相談したい', url: chatPath, tag: `mention-${params.id}` }).catch(() => {});
+        pushTo(round.hostId, n.line, liffUrl(chatPath)).catch(() => {});
+        webPushTo(round.hostId, { title: n.webTitle, body: n.webBody, url: chatPath, tag: `mention-${params.id}` }).catch(() => {});
       }
     } catch { /* 通知失敗は無視 */ }
 

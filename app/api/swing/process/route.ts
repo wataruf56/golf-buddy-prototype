@@ -190,17 +190,16 @@ async function processOne(swing: SwingDoc): Promise<{ status: string }> {
     const { db } = await import('@/lib/db');
     const u = await db.getUser(userId);
     const { isNotifyEnabled } = await import('@/lib/notifyPrefs');
+    const link = `/swing/${swingId}`;
+    const { renderNotif } = await import('@/lib/notificationTemplateStore');
+    const n = await renderNotif('swingComplete', {});
     // Always record in the in-app inbox (home screen), even if LINE is off.
     const { addNotification } = await import('@/lib/notifications');
-    addNotification(userId, 'swing', '⛳ スイング分析が完了しました', `/swing/${swingId}`).catch(() => {});
+    if (n.inApp) addNotification(userId, 'swing', n.inApp, link).catch(() => {});
     if (isNotifyEnabled(u as any, 'swing')) {
-      await pushTo(
-        userId,
-        '⛳ スイング分析が完了しました\n結果ページで動画と一緒にチェックしてみてください👇',
-        liffUrl(`/swing/${swingId}`),
-      );
+      await pushTo(userId, n.line, liffUrl(link));
       const { webPushText } = await import('@/lib/webPush');
-      await webPushText(userId, '⛳ スイング分析が完了しました', '結果ページで動画と一緒にチェック！', `/swing/${swingId}`, `swing-${swingId}`).catch(() => {});
+      await webPushText(userId, n.webTitle, n.webBody, link, `swing-${swingId}`).catch(() => {});
     }
   } catch (e) { /* push failure is non-fatal */ }
 

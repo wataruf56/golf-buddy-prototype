@@ -39,16 +39,17 @@ export async function notifyMatchingSignals(round: Round): Promise<void> {
 
     const link = `/round/${round.id}`;
     const title = round.title || 'ラウンド募集';
-    const msg = `🎯 あなたのアンケート条件に一致するラウンドが投稿されました\n「${title}」（${rawArea}）`;
+    const { renderNotif } = await import('./notificationTemplateStore');
+    const n = await renderNotif('surveyMatch', { '募集タイトル': title, 'エリア': rawArea });
 
     await Promise.all(Array.from(userIds).map(async (uid) => {
       try {
         const user = await db.getUser(uid);
         // 退会・存在しないユーザーはスキップ。アプリ内通知は記録、LINE/Webは設定ON時のみ。
-        addNotification(uid, 'surveyMatch', msg, link).catch(() => {});
+        if (n.inApp) addNotification(uid, 'surveyMatch', n.inApp, link).catch(() => {});
         if (isNotifyEnabled(user as any, 'surveyMatch')) {
-          pushTo(uid, msg, liffUrl(link)).catch(() => {});
-          webPushText(uid, '希望条件に合う募集', msg, link, `surveymatch-${round.id}`).catch(() => {});
+          pushTo(uid, n.line, liffUrl(link)).catch(() => {});
+          webPushText(uid, n.webTitle, n.webBody, link, `surveymatch-${round.id}`).catch(() => {});
         }
       } catch { /* 個別失敗は無視 */ }
     }));

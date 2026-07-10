@@ -108,24 +108,28 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       const otherName = other?.displayName || '相手';
       // 通知タップ先は「ゴル友」タブの該当マッチ一覧（また回りたい / 気になる）。
       const link = kind === 'again' ? '/buddies?tab=again' : '/buddies?tab=romantic';
+      const tplKey = kind === 'again' ? 'matchAgain' : 'matchRomantic';
+      const { renderNotif } = await import('@/lib/notificationTemplateStore');
       // アプリ内通知に加えて、設定ONならLINE push＋Web pushも送る（マッチは重要イベント）。
-      const notifyMatch = async (rid: string, ruser: any, text: string) => {
-        await addNotification(rid, 'match', text, link);
+      // partnerName＝受け手から見た「相手（好意をくれた人）」の名前。
+      const notifyMatch = async (rid: string, ruser: any, partnerName: string) => {
+        const n = await renderNotif(tplKey, { '相手の名前': partnerName });
+        if (n.inApp) await addNotification(rid, 'match', n.inApp, link);
         if (isNotifyEnabled(ruser, 'match')) {
-          pushTo(rid, text, liffUrl(link)).catch(() => {});
-          webPushText(rid, '💘 マッチ成立', text, link, `match-${params.id}-${rid}`).catch(() => {});
+          pushTo(rid, n.line, liffUrl(link)).catch(() => {});
+          webPushText(rid, n.webTitle, n.webBody, link, `match-${params.id}-${rid}`).catch(() => {});
         }
       };
       if (kind === 'again') {
         // 「異性として気になる」もマッチなら、そちらを優先して again の通知はしない。
         const romanticMutual = (await likeExists(docId('romantic', meId, toUserId))) && (await likeExists(docId('romantic', toUserId, meId)));
         if (!romanticMutual) {
-          await notifyMatch(toUserId, other, `🏌️ ${meName}さんから「また一緒に回りたい」という回答があり、マッチしました！「ゴル友」の「また回りたい」で確認できます👇`);
-          await notifyMatch(meId, me, `🏌️ ${otherName}さんから「また一緒に回りたい」という回答があり、マッチしました！「ゴル友」の「また回りたい」で確認できます👇`);
+          await notifyMatch(toUserId, other, meName);
+          await notifyMatch(meId, me, otherName);
         }
       } else {
-        await notifyMatch(toUserId, other, `💘 ${meName}さんから「異性として気になる」という回答があり、マッチしました！「ゴル友」の「気になる」で確認できます👇`);
-        await notifyMatch(meId, me, `💘 ${otherName}さんから「異性として気になる」という回答があり、マッチしました！「ゴル友」の「気になる」で確認できます👇`);
+        await notifyMatch(toUserId, other, meName);
+        await notifyMatch(meId, me, otherName);
       }
     }
   }

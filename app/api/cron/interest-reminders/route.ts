@@ -58,29 +58,23 @@ export async function GET(req: NextRequest) {
     if (targets.length) {
       const users = await db.listUsers(targets);
       const name = round.title || round.courseName || 'ラウンド';
+      const link = `/round/${round.id}`;
+      const { renderNotif } = await import('@/lib/notificationTemplateStore');
+      const n = await renderNotif('interestDeadline', { '募集タイトル': name, '開催日': round.date || '', '開始時刻': round.startTime || '' });
       // Always record in every target's in-app inbox (home screen), even if
       // LINE is off.
       {
         const { addNotificationMany } = await import('@/lib/notifications');
-        addNotificationMany(
-          targets,
-          'interestDeadline',
-          `⏰ 気になっていた「${name}」の開催が近づいています（${round.date} ${round.startTime}）`,
-          `/round/${round.id}`,
-        ).catch(() => {});
+        if (n.inApp) addNotificationMany(targets, 'interestDeadline', n.inApp, link).catch(() => {});
       }
       const targetIds = users
         .filter((u) => isNotifyEnabled(u as any, 'interestDeadline'))
         .map((u) => u.id);
       if (targetIds.length) {
         try {
-          await pushToMany(
-            targetIds,
-            `⏰ 気になっていた「${name}」の開催が近づいています（${round.date} ${round.startTime}）。\n参加するなら今のうちに申し込みましょう👇`,
-            liffUrl(`/round/${round.id}`),
-          );
+          await pushToMany(targetIds, n.line, liffUrl(link));
           const { webPushToMany } = await import('@/lib/webPush');
-          await webPushToMany(targetIds, '⏰ 締切間近', `「${name}」の開催が近づいています`, `/round/${round.id}`, `interest-deadline-${round.id}`).catch(() => {});
+          await webPushToMany(targetIds, n.webTitle, n.webBody, link, `interest-deadline-${round.id}`).catch(() => {});
           sent++;
         } catch (e) {
           console.warn('[interest-reminders] push failed', { roundId: round.id, err: (e as Error).message });

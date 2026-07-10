@@ -57,13 +57,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const invitee = await db.getUser(userId);
     const host = await db.getUser(meId);
     const hostName = host?.displayName || '募集者';
-    const baseMsg = `💌 ${hostName} さんから「${existing.title}」に招待が届きました`;
-    const msg = inviteMessage ? `${baseMsg}\n「${inviteMessage}」` : baseMsg;
+    const link = `/round/${params.id}`;
+    const vars = { '主催者名': hostName, '募集タイトル': existing.title, 'ひとこと': inviteMessage ? `\n「${inviteMessage}」` : '' };
+    const { renderNotif } = await import('@/lib/notificationTemplateStore');
+    const n = await renderNotif('invited', vars);
     const { addNotification } = await import('@/lib/notifications');
-    addNotification(userId, 'invited', msg, `/round/${params.id}`).catch(() => {});
+    if (n.inApp) addNotification(userId, 'invited', n.inApp, link).catch(() => {});
     if (isNotifyEnabled(invitee as any, 'invited')) {
-      pushTo(userId, msg, liffUrl(`/round/${params.id}`)).catch(() => {});
-      webPushText(userId, 'ラウンドに招待されました', msg, `/round/${params.id}`, `invite-${params.id}`).catch(() => {});
+      pushTo(userId, n.line, liffUrl(link)).catch(() => {});
+      webPushText(userId, n.webTitle, n.webBody, link, `invite-${params.id}`).catch(() => {});
     }
   }
 

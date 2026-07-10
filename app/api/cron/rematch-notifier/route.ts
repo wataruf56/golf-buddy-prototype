@@ -31,12 +31,13 @@ function mdLabel(d?: string): string {
 
 async function notifyOne(recipientId: string, recipient: any, otherName: string, course: string, date: string, link: string) {
   const when = mdLabel(date);
-  const msg = `🔁 ${when ? when + 'に' : ''}${course}で一緒に回った${otherName}さん。そろそろまた行きませんか？お互いの行ける日を出し合ってみましょう👇`;
+  const { renderNotif } = await import('@/lib/notificationTemplateStore');
+  const n = await renderNotif('rematchInvite', { 'いつに': when ? when + 'に' : '', 'コース': course, '相手の名前': otherName });
   const { addNotification } = await import('@/lib/notifications');
-  addNotification(recipientId, 'rematch', msg, link).catch(() => {});
+  if (n.inApp) addNotification(recipientId, 'rematch', n.inApp, link).catch(() => {});
   if (isNotifyEnabled(recipient as any, 'rematch')) {
-    pushTo(recipientId, msg, liffUrl(link)).catch(() => {});
-    webPushText(recipientId, '再会のお知らせ', msg, link, `rematch-${link}`).catch(() => {});
+    pushTo(recipientId, n.line, liffUrl(link)).catch(() => {});
+    webPushText(recipientId, n.webTitle, n.webBody, link, `rematch-${link}`).catch(() => {});
   }
 }
 

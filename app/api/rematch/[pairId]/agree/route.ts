@@ -34,9 +34,14 @@ export async function POST(req: NextRequest, { params }: { params: { pairId: str
   const [ua, ub] = await Promise.all([db.getUser(s.userA), db.getUser(s.userB)]);
   const link = `/rematch/${pairId}`;
   const label = mdLabel(date);
+  const { renderNotif } = await import('@/lib/notificationTemplateStore');
+  const [nA, nB] = await Promise.all([
+    renderNotif('rematchAgreed', { '相手の名前': ub?.displayName || '相手', '日付': label }),
+    renderNotif('rematchAgreed', { '相手の名前': ua?.displayName || '相手', '日付': label }),
+  ]);
   await Promise.all([
-    notifyRematch(s.userA, `🎉 ${ub?.displayName || '相手'}さんとの再会が ${label} で決まりました！このままラウンドを立てましょう👇`, link),
-    notifyRematch(s.userB, `🎉 ${ua?.displayName || '相手'}さんとの再会が ${label} で決まりました！このままラウンドを立てましょう👇`, link),
+    notifyRematch(s.userA, nA, link),
+    notifyRematch(s.userB, nB, link),
   ]);
 
   return NextResponse.json({ ok: true, agreedDate: date }, { headers: noStore });

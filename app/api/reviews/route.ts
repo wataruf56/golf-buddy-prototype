@@ -72,13 +72,15 @@ export async function POST(req: NextRequest) {
     // include the reviewer's name). Gated on their "review" pref.
     try {
       const reviewee = await db.getUser(revieweeId);
-      const msg = '⭐ あなたへのレビューが届きました';
+      const link = `/profile/${revieweeId}`;
+      const { renderNotif } = await import('@/lib/notificationTemplateStore');
+      const n = await renderNotif('review', {});
       // Always record in the in-app inbox (home screen), even if LINE is off.
       const { addNotification } = await import('@/lib/notifications');
-      addNotification(revieweeId, 'review', msg, `/profile/${revieweeId}`).catch(() => {});
+      if (n.inApp) addNotification(revieweeId, 'review', n.inApp, link).catch(() => {});
       if (isNotifyEnabled(reviewee as any, 'review')) {
-        pushTo(revieweeId, msg, liffUrl(`/profile/${revieweeId}`)).catch(() => {});
-        webPushText(revieweeId, 'レビューが届きました', '新しいレビューが投稿されました', `/profile/${revieweeId}`, `review-${roundId}`).catch(() => {});
+        pushTo(revieweeId, n.line, liffUrl(link)).catch(() => {});
+        webPushText(revieweeId, n.webTitle, n.webBody, link, `review-${roundId}`).catch(() => {});
       }
     } catch { /* non-fatal */ }
 

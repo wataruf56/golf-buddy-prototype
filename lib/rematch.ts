@@ -89,15 +89,20 @@ export async function recordRematchEvent(
 }
 
 // 再会関連の通知（アプリ内＋設定ONならLINE/Web push）。往復・確定通知で使う。
-export async function notifyRematch(recipientId: string, text: string, link: string): Promise<void> {
+// n は renderNotif() が返す4チャネル分の文面。
+export async function notifyRematch(
+  recipientId: string,
+  n: { inApp: string | null; line: string; webTitle: string; webBody: string },
+  link: string,
+): Promise<void> {
   const [{ addNotification }, { pushTo, liffUrl }, { webPushText }, { isNotifyEnabled }, { db }] = await Promise.all([
     import('./notifications'), import('./linePush'), import('./webPush'), import('./notifyPrefs'), import('./db'),
   ]);
-  addNotification(recipientId, 'rematch', text, link).catch(() => {});
+  if (n.inApp) addNotification(recipientId, 'rematch', n.inApp, link).catch(() => {});
   const u = await db.getUser(recipientId);
   if (isNotifyEnabled(u as any, 'rematch')) {
-    pushTo(recipientId, text, liffUrl(link)).catch(() => {});
-    webPushText(recipientId, '再会エンジン', text, link, `rematch-${link}`).catch(() => {});
+    pushTo(recipientId, n.line, liffUrl(link)).catch(() => {});
+    webPushText(recipientId, n.webTitle, n.webBody, link, `rematch-${link}`).catch(() => {});
   }
 }
 

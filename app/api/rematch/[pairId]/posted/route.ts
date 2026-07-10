@@ -31,7 +31,9 @@ export async function POST(req: NextRequest, { params }: { params: { pairId: str
         const applicantIds = [...(round.applicantIds || []), partnerId];
         await db.updateRound(roundId, { applicantIds, currentCount: (round.currentCount || 1) + 1 } as any);
         joined = true;
-        notifyRematch(partnerId, `🏌️ 再会ラウンドに参加が確定しました。日程・集合場所を確認しましょう👇`, `/round/${roundId}`).catch(() => {});
+        const { renderNotif } = await import('@/lib/notificationTemplateStore');
+        const n = await renderNotif('rematchJoined', {});
+        notifyRematch(partnerId, n, `/round/${roundId}`).catch(() => {});
       }
     } catch { /* 参加確定の失敗は記録処理を妨げない */ }
   }
