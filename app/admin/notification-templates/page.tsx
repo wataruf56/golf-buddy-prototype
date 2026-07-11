@@ -31,6 +31,7 @@ function Inner() {
   const [token, setToken] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState('');
   const [msg, setMsg] = useState('');
   const [templates, setTemplates] = useState<NotifTemplate[]>([]);
   // 各テンプレの編集中テキスト（デフォルト or 上書きで初期化）。
@@ -99,6 +100,22 @@ function Inner() {
     setEdited((e) => ({ ...e, [key]: { inApp: t.inApp ?? '', line: t.line ?? '', webTitle: t.webTitle ?? '', webBody: t.webBody ?? '' } }));
   }
 
+  // 編集中の文面をサンプル値で埋めて、自分（管理者）へ実際に送る。
+  async function sendTest(key: string) {
+    if (!token || testing) return;
+    setTesting(key); setMsg('');
+    try {
+      const r = await fetch(`/api/admin/notification-templates/test?token=${encodeURIComponent(token)}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, fields: edited[key] }), cache: 'no-store',
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.message || j?.error || `${r.status}`);
+      setMsg(`「${defMap[key]?.label || key}」をテスト送信しました（管理者 ${j.sentTo} 件）✅ LINE / アプリ内 / プッシュを確認してください`);
+    } catch (e) { setMsg('テスト送信失敗: ' + (e as Error).message); }
+    setTesting('');
+  }
+
   async function save() {
     if (!token) return;
     setSaving(true); setMsg('');
@@ -135,7 +152,8 @@ function Inner() {
       <div className="text-2xl font-black mb-1 mt-1">✉️ 通知メッセージ編集</div>
       <div className="text-[12px] text-muted mb-4 leading-relaxed">
         ユーザーに届く「アプリ内お知らせ」「LINE通知」「スマホのプッシュ通知」の文面を編集できます。文中の <b>{'{◯◯}'}</b> は送信時に実際の値へ置き換わる差し込み枠です（消さないでください）。項目を空欄にすると初期の文面に戻ります。<br />
-        上のタブで種類を切り替えられます。<b>保存はすべてのタブの変更をまとめて反映</b>します。
+        上のタブで種類を切り替えられます。<b>保存はすべてのタブの変更をまとめて反映</b>します。<br />
+        各メッセージの「🔔 自分にテスト送信」で、<b>編集中の文面（サンプルの名前などを差し込み）を管理者のあなた自身へ実際に送信</b>して見た目を確認できます（保存しなくてもOK・通知設定に関わらず届きます）。
       </div>
 
       {!loaded ? (
@@ -170,7 +188,12 @@ function Inner() {
                         <div className="text-[14px] font-black">{t.label}</div>
                         <div className="text-[11px] text-muted leading-relaxed">{t.desc}</div>
                       </div>
-                      <button onClick={() => resetOne(t.key)} className="shrink-0 text-[11px] text-sub border-[1.5px] border-border rounded-lg px-2 py-1 font-bold">初期文に戻す</button>
+                      <div className="shrink-0 flex flex-col gap-1.5 items-end">
+                        <button onClick={() => sendTest(t.key)} disabled={!!testing} className="text-[11px] text-white bg-orange rounded-lg px-2.5 py-1 font-bold disabled:opacity-50 whitespace-nowrap">
+                          {testing === t.key ? '送信中…' : '🔔 自分にテスト送信'}
+                        </button>
+                        <button onClick={() => resetOne(t.key)} className="text-[11px] text-sub border-[1.5px] border-border rounded-lg px-2 py-1 font-bold">初期文に戻す</button>
+                      </div>
                     </div>
 
                     {t.placeholders.length > 0 && (
