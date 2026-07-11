@@ -35,6 +35,8 @@ function Inner() {
   const [templates, setTemplates] = useState<NotifTemplate[]>([]);
   // 各テンプレの編集中テキスト（デフォルト or 上書きで初期化）。
   const [edited, setEdited] = useState<Record<string, Fields>>({});
+  // 上部タブで表示中のグループ。
+  const [activeGroup, setActiveGroup] = useState<string>(NOTIF_GROUPS[0]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -77,6 +79,16 @@ function Inner() {
   useEffect(() => { if (token) load(); }, [token]);
 
   const defMap = useMemo(() => Object.fromEntries(templates.map((t) => [t.key, t])), [templates]);
+
+  // そのテンプレが初期文から変更されているか（タブの編集マーク用）。
+  function isTplEdited(t: NotifTemplate): boolean {
+    const cur = edited[t.key]; if (!cur) return false;
+    return (['inApp', 'line', 'webTitle', 'webBody'] as const).some((f) => {
+      if (t.noInApp && f === 'inApp') return false;
+      return (cur[f] || '').trim() !== (t[f] || '').trim();
+    });
+  }
+  const groupEdited = (group: string) => templates.some((t) => t.group === group && isTplEdited(t));
 
   function setField(key: string, f: keyof Fields, v: string) {
     setEdited((e) => ({ ...e, [key]: { ...e[key], [f]: v } }));
@@ -122,19 +134,36 @@ function Inner() {
       <Link href={`/admin?token=${token}`} className="text-muted text-sm">‹ 管理</Link>
       <div className="text-2xl font-black mb-1 mt-1">✉️ 通知メッセージ編集</div>
       <div className="text-[12px] text-muted mb-4 leading-relaxed">
-        ユーザーに届く「アプリ内お知らせ」「LINE通知」「スマホのプッシュ通知」の文面を編集できます。文中の <b>{'{◯◯}'}</b> は送信時に実際の値へ置き換わる差し込み枠です（消さないでください）。項目を空欄にすると初期の文面に戻ります。
+        ユーザーに届く「アプリ内お知らせ」「LINE通知」「スマホのプッシュ通知」の文面を編集できます。文中の <b>{'{◯◯}'}</b> は送信時に実際の値へ置き換わる差し込み枠です（消さないでください）。項目を空欄にすると初期の文面に戻ります。<br />
+        上のタブで種類を切り替えられます。<b>保存はすべてのタブの変更をまとめて反映</b>します。
       </div>
 
       {!loaded ? (
         <div className="text-sm text-muted">読み込み中...</div>
       ) : (
         <>
-          {NOTIF_GROUPS.map((group) => (
-            <div key={group} className="mb-4">
-              <div className="text-[12px] font-black text-sub tracking-wide mb-2 mt-3">{group}</div>
-              {templates.filter((t) => t.group === group).map((t) => {
-                const cur = edited[t.key]; if (!cur) return null;
-                return (
+          {/* 上部タブ：種類ごとに切り替え */}
+          <div className="flex gap-1.5 mb-4 sticky top-0 z-10 bg-bg pt-1 pb-2 overflow-x-auto">
+            {NOTIF_GROUPS.map((group) => {
+              const active = activeGroup === group;
+              const count = templates.filter((t) => t.group === group).length;
+              return (
+                <button
+                  key={group}
+                  onClick={() => setActiveGroup(group)}
+                  className={`shrink-0 px-3 py-2 rounded-lg text-[12.5px] font-bold border-[1.5px] whitespace-nowrap ${active ? 'bg-green text-white border-green' : 'bg-card text-sub border-border'}`}
+                >
+                  {group}
+                  <span className={`ml-1 text-[10px] ${active ? 'opacity-80' : 'text-muted'}`}>{count}</span>
+                  {groupEdited(group) && <span className={`ml-1 inline-block w-1.5 h-1.5 rounded-full align-middle ${active ? 'bg-white' : 'bg-orange'}`} />}
+                </button>
+              );
+            })}
+          </div>
+
+          {templates.filter((t) => t.group === activeGroup).map((t) => {
+            const cur = edited[t.key]; if (!cur) return null;
+            return (
                   <div key={t.key} className="bg-card rounded-xl shadow-card p-4 mb-3">
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <div>
@@ -180,8 +209,6 @@ function Inner() {
                   </div>
                 );
               })}
-            </div>
-          ))}
 
           <div className="sticky bottom-3 mt-4">
             <button onClick={save} disabled={saving} className="w-full py-3.5 bg-green text-white rounded-xl text-sm font-black shadow-card disabled:opacity-50">
