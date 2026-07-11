@@ -1,10 +1,12 @@
 // 通知メッセージのテンプレート登録簿（管理画面から編集できる文面の定義）。
 //
-// 各通知は最大4つの文面を持つ：
+// 各通知が持つ文面：
 //   inApp    … アプリ内「お知らせ」の本文
-//   line     … LINE通知の本文
-//   webTitle … スマホのプッシュ通知のタイトル
-//   webBody  … スマホのプッシュ通知の本文
+//   webTitle … 「LINE通知タイトル」。スマホのプッシュ通知（OSバナー／PWA）の見出しに使う。
+//   line     … 「LINE通知」の本文。LINE通知の本文であると同時に、スマホのプッシュ通知の
+//              本文としても共通で使う（LINEとスマホ通知は同じ文面）。
+// ※ 旧「webBody（スマホ通知 本文）」は廃止。スマホ通知の本文は line をそのまま流用する。
+//   NotifChannels.webBody は後方互換のため型に残すが、描画では参照しない。
 // noInApp:true の通知はアプリ内お知らせを出さない（例：ラウンドチャット）。
 //
 // 文面中の {◯◯} は差し込み変数。送信時に実際の値へ置き換わる。
@@ -236,6 +238,7 @@ export function renderFromOverrides(
     inApp: def.noInApp ? null : fill(pick(ov.inApp, def.inApp), vars),
     line: fill(pick(ov.line, def.line), vars),
     webTitle: fill(pick(ov.webTitle, def.webTitle), vars),
-    webBody: fill(pick(ov.webBody, def.webBody), vars),
+    // スマホのプッシュ通知の本文は LINE通知（line）と共通。旧 webBody は参照しない。
+    webBody: fill(pick(ov.line, def.line), vars),
   };
 }

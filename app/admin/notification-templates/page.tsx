@@ -13,12 +13,13 @@ export default function AdminNotifTemplatesPage() {
   return <Suspense fallback={null}><Inner /></Suspense>;
 }
 
-type Fields = { inApp: string; line: string; webTitle: string; webBody: string };
-const FIELD_META: { k: keyof Fields; label: string }[] = [
+type Fields = { inApp: string; line: string; webTitle: string };
+// LINE通知とスマホのプッシュ通知は同じ本文（line）を使う。webTitle は
+// スマホ通知（OSバナー／PWA）の見出しにだけ使われる（LINEには出ない）。
+const FIELD_META: { k: keyof Fields; label: string; hint?: string }[] = [
   { k: 'inApp', label: 'アプリ内お知らせ' },
-  { k: 'line', label: 'LINE通知' },
-  { k: 'webTitle', label: 'スマホ通知 タイトル' },
-  { k: 'webBody', label: 'スマホ通知 本文' },
+  { k: 'webTitle', label: 'LINE通知タイトル', hint: 'スマホのバナー通知の見出しに使われます（LINEのトークには出ません）' },
+  { k: 'line', label: 'LINE通知', hint: 'LINEのトークとスマホのバナー通知、両方の本文になります' },
 ];
 
 function fillSample(s: string): string {
@@ -61,7 +62,6 @@ function Inner() {
         inApp: ov.inApp ?? t.inApp ?? '',
         line: ov.line ?? t.line ?? '',
         webTitle: ov.webTitle ?? t.webTitle ?? '',
-        webBody: ov.webBody ?? t.webBody ?? '',
       };
     }
     setTemplates(tpls);
@@ -84,7 +84,7 @@ function Inner() {
   // そのテンプレが初期文から変更されているか（タブの編集マーク用）。
   function isTplEdited(t: NotifTemplate): boolean {
     const cur = edited[t.key]; if (!cur) return false;
-    return (['inApp', 'line', 'webTitle', 'webBody'] as const).some((f) => {
+    return (['inApp', 'line', 'webTitle'] as const).some((f) => {
       if (t.noInApp && f === 'inApp') return false;
       return (cur[f] || '').trim() !== (t[f] || '').trim();
     });
@@ -97,7 +97,7 @@ function Inner() {
   function resetOne(key: string) {
     const t = defMap[key];
     if (!t) return;
-    setEdited((e) => ({ ...e, [key]: { inApp: t.inApp ?? '', line: t.line ?? '', webTitle: t.webTitle ?? '', webBody: t.webBody ?? '' } }));
+    setEdited((e) => ({ ...e, [key]: { inApp: t.inApp ?? '', line: t.line ?? '', webTitle: t.webTitle ?? '' } }));
   }
 
   // 編集中の文面をサンプル値で埋めて、自分（管理者）へ実際に送る。
@@ -124,7 +124,7 @@ function Inner() {
     for (const t of templates) {
       const cur = edited[t.key]; if (!cur) continue;
       const c: NotifChannels = {};
-      (['inApp', 'line', 'webTitle', 'webBody'] as const).forEach((f) => {
+      (['inApp', 'line', 'webTitle'] as const).forEach((f) => {
         if (t.noInApp && f === 'inApp') return;
         const val = (cur[f] || '').trim();
         const def = (t[f] || '').trim();
@@ -151,7 +151,7 @@ function Inner() {
       <Link href={`/admin?token=${token}`} className="text-muted text-sm">‹ 管理</Link>
       <div className="text-2xl font-black mb-1 mt-1">✉️ 通知メッセージ編集</div>
       <div className="text-[12px] text-muted mb-4 leading-relaxed">
-        ユーザーに届く「アプリ内お知らせ」「LINE通知」「スマホのプッシュ通知」の文面を編集できます。文中の <b>{'{◯◯}'}</b> は送信時に実際の値へ置き換わる差し込み枠です（消さないでください）。項目を空欄にすると初期の文面に戻ります。<br />
+        ユーザーに届く「アプリ内お知らせ」と「LINE通知」の文面を編集できます。<b>LINE通知の本文は、スマホのバナー通知（LINEを使っていない人向け）にもそのまま使われます</b>（本文は共通・見出しだけ「LINE通知タイトル」で指定）。文中の <b>{'{◯◯}'}</b> は送信時に実際の値へ置き換わる差し込み枠です（消さないでください）。項目を空欄にすると初期の文面に戻ります。<br />
         上のタブで種類を切り替えられます。<b>保存はすべてのタブの変更をまとめて反映</b>します。<br />
         各メッセージの「🔔 自分にテスト送信」で、<b>編集中の文面（サンプルの名前などを差し込み）を管理者のあなた自身へ実際に送信</b>して見た目を確認できます（保存しなくてもOK・通知設定に関わらず届きます）。
       </div>
@@ -209,7 +209,8 @@ function Inner() {
                         const isTitle = fm.k === 'webTitle';
                         return (
                           <div key={fm.k}>
-                            <label className="block text-[11px] font-bold text-sub mb-1">{fm.label}</label>
+                            <label className="block text-[11px] font-bold text-sub mb-0.5">{fm.label}</label>
+                            {fm.hint && <div className="text-[10px] text-muted mb-1 leading-snug">{fm.hint}</div>}
                             <textarea
                               value={cur[fm.k]}
                               onChange={(e) => setField(t.key, fm.k, e.target.value)}
@@ -226,7 +227,7 @@ function Inner() {
                       <div className="mt-1.5 flex flex-col gap-1 text-[11px]">
                         {!t.noInApp && <PreviewLine label="アプリ内" text={fillSample(cur.inApp)} />}
                         <PreviewLine label="LINE" text={fillSample(cur.line)} />
-                        <PreviewLine label="通知" text={`【${fillSample(cur.webTitle)}】${fillSample(cur.webBody)}`} />
+                        <PreviewLine label="スマホ通知" text={`【${fillSample(cur.webTitle)}】${fillSample(cur.line)}`} />
                       </div>
                     </details>
                   </div>

@@ -4,9 +4,10 @@ import { renderFromOverrides, NOTIF_TEMPLATES } from './notificationTemplates';
 import type { NotifChannels, RenderedNotif } from './notificationTemplates';
 
 // 通知テンプレートの上書き（管理画面で編集した文面）を保存・取得する。
-// Firestore `_config/notificationTemplates` に { key: {inApp?,line?,webTitle?,webBody?} }
+// Firestore `_config/notificationTemplates` に { key: {inApp?,line?,webTitle?} }
 // の形で保存。30秒キャッシュ。未設定のキー／項目は lib/notificationTemplates の
 // デフォルト文面にフォールバックする。
+// ※ webBody（旧スマホ通知本文）は廃止。スマホ通知の本文は line と共通のため保存しない。
 
 let _cache: { ov: Record<string, NotifChannels>; ts: number } | null = null;
 const CACHE_MS = 30 * 1000;
@@ -19,7 +20,8 @@ function normalize(raw: any): Record<string, NotifChannels> {
   for (const [k, v] of Object.entries(raw)) {
     if (!VALID_KEYS.has(k) || !v || typeof v !== 'object') continue;
     const c: NotifChannels = {};
-    for (const f of ['inApp', 'line', 'webTitle', 'webBody'] as const) {
+    // webBody は廃止（スマホ通知本文は line と共通）。保存対象にしない。
+    for (const f of ['inApp', 'line', 'webTitle'] as const) {
       const val = (v as any)[f];
       if (typeof val === 'string' && val.trim() !== '') c[f] = String(val).slice(0, 800);
     }

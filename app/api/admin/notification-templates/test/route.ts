@@ -31,8 +31,9 @@ export async function POST(req: NextRequest) {
   }
 
   // 編集中の4項目をその場限りの上書きとして扱い、サンプル値を差し込む。
+  // webBody は廃止（スマホ通知本文は line と共通）。inApp / line / webTitle のみ受け取る。
   const f = (body?.fields && typeof body.fields === 'object') ? body.fields : {};
-  const oneOff = { [key]: { inApp: f.inApp, line: f.line, webTitle: f.webTitle, webBody: f.webBody } };
+  const oneOff = { [key]: { inApp: f.inApp, line: f.line, webTitle: f.webTitle } };
   const n = renderFromOverrides(key, oneOff, SAMPLE_VARS);
 
   const link = '/home';
