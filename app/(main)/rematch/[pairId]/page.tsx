@@ -149,23 +149,27 @@ export default function RematchPage() {
         </div>
       </div>
 
-      {agreed && data.agreedDate ? (
-        <div className="bg-card rounded-card p-5 shadow-card text-center">
-          <div className="text-3xl mb-1">🎉</div>
+      {/* 決定済みバナー（決定後もカレンダーは下に残す） */}
+      {agreed && data.agreedDate && (
+        <div className="bg-green-light border-[1.5px] border-green rounded-card p-4 mb-3 text-center">
+          <div className="text-2xl mb-0.5">🎉</div>
           <div className="text-lg font-black mb-1">{mdLabel(data.agreedDate)} で再会決定！</div>
-          <div className="text-[12px] text-sub mb-4">このままラウンドを立てて、集合場所などを相談しましょう。</div>
+          <div className="text-[12px] text-sub mb-3">このままラウンドを立てて、集合場所などを相談しましょう。</div>
           <a
             href={`/create?rematch=${encodeURIComponent(params.pairId)}`}
             className="block w-full py-3.5 bg-orange text-white rounded-xl text-sm font-black"
           >🏌️ このままラウンドを立てる</a>
+          <div className="text-[10px] text-muted mt-2">このボタンは何度でも押せます。同じ日程で複数のラウンドも作成できます。</div>
         </div>
-      ) : (
-        <>
-          <div className="text-[13px] font-black mb-1">📅 行ける日をタップ</div>
-          <div className="text-[11px] text-sub mb-2">お互いに行ける日を出し合うと、重なった日が青で表示されます。左右で月を切り替え。</div>
+      )}
 
-          {/* 過去入力の反映プロンプト */}
-          {pastPrompt && (
+      {/* 候補日カレンダー（決定後も表示したまま。決定後は閲覧のみ） */}
+      <>
+          <div className="text-[13px] font-black mb-1">📅 {agreed ? '入力した候補日（決定済み）' : '行ける日をタップ'}</div>
+          <div className="text-[11px] text-sub mb-2">{agreed ? '決まった日は緑、あなたの候補は黄で表示。候補日はそのまま残しています。' : 'お互いに行ける日を出し合うと、重なった日が青で表示されます。左右で月を切り替え。'}</div>
+
+          {/* 過去入力の反映プロンプト（未決定時のみ） */}
+          {!agreed && pastPrompt && (
             <div className="bg-yellow-light border-[1.5px] border-orange rounded-card p-3 mb-2">
               <div className="text-[12px] font-black text-orange mb-1.5">過去に入力した候補日を反映しますか？</div>
               <div className="text-[11px] text-sub mb-2">他の人との調整で出した候補日（{(data.myPastCandidates || []).filter(inWindow).length}日）をまとめてセットできます。反映後に個別で外せます。</div>
@@ -204,8 +208,10 @@ export default function RematchPage() {
                 const isMine = mine.has(k);
                 const isTheirs = theirSet.has(k);
                 const isOverlap = isMine && isTheirs;
+                const isAgreedDate = agreed && k === data.agreedDate;
                 let style: React.CSSProperties = {};
                 if (!usable) style = { background: '#f3f1ea', color: '#c9c3b8', borderColor: '#eee' };
+                else if (isAgreedDate) style = { background: '#2A8C82', color: '#fff', borderColor: '#33271B' };
                 else if (isOverlap) style = { background: '#3AA0C9', color: '#fff', borderColor: '#33271B' };
                 else if (isMine) style = { background: '#F6C445', color: '#33271B', borderColor: '#33271B' };
                 else if (isTheirs) style = { background: '#DADADA', color: '#6b5440', borderColor: '#c9c3b8' };
@@ -219,39 +225,45 @@ export default function RematchPage() {
               })}
             </div>
           </div>
-          <div className="flex items-center gap-3 text-[10px] font-bold text-sub mb-3">
+          <div className="flex items-center gap-3 text-[10px] font-bold text-sub mb-3 flex-wrap">
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#F6C445', border: '1px solid #33271B' }} />自分</span>
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#DADADA' }} />相手</span>
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#3AA0C9' }} />重なり</span>
+            {agreed && <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#2A8C82' }} />決定</span>}
           </div>
 
-          <button onClick={saveCandidates} disabled={saving} className="w-full py-3 bg-green text-white rounded-xl text-sm font-black disabled:opacity-50 mb-3">
-            {saving ? '送信中…' : `この候補日で確定して相手に送る（${mine.size}日）`}
-          </button>
+          {/* 保存・決定の操作は未決定時のみ。決定後はカレンダーを閲覧のまま残す。 */}
+          {!agreed && (
+            <>
+              <button onClick={saveCandidates} disabled={saving} className="w-full py-3 bg-green text-white rounded-xl text-sm font-black disabled:opacity-50 mb-3">
+                {saving ? '送信中…' : `この候補日で確定して相手に送る（${mine.size}日）`}
+              </button>
 
-          {/* 重なり / ガイド */}
-          {overlapNow.length > 0 ? (
-            <div className="bg-blue-light border-[1.5px] border-blue rounded-card p-4">
-              <div className="text-[12px] font-black text-blue mb-2">🔵 両者が行ける日（タップで決定）</div>
-              <div className="flex flex-wrap gap-2">
-                {overlapNow.map((d) => (
-                  <button key={d} onClick={() => agree(d)} className="px-3 py-2 bg-blue text-white rounded-full text-[13px] font-black">
-                    {mdLabel(d)} で決定 →
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : theirSet.size === 0 ? (
-            <div className="text-[12px] text-sub bg-bg rounded-xl p-3 text-center">
-              あなたの候補を保存しました。相手が候補を入れると、重なった日がここに表示されます。
-            </div>
-          ) : bothEntered ? (
-            <div className="text-[12px] text-sub bg-bg rounded-xl p-3 text-center leading-relaxed">
-              今回は都合が合いませんでした。候補日を増やすか、また後日お声がけします。
-            </div>
-          ) : null}
+              {/* 重なり / ガイド */}
+              {overlapNow.length > 0 ? (
+                <div className="bg-blue-light border-[1.5px] border-blue rounded-card p-4">
+                  <div className="text-[12px] font-black text-blue mb-2">🔵 両者が行ける日（タップで決定）</div>
+                  <div className="flex flex-wrap gap-2">
+                    {overlapNow.map((d) => (
+                      <button key={d} onClick={() => agree(d)} className="px-3 py-2 bg-blue text-white rounded-full text-[13px] font-black">
+                        {mdLabel(d)} で決定 →
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : theirSet.size === 0 ? (
+                <div className="text-[12px] text-sub bg-bg rounded-xl p-3 text-center">
+                  あなたの候補を保存しました。相手が候補を入れると、重なった日がここに表示されます。
+                </div>
+              ) : bothEntered ? (
+                <div className="text-[12px] text-sub bg-bg rounded-xl p-3 text-center leading-relaxed">
+                  今回は都合が合いませんでした。候補日を増やすか、また後日お声がけします。
+                </div>
+              ) : null}
+            </>
+          )}
         </>
-      )}
+
     </div>
   );
 }
