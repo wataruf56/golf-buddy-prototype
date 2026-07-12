@@ -71,9 +71,13 @@ export default function MyPage() {
     });
   }, [meId, me.displayName, me.avatarUrl]);
 
-  function logout() {
-    if (isDemo) router.push('/login');
-    else signOut({ callbackUrl: '/login' });
+  async function logout() {
+    if (isDemo) { router.push('/login'); return; }
+    // NextAuth だけでなく、LIFF/テストログイン用の __session Cookie も消す。
+    // これをしないと __session が残り、「ログアウトしたのに再ログイン状態に戻る」
+    // （getMeId が __session にフォールバックするため）。
+    try { await fetch('/api/auth/liff', { method: 'DELETE', cache: 'no-store', credentials: 'include' }); } catch { /* noop */ }
+    signOut({ callbackUrl: '/login' });
   }
 
   return (
