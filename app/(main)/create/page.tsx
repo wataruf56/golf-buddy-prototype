@@ -197,7 +197,9 @@ export default function CreatePage() {
         } catch { /* 参加確定/記録の失敗は投稿自体を妨げない */ }
       }
       toast(isComp ? 'コンペ募集を公開しました' : '募集を公開しました');
-      router.push('/home');
+      // 公開直後は作った募集の詳細ページへ。ここに「📅 日程調整」ボタンがあり、
+      // 「募集した後に日程を決める」導線がそのまま続く。id が取れなければホームへ。
+      router.push(created?.id ? `/round/${created.id}` : '/home');
     } catch (e) {
       const msg = (e as Error).message;
       track('round_create_error', { message: msg, payload });
