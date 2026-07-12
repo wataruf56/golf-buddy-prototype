@@ -65,6 +65,29 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       break;
     }
 
+    case 'add-options': {
+      // 複数の候補日を一括追加（カレンダーでまとめて選択 → 一気に追加）。
+      const dates: unknown[] = Array.isArray(body.dates) ? body.dates : [];
+      const startTime = body.startTime ? String(body.startTime).trim().slice(0, 20) : undefined;
+      // 既存と重複する（同じ日付＋同じ時間）候補はスキップ。
+      const seen = new Set((poll.options || []).map((o) => `${o.date}|${o.startTime || ''}`));
+      let added = 0;
+      let idx = 0;
+      for (const raw of dates) {
+        if ((poll.options || []).length >= MAX_OPTIONS) break;
+        const date = String(raw || '').trim().slice(0, 40);
+        if (!date) continue;
+        const key = `${date}|${startTime || ''}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const opt: ScheduleOption = clean({ id: `${genId('sopt')}${idx++}`, date, startTime, createdBy: meId, createdAt: Date.now() });
+        poll.options.push(opt);
+        added++;
+      }
+      if (added === 0) return NextResponse.json({ error: 'no_dates', message: '追加できる日付がありません（重複または上限）' }, { status: 400, headers: noStore });
+      break;
+    }
+
     case 'remove-option': {
       const optionId = String(body.optionId || '');
       const opt = (poll.options || []).find((o) => o.id === optionId);

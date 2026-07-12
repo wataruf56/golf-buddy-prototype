@@ -35,8 +35,9 @@ export default function PollPage() {
   const [state, setState] = useState<'loading' | 'ready' | 'notfound' | 'error'>('loading');
   const [busy, setBusy] = useState(false);
 
-  const [newDate, setNewDate] = useState('');
-  const [newTime, setNewTime] = useState('');
+  // 候補日の複数選択（カレンダーでまとめて選ぶ）。
+  const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
+  const [bulkTime, setBulkTime] = useState('');
   const [myAnswers, setMyAnswers] = useState<Record<string, ScheduleAnswer>>({});
   const [myComment, setMyComment] = useState('');
 
@@ -132,12 +133,20 @@ export default function PollPage() {
     }
   }
 
-  async function addOption() {
+  function toggleDate(d: string) {
+    setSelectedDates((prev) => {
+      const next = new Set(prev);
+      if (next.has(d)) next.delete(d); else next.add(d);
+      return next;
+    });
+  }
+
+  async function addSelectedDates() {
     if (!ensureReady()) return;
-    const date = newDate.trim();
-    if (!date) { toast('日付を選んでください', 'error'); return; }
-    const p = await callApi({ action: 'add-option', date, startTime: newTime.trim() || undefined });
-    if (p) { setNewDate(''); setNewTime(''); track('poll_add_option', { pollId: params.id }); }
+    const dates = Array.from(selectedDates).sort();
+    if (dates.length === 0) { toast('日付を選んでください', 'error'); return; }
+    const p = await callApi({ action: 'add-options', dates, startTime: bulkTime.trim() || undefined });
+    if (p) { setSelectedDates(new Set()); setBulkTime(''); track('poll_add_options', { pollId: params.id, count: dates.length }); }
   }
 
   async function removeOption(optionId: string) {
@@ -145,7 +154,9 @@ export default function PollPage() {
     await callApi({ action: 'remove-option', optionId });
   }
 
-  function setMyAnswer(optionId: string, a: ScheduleAnswer) {
+  // 未ログインで回答しようとしたら、その場で登録（ログイン）画面へ。
+  function onTapAnswer(optionId: string, a: ScheduleAnswer) {
+    if (!ensureReady()) return;
     setMyAnswers((prev) => {
       const next = { ...prev };
       if (next[optionId] === a) delete next[optionId];
@@ -341,7 +352,7 @@ export default function PollPage() {
                     return (
                       <button
                         key={a}
-                        onClick={() => setMyAnswer(o.id, a)}
+                        onClick={() => onTapAnswer(o.id, a)}
                         className={'w-9 h-9 rounded-lg text-base font-black border-[1.5px] ' + (on ? ANSWER_META[a].btn : 'bg-card border-border text-sub')}
                         aria-label={ANSWER_META[a].label}
                       >
@@ -365,27 +376,27 @@ export default function PollPage() {
         </button>
       </div>
 
-      {/* 候補日を追加（誰でも） */}
+      {/* 候補日を追加（誰でも）— カレンダーでまとめて選択 → 一括追加 */}
       <div className="bg-card rounded-card p-4 shadow-card mb-4">
         <div className="text-base font-black mb-1">候補日を追加</div>
-        <div className="text-[11px] text-sub mb-3">参加メンバーなら誰でも候補日を足せます。</div>
-        <div className="flex gap-2 mb-2">
-          <input
-            type="date"
-            value={newDate}
-            onChange={(e) => setNewDate(e.target.value)}
-            className="flex-1 px-3 py-2.5 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
-          />
+        <div className="text-[11px] text-sub mb-3">カレンダーで日付を<b>タップして複数選べます</b>。まとめて一括で追加できます（誰でも追加OK）。</div>
+        <MultiDatePicker selected={selectedDates} onToggle={toggleDate} />
+        <div className="flex items-center gap-2 mt-3 mb-2">
+          <span className="text-[11px] font-bold text-sub flex-shrink-0">スタート時間（任意・共通）</span>
           <input
             type="text"
-            value={newTime}
-            onChange={(e) => setNewTime(e.target.value.slice(0, 20))}
-            placeholder="時間(任意)"
-            className="w-28 px-3 py-2.5 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
+            value={bulkTime}
+            onChange={(e) => setBulkTime(e.target.value.slice(0, 20))}
+            placeholder="例: 8:00"
+            className="flex-1 px-3 py-2 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
           />
         </div>
-        <button onClick={addOption} disabled={busy} className="w-full py-2.5 bg-bg border-[1.5px] border-green text-green rounded-xl text-sm font-black disabled:opacity-50">
-          ＋ 候補日を追加
+        <button
+          onClick={addSelectedDates}
+          disabled={busy || selectedDates.size === 0}
+          className="w-full py-2.5 bg-green text-white rounded-xl text-sm font-black disabled:opacity-50"
+        >
+          ＋ 選択した{selectedDates.size > 0 ? `${selectedDates.size}日` : '日'}を候補に追加
         </button>
       </div>
 
@@ -415,4 +426,71 @@ export default function PollPage() {
       <div className="h-8" />
     </div>
   );
+}
+
+// カレンダー（複数選択）。日付をタップでトグル。過去日は選べない。
+function MultiDatePicker({ selected, onToggle }: { selected: Set<string>; onToggle: (d: string) => void }) {
+  const today = new Date();
+  const todayKey = ymd(today.getFullYear(), today.getMonth(), today.getDate());
+  const [view, setView] = useState({ y: today.getFullYear(), m: today.getMonth() });
+
+  const first = new Date(view.y, view.m, 1);
+  const startWeekday = first.getDay(); // 0=日
+  const daysInMonth = new Date(view.y, view.m + 1, 0).getDate();
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < startWeekday; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const weekdayLabels = ['日', '月', '火', '水', '木', '金', '土'];
+  // 過去の月へは戻らせない（当月まで）。
+  const canPrev = view.y > today.getFullYear() || (view.y === today.getFullYear() && view.m > today.getMonth());
+
+  function shift(delta: number) {
+    setView((v) => {
+      const nm = v.m + delta;
+      return { y: v.y + Math.floor(nm / 12), m: ((nm % 12) + 12) % 12 };
+    });
+  }
+
+  return (
+    <div className="border-[1.5px] border-border rounded-[12px] p-2.5 bg-bg">
+      <div className="flex items-center justify-between mb-2">
+        <button onClick={() => shift(-1)} disabled={!canPrev} className="w-8 h-8 rounded-lg bg-card border border-border text-sm font-black disabled:opacity-30">‹</button>
+        <div className="text-sm font-black">{view.y}年 {view.m + 1}月</div>
+        <button onClick={() => shift(1)} className="w-8 h-8 rounded-lg bg-card border border-border text-sm font-black">›</button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {weekdayLabels.map((w, i) => (
+          <div key={w} className={'text-center text-[10px] font-bold py-0.5 ' + (i === 0 ? 'text-red' : i === 6 ? 'text-blue' : 'text-muted')}>{w}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((d, i) => {
+          if (d === null) return <div key={i} />;
+          const key = ymd(view.y, view.m, d);
+          const isPast = key < todayKey;
+          const on = selected.has(key);
+          const dow = new Date(view.y, view.m, d).getDay();
+          return (
+            <button
+              key={i}
+              onClick={() => !isPast && onToggle(key)}
+              disabled={isPast}
+              className={
+                'aspect-square rounded-lg text-[13px] font-bold flex items-center justify-center ' +
+                (on ? 'bg-green text-white' : isPast ? 'text-border' : 'bg-card border border-border ' + (dow === 0 ? 'text-red' : dow === 6 ? 'text-blue' : 'text-text'))
+              }
+            >
+              {d}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ymd(y: number, m: number, d: number): string {
+  return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
