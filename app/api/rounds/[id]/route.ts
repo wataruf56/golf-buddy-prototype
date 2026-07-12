@@ -20,8 +20,6 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   for (const a of round.pendingApplicantIds || []) userIds.add(a);
   for (const a of round.interestedIds || []) userIds.add(a);
   for (const a of round.invitedIds || []) userIds.add(a);
-  // 日程調整の回答者（参加者とは限らない）も名前・アバターを描画できるよう含める。
-  for (const r of round.schedulePoll?.responses || []) userIds.add(r.userId);
   const users = await db.listUsers(Array.from(userIds));
   // Strip private real names — the round host gets participant names via the
   // dedicated /api/rounds/[id]/participant-names endpoint instead.

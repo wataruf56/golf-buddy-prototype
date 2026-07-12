@@ -2,7 +2,7 @@ import 'server-only';
 import { isDemoMode } from './demoMode';
 import { getAdminDb } from './firebase';
 import { mockUsers, mockRounds, mockReviews, mockChats } from './mockData';
-import type { Chat, Message, PendingReview, Review, Round, RoundThread, User } from './types';
+import type { Chat, Message, PendingReview, Review, Round, RoundThread, SchedulePoll, User } from './types';
 
 export interface DB {
   getUser(id: string): Promise<User | null>;
@@ -27,6 +27,11 @@ export interface DB {
   setInterest(id: string, userId: string, interested: boolean): Promise<{ round: Round; added: boolean }>;
   // Host invites a user. Returns the updated round and whether newly invited.
   inviteToRound(id: string, userId: string): Promise<{ round: Round; added: boolean }>;
+
+  // 日程調整（調整さん）ポール — 募集とは独立したコレクション。
+  createPoll(poll: Omit<SchedulePoll, 'id'>): Promise<SchedulePoll>;
+  getPoll(id: string): Promise<SchedulePoll | null>;
+  updatePoll(id: string, patch: Partial<SchedulePoll>): Promise<void>;
 
   // Round group chat (messages may belong to a named thread via threadId)
   listRoundMessages(roundId: string): Promise<Message[]>;
@@ -59,6 +64,7 @@ class MemoryDB implements DB {
   private chats: Chat[] = JSON.parse(JSON.stringify(mockChats)) as Chat[];
   private roundChats: Map<string, Message[]> = new Map();
   private roundThreads: Map<string, RoundThread[]> = new Map();
+  private polls: SchedulePoll[] = [];
 
   async getUser(id: string) { return this.users.find((u) => u.id === id) || null; }
   async upsertUser(u: Partial<User> & { id: string }) {
@@ -97,6 +103,16 @@ class MemoryDB implements DB {
   async updateRound(id: string, patch: Partial<Round>) {
     const r = this.rounds.find((x) => x.id === id);
     if (r) Object.assign(r, patch);
+  }
+  async createPoll(poll: Omit<SchedulePoll, 'id'>) {
+    const created: SchedulePoll = { ...poll, id: `poll_${Date.now()}_${Math.random().toString(36).slice(2, 8)}` };
+    this.polls.unshift(created);
+    return created;
+  }
+  async getPoll(id: string) { return this.polls.find((p) => p.id === id) || null; }
+  async updatePoll(id: string, patch: Partial<SchedulePoll>) {
+    const p = this.polls.find((x) => x.id === id);
+    if (p) Object.assign(p, patch);
   }
   async deleteRound(id: string) {
     this.rounds = this.rounds.filter((x) => x.id !== id);
@@ -380,6 +396,21 @@ class FirestoreDB implements DB {
     const clean: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(patch)) if (v !== undefined) clean[k] = v;
     await this.fs.collection('rounds').doc(id).set(clean, { merge: true });
+  }
+  async createPoll(poll: Omit<SchedulePoll, 'id'>) {
+    const clean: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(poll)) if (v !== undefined) clean[k] = v;
+    const ref = await this.fs.collection('schedulePolls').add(clean);
+    return { ...(clean as Omit<SchedulePoll, 'id'>), id: ref.id };
+  }
+  async getPoll(id: string) {
+    const snap = await this.fs.collection('schedulePolls').doc(id).get();
+    return this.snapToObj<SchedulePoll>(snap);
+  }
+  async updatePoll(id: string, patch: Partial<SchedulePoll>) {
+    const clean: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(patch)) if (v !== undefined) clean[k] = v;
+    await this.fs.collection('schedulePolls').doc(id).set(clean, { merge: true });
   }
   async deleteRound(id: string) {
     const ref = this.fs.collection('rounds').doc(id);

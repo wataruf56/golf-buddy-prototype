@@ -69,6 +69,9 @@ export default function CreatePage() {
   const [rematchPairId, setRematchPairId] = useState('');
   const [rematchPartnerId, setRematchPartnerId] = useState('');
   const [rematchPartnerName, setRematchPartnerName] = useState('');
+  // 日程調整（?pollId=...&date=...&startTime=...）から来た場合、決まった日程をプリセットし、
+  // 投稿時にこのポールへ roundId を紐付ける。
+  const [fromPollId, setFromPollId] = useState('');
   // Replaced free-form levelCondition string with two structured selectors.
   const [beginnerOnly, setBeginnerOnly] = useState<boolean>(false);
   const [description, setDescription] = useState('');
@@ -109,6 +112,31 @@ export default function CreatePage() {
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 日程調整ポール（?pollId&date&startTime）から来たら、決まった日程をフォームにセット。
+  useEffect(() => {
+    let pid = '', d = '', st = '';
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      pid = sp.get('pollId') || ''; d = sp.get('date') || ''; st = sp.get('startTime') || '';
+    } catch {}
+    if (pid) setFromPollId(pid);
+    if (d) { setDate(d); setDateType('fixed'); }
+    if (st) setStartTime(st);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 「まず日程調整する」→ 新しいポールを作って日程調整ページへ。
+  async function startPoll() {
+    if (!meId) { router.push(`/liff?to=${encodeURIComponent('/create')}`); return; }
+    try {
+      const res = await fetch('/api/polls', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+      if (!res.ok) { toast('日程調整の作成に失敗しました', 'error'); return; }
+      const j = await res.json();
+      track('poll_create', {});
+      if (j.poll?.id) router.push(`/poll/${j.poll.id}`);
+    } catch (e) { toast((e as Error).message, 'error'); }
+  }
 
   // 募集枠を再クランプ（知り合い/合計が変わったとき）
   function reflowSpots(ns: number) {
@@ -196,9 +224,17 @@ export default function CreatePage() {
           });
         } catch { /* 参加確定/記録の失敗は投稿自体を妨げない */ }
       }
+      // 日程調整ポールから来た場合は、そのポールに作成した募集を紐付ける（best-effort）。
+      if (fromPollId && created?.id) {
+        try {
+          await fetch(`/api/polls/${encodeURIComponent(fromPollId)}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'link-round', roundId: created.id }), cache: 'no-store',
+          });
+        } catch { /* 紐付け失敗は投稿を妨げない */ }
+      }
       toast(isComp ? 'コンペ募集を公開しました' : '募集を公開しました');
-      // 公開直後は作った募集の詳細ページへ。ここに「📅 日程調整」ボタンがあり、
-      // 「募集した後に日程を決める」導線がそのまま続く。id が取れなければホームへ。
+      // 公開直後は作った募集の詳細ページへ。id が取れなければホームへ。
       router.push(created?.id ? `/round/${created.id}` : '/home');
     } catch (e) {
       const msg = (e as Error).message;
@@ -224,6 +260,22 @@ export default function CreatePage() {
       <>
         <div className="px-5 pt-2 pb-4 text-2xl font-black tracking-tight">ラウンドを募集する</div>
         <div className="px-5">
+          {/* まず日程調整（任意）。募集の前に候補日を出し合って日程を決められる。 */}
+          <button
+            onClick={startPoll}
+            className="w-full text-left bg-blue-light rounded-card p-4 shadow-card mb-3 border-2 border-blue"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-blue text-white flex items-center justify-center text-2xl flex-shrink-0">📅</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-base font-black text-blue">まず日程調整する</div>
+                <div className="text-[11px] text-sub mt-0.5">みんなの予定を◯△✕で集めてから募集（任意・URL共有OK）</div>
+              </div>
+              <div className="text-xl text-blue">›</div>
+            </div>
+          </button>
+          <div className="text-[11px] text-muted text-center mb-4">日程がもう決まっていれば、下から直接どうぞ</div>
+
           {isAdmin && (
             <div className="bg-card rounded-card p-4 shadow-card mb-4 border-2 border-green-light">
               <div className="text-[13px] font-black mb-2.5">📣 どの名義で投稿しますか？</div>

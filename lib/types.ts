@@ -169,14 +169,19 @@ export type Round = {
   guests?: RoundGuest[];
   // 開催前リマインドの送信記録。キー: 'd30'|'d7'|'d1' → 送信時刻(ms)。二重送信防止。
   upcomingRemindersSent?: Record<string, number>;
-  // 「調整さん」風の日程調整。候補日を複数出し、参加者が ○△× で回答する。
-  // 主催者が日程を決めると decidedOptionId が入り、その日付を round.date に反映する。
-  // options / responses はどちらも配列（Firestore の merge:true は配列を丸ごと置換
-  // するため、要素の削除・更新が安全に効く。map だと古いキーが残る）。
-  schedulePoll?: SchedulePoll;
+  // この募集の元になった日程調整（調整さん）ポールのID。ポール→募集の順で作った場合に入る。
+  schedulePollId?: string;
 };
 
-// 調整さん：候補日ひとつ。誰でも追加できる（createdBy に追加者を記録）。
+// ===== 「調整さん」風の日程調整（募集とは独立したポール） =====
+// 募集を作る前に、候補日を出し合って ○△× で回答してもらい、日程を決める。
+// URLを共有すれば、ゴルトモ未登録の人も登録して回答できる。決まった日程をもとに
+// 「コース予約済み / コース未定」を選んで募集を投稿する（ポール→募集の順）。
+//
+// options / responses はどちらも配列（Firestore の merge:true は配列を丸ごと
+// 置換するため、要素の削除・更新が安全に効く。map だと古いキーが残る）。
+
+// 候補日ひとつ。参加メンバー誰でも追加できる（createdBy に追加者を記録）。
 export type ScheduleOption = {
   id: string;          // 'sopt_...'
   date: string;        // 'YYYY-MM-DD' もしくは自由記入ラベル
@@ -197,13 +202,17 @@ export type ScheduleResponse = {
 };
 
 export type SchedulePoll = {
-  createdBy: string;
+  id: string;
+  ownerId: string;     // ポールを作った人（＝これから募集を立てる人）
+  title?: string;      // 任意のタイトル（例: 「7月の週末ゴルフ」）
   createdAt: number;
   options: ScheduleOption[];
   responses: ScheduleResponse[];
-  // 主催者が決めた候補日。未決定は null/未設定。決定すると round.date にも反映。
+  // オーナーが決めた候補日。未決定は null/未設定。
   decidedOptionId?: string | null;
   decidedAt?: number;
+  // このポールから作成された募集のID（募集を投稿すると入る）。
+  roundId?: string;
 };
 
 // 配車の1台分。driverId＝運転者（主催者 or 送迎可能な参加者）、passengerIds＝
