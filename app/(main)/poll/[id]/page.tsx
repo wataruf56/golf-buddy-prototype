@@ -37,7 +37,6 @@ export default function PollPage() {
 
   // 候補日の複数選択（カレンダーでまとめて選ぶ）。
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
-  const [bulkTime, setBulkTime] = useState('');
   const [myAnswers, setMyAnswers] = useState<Record<string, ScheduleAnswer>>({});
   const [myComment, setMyComment] = useState('');
 
@@ -145,8 +144,8 @@ export default function PollPage() {
     if (!ensureReady()) return;
     const dates = Array.from(selectedDates).sort();
     if (dates.length === 0) { toast('日付を選んでください', 'error'); return; }
-    const p = await callApi({ action: 'add-options', dates, startTime: bulkTime.trim() || undefined });
-    if (p) { setSelectedDates(new Set()); setBulkTime(''); track('poll_add_options', { pollId: params.id, count: dates.length }); }
+    const p = await callApi({ action: 'add-options', dates });
+    if (p) { setSelectedDates(new Set()); track('poll_add_options', { pollId: params.id, count: dates.length }); }
   }
 
   async function removeOption(optionId: string) {
@@ -381,20 +380,10 @@ export default function PollPage() {
         <div className="text-base font-black mb-1">候補日を追加</div>
         <div className="text-[11px] text-sub mb-3">カレンダーで日付を<b>タップして複数選べます</b>。まとめて一括で追加できます（誰でも追加OK）。</div>
         <MultiDatePicker selected={selectedDates} onToggle={toggleDate} />
-        <div className="flex items-center gap-2 mt-3 mb-2">
-          <span className="text-[11px] font-bold text-sub flex-shrink-0">スタート時間（任意・共通）</span>
-          <input
-            type="text"
-            value={bulkTime}
-            onChange={(e) => setBulkTime(e.target.value.slice(0, 20))}
-            placeholder="例: 8:00"
-            className="flex-1 px-3 py-2 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
-          />
-        </div>
         <button
           onClick={addSelectedDates}
           disabled={busy || selectedDates.size === 0}
-          className="w-full py-2.5 bg-green text-white rounded-xl text-sm font-black disabled:opacity-50"
+          className="w-full py-2.5 mt-3 bg-green text-white rounded-xl text-sm font-black disabled:opacity-50"
         >
           ＋ 選択した{selectedDates.size > 0 ? `${selectedDates.size}日` : '日'}を候補に追加
         </button>
