@@ -169,6 +169,41 @@ export type Round = {
   guests?: RoundGuest[];
   // 開催前リマインドの送信記録。キー: 'd30'|'d7'|'d1' → 送信時刻(ms)。二重送信防止。
   upcomingRemindersSent?: Record<string, number>;
+  // 「調整さん」風の日程調整。候補日を複数出し、参加者が ○△× で回答する。
+  // 主催者が日程を決めると decidedOptionId が入り、その日付を round.date に反映する。
+  // options / responses はどちらも配列（Firestore の merge:true は配列を丸ごと置換
+  // するため、要素の削除・更新が安全に効く。map だと古いキーが残る）。
+  schedulePoll?: SchedulePoll;
+};
+
+// 調整さん：候補日ひとつ。誰でも追加できる（createdBy に追加者を記録）。
+export type ScheduleOption = {
+  id: string;          // 'sopt_...'
+  date: string;        // 'YYYY-MM-DD' もしくは自由記入ラベル
+  startTime?: string;  // スタート時間（任意）
+  createdBy: string;   // 追加した userId
+  createdAt: number;
+};
+
+// ○=参加できる / △=たぶん・調整可 / ×=不可
+export type ScheduleAnswer = 'ok' | 'maybe' | 'no';
+
+// 一人分の回答。answers は optionId → ○△×。
+export type ScheduleResponse = {
+  userId: string;
+  answers: Record<string, ScheduleAnswer>;
+  comment?: string;
+  updatedAt: number;
+};
+
+export type SchedulePoll = {
+  createdBy: string;
+  createdAt: number;
+  options: ScheduleOption[];
+  responses: ScheduleResponse[];
+  // 主催者が決めた候補日。未決定は null/未設定。決定すると round.date にも反映。
+  decidedOptionId?: string | null;
+  decidedAt?: number;
 };
 
 // 配車の1台分。driverId＝運転者（主催者 or 送迎可能な参加者）、passengerIds＝

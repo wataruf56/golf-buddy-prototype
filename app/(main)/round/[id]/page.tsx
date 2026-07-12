@@ -488,6 +488,19 @@ export default function RoundDetailPage() {
 
         {/* 気になるは画面上部（シェアの左）に移動。説明文は投稿冒頭に表示。 */}
 
+        {/* 日程調整（調整さん）— みんなで候補日を出し合って◯△✕で決める。
+            URLを送れば未登録の人も登録して回答できる。誰でも開ける。 */}
+        <Link href={`/round/${round.id}/schedule`} className="flex items-center gap-2 p-3 bg-blue-light text-blue rounded-xl mb-2 font-bold text-sm">
+          <span className="text-lg">📅</span>
+          <span className="flex-1">
+            日程調整
+            {round.schedulePoll
+              ? <span className="text-[11px] font-bold text-sub ml-1">（候補{round.schedulePoll.options?.length ?? 0}日・{round.schedulePoll.responses?.length ?? 0}人回答{round.schedulePoll.decidedOptionId ? '・決定済' : ''}）</span>
+              : <span className="text-[11px] font-bold text-sub ml-1">（みんなで日程を決める）</span>}
+          </span>
+          <span>›</span>
+        </Link>
+
         {/* Group chat entry */}
         {canChatGroup && (
           <Link href={`/round/${round.id}/chat`} className="flex items-center gap-2 p-3 bg-green-light text-green rounded-xl mb-2 font-bold text-sm">
