@@ -53,6 +53,8 @@ export default function RoundDetailPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteMessage, setInviteMessage] = useState('');
   const [interestedOpen, setInterestedOpen] = useState(false);
+  // 詳細のセクション切り替えタブ（参加してる人／ピックアップ／組み分け）。
+  const [tab, setTab] = useState<'people' | 'pickup' | 'groups'>('people');
   // Host-only: kanji full names of participants (for golf-course registration).
   const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
 
@@ -478,17 +480,7 @@ export default function RoundDetailPage() {
           </div>
         </div>
 
-        {/* 🚗 送迎（主催者＋車ありの参加者） */}
-        <PickupInfo round={round} meId={meId} users={users} isHost={isHost} isApproved={isApproved} />
-
-        {/* 🚗 配車（車の割り振り）。主催者は編集、参加者は確認のみ。 */}
-        {(isHost || isApproved) && round.status !== 'completed' && (
-          <CarDispatch round={round} users={users as User[]} isHost={isHost} />
-        )}
-
-        {/* 気になるは画面上部（シェアの左）に移動。説明文は投稿冒頭に表示。 */}
-
-        {/* Group chat entry */}
+        {/* コミュニケーション導線（常時表示） */}
         {canChatGroup && (
           <Link href={`/round/${round.id}/chat`} className="flex items-center gap-2 p-3 bg-green-light text-green rounded-xl mb-2 font-bold text-sm">
             <span className="text-lg">💬</span>
@@ -496,9 +488,6 @@ export default function RoundDetailPage() {
             <span>›</span>
           </Link>
         )}
-
-        {/* LINEオープンチャット — LINEアイコン＋目立つ見出し＋小さな補足。
-            URLの設定/編集は投稿者の編集画面（鉛筆）で行う。 */}
         {canChatGroup && round.openChatUrl && (
           <a
             href={round.openChatUrl}
@@ -514,8 +503,36 @@ export default function RoundDetailPage() {
             <span className="text-muted">↗</span>
           </a>
         )}
-        {canChatGroup && !round.openChatUrl && <div className="mb-2" />}
 
+        {/* セクション切り替えタブ（参加してる人／ピックアップ／組み分け） */}
+        <div className="flex gap-1 mb-4 bg-bg rounded-xl p-1">
+          {([['people', '参加してる人'], ['pickup', 'ピックアップ'], ['groups', '組み分け']] as const).map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => setTab(k)}
+              className={'flex-1 py-2 rounded-lg text-[12px] font-bold ' + (tab === k ? 'bg-card text-green shadow-sm' : 'text-sub')}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── ピックアップ タブ ── */}
+        {tab === 'pickup' && (
+          <>
+            {/* 🚗 送迎（主催者＋車ありの参加者） */}
+            <PickupInfo round={round} meId={meId} users={users} isHost={isHost} isApproved={isApproved} />
+            {/* 🚗 配車（車の割り振り）。主催者は編集、参加者は確認のみ。 */}
+            {(isHost || isApproved) && round.status !== 'completed' && (
+              <CarDispatch round={round} users={users as User[]} isHost={isHost} />
+            )}
+            <div className="text-[11px] text-muted mt-1">※ 各メンバーの送迎回答は「参加してる人」タブの各行から確認・編集できます。</div>
+          </>
+        )}
+
+        {/* ── 参加してる人 タブ（開始） ── */}
+        {tab === 'people' && (
+          <>
         {/* Host — official rounds show the branded ゴルトモ公式 identity instead
             of the admin's personal profile. */}
         {round.isOfficial ? (
@@ -665,6 +682,21 @@ export default function RoundDetailPage() {
             <span>❤️</span> 気になる {interestedUsers.length}人 <span className="text-muted">›</span>
           </button>
         )}
+          </>
+        )}
+
+        {/* ── 組み分け タブ ── */}
+        {tab === 'groups' && (
+          <>
+            {isComp && (isHost || isApproved) ? (
+              <GroupAssignment round={round} users={users as User[]} isHost={isHost} />
+            ) : (
+              <div className="text-center text-sub text-sm py-8 leading-relaxed">
+                組み分け（スタート時間・コース）は、<br />5人以上のコンペ・イベントで<br />主催者・参加者が使えます。
+              </div>
+            )}
+          </>
+        )}
 
         {/* Action buttons */}
         {isHost ? (
@@ -716,14 +748,6 @@ export default function RoundDetailPage() {
           </>
         )}
       </div>
-
-      {/* 組分け・スタート時間 — competition rounds. Host edits (drag & drop),
-          participants see it read-only. */}
-      {isComp && (isHost || isApproved) && (
-        <div className="mt-3">
-          <GroupAssignment round={round} users={users as User[]} isHost={isHost} />
-        </div>
-      )}
 
       {round.status === 'completed' && (isHost || isApproved) && (
         <div className="bg-card rounded-card p-4 mb-3 shadow-card">
