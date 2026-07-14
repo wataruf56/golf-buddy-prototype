@@ -91,6 +91,7 @@ export async function POST(req: NextRequest) {
       : undefined,
     pickupCapacity: typeof body.pickupCapacity === 'number' && body.pickupCapacity > 0
       ? Math.min(8, Math.floor(body.pickupCapacity)) : undefined,
+    pickupOffered: typeof body.pickupOffered === 'boolean' ? body.pickupOffered : undefined,
     status: 'open',
     isCompetition: maxSpots >= 5,
     // "ゴルトモ公式" は管理者（福田渉）のみが選択可能。クライアントの申告は

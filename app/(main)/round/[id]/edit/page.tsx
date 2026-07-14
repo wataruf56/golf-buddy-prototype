@@ -47,6 +47,8 @@ export default function EditRoundPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   // 編集画面のセクション切り替えタブ（募集内容／募集人数／ピックアップ）。
   const [tab, setTab] = useState<'basic' | 'count' | 'pickup'>('basic');
+  // ピックアップ可否（必須）。'' = 未選択 / 'yes' = 送迎できる / 'no' = しない。
+  const [pickupMode, setPickupMode] = useState<'' | 'yes' | 'no'>('');
 
   // form state
   const [title, setTitle] = useState('');
@@ -140,6 +142,12 @@ export default function EditRoundPage() {
     setDescription(round.description || '');
     setPickupStations(round.pickupStations || []);
     setPickupCapacity(round.pickupCapacity || 0);
+    // ピックアップ可否。明示フラグ優先。旧データは駅があれば「可」、なければ「不可」。
+    setPickupMode(
+      typeof round.pickupOffered === 'boolean'
+        ? (round.pickupOffered ? 'yes' : 'no')
+        : ((round.pickupStations || []).length > 0 ? 'yes' : 'no'),
+    );
     setOpenChatUrl(round.openChatUrl || '');
     setPostAsOfficial(!!round.isOfficial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -226,9 +234,19 @@ export default function EditRoundPage() {
   }
 
   async function save() {
+    // 必須チェック（足りないタブへ切り替えて知らせる）。
+    if (maxSpots < 2) {
+      toast('募集人数を入力してください', 'error');
+      setTab('count'); return;
+    }
+    if (pickupMode === '') {
+      toast('ピックアップ（送迎）の可否を選んでください', 'error');
+      setTab('pickup'); return;
+    }
     setSaving(true);
     // 内訳(自分含む全体) → 実募集枠へ変換して送信（保存データの意味は従来どおり）。
     const rSlots = recruitmentSlots();
+    const offerPickup = pickupMode === 'yes';
     const patch: Partial<Round> & { asOfficial?: boolean } = {
       title: title || round!.title,
       maxSpots,
@@ -245,8 +263,9 @@ export default function EditRoundPage() {
       beginnerOnly,
       genderCondition: deriveGenderCondition(rSlots.spotsMale, rSlots.spotsFemale, rSlots.spotsAny),
       description: description || '',
-      pickupStations,
-      pickupCapacity: pickupStations.length && pickupCapacity > 0 ? pickupCapacity : undefined,
+      pickupOffered: offerPickup,
+      pickupStations: offerPickup ? pickupStations : [],
+      pickupCapacity: offerPickup && pickupStations.length && pickupCapacity > 0 ? pickupCapacity : undefined,
       openChatUrl: openChatUrl.trim(),
     };
     if (isConfirmed) {
@@ -301,7 +320,7 @@ export default function EditRoundPage() {
                 key={k}
                 type="button"
                 onClick={() => setTab(k)}
-                className={'flex-1 py-2 rounded-lg text-[12px] font-bold ' + (tab === k ? 'bg-card text-green shadow-sm' : 'text-sub')}
+                className={'flex-1 py-2 rounded-lg text-[12px] font-black ' + (tab === k ? 'bg-orange text-white shadow-sm' : 'text-sub')}
               >
                 {label}
               </button>
@@ -483,25 +502,36 @@ export default function EditRoundPage() {
           </>
           )}
 
-          {/* ── ピックアップ タブ ── */}
+          {/* ── ピックアップ タブ（可否は必須） ── */}
           {tab === 'pickup' && (
           <>
-            <Field label="🚗 ピックアップできる駅" hint="（送迎できる駅・複数選択・任意入力OK）">
-              <PickupStationPicker value={pickupStations} onChange={setPickupStations} />
-              {pickupStations.length > 0 && (
-                <div className="mt-2.5 flex items-center gap-2">
-                  <span className="text-xs font-bold text-sub">自分含め乗れる人数</span>
-                  <input
-                    type="number" min={1} max={8} inputMode="numeric"
-                    value={pickupCapacity || ''}
-                    onChange={(e) => setPickupCapacity(Math.max(0, Math.min(8, Number(e.target.value) || 0)))}
-                    placeholder="例: 4"
-                    className="w-16 px-2 py-1.5 border-[1.5px] border-border rounded-[8px] text-sm bg-bg outline-none text-center"
-                  />
-                  <span className="text-xs text-sub">名</span>
-                </div>
-              )}
-            </Field>
+            <label className="block text-xs font-bold text-sub mb-1.5">ピックアップ（送迎）の可否 <span className="text-red">*</span></label>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setPickupMode('yes')} className={cn('flex-1 py-3 rounded-[10px] border-[1.5px] text-sm font-bold', pickupMode === 'yes' ? 'border-green bg-green-light text-green' : 'border-border bg-card text-sub')}>🚗 送迎できる</button>
+              <button type="button" onClick={() => setPickupMode('no')} className={cn('flex-1 py-3 rounded-[10px] border-[1.5px] text-sm font-bold', pickupMode === 'no' ? 'border-green bg-green-light text-green' : 'border-border bg-card text-sub')}>送迎しない</button>
+            </div>
+            {pickupMode === '' && <div className="mt-1.5 text-[11px] text-orange font-bold">※ どちらかを選んでください（必須）</div>}
+            {pickupMode === 'no' && <div className="mt-2 px-3 py-2 bg-bg rounded-lg text-[11px] text-sub font-medium">送迎なしで保存します。</div>}
+
+            {pickupMode === 'yes' && (
+              <div className="mt-3">
+                <label className="block text-xs font-bold text-sub mb-1.5">🚗 ピックアップできる駅 <span className="text-muted font-medium">（任意・あとから追加OK）</span></label>
+                <PickupStationPicker value={pickupStations} onChange={setPickupStations} />
+                {pickupStations.length > 0 && (
+                  <div className="mt-2.5 flex items-center gap-2">
+                    <span className="text-xs font-bold text-sub">自分含め乗れる人数</span>
+                    <input
+                      type="number" min={1} max={8} inputMode="numeric"
+                      value={pickupCapacity || ''}
+                      onChange={(e) => setPickupCapacity(Math.max(0, Math.min(8, Number(e.target.value) || 0)))}
+                      placeholder="例: 4"
+                      className="w-16 px-2 py-1.5 border-[1.5px] border-border rounded-[8px] text-sm bg-bg outline-none text-center"
+                    />
+                    <span className="text-xs text-sub">名</span>
+                  </div>
+                )}
+              </div>
+            )}
           </>
           )}
 

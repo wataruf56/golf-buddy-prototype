@@ -149,6 +149,9 @@ export type Round = {
   pickupStations?: string[];
   // 主催者が送迎で乗せられる人数（運転者である自分を含む）。
   pickupCapacity?: number;
+  // 主催者が送迎（ピックアップ）できるか。投稿時に「可/不可」を必須で選ぶ。
+  // true=送迎できる（駅は任意・後から追加可）／false=送迎しない。未設定=旧データ。
+  pickupOffered?: boolean;
   // 参加者ごとのピックアップ回答。userId → { status, stations, capacity }。
   //   status='can'  : 送れる駅 stations ＋ capacity(自分含む)
   //   status='want' : 希望する駅 stations
