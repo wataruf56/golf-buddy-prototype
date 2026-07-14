@@ -1487,7 +1487,7 @@ function PickupProposalBanner({ roundId, station }: { roundId: string; station: 
       const d = await res.json();
       if (action === 'accept') {
         await store.refreshRounds().catch(() => {});
-        toast(`ピックアップ場所を ${station}駅 にしました🚉`);
+        toast(`${station}駅 を承諾しました（あなたの希望駅に追加）🚉`);
       } else {
         toast('相談スレッドを作成しました💬');
         router.push(`/round/${roundId}/chat${d.threadId ? `?thread=${encodeURIComponent(d.threadId)}` : ''}`);
@@ -1505,12 +1505,15 @@ function PickupProposalBanner({ roundId, station }: { roundId: string; station: 
       <div className="flex gap-2">
         <button onClick={() => respond('accept')} disabled={!!busy}
           className="flex-1 py-2.5 bg-green text-white rounded-full text-[13px] font-bold disabled:opacity-50">
-          {busy === 'accept' ? '設定中…' : '✅ この駅にする'}
+          {busy === 'accept' ? '設定中…' : '✅ 承諾する'}
         </button>
         <button onClick={() => respond('discuss')} disabled={!!busy}
           className="flex-1 py-2.5 bg-white text-orange border-[1.5px] border-orange rounded-full text-[13px] font-bold disabled:opacity-50">
           {busy === 'discuss' ? '準備中…' : '💬 相談したい'}
         </button>
+      </div>
+      <div className="text-[10px] text-muted mt-1.5 leading-relaxed">
+        承諾すると、この駅があなたの希望駅に追加されます（スレッドは立ちません）。難しいときだけ「相談したい」を押してください。
       </div>
     </div>
   );

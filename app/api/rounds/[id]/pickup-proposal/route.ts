@@ -75,10 +75,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const mine = round.pickupProposals?.[meId];
   if (!mine) return NextResponse.json({ error: 'no_proposal' }, { status: 400, headers: noStore });
 
-  // ---- 受け手: OK（ピックアップ場所を提案駅のみにする） ----
+  // ---- 受け手: 承諾（提案駅を自分の希望駅に「追加」して、選んだ状態にする） ----
+  // 置き換えではなく追加。既存の希望駅を残したまま、提案された駅も選択肢に含める。
+  // スレッドは立てない（相談したい場合だけ discuss を使う）。
   if (action === 'accept') {
+    const cur = round.participantPickups?.[meId];
+    const existing = Array.isArray(cur?.stations) ? cur!.stations : [];
+    const stations = existing.includes(mine.station) ? existing : [...existing, mine.station].slice(0, 20);
     const pp = { ...(round.participantPickups || {}) };
-    pp[meId] = { status: 'want', stations: [mine.station] };
+    pp[meId] = { status: 'want', stations };
     await db.updateRound(params.id, {
       participantPickups: pp,
       pickupProposals: { [meId]: null },
