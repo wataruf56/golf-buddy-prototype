@@ -45,6 +45,8 @@ export default function EditRoundPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // 編集画面のセクション切り替えタブ（募集内容／募集人数／ピックアップ）。
+  const [tab, setTab] = useState<'basic' | 'count' | 'pickup'>('basic');
 
   // form state
   const [title, setTitle] = useState('');
@@ -292,6 +294,23 @@ export default function EditRoundPage() {
 
       <div className="px-5">
         <div className="bg-card rounded-card p-5 shadow-card">
+          {/* セクション切り替えタブ（募集内容／募集人数／ピックアップ） */}
+          <div className="flex gap-1 mb-4 bg-bg rounded-xl p-1">
+            {([['basic', '募集内容'], ['count', '募集人数'], ['pickup', 'ピックアップ']] as const).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setTab(k)}
+                className={'flex-1 py-2 rounded-lg text-[12px] font-bold ' + (tab === k ? 'bg-card text-green shadow-sm' : 'text-sub')}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── 募集内容 タブ（前半：種類・タイトル・日程・費用） ── */}
+          {tab === 'basic' && (
+          <>
           {isAdmin && (
             <Field label="投稿の種類（管理者のみ）">
               <div className="flex gap-2">
@@ -402,88 +421,107 @@ export default function EditRoundPage() {
             </>
           )}
 
-          {/* ① 募集人数 */}
-          <Field label="募集人数" required hint={`（${MIN_TOTAL}〜50人）`}>
-            <Stepper value={maxSpots} onMinus={() => changeTotal(-1)} onPlus={() => changeTotal(1)} minusDisabled={maxSpots <= MIN_TOTAL} plusDisabled={maxSpots >= MAX_TOTAL} suffix="人" />
-            <div className="mt-1.5 px-3 py-2 bg-green-light rounded-lg text-[11px] text-green font-bold">👤 主催者（あなた）を含めた合計人数です</div>
-            {currentCount > 1 && (
-              <div className="mt-1.5 text-[11px] text-muted">すでに{currentCount}人が参加しているため、それ未満には変更できません</div>
-            )}
+          </>
+          )}
+
+          {/* ── 募集人数 タブ ── */}
+          {tab === 'count' && (
+          <>
+            {/* 5人以上コンペ note ― 人数ボタンの上に表示 */}
             {isComp && (
-              <div className="mt-2 px-3 py-2.5 bg-orange-light rounded-lg text-xs text-orange font-bold">
+              <div className="mb-3 px-3 py-2.5 bg-orange-light rounded-lg text-xs text-orange font-bold">
                 🏆 5人以上はコンペ・イベント扱いになります
               </div>
             )}
-          </Field>
-
-          {/* ② 性別ごとの募集内訳（自分を含めた合計 = 募集人数） */}
-          <Field label="性別ごとの募集内訳" hint={`（合計 ${maxSpots}人・自分を含む）`}>
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-black text-blue flex items-center gap-1.5">👨 男性</span>
-                <Stepper sm value={spotsMale} onMinus={() => changeMale(-1)} onPlus={() => changeMale(1)} minusDisabled={spotsMale <= 0} plusDisabled={spotsMale + spotsFemale >= maxSpots} suffix="人" />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-black text-pink-600 flex items-center gap-1.5">👩 女性</span>
-                <Stepper sm value={spotsFemale} onMinus={() => changeFemale(-1)} onPlus={() => changeFemale(1)} minusDisabled={spotsFemale <= 0} plusDisabled={spotsMale + spotsFemale >= maxSpots} suffix="人" />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-black text-sub flex items-center gap-1.5">🙆 どちらでもOK</span>
-                <span className="flex items-center gap-2"><span className="text-[10px] font-bold text-muted">自動</span><span className="text-lg font-black font-mono w-8 text-center">{bAny}</span><span className="text-xs text-sub">人</span></span>
-              </div>
-            </div>
-            <div className="mt-2.5 px-3 py-2 bg-bg rounded-lg text-[11px] font-bold text-sub">
-              合計 <b className="text-text">{spotsMale + spotsFemale + bAny}</b>人（自分を含む）＝ 男性{spotsMale}・女性{spotsFemale}・どちらでも{bAny}
-              <span className="block text-[10px] text-muted font-medium mt-0.5">この合計が上の「募集人数（{maxSpots}人）」と一致します。自分（主催者）もこの内訳に含まれます。「どちらでもOK」は残りから自動計算。</span>
-            </div>
-          </Field>
-
-          {/* ③ 主催者の知り合い（内訳のうち既に集まっている人） */}
-          <Field label="主催者の知り合い" hint="（この内訳のうち、既に集まっている人・任意）">
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-black text-blue flex items-center gap-1.5">👨 男性</span>
-                <Stepper sm value={externalMale} onMinus={() => changeExtMale(-1)} onPlus={() => changeExtMale(1)} minusDisabled={externalMale <= 0} plusDisabled={extTotal >= maxSpots - 1 - approvedApp} suffix="人" />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-black text-pink-600 flex items-center gap-1.5">👩 女性</span>
-                <Stepper sm value={externalFemale} onMinus={() => changeExtFemale(-1)} onPlus={() => changeExtFemale(1)} minusDisabled={externalFemale <= 0} plusDisabled={extTotal >= maxSpots - 1 - approvedApp} suffix="人" />
-              </div>
-            </div>
-            <div className="mt-1.5 text-[10px] text-muted font-medium">
-              ゴルトモにいないメンバー（他アプリ等で既に集まっている人）。上の募集人数の内数で、その分ゴルトモでの募集枠が減ります。
-            </div>
-          </Field>
-
-          <Field label="🚗 ピックアップできる駅" hint="（送迎できる駅・複数選択・任意入力OK）">
-            <PickupStationPicker value={pickupStations} onChange={setPickupStations} />
-            {pickupStations.length > 0 && (
-              <div className="mt-2.5 flex items-center gap-2">
-                <span className="text-xs font-bold text-sub">自分含め乗れる人数</span>
-                <input
-                  type="number" min={1} max={8} inputMode="numeric"
-                  value={pickupCapacity || ''}
-                  onChange={(e) => setPickupCapacity(Math.max(0, Math.min(8, Number(e.target.value) || 0)))}
-                  placeholder="例: 4"
-                  className="w-16 px-2 py-1.5 border-[1.5px] border-border rounded-[8px] text-sm bg-bg outline-none text-center"
-                />
-                <span className="text-xs text-sub">名</span>
-              </div>
+            {/* 募集人数（このすぐ下に性別内訳を詰めて配置） */}
+            <label className="block text-xs font-bold text-sub mb-1.5">募集人数 <span className="text-red">*</span> <span className="text-muted font-medium">（{MIN_TOTAL}〜50人）</span></label>
+            <Stepper value={maxSpots} onMinus={() => changeTotal(-1)} onPlus={() => changeTotal(1)} minusDisabled={maxSpots <= MIN_TOTAL} plusDisabled={maxSpots >= MAX_TOTAL} suffix="人" />
+            <div className="mt-1.5 px-3 py-2 bg-green-light rounded-lg text-[11px] text-green font-bold">👤 主催者（あなた）を含めた合計人数です</div>
+            {currentCount > 1 && (
+              <div className="mt-1 text-[11px] text-muted">すでに{currentCount}人が参加しているため、それ未満には変更できません</div>
             )}
-          </Field>
 
-          <Field label="ひとこと">
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={200} placeholder="募集の趣旨や雰囲気を伝えましょう（200文字以内）" className="w-full h-20 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-none" />
-          </Field>
+            {/* 性別ごとの募集内訳（人数ボタンのすぐ下・間隔を詰める） */}
+            <div className="mt-3">
+              <label className="block text-xs font-bold text-sub mb-1.5">性別ごとの募集内訳 <span className="text-muted font-medium">（合計 {maxSpots}人・自分を含む）</span></label>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-black text-blue flex items-center gap-1.5">👨 男性</span>
+                  <Stepper sm value={spotsMale} onMinus={() => changeMale(-1)} onPlus={() => changeMale(1)} minusDisabled={spotsMale <= 0} plusDisabled={spotsMale + spotsFemale >= maxSpots} suffix="人" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-black text-pink-600 flex items-center gap-1.5">👩 女性</span>
+                  <Stepper sm value={spotsFemale} onMinus={() => changeFemale(-1)} onPlus={() => changeFemale(1)} minusDisabled={spotsFemale <= 0} plusDisabled={spotsMale + spotsFemale >= maxSpots} suffix="人" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-black text-sub flex items-center gap-1.5">🙆 どちらでもOK</span>
+                  <span className="flex items-center gap-2"><span className="text-[10px] font-bold text-muted">自動</span><span className="text-lg font-black font-mono w-8 text-center">{bAny}</span><span className="text-xs text-sub">人</span></span>
+                </div>
+              </div>
+              <div className="mt-2.5 px-3 py-2 bg-bg rounded-lg text-[11px] font-bold text-sub">
+                合計 <b className="text-text">{spotsMale + spotsFemale + bAny}</b>人（自分を含む）＝ 男性{spotsMale}・女性{spotsFemale}・どちらでも{bAny}
+                <span className="block text-[10px] text-muted font-medium mt-0.5">この合計が上の「募集人数（{maxSpots}人）」と一致します。「どちらでもOK」は残りから自動計算。</span>
+              </div>
+            </div>
 
-          <Field label="LINEオープンチャットURL" hint="（任意・参加者に表示されます）">
-            <input
-              value={openChatUrl}
-              onChange={(e) => setOpenChatUrl(e.target.value)}
-              placeholder="https://line.me/ti/g2/..."
-              className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
-            />
-          </Field>
+            {/* 主催者の知り合い（内訳のうち既に集まっている人） */}
+            <Field label="主催者の知り合い" hint="（この内訳のうち、既に集まっている人・任意）">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-black text-blue flex items-center gap-1.5">👨 男性</span>
+                  <Stepper sm value={externalMale} onMinus={() => changeExtMale(-1)} onPlus={() => changeExtMale(1)} minusDisabled={externalMale <= 0} plusDisabled={extTotal >= maxSpots - 1 - approvedApp} suffix="人" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-black text-pink-600 flex items-center gap-1.5">👩 女性</span>
+                  <Stepper sm value={externalFemale} onMinus={() => changeExtFemale(-1)} onPlus={() => changeExtFemale(1)} minusDisabled={externalFemale <= 0} plusDisabled={extTotal >= maxSpots - 1 - approvedApp} suffix="人" />
+                </div>
+              </div>
+              <div className="mt-1.5 text-[10px] text-muted font-medium">
+                ゴルトモにいないメンバー（他アプリ等で既に集まっている人）。上の募集人数の内数で、その分ゴルトモでの募集枠が減ります。
+              </div>
+            </Field>
+          </>
+          )}
+
+          {/* ── ピックアップ タブ ── */}
+          {tab === 'pickup' && (
+          <>
+            <Field label="🚗 ピックアップできる駅" hint="（送迎できる駅・複数選択・任意入力OK）">
+              <PickupStationPicker value={pickupStations} onChange={setPickupStations} />
+              {pickupStations.length > 0 && (
+                <div className="mt-2.5 flex items-center gap-2">
+                  <span className="text-xs font-bold text-sub">自分含め乗れる人数</span>
+                  <input
+                    type="number" min={1} max={8} inputMode="numeric"
+                    value={pickupCapacity || ''}
+                    onChange={(e) => setPickupCapacity(Math.max(0, Math.min(8, Number(e.target.value) || 0)))}
+                    placeholder="例: 4"
+                    className="w-16 px-2 py-1.5 border-[1.5px] border-border rounded-[8px] text-sm bg-bg outline-none text-center"
+                  />
+                  <span className="text-xs text-sub">名</span>
+                </div>
+              )}
+            </Field>
+          </>
+          )}
+
+          {/* ── 募集内容 タブ（後半：ひとこと・オープンチャット） ── */}
+          {tab === 'basic' && (
+          <>
+            <Field label="ひとこと">
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={200} placeholder="募集の趣旨や雰囲気を伝えましょう（200文字以内）" className="w-full h-20 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-none" />
+            </Field>
+
+            <Field label="LINEオープンチャットURL" hint="（任意・参加者に表示されます）">
+              <input
+                value={openChatUrl}
+                onChange={(e) => setOpenChatUrl(e.target.value)}
+                placeholder="https://line.me/ti/g2/..."
+                className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
+              />
+            </Field>
+          </>
+          )}
 
           <button
             onClick={save}
