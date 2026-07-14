@@ -33,7 +33,9 @@ async function autoAddRespondentsToRound(roundId: string, poll: SchedulePoll, ho
   const toAdd: string[] = [];
   for (const r of poll.responses || []) {
     if (!r.userId || already.has(r.userId)) continue;
-    if (decided && r.answers?.[decided] === 'no') continue; // 決定日に不可の人は除外
+    // 決定日に ○（ok＝参加できる）と回答した人だけを自動参加にする。
+    // △（maybe）・×（no）・未回答は対象外。
+    if (!decided || r.answers?.[decided] !== 'ok') continue;
     already.add(r.userId);
     toAdd.push(r.userId);
   }
