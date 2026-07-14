@@ -379,8 +379,8 @@ export default function PollPage() {
       {/* 候補日を追加（誰でも）— カレンダーでまとめて選択 → 一括追加 */}
       <div className="bg-card rounded-card p-4 shadow-card mb-4">
         <div className="text-base font-black mb-1">候補日を追加</div>
-        <div className="text-[11px] text-sub mb-3">カレンダーで日付を<b>タップして複数選べます</b>。まとめて一括で追加できます（誰でも追加OK）。</div>
-        <MultiDatePicker selected={selectedDates} onToggle={toggleDate} />
+        <div className="text-[11px] text-sub mb-3">カレンダーで日付を<b>タップして複数選べます</b>。まとめて一括で追加できます（誰でも追加OK）。<span className="text-green font-bold">緑で塗られた日は追加済み</span>です。</div>
+        <MultiDatePicker selected={selectedDates} onToggle={toggleDate} existing={new Set(options.map((o) => o.date))} />
         <button
           onClick={addSelectedDates}
           disabled={busy || selectedDates.size === 0}
@@ -418,8 +418,8 @@ export default function PollPage() {
   );
 }
 
-// カレンダー（複数選択）。日付をタップでトグル。過去日は選べない。
-function MultiDatePicker({ selected, onToggle }: { selected: Set<string>; onToggle: (d: string) => void }) {
+// カレンダー（複数選択）。日付をタップでトグル。過去日と追加済みの日は選べない。
+function MultiDatePicker({ selected, onToggle, existing }: { selected: Set<string>; onToggle: (d: string) => void; existing: Set<string> }) {
   const today = new Date();
   const todayKey = ymd(today.getFullYear(), today.getMonth(), today.getDate());
   const [view, setView] = useState({ y: today.getFullYear(), m: today.getMonth() });
@@ -460,16 +460,22 @@ function MultiDatePicker({ selected, onToggle }: { selected: Set<string>; onTogg
           if (d === null) return <div key={i} />;
           const key = ymd(view.y, view.m, d);
           const isPast = key < todayKey;
+          const added = existing.has(key);   // すでに候補に追加済み
           const on = selected.has(key);
           const dow = new Date(view.y, view.m, d).getDay();
+          const disabled = isPast || added;
           return (
             <button
               key={i}
-              onClick={() => !isPast && onToggle(key)}
-              disabled={isPast}
+              onClick={() => !disabled && onToggle(key)}
+              disabled={disabled}
+              aria-label={added ? '追加済み' : undefined}
               className={
                 'aspect-square rounded-lg text-[13px] font-bold flex items-center justify-center ' +
-                (on ? 'bg-green text-white' : isPast ? 'text-border' : 'bg-card border border-border ' + (dow === 0 ? 'text-red' : dow === 6 ? 'text-blue' : 'text-text'))
+                (added ? 'bg-green text-white opacity-70 border-[1.5px] border-green'
+                  : on ? 'bg-green text-white'
+                  : isPast ? 'text-border'
+                  : 'bg-card border border-border ' + (dow === 0 ? 'text-red' : dow === 6 ? 'text-blue' : 'text-text'))
               }
             >
               {d}
