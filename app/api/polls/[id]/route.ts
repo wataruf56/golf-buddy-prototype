@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
-import type { SchedulePoll, ScheduleOption, ScheduleResponse, ScheduleAnswer } from '@/lib/types';
+import type { Round, SchedulePoll, ScheduleOption, ScheduleResponse, ScheduleAnswer } from '@/lib/types';
 
 // 独立した日程調整ポールの取得・操作。
 //
@@ -24,39 +24,62 @@ function clean<T>(v: T): T { return JSON.parse(JSON.stringify(v)); }
 
 // ポールの回答者を、そのポールから作られたラウンドの参加者に自動で入れる。
 // 招待・承認はスキップ（主催者が日程調整で集めた友だちなので確定扱い）。
-// 決定日に「×(不可)」の人は入れない。定員(maxSpots)は人数に合わせて自動で広げる。
+// 決定日の回答で自動処理を分ける：
+//   ○(ok)     → 参加確定に自動追加（定員は人数に合わせて自動で広げる）
+//   △(maybe)  → 「招待」だけ自動でしておく（本人が参加を押せば確定）
+//   ×(no)・未回答 → 何もしない
 async function autoAddRespondentsToRound(roundId: string, poll: SchedulePoll, hostId: string): Promise<void> {
   const round = await db.getRound(roundId);
   if (!round || round.hostId !== hostId) return;
   const decided = poll.decidedOptionId || '';
+  if (!decided) return;
   const already = new Set<string>([round.hostId, ...(round.applicantIds || []), ...(round.pendingApplicantIds || [])]);
-  const toAdd: string[] = [];
+  const invitedAlready = new Set<string>(round.invitedIds || []);
+  const toAdd: string[] = [];     // ○ → 参加確定
+  const toInvite: string[] = [];  // △ → 招待のみ
   for (const r of poll.responses || []) {
     if (!r.userId || already.has(r.userId)) continue;
-    // 決定日に ○（ok＝参加できる）と回答した人だけを自動参加にする。
-    // △（maybe）・×（no）・未回答は対象外。
-    if (!decided || r.answers?.[decided] !== 'ok') continue;
-    already.add(r.userId);
-    toAdd.push(r.userId);
+    const ans = r.answers?.[decided];
+    if (ans === 'ok') {
+      already.add(r.userId);
+      toAdd.push(r.userId);
+    } else if (ans === 'maybe' && !invitedAlready.has(r.userId)) {
+      invitedAlready.add(r.userId);
+      toInvite.push(r.userId);
+    }
   }
-  if (!toAdd.length) return;
-  const applicantIds = [...(round.applicantIds || []), ...toAdd];
-  const currentCount = (round.currentCount || 1) + toAdd.length;
-  const maxSpots = Math.max(round.maxSpots || 1, currentCount);
-  await db.updateRound(roundId, { applicantIds, currentCount, maxSpots, isCompetition: maxSpots >= 5 } as any);
-  // お知らせ（アプリ内＋LINE）。失敗しても参加追加は妨げない。
+  if (!toAdd.length && !toInvite.length) return;
+
+  const patch: Partial<Round> = {};
+  if (toAdd.length) {
+    patch.applicantIds = [...(round.applicantIds || []), ...toAdd];
+    patch.currentCount = (round.currentCount || 1) + toAdd.length;
+    patch.maxSpots = Math.max(round.maxSpots || 1, patch.currentCount);
+    patch.isCompetition = patch.maxSpots >= 5;
+  }
+  if (toInvite.length) {
+    patch.invitedIds = [...(round.invitedIds || []), ...toInvite];
+  }
+  await db.updateRound(roundId, patch as any);
+
+  // お知らせ（アプリ内＋LINE）。失敗しても処理は妨げない。
   try {
     const host = await db.getUser(hostId);
     const hostName = host?.displayName || '主催者';
     const link = `/round/${roundId}`;
-    const text = `「${round.title}」のラウンドに参加が確定しました（${hostName}さんが日程調整から作成）`;
     const { addNotification } = await import('@/lib/notifications');
     const { pushTo, liffUrl } = await import('@/lib/linePush');
     const { isNotifyEnabled } = await import('@/lib/notifyPrefs');
-    for (const uid of toAdd) {
+    const notify = async (uid: string, text: string) => {
       addNotification(uid, 'invited', text, link).catch(() => {});
       const u = await db.getUser(uid);
       if (isNotifyEnabled(u as any, 'invited')) pushTo(uid, text, liffUrl(link)).catch(() => {});
+    };
+    for (const uid of toAdd) {
+      await notify(uid, `「${round.title}」のラウンドに参加が確定しました（${hostName}さんが日程調整から作成）`);
+    }
+    for (const uid of toInvite) {
+      await notify(uid, `「${round.title}」のラウンドに招待されました（${hostName}さんが日程調整から作成）。参加できる場合はアプリで「参加」を押してください。`);
     }
   } catch { /* 通知失敗は無視 */ }
 }
