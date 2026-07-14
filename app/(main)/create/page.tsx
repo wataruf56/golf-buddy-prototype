@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { allAreas } from '@/lib/mockData';
 import { PickupStationPicker } from '@/components/PickupStationPicker';
 import { PriceField } from '@/components/PriceField';
-import { store, useStore } from '@/lib/store';
+import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { track } from '@/lib/telemetry';
 import type { Round, RoundType, DateType } from '@/lib/types';
@@ -36,6 +36,7 @@ const DEFAULT_TITLE_PRESETS = [
 export default function CreatePage() {
   const router = useRouter();
   const meId = useStore((s) => s.meId);
+  const me = useStore(getMe);
   const isAdmin = useStore((s) => s.isAdmin);
   const noCreate = useStore((s) => !!s.restrictions.noCreate);
   const [step, setStep] = useState<'select' | 'form'>('select');
@@ -81,9 +82,10 @@ export default function CreatePage() {
 
   const isComp = maxSpots >= 5;
   const MIN_TOTAL = 2, MAX_TOTAL = 50;
-  const extTotal = externalMale + externalFemale;                 // 知り合い合計
-  const slots = Math.max(0, maxSpots - 1 - extTotal);            // ゴルトモで募集する枠
-  const spotsAny = Math.max(0, slots - spotsMale - spotsFemale);  // どちらでもOK（自動）
+  const extTotal = externalMale + externalFemale;               // 知り合い合計
+  // 性別内訳は「自分を含めた全体(=募集人数)」の内訳。男 + 女 + どちらでも = maxSpots。
+  // spotsMale / spotsFemale は内訳の男/女。どちらでも(bAny)は残りの自動計算。
+  const bAny = Math.max(0, maxSpots - spotsMale - spotsFemale);
 
   // 管理画面で編集されたタイトル定型文を取得（失敗時は既定値のまま）。
   useEffect(() => {
@@ -138,38 +140,49 @@ export default function CreatePage() {
     } catch (e) { toast((e as Error).message, 'error'); }
   }
 
-  // 募集枠を再クランプ（知り合い/合計が変わったとき）
-  function reflowSpots(ns: number) {
-    const m = Math.min(spotsMale, ns);
-    const f = Math.min(spotsFemale, Math.max(0, ns - m));
-    setSpotsMale(m); setSpotsFemale(f);
+  // 内訳(男+女)が maxSpots を超えないようにクランプ。
+  function clampBreakdown(nextMax: number) {
+    const nm = Math.min(spotsMale, nextMax);
+    const nf = Math.min(spotsFemale, Math.max(0, nextMax - nm));
+    setSpotsMale(nm); setSpotsFemale(nf);
   }
   function changeTotal(delta: number) {
     const next = Math.max(MIN_TOTAL, Math.min(MAX_TOTAL, maxSpots + delta));
+    // 知り合いは「自分以外」の枠に収める（合計 ≤ maxSpots-1）。
     let em = externalMale, ef = externalFemale;
     let over = (em + ef) - (next - 1);
     if (over > 0) { const cf = Math.min(ef, over); ef -= cf; over -= cf; em = Math.max(0, em - over); }
     setMaxSpots(next); setExternalMale(em); setExternalFemale(ef);
-    reflowSpots(Math.max(0, next - 1 - (em + ef)));
+    clampBreakdown(next);
   }
   function changeExtMale(delta: number) {
-    const em = Math.max(0, Math.min(externalMale + delta, maxSpots - 1 - externalFemale));
-    setExternalMale(em); reflowSpots(Math.max(0, maxSpots - 1 - (em + externalFemale)));
+    setExternalMale(Math.max(0, Math.min(externalMale + delta, maxSpots - 1 - externalFemale)));
   }
   function changeExtFemale(delta: number) {
-    const ef = Math.max(0, Math.min(externalFemale + delta, maxSpots - 1 - externalMale));
-    setExternalFemale(ef); reflowSpots(Math.max(0, maxSpots - 1 - (externalMale + ef)));
+    setExternalFemale(Math.max(0, Math.min(externalFemale + delta, maxSpots - 1 - externalMale)));
   }
+  // 内訳(自分含む全体)の 男/女。男+女 ≤ maxSpots（残りは「どちらでも」）。
   function changeMale(delta: number) {
-    setSpotsMale((m) => Math.max(0, Math.min(m + delta, slots - spotsFemale)));
+    setSpotsMale((m) => Math.max(0, Math.min(m + delta, maxSpots - spotsFemale)));
   }
   function changeFemale(delta: number) {
-    setSpotsFemale((f) => Math.max(0, Math.min(f + delta, slots - spotsMale)));
+    setSpotsFemale((f) => Math.max(0, Math.min(f + delta, maxSpots - spotsMale)));
   }
-  // 後方互換用の性別条件を内訳から導出（単一性別のみ厳格ゲート）
-  function deriveGenderCondition(): 'any' | 'male' | 'female' {
-    if (spotsAny === 0 && spotsFemale === 0 && spotsMale > 0) return 'male';
-    if (spotsAny === 0 && spotsMale === 0 && spotsFemale > 0) return 'female';
+  // 内訳(自分含む全体) → API用の実募集枠(自分・知り合いを除く)へ変換。
+  // これにより保存されるデータ(spots*)の意味は従来どおり「募集枠」のまま保たれる。
+  function recruitmentSlots(): { spotsMale: number; spotsFemale: number; spotsAny: number } {
+    const hostMale = me?.gender === 'male' ? 1 : 0;
+    const hostFemale = me?.gender === 'female' ? 1 : 0;
+    const recruitTotal = Math.max(0, maxSpots - 1 - extTotal);
+    const rMale = Math.max(0, Math.min(spotsMale - hostMale - externalMale, recruitTotal));
+    const rFemale = Math.max(0, Math.min(spotsFemale - hostFemale - externalFemale, recruitTotal - rMale));
+    const rAny = Math.max(0, recruitTotal - rMale - rFemale);
+    return { spotsMale: rMale, spotsFemale: rFemale, spotsAny: rAny };
+  }
+  // 単一性別のみ厳格ゲート。実募集枠から導出。
+  function deriveGenderCondition(rMale: number, rFemale: number, rAny: number): 'any' | 'male' | 'female' {
+    if (rAny === 0 && rFemale === 0 && rMale > 0) return 'male';
+    if (rAny === 0 && rMale === 0 && rFemale > 0) return 'female';
     return 'any';
   }
   const timeSlots: string[] = [];
@@ -184,6 +197,8 @@ export default function CreatePage() {
   }
 
   async function publish() {
+    // 内訳(自分含む全体) → 実募集枠へ変換して送信（保存データの意味は従来どおり）。
+    const rSlots = recruitmentSlots();
     const payload = {
       title: title || (type === 'confirmed' ? 'ラウンド募集' : 'コース未定の募集'),
       type,
@@ -197,14 +212,14 @@ export default function CreatePage() {
       maxSpots,
       externalMale,
       externalFemale,
-      spotsMale,
-      spotsFemale,
-      spotsAny,
+      spotsMale: rSlots.spotsMale,
+      spotsFemale: rSlots.spotsFemale,
+      spotsAny: rSlots.spotsAny,
       price: splitPrice ? undefined : (price || undefined),
       priceMale: splitPrice ? (priceMale || undefined) : undefined,
       priceFemale: splitPrice ? (priceFemale || undefined) : undefined,
       beginnerOnly,
-      genderCondition: deriveGenderCondition(),
+      genderCondition: deriveGenderCondition(rSlots.spotsMale, rSlots.spotsFemale, rSlots.spotsAny),
       description: description || undefined,
       pickupStations: pickupStations.length ? pickupStations : undefined,
       pickupCapacity: pickupStations.length && pickupCapacity > 0 ? pickupCapacity : undefined,
@@ -462,15 +477,13 @@ export default function CreatePage() {
             </>
           )}
 
+          {/* ① 募集人数 */}
           <Field label="募集人数" required hint="（2〜50人）">
             <div className="flex items-center gap-3">
               <Stepper value={maxSpots} onMinus={() => changeTotal(-1)} onPlus={() => changeTotal(1)} minusDisabled={maxSpots <= MIN_TOTAL} plusDisabled={maxSpots >= MAX_TOTAL} suffix="人" />
             </div>
             <div className="mt-1.5 px-3 py-2 bg-green-light rounded-lg text-[11px] text-green font-bold">
               👤 主催者（あなた）を含めた合計人数です
-            </div>
-            <div className="mt-1.5 text-xs font-bold text-sub">
-              内訳：あなた <b className="text-text">1</b> ＋ 知り合い <b className="text-text">{extTotal}</b> ＋ ゴルトモ募集 <b className="text-green">{slots}</b> 人
             </div>
             {isComp && (
               <div className="mt-2 px-3 py-2.5 bg-orange-light rounded-lg text-xs text-orange font-bold">
@@ -479,7 +492,30 @@ export default function CreatePage() {
             )}
           </Field>
 
-          <Field label="主催者の知り合い" hint="（ゴルトモ外で既に集まっている人・任意）">
+          {/* ② 性別ごとの募集内訳（自分を含めた合計 = 募集人数） */}
+          <Field label="性別ごとの募集内訳" hint={`（合計 ${maxSpots}人・自分を含む）`}>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-black text-blue flex items-center gap-1.5">👨 男性</span>
+                <Stepper sm value={spotsMale} onMinus={() => changeMale(-1)} onPlus={() => changeMale(1)} minusDisabled={spotsMale <= 0} plusDisabled={spotsMale + spotsFemale >= maxSpots} suffix="人" />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-black text-pink-600 flex items-center gap-1.5">👩 女性</span>
+                <Stepper sm value={spotsFemale} onMinus={() => changeFemale(-1)} onPlus={() => changeFemale(1)} minusDisabled={spotsFemale <= 0} plusDisabled={spotsMale + spotsFemale >= maxSpots} suffix="人" />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-black text-sub flex items-center gap-1.5">🙆 どちらでもOK</span>
+                <span className="flex items-center gap-2"><span className="text-[10px] font-bold text-muted">自動</span><span className="text-lg font-black font-mono w-8 text-center">{bAny}</span><span className="text-xs text-sub">人</span></span>
+              </div>
+            </div>
+            <div className="mt-2.5 px-3 py-2 bg-bg rounded-lg text-[11px] font-bold text-sub">
+              合計 <b className="text-text">{spotsMale + spotsFemale + bAny}</b>人（自分を含む）＝ 男性{spotsMale}・女性{spotsFemale}・どちらでも{bAny}
+              <span className="block text-[10px] text-muted font-medium mt-0.5">この合計が上の「募集人数（{maxSpots}人）」と一致します。自分（主催者）もこの内訳に含まれます。「どちらでもOK」は残りから自動計算。</span>
+            </div>
+          </Field>
+
+          {/* ③ 主催者の知り合い（内訳のうち既に集まっている人） */}
+          <Field label="主催者の知り合い" hint="（この内訳のうち、既に集まっている人・任意）">
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-black text-blue flex items-center gap-1.5">👨 男性</span>
@@ -491,28 +527,7 @@ export default function CreatePage() {
               </div>
             </div>
             <div className="mt-1.5 text-[10px] text-muted font-medium">
-              ゴルトモにいないメンバー（他アプリ等で既に集まっている人）。合計人数に算入され、その分ゴルトモの募集枠が減ります。
-            </div>
-          </Field>
-
-          <Field label="性別ごとの募集内訳" hint={`（募集枠 ${slots}人）`}>
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-black text-blue flex items-center gap-1.5">👨 男性</span>
-                <Stepper sm value={spotsMale} onMinus={() => changeMale(-1)} onPlus={() => changeMale(1)} minusDisabled={spotsMale <= 0} plusDisabled={spotsMale + spotsFemale >= slots} />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-black text-pink-600 flex items-center gap-1.5">👩 女性</span>
-                <Stepper sm value={spotsFemale} onMinus={() => changeFemale(-1)} onPlus={() => changeFemale(1)} minusDisabled={spotsFemale <= 0} plusDisabled={spotsMale + spotsFemale >= slots} />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-black text-sub flex items-center gap-1.5">🙆 どちらでもOK</span>
-                <span className="flex items-center gap-2"><span className="text-[10px] font-bold text-muted">自動</span><span className="text-lg font-black font-mono w-8 text-center">{spotsAny}</span></span>
-              </div>
-            </div>
-            <div className="mt-2.5 px-3 py-2 bg-bg rounded-lg text-[11px] font-bold text-sub">
-              募集枠 {slots}人 ＝ 男性{spotsMale}・女性{spotsFemale}・どちらでも{spotsAny}
-              <span className="block text-[10px] text-muted font-medium mt-0.5">「どちらでもOK」は残り枠から自動計算されます</span>
+              ゴルトモにいないメンバー（他アプリ等で既に集まっている人）。上の募集人数の内数で、その分ゴルトモでの募集枠が減ります。
             </div>
           </Field>
 
