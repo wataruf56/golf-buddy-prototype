@@ -22,6 +22,43 @@ function genId(prefix: string): string {
 }
 function clean<T>(v: T): T { return JSON.parse(JSON.stringify(v)); }
 
+// ポールの回答者を、そのポールから作られたラウンドの参加者に自動で入れる。
+// 招待・承認はスキップ（主催者が日程調整で集めた友だちなので確定扱い）。
+// 決定日に「×(不可)」の人は入れない。定員(maxSpots)は人数に合わせて自動で広げる。
+async function autoAddRespondentsToRound(roundId: string, poll: SchedulePoll, hostId: string): Promise<void> {
+  const round = await db.getRound(roundId);
+  if (!round || round.hostId !== hostId) return;
+  const decided = poll.decidedOptionId || '';
+  const already = new Set<string>([round.hostId, ...(round.applicantIds || []), ...(round.pendingApplicantIds || [])]);
+  const toAdd: string[] = [];
+  for (const r of poll.responses || []) {
+    if (!r.userId || already.has(r.userId)) continue;
+    if (decided && r.answers?.[decided] === 'no') continue; // 決定日に不可の人は除外
+    already.add(r.userId);
+    toAdd.push(r.userId);
+  }
+  if (!toAdd.length) return;
+  const applicantIds = [...(round.applicantIds || []), ...toAdd];
+  const currentCount = (round.currentCount || 1) + toAdd.length;
+  const maxSpots = Math.max(round.maxSpots || 1, currentCount);
+  await db.updateRound(roundId, { applicantIds, currentCount, maxSpots, isCompetition: maxSpots >= 5 } as any);
+  // お知らせ（アプリ内＋LINE）。失敗しても参加追加は妨げない。
+  try {
+    const host = await db.getUser(hostId);
+    const hostName = host?.displayName || '主催者';
+    const link = `/round/${roundId}`;
+    const text = `「${round.title}」のラウンドに参加が確定しました（${hostName}さんが日程調整から作成）`;
+    const { addNotification } = await import('@/lib/notifications');
+    const { pushTo, liffUrl } = await import('@/lib/linePush');
+    const { isNotifyEnabled } = await import('@/lib/notifyPrefs');
+    for (const uid of toAdd) {
+      addNotification(uid, 'invited', text, link).catch(() => {});
+      const u = await db.getUser(uid);
+      if (isNotifyEnabled(u as any, 'invited')) pushTo(uid, text, liffUrl(link)).catch(() => {});
+    }
+  } catch { /* 通知失敗は無視 */ }
+}
+
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const poll = await db.getPoll(params.id);
   if (!poll) return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStore });
@@ -131,7 +168,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     case 'link-round': {
       if (!isOwner) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
-      poll.roundId = body.roundId ? String(body.roundId) : undefined;
+      const roundId = body.roundId ? String(body.roundId) : undefined;
+      poll.roundId = roundId;
+      // このポールから作られたラウンドに、回答者を最初から参加者として入れる。
+      if (roundId) {
+        try { await autoAddRespondentsToRound(roundId, poll, meId); }
+        catch (e) { console.error('[poll link-round autojoin] failed', (e as Error).message); }
+      }
       break;
     }
 

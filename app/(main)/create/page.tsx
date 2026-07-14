@@ -224,13 +224,16 @@ export default function CreatePage() {
           });
         } catch { /* 参加確定/記録の失敗は投稿自体を妨げない */ }
       }
-      // 日程調整ポールから来た場合は、そのポールに作成した募集を紐付ける（best-effort）。
+      // 日程調整ポールから来た場合は、そのポールに作成した募集を紐付け、
+      // ポール回答者を最初から参加者として自動追加する（サーバー側で実施）。
       if (fromPollId && created?.id) {
         try {
           await fetch(`/api/polls/${encodeURIComponent(fromPollId)}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'link-round', roundId: created.id }), cache: 'no-store',
           });
+          // 参加者が入った状態を即反映させるため一覧を取り直す。
+          await store.refreshRounds().catch(() => {});
         } catch { /* 紐付け失敗は投稿を妨げない */ }
       }
       toast(isComp ? 'コンペ募集を公開しました' : '募集を公開しました');
