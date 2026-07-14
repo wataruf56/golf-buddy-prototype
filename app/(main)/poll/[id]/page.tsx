@@ -197,7 +197,8 @@ export default function PollPage() {
   if (state === 'notfound') return <div className="p-5 text-center text-sub">日程調整が見つかりません</div>;
   if (state === 'error' || !poll) return <div className="p-5 text-center text-sub">読み込みに失敗しました</div>;
 
-  const options = poll.options || [];
+  // 候補日は日付の昇順（古い→新しい）で表示。'YYYY-MM-DD' の文字列比較で並ぶ。
+  const options = [...(poll.options || [])].sort((a, b) => a.date.localeCompare(b.date));
   const responses = poll.responses || [];
   const decidedOption = options.find((o) => o.id === poll.decidedOptionId);
   const fmt = (date: string) => formatDate(date);
