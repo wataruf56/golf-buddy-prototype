@@ -52,8 +52,15 @@ export default function QrPage() {
       if (!uid) { toast('ゴルトモのQRコードではないようです', 'error'); return; }
       track('qr_scan_ok', {});
       router.push(`/add-friend?u=${encodeURIComponent(uid)}`);
-    } catch {
-      toast('読み取りをキャンセルしました');
+    } catch (e: any) {
+      // scanCodeV2 は利用者が閉じたとき code='CANCEL'。それ以外は環境要因
+      // （LINEが旧版・スキャン機能が無効など）。区別して案内する。
+      if (e?.code === 'CANCEL') {
+        toast('読み取りをキャンセルしました');
+      } else {
+        track('qr_scan_error', { code: e?.code || '', message: String(e?.message || e).slice(0, 120) });
+        toast('カメラを起動できませんでした。LINEを最新版に更新するか、相手に「マイQRコード」を読み取ってもらってください。', 'error');
+      }
     } finally {
       setScanning(false);
     }
