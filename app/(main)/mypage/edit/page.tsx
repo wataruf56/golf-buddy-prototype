@@ -10,10 +10,6 @@ import { allAreas } from '@/lib/mockData';
 import { GOLMOTI_TYPES, getGolmotiType, golmotiImg } from '@/lib/golmoti';
 import type { Gender, CarStatus, ScoreEntry } from '@/lib/types';
 
-const playStyles = [
-  'のんびり派', 'エンジョイ派', 'サクサク派', '研究派', 'ガチ派',
-  '飲み会も楽しむ', '練習熱心', 'コンペ志向', '健康・運動目的', '初心者歓迎', 'マナー重視',
-];
 const frequencies = [
   '月1回未満', '月1回', '月2回', '月3回', '月4回以上', '週1回以上', 'ほぼ毎日',
 ];
@@ -70,7 +66,6 @@ export default function ProfileEditPage() {
   const [instagram, setInstagram] = useState('');
   const [area, setArea] = useState('');
   const [scoreRange, setScoreRange] = useState('');
-  const [playStyle, setPlayStyle] = useState('');
   const [golmotiType, setGolmotiType] = useState('');
   const [golmotiOpen, setGolmotiOpen] = useState(false);
   const [frequency, setFrequency] = useState('');
@@ -96,7 +91,6 @@ export default function ProfileEditPage() {
     setInstagram(me.instagram || '');
     setArea(me.area || '');
     setScoreRange(me.scoreRange || '');
-    setPlayStyle(me.playStyle || '');
     setGolmotiType(me.golmotiType || '');
     setFrequency(me.frequency || '');
     setRecentScores(Array.isArray(me.recentScores) ? me.recentScores : []);
@@ -110,7 +104,7 @@ export default function ProfileEditPage() {
       displayName: me.displayName, age: me.age, area: me.area,
       hasAvatarUrl: !!me.avatarUrl,
     });
-  }, [meLoaded, initialized, me.id, me.displayName, me.age, me.area, me.scoreRange, me.playStyle, me.frequency, me.avatar, me.avatarUrl]);
+  }, [meLoaded, initialized, me.id, me.displayName, me.age, me.area, me.scoreRange, me.frequency, me.avatar, me.avatarUrl]);
 
   async function handleFile(file: File) {
     track('photo_pick', { name: file.name, size: file.size, type: file.type });
@@ -160,7 +154,7 @@ export default function ProfileEditPage() {
       return;
     }
     track('profile_save_click', {
-      displayName, age, area, scoreRange, playStyle, frequency, avatar,
+      displayName, age, area, scoreRange, frequency, avatar,
       hasAvatarUrl: !!avatarUrl, avatarUrlLength: avatarUrl?.length || 0,
     });
     try {
@@ -178,7 +172,7 @@ export default function ProfileEditPage() {
         car: (car || undefined) as CarStatus | undefined,
         bio,
         instagram: instagram.trim(),
-        area, scoreRange, playStyle, frequency, avatar,
+        area, scoreRange, frequency, avatar,
         avatarMode,
         golmotiType: golmotiType || '',
         avatarUrl: avatarUrl || '',
@@ -329,7 +323,7 @@ export default function ProfileEditPage() {
         <Field label="性別" required>
           <div className="flex gap-1.5 flex-wrap">
             {genderOptions.map((g) => (
-              <button key={g.id} type="button" onClick={() => setGender(gender === g.id ? '' : g.id)} className={`px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px] ${gender === g.id ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub'}`}>{g.label}</button>
+              <button key={g.id} type="button" onClick={() => setGender(gender === g.id ? '' : g.id)} className={`px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px] ${gender === g.id ? 'bg-orange border-orange text-white' : 'bg-bg border-border text-sub'}`}>{g.label}</button>
             ))}
           </div>
         </Field>
@@ -337,7 +331,7 @@ export default function ProfileEditPage() {
         <Field label="車" required hint="（送迎可否の参考に）">
           <div className="flex gap-1.5 flex-wrap">
             {carOptions.map((c) => (
-              <button key={c.id} type="button" onClick={() => setCar(car === c.id ? '' : c.id)} className={`px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px] ${car === c.id ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub'}`}>{c.label}</button>
+              <button key={c.id} type="button" onClick={() => setCar(car === c.id ? '' : c.id)} className={`px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px] ${car === c.id ? 'bg-orange border-orange text-white' : 'bg-bg border-border text-sub'}`}>{c.label}</button>
             ))}
           </div>
         </Field>
@@ -363,16 +357,8 @@ export default function ProfileEditPage() {
                 key={g}
                 type="button"
                 onClick={() => setGolfHistory(golfHistory === g ? '' : g)}
-                className={`px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px] ${golfHistory === g ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub'}`}
+                className={`px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px] ${golfHistory === g ? 'bg-orange border-orange text-white' : 'bg-bg border-border text-sub'}`}
               >{g}</button>
-            ))}
-          </div>
-        </Field>
-
-        <Field label="プレースタイル" hint="（任意）">
-          <div className="flex gap-1.5 flex-wrap">
-            {playStyles.map((s) => (
-              <button key={s} onClick={() => setPlayStyle(playStyle === s ? '' : s)} className={`px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px] ${playStyle === s ? 'bg-green-light border-green text-green' : 'bg-bg border-border text-sub'}`}>{s}</button>
             ))}
           </div>
         </Field>

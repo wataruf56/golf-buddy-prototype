@@ -82,15 +82,8 @@ export default function MyPage() {
 
   return (
     <>
-      <div className="px-5 pt-2 pb-4 flex items-center justify-between gap-2">
+      <div className="px-5 pt-2 pb-4">
         <div className="text-2xl font-black tracking-tight">マイページ</div>
-        <Link
-          href="/mypage/edit"
-          className="flex items-center gap-1 px-3 py-1.5 bg-bg border border-border rounded-full text-xs font-bold text-sub flex-shrink-0"
-          aria-label="マイページ編集"
-        >
-          <span>✏️</span> 編集
-        </Link>
       </div>
 
       <div className="px-5">
@@ -128,54 +121,77 @@ export default function MyPage() {
           </div>
         )}
 
-        <div className="bg-card rounded-card p-5 shadow-card mb-4">
-          <div className="flex items-center gap-3.5 mb-4">
-            <Avatar user={me} size={64} />
-            <div>
-              <div className="text-lg font-black">{me.displayName}</div>
+        {/* SNS風プロフィールヘッダー */}
+        <div className="bg-card rounded-card shadow-card overflow-hidden mb-4">
+          <div className="h-24 relative" style={{ background: 'linear-gradient(135deg, #2A8C82 0%, #3FB6A8 55%, #E8643C 165%)' }}>
+            <Link href="/mypage/edit" className="absolute top-3 right-3 px-3.5 py-1.5 bg-white/20 text-white rounded-full text-xs font-black backdrop-blur-sm">✏️ 編集</Link>
+          </div>
+          <div className="px-5 pb-5 -mt-11">
+            <div className="rounded-full p-1 bg-card inline-block shadow-card">
+              <Avatar user={me} size={84} emojiSize={42} />
+            </div>
+            <div className="mt-2.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-2xl font-black tracking-tight">{me.displayName || 'プロフィール'}</span>
+                {me.gender === 'male' ? <span className="text-base">👨</span> : me.gender === 'female' ? <span className="text-base">👩</span> : null}
+              </div>
               {rating && (
-                <div className="mt-0.5 mb-0.5">
-                  <GolfBallRating value={rating.value} count={rating.count} size={16} />
+                <div className="mt-1.5">
+                  <GolfBallRating value={rating.value} count={rating.count} size={18} />
                 </div>
               )}
-              <div className="text-xs text-sub">
-                {[me.age ? `${me.age}歳` : null, me.scoreRange ? `スコア ${me.scoreRange}` : null].filter(Boolean).join(' ・ ') || '—'}
-              </div>
-              <div className="text-xs text-sub">
-                {[me.area || null, me.playStyle || null, me.frequency || null].filter(Boolean).join(' ・ ') || 'プロフィールを編集してください'}
+              <div className="text-[13px] text-sub mt-1.5">
+                {[me.age ? `${me.age}歳` : null, me.scoreRange ? `スコア ${me.scoreRange}` : null, me.area || null].filter(Boolean).join(' ・ ') || 'プロフィールを編集してください'}
               </div>
               {me.golmotiType && (
-                <div className="mt-2">
+                <div className="mt-2.5">
                   <GolmotiBadge code={me.golmotiType} link />
                 </div>
               )}
             </div>
-          </div>
-          <div className="flex gap-2">
-            <Stat value={trackRecord ? `${trackRecord.againCount}/${trackRecord.roundedWith}` : '—'} label="また回りたい" color="text-green" />
-            <Stat value={`${Math.max(me.roundCount || 0, myCompletedRoundCount)}回`} label="ラウンド" />
-            <Stat value={`${myHostedRounds.length}回`} label="募集" />
-          </div>
-          <div className="mt-2 text-[10px] text-muted leading-relaxed">
-            「また回りたい」は、一緒に回った{trackRecord ? trackRecord.roundedWith : 0}人のうち{trackRecord ? trackRecord.againCount : 0}人が「また一緒に回りたい」と回答した実績です（プロフィールを見た相手にも表示されます）。
-          </div>
-        </div>
 
-        {/* QRコードで友達 ＋ Instagram */}
-        <div className="flex gap-2 mb-4">
-          <Link href="/qr" className="flex-1 bg-card rounded-card shadow-card p-3.5 flex items-center gap-2 justify-center text-sm font-black text-green">
-            <span className="text-lg">🤝</span> QRコードで友達
-          </Link>
-          {instagramUrl(me.instagram) && (
-            <a
-              href={instagramUrl(me.instagram)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 bg-card rounded-card shadow-card p-3.5 flex items-center gap-2 justify-center text-sm font-black text-pink-600"
-            >
-              <span className="text-lg">📷</span> Instagram
-            </a>
-          )}
+            {/* ステータス行（SNS風） */}
+            <div className="mt-4 flex rounded-2xl bg-bg overflow-hidden">
+              <StatCell value={trackRecord ? String(trackRecord.againCount) : '—'} label="また回りたい" accent />
+              <div className="w-px bg-border my-3" />
+              <StatCell value={`${Math.max(me.roundCount || 0, myCompletedRoundCount)}`} label="ラウンド" />
+              <div className="w-px bg-border my-3" />
+              <StatCell value={`${myHostedRounds.length}`} label="募集" />
+            </div>
+            {trackRecord && trackRecord.roundedWith > 0 && (
+              <div className="mt-2 text-[10px] text-muted leading-relaxed">
+                「また回りたい」は、一緒に回った{trackRecord.roundedWith}人のうち{trackRecord.againCount}人が回答した実績です（相手のプロフィールにも表示されます）。
+              </div>
+            )}
+
+            {me.bio && (
+              <div className="mt-3 bg-bg rounded-xl p-3 text-[13px] leading-relaxed whitespace-pre-wrap">{me.bio}</div>
+            )}
+
+            {/* タグ */}
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {me.frequency && <span className="px-3 py-1.5 bg-bg text-sub text-[11px] font-bold rounded-full">📅 {me.frequency}</span>}
+              {me.golfHistory && <span className="px-3 py-1.5 bg-bg text-sub text-[11px] font-bold rounded-full">⛳ ゴルフ歴 {me.golfHistory}</span>}
+              {me.car && <span className="px-3 py-1.5 bg-bg text-sub text-[11px] font-bold rounded-full">{me.car === 'have' ? '🚗 車あり' : '🚶 車なし'}</span>}
+            </div>
+
+            {/* QRコードで友達 ＋ Instagram */}
+            <div className="flex gap-2 mt-3">
+              <Link href="/qr" className="flex-1 bg-bg rounded-xl p-3 flex items-center gap-2 justify-center text-sm font-black text-green">
+                <span className="text-lg">🤝</span> QRコードで友達
+              </Link>
+              {instagramUrl(me.instagram) && (
+                <a
+                  href={instagramUrl(me.instagram)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 bg-bg rounded-xl p-3 flex items-center gap-2 justify-center text-sm font-black text-pink-600"
+                >
+                  <span className="text-lg">📷</span> Instagram
+                </a>
+              )}
+            </div>
+          </div>
         </div>
 
 
@@ -291,11 +307,11 @@ function AddBotModal({ botBasicId, onConfirmed, onLater }: { botBasicId: string;
   );
 }
 
-function Stat({ value, label, color }: { value: string; label: string; color?: string }) {
+function StatCell({ value, label, accent }: { value: string; label: string; accent?: boolean }) {
   return (
-    <div className="flex-1 bg-bg rounded-[10px] p-3 text-center">
-      <div className={`text-xl font-black ${color || ''}`}>{value}</div>
-      <div className="text-[10px] text-muted">{label}</div>
+    <div className="flex-1 py-3 text-center">
+      <div className={`text-[22px] font-black leading-none ${accent ? 'text-green' : 'text-text'}`}>{value}</div>
+      <div className="text-[10px] text-muted mt-1">{label}</div>
     </div>
   );
 }

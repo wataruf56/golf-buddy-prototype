@@ -81,12 +81,26 @@ export default function HomePage() {
   // (5名以上)で募集中のものから、開催が近い順に1件。未来の予定が無ければ最新作成分。
   const officialComp = (() => {
     const todayStr = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
-    const comps = rounds.filter((r) => r.isOfficial && r.maxSpots >= 5);
+    // 満員（枠が埋まった）コンペは先頭に固定しない。
+    const comps = rounds.filter((r) => r.isOfficial && r.maxSpots >= 5 && (r.currentCount || 0) < r.maxSpots);
     const upcoming = comps
       .filter((r) => r.date && r.date >= todayStr)
       .sort((a, b) => (a.date! < b.date! ? -1 : 1));
     if (upcoming.length) return upcoming[0];
     return comps.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0] || null;
+  })();
+  // ホームの「ゴルトモ公式コンペ」枠に出す一覧。満員は除外。直近の公式コンペを先頭に
+  // 固定し、残りは開催日の昇順（日程未定は末尾）に並べる。
+  const displayRounds = (() => {
+    const notFull = rounds.filter((r) => (r.currentCount || 0) < r.maxSpots);
+    const rest = notFull
+      .filter((r) => r.id !== officialComp?.id)
+      .sort((a, b) => {
+        const am = a.date ? new Date(a.date).getTime() : Infinity;
+        const bm = b.date ? new Date(b.date).getTime() : Infinity;
+        return am - bm;
+      });
+    return [...(officialComp ? [officialComp] : []), ...rest];
   })();
   const myHostedPending = useStore((s) =>
     s.rounds.filter((r) => r.hostId === s.meId).flatMap((r) =>
@@ -268,21 +282,21 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* 募集中のラウンド。公式コンペは同じカード形式で先頭に置く。 */}
+      {/* ゴルトモ公式コンペ。直近の公式コンペを先頭に固定し、以降は募集中を日付昇順で。満員は非表示。 */}
       <section className="mt-2 bg-green-light border-y-2 border-green pt-4 pb-3">
         <div className="px-5 mb-3">
           <div className="text-xl font-black flex items-center gap-2 text-green-dark">
-            <span>🏌️</span>
-            <span>募集中のラウンド</span>
-            {rounds.length > 0 && (
-              <span className="text-[12px] font-black text-white bg-orange px-2.5 py-1 rounded-full leading-none">{rounds.length}件</span>
+            <span>🏆</span>
+            <span>ゴルトモ公式コンペ</span>
+            {displayRounds.length > 0 && (
+              <span className="text-[12px] font-black text-white bg-orange px-2.5 py-1 rounded-full leading-none">{displayRounds.length}件</span>
             )}
             <Link href="/search" className="ml-auto text-xs font-black text-green whitespace-nowrap">もっと見る ›</Link>
           </div>
-          <div className="text-[12px] text-sub font-bold mt-1">一緒に回るメンバーを募集しています</div>
+          <div className="text-[12px] text-sub font-bold mt-1">公式コンペと、募集中のラウンド（満員は非表示）</div>
         </div>
         <div className="px-5">
-          {rounds.length === 0 ? (
+          {displayRounds.length === 0 ? (
             <div className="bg-card rounded-card p-8 text-center shadow-card">
               <div className="text-4xl mb-3">⛳</div>
               <div className="text-sm font-bold mb-2">まだ募集がありません</div>
@@ -292,7 +306,7 @@ export default function HomePage() {
               </Link>
             </div>
           ) : (
-            [...(officialComp ? [officialComp] : []), ...rounds.filter((r) => r.id !== officialComp?.id)].map((r) => (
+            displayRounds.map((r) => (
               <RoundCard key={r.id} round={r} />
             ))
           )}
