@@ -81,6 +81,8 @@ export async function GET() {
   for (const c of chats) for (const p of c.participants) userIds.add(p);
   for (const p of pendingReviews) userIds.add(p.revieweeId);
   for (const id of buddyIds) userIds.add(id);
+  // QRで繋がった友達も users に含める（ゴル友タブで表示するため）。
+  for (const id of me?.friendIds || []) userIds.add(id);
 
   const users = await db.listUsers(Array.from(userIds));
   // Ensure me is included even if Firestore user missing

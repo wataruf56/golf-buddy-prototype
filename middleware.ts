@@ -80,7 +80,8 @@ export default async function middleware(req: NextRequest) {
     }
     if (
       path.startsWith('/share') || path.startsWith('/liff') || path.startsWith('/api/') ||
-      path.startsWith('/round') || path.startsWith('/profile') || path.startsWith('/poll')
+      path.startsWith('/round') || path.startsWith('/profile') || path.startsWith('/poll') ||
+      path.startsWith('/add-friend') || path.startsWith('/qr')
     ) {
       return NextResponse.redirect(new URL(`https://app.goltomo.com${path}${url.search}`));
     }

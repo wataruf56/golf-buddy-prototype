@@ -78,3 +78,13 @@ export function priceValueForGender(round: PriceFields, gender?: string): number
   const n = parseInt(String(pick || '').replace(/[^0-9]/g, ''), 10);
   return Number.isFinite(n) ? n : NaN;
 }
+
+// Instagram の入力（@付きハンドル / ハンドル / URL いずれか）を、開けるURLに正規化。
+// タップすると（アプリがあれば）Instagramアプリでそのユーザーのページを開く。
+export function instagramUrl(v?: string): string {
+  const s = (v || '').trim();
+  if (!s) return '';
+  if (/^https?:\/\//i.test(s)) return s;
+  const handle = s.replace(/^@/, '').replace(/^(www\.)?instagram\.com\//i, '').replace(/\/+$/, '').replace(/[^A-Za-z0-9._]/g, '');
+  return handle ? `https://instagram.com/${handle}` : '';
+}

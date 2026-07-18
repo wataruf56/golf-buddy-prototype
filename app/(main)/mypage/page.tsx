@@ -11,7 +11,7 @@ import { GolfBallRating } from '@/components/GolfBallRating';
 import { NotifySettings } from '@/components/NotifySettings';
 import { AppUpdateButton } from '@/components/AppUpdateButton';
 import { track } from '@/lib/telemetry';
-import { formatDate } from '@/lib/utils';
+import { formatDate, instagramUrl } from '@/lib/utils';
 
 const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 const BOT_BASIC_ID = process.env.NEXT_PUBLIC_LINE_BOT_BASIC_ID || '';
@@ -159,6 +159,23 @@ export default function MyPage() {
           <div className="mt-2 text-[10px] text-muted leading-relaxed">
             「また回りたい」は、一緒に回った{trackRecord ? trackRecord.roundedWith : 0}人のうち{trackRecord ? trackRecord.againCount : 0}人が「また一緒に回りたい」と回答した実績です（プロフィールを見た相手にも表示されます）。
           </div>
+        </div>
+
+        {/* QRコードで友達 ＋ Instagram */}
+        <div className="flex gap-2 mb-4">
+          <Link href="/qr" className="flex-1 bg-card rounded-card shadow-card p-3.5 flex items-center gap-2 justify-center text-sm font-black text-green">
+            <span className="text-lg">🤝</span> QRコードで友達
+          </Link>
+          {instagramUrl(me.instagram) && (
+            <a
+              href={instagramUrl(me.instagram)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 bg-card rounded-card shadow-card p-3.5 flex items-center gap-2 justify-center text-sm font-black text-pink-600"
+            >
+              <span className="text-lg">📷</span> Instagram
+            </a>
+          )}
         </div>
 
 

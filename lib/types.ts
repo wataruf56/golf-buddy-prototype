@@ -47,6 +47,12 @@ export type User = {
   // 新しい createdAt の通知が未読扱い。
   notifReadAt?: number;
   golfHistory?: string;        // 「1年未満」「3〜5年」など
+  // Instagram のユーザー名（@なし）または URL。プロフィールに「Instagram」ボタンを出し、
+  // タップで https://instagram.com/{username} を開く（アプリがあればアプリで開く）。
+  instagram?: string;
+  // QRコードで直接つながった友達のユーザーID（相互）。一緒に回っていなくても
+  // 「ゴル友」タブに表示され、DMできる。友達API(/api/friends)でのみ更新される。
+  friendIds?: string[];
   // 漢字フルネーム（ゴルフ場への届出用）。一般ユーザー・友だちには非公開で、
   // 参加/募集したラウンドの「募集者」にのみ表示される。API応答では本人以外には
   // ストリップされ、募集者へは /api/rounds/[id]/participant-names 経由でのみ渡る。

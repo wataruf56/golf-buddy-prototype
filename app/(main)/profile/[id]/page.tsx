@@ -9,7 +9,7 @@ import { GolmotiBadge } from '@/components/GolmotiBadge';
 import { GolfBallRating } from '@/components/GolfBallRating';
 import { toast } from '@/components/Toast';
 import type { Review, User } from '@/lib/types';
-import { chatIdFor, carLabel } from '@/lib/utils';
+import { chatIdFor, carLabel, instagramUrl } from '@/lib/utils';
 
 export default function ProfilePage() {
   const params = useParams<{ id: string }>();
@@ -18,7 +18,10 @@ export default function ProfilePage() {
   const meId = useStore((s) => s.meId);
   const me = useStore(getMe);
   const buddyIds = useStore((s) => s.buddyIds);
-  const isBuddy = buddyIds.includes(params.id || '');
+  // ゴル友（相互レビュー）＝buddy、QRコードで直接つながった友達＝friend。
+  // どちらもDMできる。
+  const isFriend = (me.friendIds || []).includes(params.id || '');
+  const isBuddy = buddyIds.includes(params.id || '') || isFriend;
   const isBlocked = (me.blockedUserIds || []).includes(params.id || '');
   const isMe = meId === params.id;
 
@@ -188,6 +191,16 @@ export default function ProfilePage() {
           <div className="mt-3 p-3 bg-bg rounded-xl text-[13px] text-text leading-relaxed whitespace-pre-wrap">
             {user.bio}
           </div>
+        )}
+        {instagramUrl(user.instagram) && (
+          <a
+            href={instagramUrl(user.instagram)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 flex items-center justify-center gap-2 py-2.5 bg-bg rounded-xl text-[13px] font-black text-pink-600"
+          >
+            <span className="text-lg">📷</span> Instagram を開く
+          </a>
         )}
       </div>
 

@@ -9,8 +9,8 @@ import type { User } from './types';
 // for everyone.
 export function stripPrivate(user: User, selfId?: string | null): User {
   if (selfId && user.id === selfId) return user;
-  if (user.realNameLast === undefined && user.realNameFirst === undefined) return user;
-  const { realNameLast, realNameFirst, ...rest } = user;
+  // 実名・友達リストは本人以外に見せない。
+  const { realNameLast, realNameFirst, friendIds, ...rest } = user;
   return rest as User;
 }
 

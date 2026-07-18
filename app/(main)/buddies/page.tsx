@@ -42,8 +42,8 @@ function Inner() {
   const users = useStore((s) => s.users);
   const blocked = new Set(me.blockedUserIds || []);
 
-  const initTab = (search?.get('tab') as 'past' | 'romantic' | 'again') || 'past';
-  const [tab, setTab] = useState<'past' | 'romantic' | 'again'>(initTab);
+  const initTab = (search?.get('tab') as 'past' | 'romantic' | 'again' | 'friends') || 'past';
+  const [tab, setTab] = useState<'past' | 'romantic' | 'again' | 'friends'>(initTab);
   const [matches, setMatches] = useState<Record<string, MatchInfo>>({});
   const [matchUsers, setMatchUsers] = useState<Record<string, MUser>>({});
   const [pastIds, setPastIds] = useState<string[]>([]);
@@ -76,8 +76,11 @@ function Inner() {
   const pastPartners = pastIds.filter((id) => !blocked.has(id));
   const romanticIds = Object.keys(matches).filter((id) => matches[id]?.romantic);
   const againIds = Object.keys(matches).filter((id) => matches[id]?.again);
+  // QRコードで直接つながった友達。
+  const friendIds = (me.friendIds || []).filter((id) => !blocked.has(id) && id !== meId);
 
   const tabs = [
+    { key: 'friends' as const, label: '🤝 友達', n: friendIds.length },
     { key: 'past' as const, label: '⛳ 一緒に回った人', n: pastPartners.length },
     { key: 'romantic' as const, label: '💘 気になる', n: romanticIds.length },
     { key: 'again' as const, label: '🏌️ また回りたい', n: againIds.length },
@@ -101,6 +104,41 @@ function Inner() {
       </div>
 
       <div className="px-5 pb-20">
+        {tab === 'friends' && (
+          <>
+            <div className="text-xs text-sub mb-3">QRコードで直接つながった友達です。タップでプロフィール・💬でメッセージ。マイページの「QRコードで友達」から追加できます。</div>
+            {friendIds.length === 0 ? (
+              <Empty title="まだ友達がいません" desc="マイページの「QRコードで友達」から、直接会った人とQRでつながれます" />
+            ) : (
+              friendIds.map((id) => {
+                const u: any = users.find((x) => x.id === id) || matchUsers[id] || pastUsers[id] || { displayName: 'ゴルファー' };
+                const cid = chatIdFor(meId, id);
+                const chat = chats.find((c) => c.id === cid);
+                const unread = chat?.unreadCount[meId] || 0;
+                return (
+                  <div key={id} className="bg-card rounded-card p-4 shadow-card mb-2.5 flex items-center gap-3">
+                    <Link href={`/profile/${id}`} className="flex items-center gap-3 min-w-0 flex-1">
+                      <Avatar user={{ id, displayName: u.displayName, avatar: u.avatar, avatarUrl: u.avatarUrl, color: '#2A8C82' } as any} size={48} />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[15px] font-bold truncate">{u.displayName}</span>
+                          {u.gender === 'male' ? <span className="text-[11px]">👨</span> : u.gender === 'female' ? <span className="text-[11px]">👩</span> : null}
+                          {u.age ? <span className="text-[11px] text-sub font-medium">{u.age}歳</span> : null}
+                        </div>
+                        <div className="text-[10px] text-muted mt-0.5">🤝 QRで繋がった友達</div>
+                      </div>
+                    </Link>
+                    <Link href={`/chat/${cid}?other=${id}`} className="flex items-center gap-2 flex-shrink-0">
+                      {unread > 0 && <div className="px-1.5 py-0.5 bg-orange text-white text-[10px] font-bold rounded-full min-w-[18px] text-center">{unread}</div>}
+                      <span className="text-lg flex-shrink-0">💬</span>
+                    </Link>
+                  </div>
+                );
+              })
+            )}
+          </>
+        )}
+
         {tab === 'past' && (
           <>
             <div className="text-xs text-sub mb-3">過去に同じ組でラウンドした人の一覧です。タップでプロフィール・💬でメッセージ。</div>

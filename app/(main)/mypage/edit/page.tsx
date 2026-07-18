@@ -67,6 +67,7 @@ export default function ProfileEditPage() {
   const [gender, setGender] = useState<Gender | ''>('');
   const [car, setCar] = useState<CarStatus | ''>('');
   const [bio, setBio] = useState('');
+  const [instagram, setInstagram] = useState('');
   const [area, setArea] = useState('');
   const [scoreRange, setScoreRange] = useState('');
   const [playStyle, setPlayStyle] = useState('');
@@ -92,6 +93,7 @@ export default function ProfileEditPage() {
     setGender(me.gender || '');
     setCar(me.car || '');
     setBio(me.bio || '');
+    setInstagram(me.instagram || '');
     setArea(me.area || '');
     setScoreRange(me.scoreRange || '');
     setPlayStyle(me.playStyle || '');
@@ -175,6 +177,7 @@ export default function ProfileEditPage() {
         gender: (gender || undefined) as Gender | undefined,
         car: (car || undefined) as CarStatus | undefined,
         bio,
+        instagram: instagram.trim(),
         area, scoreRange, playStyle, frequency, avatar,
         avatarMode,
         golmotiType: golmotiType || '',
@@ -437,6 +440,21 @@ export default function ProfileEditPage() {
             className="w-full h-28 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-none font-[inherit]"
           />
           <div className="text-[10px] text-muted text-right mt-0.5">{bio.length}/300</div>
+        </Field>
+
+        <Field label="Instagram" hint="（任意）">
+          <div className="flex items-center gap-2 p-3 border-[1.5px] border-border rounded-[10px] bg-bg">
+            <span className="text-lg flex-shrink-0">📷</span>
+            <input
+              value={instagram}
+              onChange={(e) => setInstagram(e.target.value)}
+              placeholder="ユーザー名（@なし）または URL"
+              className="flex-1 min-w-0 bg-transparent text-sm outline-none"
+            />
+          </div>
+          <div className="text-[10px] text-muted mt-1 leading-relaxed">
+            プロフィールに「Instagram」ボタンが表示され、タップで開けます。空欄なら非表示。
+          </div>
         </Field>
 
         <button onClick={save} className="w-full py-4 bg-green text-white rounded-xl text-[15px] font-bold mt-4">

@@ -50,8 +50,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   }
   const rating = ratingCount ? Math.round((ratingSum / ratingCount) * 2) / 2 : 0;
 
-  // Strip the private kanji real name before returning to any viewer.
-  const { realNameLast, realNameFirst, ...safe } = user;
+  // Strip the private kanji real name + friend list before returning to any viewer.
+  const { realNameLast, realNameFirst, friendIds, ...safe } = user;
   const publicUser = { ...safe, roundCount, reviewCount, reviewAvg, rating, ratingCount };
 
   // Enrich reviews with the reviewer's anonymised demographics (age bucket
