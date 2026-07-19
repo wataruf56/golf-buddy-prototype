@@ -48,7 +48,6 @@ export default function MyPage() {
   );
   // 実績ベース評価：一緒に回った人のうち「また回りたい」を押した人数（相手にも見える指標）。
   const [trackRecord, setTrackRecord] = useState<{ roundedWith: number; againCount: number; hostedCount: number; joinedCount: number } | null>(null);
-  const [rating, setRating] = useState<{ value: number; count: number } | null>(null);
   const users = useStore((s) => s.users);
 
   useEffect(() => {
@@ -56,10 +55,6 @@ export default function MyPage() {
     fetch(`/api/users/${encodeURIComponent(meId)}/track-record`, { cache: 'no-store' })
       .then((r) => r.json())
       .then((d) => setTrackRecord({ roundedWith: d.roundedWith || 0, againCount: d.againCount || 0, hostedCount: d.hostedCount || 0, joinedCount: d.joinedCount || 0 }))
-      .catch(() => {});
-    fetch(`/api/users/${encodeURIComponent(meId)}`, { cache: 'no-store' })
-      .then((r) => r.json())
-      .then((d) => { if (d.user) setRating({ value: d.user.rating || 0, count: d.user.ratingCount || 0 }); })
       .catch(() => {});
     track('mypage_render', {
       meId,
@@ -136,7 +131,8 @@ export default function MyPage() {
                 {me.gender === 'male' ? <span className="text-base">👨</span> : me.gender === 'female' ? <span className="text-base">👩</span> : null}
               </div>
               <div className="mt-1.5 flex items-center gap-2.5 flex-wrap">
-                {rating && <GolfBallRating value={rating.value} count={rating.count} size={18} />}
+                {/* ★は「また回りたい率」を5段階に写像（旧★平均は廃止）。3/3 → ★5.0 */}
+                <GolfBallRating value={trackRecord && trackRecord.roundedWith > 0 ? Math.round((trackRecord.againCount / trackRecord.roundedWith) * 5 * 2) / 2 : 0} count={trackRecord?.roundedWith || 0} size={18} />
                 {trackRecord && trackRecord.roundedWith > 0 && (
                   <span className="inline-flex items-center gap-1 text-[12px] font-black text-green bg-green-light border border-green rounded-full px-2.5 py-0.5">
                     🏌️ また回りたい {trackRecord.againCount}/{trackRecord.roundedWith}

@@ -130,7 +130,8 @@ export default function ProfilePage() {
             {user.gender === 'male' ? <span className="text-base">👨</span> : user.gender === 'female' ? <span className="text-base">👩</span> : null}
           </div>
           <div className="mt-1.5 flex items-center gap-2.5 flex-wrap">
-            <GolfBallRating value={(user as any).rating || 0} count={(user as any).ratingCount || 0} size={18} />
+            {/* ★は「また回りたい率」を5段階に写像（旧★平均は廃止）。3/3 → ★5.0 */}
+            <GolfBallRating value={track && track.roundedWith > 0 ? Math.round((track.againCount / track.roundedWith) * 5 * 2) / 2 : 0} count={track?.roundedWith || 0} size={18} />
             {track && track.roundedWith > 0 && (
               <span className="inline-flex items-center gap-1 text-[12px] font-black text-green bg-green-light border border-green rounded-full px-2.5 py-0.5">
                 🏌️ また回りたい {track.againCount}/{track.roundedWith}

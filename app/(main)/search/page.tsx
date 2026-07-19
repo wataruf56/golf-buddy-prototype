@@ -23,7 +23,7 @@ type Filters = {
 const defaultFilters: Filters = {
   course: 'all', compOnly: false, gender: 'all', area: 'all',
   period: 'upcoming', status: 'open', hasSpots: false, beginnerOnly: false, priceMax: '',
-  keyword: '', sortBy: 'createdAt',
+  keyword: '', sortBy: 'date', // 初期は開催日の昇順（公式コンペ等の優先なし）
 };
 
 function todayStr(): string {
