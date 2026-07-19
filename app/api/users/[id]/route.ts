@@ -21,7 +21,15 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     const { isBanned } = await import('@/lib/banAccess');
     if (await isBanned(params.id)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   } catch { /* 判定不能時は通常表示 */ }
-  const reviews = await db.listReviewsForUser(params.id);
+  // レビューは「お互いがレビューし合った（相互）分だけ」を評価に反映する。
+  // received（相手→本人）の各レビューについて、本人→相手（同じroundId）のレビューが
+  // 存在するものだけを残す。片側だけのレビューは★評価・件数に反映しない。
+  const [received, written] = await Promise.all([
+    db.listReviewsForUser(params.id),
+    db.listReviewsByUser(params.id),
+  ]);
+  const writtenSet = new Set(written.map((w) => `${w.roundId}:${w.revieweeId}`));
+  const reviews = received.filter((r) => writtenSet.has(`${r.roundId}:${r.reviewerId}`));
 
   // Recompute live stats — the stored counters can lag (roundCount only bumps
   // at completion; reviewAvg/Count occasionally drift). Show truth.
