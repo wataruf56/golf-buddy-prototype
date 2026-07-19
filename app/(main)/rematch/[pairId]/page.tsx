@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { toast } from '@/components/Toast';
 import { confirmDialog } from '@/components/ConfirmDialog';
+import { store, useStore } from '@/lib/store';
+import { chatIdFor } from '@/lib/utils';
 
 // 再会エンジンの画面：候補日カレンダー → 3色重なり → この日で決定 → ラウンド投稿へ。
 type Data = {
@@ -17,6 +19,8 @@ type Data = {
   myCandidates: string[];
   myPastCandidates?: string[];
   theirCandidates: string[];
+  myParty?: string[];
+  theirParty?: string[];
   overlap: string[];
   agreedDate: string | null;
   postedRoundId: string | null;
@@ -27,6 +31,13 @@ type Data = {
 const DOW = ['日', '月', '火', '水', '木', '金', '土'];
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const mdLabel = (s: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s); return m ? `${Number(m[2])}/${Number(m[3])}` : s; };
+const SIZE_LABEL: Record<string, string> = { '2': '2サム', '3': '3サム', '4': 'フォーサム' };
+const partyLabel = (sizes?: string[]) => {
+  const s = sizes || [];
+  const l = ['2', '3', '4'].filter((k) => s.includes(k)).map((k) => SIZE_LABEL[k]).join('・');
+  return l || '未設定';
+};
+const PARTY_OPTIONS: [string, string][] = [['2', '2サム（2人）でもいい'], ['3', '3サム（3人）でもいい'], ['4', 'フォーサム（4人）でもいい']];
 
 export default function RematchPage() {
   const params = useParams<{ pairId: string }>();
@@ -41,6 +52,13 @@ export default function RematchPage() {
   // 過去に入力した候補日を「最初から選択済み」にしたことを知らせるフラグ。
   const [prefilled, setPrefilled] = useState(false);
   const touchX = useRef<number | null>(null);
+  // 希望人数（2サム/3サム/フォーサム）設定 ＋ 画面内チャット。
+  const meId = useStore((s) => s.meId);
+  const [partyOpen, setPartyOpen] = useState(false);
+  const [partySel, setPartySel] = useState<Set<string>>(new Set());
+  const [partyBusy, setPartyBusy] = useState(false);
+  const [chatText, setChatText] = useState('');
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     try {
@@ -58,11 +76,48 @@ export default function RematchPage() {
         setMine(new Set(past));
         setPrefilled(past.length > 0);
       }
+      setPartySel(new Set(d.myParty || []));
     } catch { setNotFound(true); }
     setLoading(false);
   }, [params.pairId]);
 
   useEffect(() => { load(); }, [load]);
+
+  // 画面内チャット（この相手とのDM）。決定・希望人数の通知もここに履歴として残る。
+  const otherId = data?.other?.id || '';
+  const chatId = meId && otherId ? chatIdFor(meId, otherId) : '';
+  const chat = useStore((s) => s.chats.find((c) => c.id === chatId));
+  useEffect(() => {
+    if (!chatId) return;
+    store.loadChat(chatId);
+    const iv = setInterval(() => store.loadChat(chatId), 4000);
+    return () => clearInterval(iv);
+  }, [chatId]);
+  useEffect(() => { if (chatId && chat) store.markChatRead(chatId); }, [chatId, chat?.messages.length]);
+  useEffect(() => { chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight }); }, [chat?.messages.length]);
+
+  async function savePartyPref() {
+    setPartyBusy(true);
+    try {
+      const r = await fetch(`/api/rematch/${encodeURIComponent(params.pairId)}/party`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sizes: Array.from(partySel) }), cache: 'no-store',
+      });
+      if (!r.ok) throw new Error(String(r.status));
+      toast('希望人数を保存しました🏌️');
+      setPartyOpen(false);
+      await load();
+      if (chatId) store.loadChat(chatId);
+    } catch { toast('保存に失敗しました', 'error'); }
+    setPartyBusy(false);
+  }
+  async function sendChat() {
+    const t = chatText.trim();
+    if (!t || !otherId || !chatId) return;
+    setChatText('');
+    try { await store.sendMessage(chatId, otherId, t); }
+    catch { toast('送信に失敗しました', 'error'); }
+  }
 
   const theirSet = useMemo(() => new Set(data?.theirCandidates || []), [data]);
   const win = data?.candidateWindowDays || 90;
@@ -157,6 +212,17 @@ export default function RematchPage() {
           <div className="text-[11px] text-sub">
             {data.roundDate ? `前回 ${mdLabel(data.roundDate)} に` : '前回'}{data.courseName ? `「${data.courseName}」で` : ''}一緒に回りました
           </div>
+        </div>
+      </div>
+
+      {/* 希望人数（2サム/3サム/フォーサム）。設定ボタンで選択、相手にも共有＆通知される。 */}
+      <div className="bg-card rounded-card p-3.5 shadow-card mb-4">
+        <div className="flex items-center justify-between gap-2 mb-1.5">
+          <div className="text-[12px] font-black">🏌️ 希望人数（何人で回りたい）</div>
+          <button onClick={() => setPartyOpen(true)} className="px-3.5 py-1.5 bg-green text-white rounded-full text-[11px] font-black flex-shrink-0">⚙️ 設定</button>
+        </div>
+        <div className="text-[11px] text-sub leading-relaxed">
+          あなた：<b className="text-text">{partyLabel(data.myParty)}</b>　／　{other.displayName}さん：<b className="text-text">{partyLabel(data.theirParty)}</b>
         </div>
       </div>
 
@@ -269,6 +335,67 @@ export default function RematchPage() {
             </>
           )}
         </>
+
+      {/* 画面内チャット（この相手とのDM）。日程の決定・希望人数の設定もここに届く。 */}
+      <div className="mt-5">
+        <div className="text-[13px] font-black mb-1">💬 {other.displayName}さんとやりとり</div>
+        <div className="text-[11px] text-sub mb-2">日程の決定や希望人数の設定は、ここに履歴として届きます。自由にメッセージもできます。</div>
+        <div className="bg-card rounded-card shadow-card overflow-hidden">
+          <div ref={chatScrollRef} className="max-h-64 overflow-y-auto px-3 py-3 flex flex-col gap-2">
+            {(chat?.messages || []).length === 0 ? (
+              <div className="text-center text-[12px] text-muted py-6">まだメッセージはありません</div>
+            ) : (
+              (chat?.messages || []).map((m: any) => {
+                const mineMsg = m.senderId === meId;
+                return (
+                  <div key={m.id} className={`flex ${mineMsg ? 'justify-end' : 'justify-start'}`}>
+                    <div
+                      className={`max-w-[80%] px-3 py-2 text-[13px] leading-relaxed ${mineMsg ? 'bg-green text-white' : 'bg-bg text-text'}`}
+                      style={{ borderRadius: mineMsg ? '12px 12px 4px 12px' : '12px 12px 12px 4px' }}
+                    >{m.text}</div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+          <div className="flex gap-2 p-2.5 border-t border-border">
+            <input
+              value={chatText}
+              onChange={(e) => setChatText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') sendChat(); }}
+              placeholder="メッセージを入力…"
+              className="flex-1 px-3 py-2 border-[1.5px] border-border rounded-full text-[13px] outline-none bg-bg"
+            />
+            <button onClick={sendChat} className="px-4 py-2 bg-green text-white rounded-full text-[12px] font-bold flex-shrink-0">送信</button>
+          </div>
+        </div>
+      </div>
+
+      {/* 希望人数の設定モーダル（複数選択可＝「〜でもいい」） */}
+      {partyOpen && (
+        <div className="absolute inset-0 z-[120] bg-black/50 flex items-center justify-center p-5 backdrop-blur-sm" onClick={() => setPartyOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-card rounded-card w-full max-w-[340px] p-5 shadow-lg">
+            <div className="text-base font-black mb-1">🏌️ 希望人数</div>
+            <div className="text-[12px] text-sub mb-3 leading-relaxed">何人で回るのがOKか、当てはまるものを選んでください（複数可）。相手にも共有・通知されます。</div>
+            <div className="flex flex-col gap-2 mb-4">
+              {PARTY_OPTIONS.map(([k, label]) => {
+                const on = partySel.has(k);
+                return (
+                  <button
+                    key={k}
+                    onClick={() => setPartySel((prev) => { const n = new Set(prev); if (n.has(k)) n.delete(k); else n.add(k); return n; })}
+                    className={'py-3 rounded-xl text-sm font-bold border-[1.5px] ' + (on ? 'bg-green text-white border-green' : 'bg-bg border-border text-sub')}
+                  >{on ? '✓ ' : ''}{label}</button>
+                );
+              })}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setPartyOpen(false)} className="flex-1 py-3 bg-bg text-sub rounded-xl text-sm font-bold">キャンセル</button>
+              <button onClick={savePartyPref} disabled={partyBusy} className="flex-[2] py-3 bg-green text-white rounded-xl text-sm font-black disabled:opacity-50">{partyBusy ? '保存中…' : '保存する'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

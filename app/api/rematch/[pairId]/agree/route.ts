@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMeId } from '@/lib/session';
 import { db } from '@/lib/db';
+import { chatIdFor } from '@/lib/utils';
 import { getSession, saveSession, membersOfPair, overlapDates, recordRematchEvent, notifyRematch } from '@/lib/rematch';
 
 // POST /api/rematch/[pairId]/agree  body: { date: 'YYYY-MM-DD' }
@@ -29,6 +30,12 @@ export async function POST(req: NextRequest, { params }: { params: { pairId: str
 
   await saveSession(pairId, { agreedDate: date, agreedAt: Date.now(), status: 'agreed' } as any);
   recordRematchEvent('rematch_agreed', { pairId, roundId: s.roundId, cycle: s.notifyCount, userId: meId }).catch(() => {});
+
+  // 決定内容を2人のDMにも投稿（画面内チャットの履歴に残す）。
+  try {
+    const participants = [s.userA, s.userB].sort() as [string, string];
+    await db.sendMessage(chatIdFor(s.userA, s.userB), participants, meId, `📅 ${mdLabel(date)} でラウンドが決まりました！`);
+  } catch { /* チャット投稿失敗は無視 */ }
 
   // 両者へ成立通知。
   const [ua, ub] = await Promise.all([db.getUser(s.userA), db.getUser(s.userB)]);

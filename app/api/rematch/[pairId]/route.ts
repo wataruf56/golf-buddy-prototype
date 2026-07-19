@@ -24,6 +24,8 @@ export async function GET(_req: NextRequest, { params }: { params: { pairId: str
   const otherId = isA ? s.userB : s.userA;
   const mine = (isA ? s.candidatesA : s.candidatesB) || [];
   const theirs = (isA ? s.candidatesB : s.candidatesA) || [];
+  const myParty = (isA ? s.partyPrefA : s.partyPrefB) || [];
+  const theirParty = (isA ? s.partyPrefB : s.partyPrefA) || [];
   const [other, cfg] = await Promise.all([db.getUser(otherId), getRematchConfig()]);
 
   // 過去の入力の再利用：自分が他のペアで出した候補日（今後の範囲内）をまとめて返す。
@@ -64,6 +66,8 @@ export async function GET(_req: NextRequest, { params }: { params: { pairId: str
     matchKind: s.matchKind,
     myCandidates: mine,
     theirCandidates: theirs,
+    myParty,
+    theirParty,
     overlap: overlapDates(mine, theirs),
     agreedDate: s.agreedDate || null,
     postedRoundId: s.postedRoundId || null,

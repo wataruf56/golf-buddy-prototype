@@ -19,6 +19,9 @@ export type RematchSession = {
   lastNotifyAt?: number;
   candidatesA: string[];      // 'YYYY-MM-DD'
   candidatesB: string[];
+  // 希望人数（'2'=2サム / '3'=3サム / '4'=フォーサム。複数可＝「〜でもいい」）。空/未設定=希望なし。
+  partyPrefA?: string[];
+  partyPrefB?: string[];
   agreedDate: string | null;
   agreedAt: number | null;
   postedRoundId: string | null;
