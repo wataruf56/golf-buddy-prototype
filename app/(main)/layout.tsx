@@ -109,7 +109,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           <AgeGateScreen age={me?.age} />
         ) : (
           <>
-            {needsMatchingAccess(pathname) && <MatchingBanner />}
+            {/* DM（/chat）は固定ヘッダー＋入力欄でビューポートを使い切る全画面レイアウト。
+                コミュニティ帯を出すとその高さぶん下にはみ出して入力欄がタブバーと重なるため、
+                チャット画面ではバナーを出さない（年齢ゲート自体は従来どおり有効）。 */}
+            {needsMatchingAccess(pathname) && !pathname.startsWith('/chat') && <MatchingBanner />}
             {children}
           </>
         )}
