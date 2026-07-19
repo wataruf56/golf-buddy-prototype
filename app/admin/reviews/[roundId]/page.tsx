@@ -4,16 +4,28 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 
+type Verdict = 'again' | 'romantic' | 'never' | 'either';
+
 type Review = {
   id: string;
   roundId: string;
   reviewerId: string;
   revieweeId: string;
   stars: number;
+  verdict?: Verdict;
   tags?: string[];
   comment?: string;
   createdAt: number;
 };
+
+// 現仕様：星評価は廃止。レビューは4択判定(verdict)。表示・編集はこれに合わせる。
+const VERDICT_META: Record<Verdict, { emoji: string; label: string; badge: string; sel: string }> = {
+  again:    { emoji: '🏌️', label: 'また回りたい',       badge: 'bg-green-light text-green border-green',     sel: 'bg-green text-white border-green' },
+  romantic: { emoji: '💘', label: '異性として気になる', badge: 'bg-pink-100 text-pink-600 border-pink-600',  sel: 'bg-pink-600 text-white border-pink-600' },
+  either:   { emoji: '🤷', label: 'どっちでもいい',     badge: 'bg-bg text-sub border-border',               sel: 'bg-[#9b876a] text-white border-[#9b876a]' },
+  never:    { emoji: '🙇', label: 'ごめんなさい',       badge: 'bg-red-50 text-red-600 border-red-300',      sel: 'bg-[#C0392B] text-white border-[#C0392B]' },
+};
+const VERDICT_ORDER: Verdict[] = ['again', 'romantic', 'either', 'never'];
 
 export default function AdminRoundReviewsPage() {
   return (
@@ -122,9 +134,15 @@ function Inner() {
           const reviewee = users[r.revieweeId] || { displayName: '?', avatar: '?' };
           return (
             <div key={r.id} className="bg-card rounded-xl p-3 shadow-card">
-              <div className="flex items-center justify-between mb-1">
-                <div className="text-yellow text-sm">{'★'.repeat(r.stars)}{'☆'.repeat(5 - r.stars)}</div>
-                <div className="text-[10px] text-muted">{new Date(r.createdAt).toLocaleString('ja-JP')}</div>
+              <div className="flex items-center justify-between mb-1 gap-2">
+                {r.verdict && VERDICT_META[r.verdict] ? (
+                  <span className={`text-[11px] font-black px-2 py-0.5 rounded-full border ${VERDICT_META[r.verdict].badge}`}>
+                    {VERDICT_META[r.verdict].emoji} {VERDICT_META[r.verdict].label}
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-muted">（判定なし）</span>
+                )}
+                <div className="text-[10px] text-muted whitespace-nowrap">{new Date(r.createdAt).toLocaleString('ja-JP')}</div>
               </div>
               <div className="text-[11px] text-sub mb-1">
                 {reviewer.avatar}<b className="ml-1">{reviewer.displayName}</b>
@@ -162,7 +180,7 @@ function Inner() {
 }
 
 function EditModal({ token, review, onClose, onSaved }: { token: string; review: Review; onClose: () => void; onSaved: () => void }) {
-  const [stars, setStars] = useState(review.stars);
+  const [verdict, setVerdict] = useState<Verdict | ''>(review.verdict || '');
   const [comment, setComment] = useState(review.comment || '');
   const [tags, setTags] = useState((review.tags || []).join(', '));
   const [busy, setBusy] = useState(false);
@@ -175,7 +193,7 @@ function EditModal({ token, review, onClose, onSaved }: { token: string; review:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: review.id,
-          stars,
+          ...(verdict ? { verdict } : {}),
           comment,
           tags: tags.split(',').map((s) => s.trim()).filter(Boolean),
         }),
@@ -194,10 +212,14 @@ function EditModal({ token, review, onClose, onSaved }: { token: string; review:
         <div className="p-4">
           <div className="text-base font-black mb-3">レビューを編集</div>
 
-          <div className="text-xs font-bold mb-1">★評価</div>
-          <div className="flex gap-1 mb-3">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button key={n} onClick={() => setStars(n)} className="text-2xl">{n <= stars ? '★' : '☆'}</button>
+          <div className="text-xs font-bold mb-1">判定（また回りたいか）</div>
+          <div className="grid grid-cols-2 gap-1.5 mb-3">
+            {VERDICT_ORDER.map((k) => (
+              <button
+                key={k}
+                onClick={() => setVerdict(k)}
+                className={`py-2 rounded-lg text-[11px] font-bold border-[1.5px] leading-tight ${verdict === k ? VERDICT_META[k].sel : 'bg-card border-border text-sub'}`}
+              >{verdict === k ? '✓ ' : ''}{VERDICT_META[k].emoji} {VERDICT_META[k].label}</button>
             ))}
           </div>
 

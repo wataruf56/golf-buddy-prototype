@@ -4,22 +4,29 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
+type Verdict = 'again' | 'romantic' | 'never' | 'either';
+
 type Review = {
   id: string;
   roundId: string;
   reviewerId: string;
   revieweeId: string;
   stars: number;
+  verdict?: Verdict;
   tags?: string[];
   comment?: string;
   createdAt: number;
 };
 
+// 現仕様：星評価は廃止。ラウンドごとに4択判定(verdict)の内訳を集計して表示する。
+const VERDICT_ORDER: Verdict[] = ['again', 'romantic', 'either', 'never'];
+const VERDICT_EMOJI: Record<Verdict, string> = { again: '🏌️', romantic: '💘', either: '🤷', never: '🙇' };
+
 type Group = {
   roundId: string;
   count: number;
   latestAt: number;
-  avgStars: number;
+  verdictCounts: Record<Verdict, number>;
   reviews: Review[];
 };
 
@@ -93,8 +100,9 @@ function Inner() {
     const out: Group[] = [];
     m.forEach((rs, roundId) => {
       const latestAt = Math.max(...rs.map((r) => r.createdAt));
-      const avg = rs.reduce((s, r) => s + r.stars, 0) / rs.length;
-      out.push({ roundId, count: rs.length, latestAt, avgStars: Math.round(avg * 10) / 10, reviews: rs });
+      const verdictCounts: Record<Verdict, number> = { again: 0, romantic: 0, either: 0, never: 0 };
+      for (const r of rs) if (r.verdict && r.verdict in verdictCounts) verdictCounts[r.verdict]++;
+      out.push({ roundId, count: rs.length, latestAt, verdictCounts, reviews: rs });
     });
     out.sort((a, b) => b.latestAt - a.latestAt);
     return out;
@@ -148,9 +156,13 @@ function Inner() {
                 </div>
               )}
               <div className="flex items-center justify-between mt-2">
-                <div className="text-yellow text-[12px]">
-                  {'★'.repeat(Math.round(g.avgStars))}{'☆'.repeat(5 - Math.round(g.avgStars))}
-                  <span className="text-muted ml-1.5 text-[10px]">平均{g.avgStars}</span>
+                <div className="flex items-center gap-1.5 text-[11px] font-bold">
+                  {VERDICT_ORDER.filter((v) => g.verdictCounts[v] > 0).map((v) => (
+                    <span key={v} className="text-sub">{VERDICT_EMOJI[v]}{g.verdictCounts[v]}</span>
+                  ))}
+                  {VERDICT_ORDER.every((v) => g.verdictCounts[v] === 0) && (
+                    <span className="text-muted text-[10px]">判定なし</span>
+                  )}
                 </div>
                 <div className="text-[10px] text-muted">
                   最新 {new Date(g.latestAt).toLocaleDateString('ja-JP')}

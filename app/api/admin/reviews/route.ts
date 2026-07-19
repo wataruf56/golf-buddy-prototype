@@ -65,6 +65,9 @@ export async function PATCH(req: NextRequest) {
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400, headers: noStore });
 
   const patch: any = {};
+  // 星評価は廃止。レビューは4択判定(verdict)＋タグ＋コメント。stars は後方互換で残すが通常は使わない。
+  const VERDICTS = ['again', 'romantic', 'never', 'either'];
+  if (typeof body.verdict === 'string' && VERDICTS.includes(body.verdict)) patch.verdict = body.verdict;
   if (typeof body.stars === 'number' && body.stars >= 1 && body.stars <= 5) patch.stars = Math.round(body.stars);
   if (Array.isArray(body.tags)) patch.tags = body.tags.map(String);
   if (typeof body.comment === 'string') patch.comment = body.comment;
