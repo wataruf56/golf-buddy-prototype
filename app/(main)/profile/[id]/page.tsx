@@ -138,7 +138,7 @@ export default function ProfilePage() {
             )}
           </div>
           {track && track.roundedWith > 0 && (
-            <div className="text-[11px] text-sub mt-1">一緒に回った{track.roundedWith}人のうち{track.againCount}人が「また回りたい」と回答</div>
+            <div className="text-[11px] text-sub mt-1">この人をレビューした{track.roundedWith}人のうち{track.againCount}人が「また回りたい」と回答</div>
           )}
           {metaLine && <div className="text-[13px] text-sub mt-1.5">{metaLine}</div>}
           {user.golmotiType && (

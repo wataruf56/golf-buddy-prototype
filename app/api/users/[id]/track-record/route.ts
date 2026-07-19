@@ -37,7 +37,13 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     asApplicant.docs.forEach(consider);
     asHost.docs.forEach(consider);
 
-    // 「また回りたい」を押してくれた人数（to==id, kind==again）。
+    // このユーザーを「レビューした人」（＝評価をくれた人）。分母はここに限定する：
+    // 一緒に回っても“未レビュー”の人は「また回りたい」の分母に入れない。
+    const revSnap = await db.collection('reviews').where('revieweeId', '==', id).limit(1000).get();
+    const reviewers = new Set<string>();
+    revSnap.docs.forEach((d: any) => { const x = d.data() || {}; if (x.reviewerId) reviewers.add(x.reviewerId); });
+
+    // 「また回りたい」を押した人（like ベース。旧★レビューでも like があれば拾える）。
     const likeSnap = await db.collection('_matchLikes').where('to', '==', id).limit(3000).get();
     const againFrom = new Set<string>();
     likeSnap.docs.forEach((d: any) => {
@@ -45,7 +51,12 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       if (x.kind === 'again' && x.from) againFrom.add(x.from);
     });
 
-    return NextResponse.json({ roundedWith: partners.size, againCount: againFrom.size, hostedCount, joinedCount }, { headers: noStore });
+    // 分母 = レビューをくれた人数。分子 = そのうち「また回りたい」を押した人数。
+    const roundedWith = reviewers.size;
+    let againCount = 0;
+    reviewers.forEach((r) => { if (againFrom.has(r)) againCount++; });
+
+    return NextResponse.json({ roundedWith, againCount, hostedCount, joinedCount }, { headers: noStore });
   } catch (e) {
     return NextResponse.json({ roundedWith: 0, againCount: 0, hostedCount: 0, joinedCount: 0, error: (e as Error).message }, { headers: noStore });
   }

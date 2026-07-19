@@ -144,7 +144,7 @@ export default function MyPage() {
                 )}
               </div>
               {trackRecord && trackRecord.roundedWith > 0 && (
-                <div className="text-[11px] text-sub mt-1">一緒に回った{trackRecord.roundedWith}人のうち{trackRecord.againCount}人が「また回りたい」と回答</div>
+                <div className="text-[11px] text-sub mt-1">あなたをレビューした{trackRecord.roundedWith}人のうち{trackRecord.againCount}人が「また回りたい」と回答</div>
               )}
               <div className="text-[13px] text-sub mt-1.5">
                 {[me.age ? `${me.age}歳` : null, me.scoreRange ? `スコア ${me.scoreRange}` : null, me.area || null].filter(Boolean).join(' ・ ') || 'プロフィールを編集してください'}
