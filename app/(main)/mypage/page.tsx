@@ -127,7 +127,7 @@ export default function MyPage() {
             <Link href="/mypage/edit" className="absolute top-3 right-3 px-3.5 py-1.5 bg-white/20 text-white rounded-full text-xs font-black backdrop-blur-sm">✏️ 編集</Link>
           </div>
           <div className="px-5 pb-5 -mt-11">
-            <div className="rounded-full p-1 bg-card inline-block shadow-card">
+            <div className="relative z-10 rounded-full p-1 bg-card inline-block shadow-card">
               <Avatar user={me} size={84} emojiSize={42} />
             </div>
             <div className="mt-2.5">

@@ -114,7 +114,7 @@ export default function ProfilePage() {
       <div className="px-5 -mt-12">
         {/* アバター＋アクション */}
         <div className="flex items-end justify-between">
-          <div className="rounded-full p-1 bg-card inline-block shadow-card">
+          <div className="relative z-10 rounded-full p-1 bg-card inline-block shadow-card">
             <Avatar user={user} size={88} emojiSize={44} />
           </div>
           {!isMe && !isBlocked && isBuddy && (
