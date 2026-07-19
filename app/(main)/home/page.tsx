@@ -76,7 +76,18 @@ export default function HomePage() {
   }
 
   const rounds = useStore((s) => s.rounds.filter((r) => r.status === 'open'));
+  const allRounds = useStore((s) => s.rounds);
   const users = useStore((s) => s.users);
+  // 自分が「主催 or 参加/申請中」で、まだ完了していない（開催前の）ラウンド。
+  // 開催日の昇順（日程未定は末尾）。ホーム上部の「参加予定」枠に出す。
+  const myUpcoming = allRounds
+    .filter((r) => r.status !== 'completed' && (r.hostId === me.id || (r.applicantIds || []).includes(me.id) || (r.pendingApplicantIds || []).includes(me.id)))
+    .slice()
+    .sort((a, b) => {
+      const am = a.date ? new Date(a.date).getTime() : Infinity;
+      const bm = b.date ? new Date(b.date).getTime() : Infinity;
+      return am - bm;
+    });
   // ホーム最上部に出す「ゴルトモ公式の直近コンペ」。公式(isOfficial)かつコンペ規模
   // (5名以上)で募集中のものから、開催が近い順に1件。未来の予定が無ければ最新作成分。
   const officialComp = (() => {
@@ -263,6 +274,43 @@ export default function HomePage() {
           <div className="text-2xl leading-none mb-1">🔍</div>募集をさがす
         </Link>
       </div>
+
+      {/* 参加予定のラウンド（自分が主催 or 参加/申請中で開催前）。開催日昇順で見やすく。 */}
+      {myUpcoming.length > 0 && (
+        <div className="px-5 pb-3">
+          <div className="bg-card rounded-card shadow-card overflow-hidden border-2 border-blue">
+            <div className="flex items-center gap-1.5 px-4 pt-3.5 pb-2">
+              <span className="text-base font-black">📅 参加予定のラウンド</span>
+              <span className="text-[11px] font-black text-white bg-blue px-2 py-0.5 rounded-full leading-none">{myUpcoming.length}</span>
+            </div>
+            <div className="px-3 pb-3 flex flex-col gap-1.5">
+              {myUpcoming.slice(0, 5).map((r) => {
+                const mine = r.hostId === me.id;
+                const joined = (r.applicantIds || []).includes(me.id);
+                const role = mine ? '主催' : joined ? '参加確定' : '承認待ち';
+                const roleCls = mine ? 'bg-orange-light text-orange' : joined ? 'bg-green-light text-green' : 'bg-bg text-sub';
+                const md = r.date ? `${Number(r.date.slice(5, 7))}/${Number(r.date.slice(8, 10))}` : '未定';
+                return (
+                  <Link href={`/round/${r.id}`} key={r.id} className="flex items-center gap-2.5 bg-bg rounded-xl px-3 py-2.5">
+                    <div className="w-9 text-center flex-shrink-0">
+                      <div className="text-[13px] font-black text-blue leading-none">{md}</div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-bold truncate">{r.title}</div>
+                      <div className="text-[10px] text-muted truncate">{[r.courseName || r.area, r.status === 'closed' ? '締切' : null].filter(Boolean).join(' ・ ') || 'コース未定'}</div>
+                    </div>
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full flex-shrink-0 ${roleCls}`}>{role}</span>
+                    <span className="text-muted flex-shrink-0">›</span>
+                  </Link>
+                );
+              })}
+              {myUpcoming.length > 5 && (
+                <Link href="/mypage" className="text-[11px] font-bold text-blue text-center pt-1">ほか{myUpcoming.length - 5}件をマイページで見る ›</Link>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 未読がある時だけ、上部にインライン表示。既読・過去はベルから確認。 */}
       {unread.length > 0 && (

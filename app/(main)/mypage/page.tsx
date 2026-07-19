@@ -29,8 +29,16 @@ export default function MyPage() {
       (r.pendingApplicantIds || []).includes(s.meId)
     )
   );
-  // 「参加予定」= これから参加する（募集中＝未完了）のラウンドだけ。完了・終了は除く。
-  const upcomingRounds = myRounds.filter((r) => r.status === 'open');
+  // 「参加予定」= 自分が主催 or 参加/申請中で、まだ完了していないラウンド（募集中open＋
+  // 締切closed の両方。参加後に締め切られても残る）。開催日の昇順（日程未定は末尾）。
+  const upcomingRounds = myRounds
+    .filter((r) => r.status !== 'completed')
+    .slice()
+    .sort((a, b) => {
+      const am = a.date ? new Date(a.date).getTime() : Infinity;
+      const bm = b.date ? new Date(b.date).getTime() : Infinity;
+      return am - bm;
+    });
   // "ラウンド回数" = COMPLETED rounds I was in (host or approved applicant).
   // Only finished rounds count — open/recruiting ones don't. We take the max
   // of this live count and the stored roundCount (which is incremented at
