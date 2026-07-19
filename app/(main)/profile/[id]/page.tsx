@@ -83,7 +83,6 @@ export default function ProfilePage() {
 
   if (!user) return <div className="p-5 text-sub">読み込み中...</div>;
 
-  const againPct = track && track.roundedWith > 0 ? Math.round((track.againCount / track.roundedWith) * 100) : null;
   const metaLine = [user.age ? `${user.age}歳` : null, user.area, carLabel(user.car)].filter(Boolean).join(' ・ ');
 
   return (
@@ -130,9 +129,17 @@ export default function ProfilePage() {
             <span className="text-2xl font-black tracking-tight">{user.displayName}</span>
             {user.gender === 'male' ? <span className="text-base">👨</span> : user.gender === 'female' ? <span className="text-base">👩</span> : null}
           </div>
-          <div className="mt-1.5">
+          <div className="mt-1.5 flex items-center gap-2.5 flex-wrap">
             <GolfBallRating value={(user as any).rating || 0} count={(user as any).ratingCount || 0} size={18} />
+            {track && track.roundedWith > 0 && (
+              <span className="inline-flex items-center gap-1 text-[12px] font-black text-green bg-green-light border border-green rounded-full px-2.5 py-0.5">
+                🏌️ また回りたい {track.againCount}/{track.roundedWith}
+              </span>
+            )}
           </div>
+          {track && track.roundedWith > 0 && (
+            <div className="text-[11px] text-sub mt-1">一緒に回った{track.roundedWith}人のうち{track.againCount}人が「また回りたい」と回答</div>
+          )}
           {metaLine && <div className="text-[13px] text-sub mt-1.5">{metaLine}</div>}
           {user.golmotiType && (
             <div className="mt-2.5">
@@ -141,27 +148,12 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* ステータス行（SNS風） */}
+        {/* ステータス行（SNS風）＝ 完了ラウンド（募集＋参加）／ 募集回数 */}
         <div className="mt-4 flex rounded-2xl bg-card shadow-card overflow-hidden">
           <StatCell value={track ? String(track.joinedCount + track.hostedCount) : '—'} label="ラウンド" />
           <div className="w-px bg-border my-3" />
-          <StatCell value={track ? String(track.againCount) : '—'} label="また回りたい" accent />
-          <div className="w-px bg-border my-3" />
           <StatCell value={track ? String(track.hostedCount) : '—'} label="募集" />
         </div>
-
-        {/* また回りたい率（信頼の指標） */}
-        {againPct !== null && (
-          <div className="mt-3 bg-green-light border-[1.5px] border-green rounded-card px-4 py-3">
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-[12px] font-black text-green">🏌️ また回りたいと思われた率</span>
-              <span className="text-[20px] leading-none font-black text-green ml-auto">{againPct}%</span>
-            </div>
-            <div className="text-[11px] text-sub mt-1">
-              一緒に回った <b className="text-text">{track!.roundedWith}人</b> のうち <b className="text-green">{track!.againCount}人</b> が「また回りたい」と回答。
-            </div>
-          </div>
-        )}
 
         {/* 自己紹介 */}
         {user.bio && (
@@ -173,6 +165,7 @@ export default function ProfilePage() {
         {/* タグ */}
         <div className="mt-3 flex flex-wrap gap-1.5">
           {user.frequency && <Tag>📅 {user.frequency}</Tag>}
+          {user.availableDays && <Tag>🗓️ {user.availableDays}</Tag>}
           {user.golfHistory && <Tag>⛳ ゴルフ歴 {user.golfHistory}</Tag>}
           {user.scoreRange && <Tag>🎯 {user.scoreRange}</Tag>}
           {user.car && <Tag>{user.car === 'have' ? '🚗 車あり' : '🚶 車なし'}</Tag>}

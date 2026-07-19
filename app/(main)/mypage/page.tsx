@@ -47,7 +47,7 @@ export default function MyPage() {
     (r.pendingApplicantIds || []).map((uid) => ({ round: r, applicantId: uid }))
   );
   // 実績ベース評価：一緒に回った人のうち「また回りたい」を押した人数（相手にも見える指標）。
-  const [trackRecord, setTrackRecord] = useState<{ roundedWith: number; againCount: number } | null>(null);
+  const [trackRecord, setTrackRecord] = useState<{ roundedWith: number; againCount: number; hostedCount: number; joinedCount: number } | null>(null);
   const [rating, setRating] = useState<{ value: number; count: number } | null>(null);
   const users = useStore((s) => s.users);
 
@@ -55,7 +55,7 @@ export default function MyPage() {
     if (!meId) return;
     fetch(`/api/users/${encodeURIComponent(meId)}/track-record`, { cache: 'no-store' })
       .then((r) => r.json())
-      .then((d) => setTrackRecord({ roundedWith: d.roundedWith || 0, againCount: d.againCount || 0 }))
+      .then((d) => setTrackRecord({ roundedWith: d.roundedWith || 0, againCount: d.againCount || 0, hostedCount: d.hostedCount || 0, joinedCount: d.joinedCount || 0 }))
       .catch(() => {});
     fetch(`/api/users/${encodeURIComponent(meId)}`, { cache: 'no-store' })
       .then((r) => r.json())
@@ -135,10 +135,16 @@ export default function MyPage() {
                 <span className="text-2xl font-black tracking-tight">{me.displayName || 'プロフィール'}</span>
                 {me.gender === 'male' ? <span className="text-base">👨</span> : me.gender === 'female' ? <span className="text-base">👩</span> : null}
               </div>
-              {rating && (
-                <div className="mt-1.5">
-                  <GolfBallRating value={rating.value} count={rating.count} size={18} />
-                </div>
+              <div className="mt-1.5 flex items-center gap-2.5 flex-wrap">
+                {rating && <GolfBallRating value={rating.value} count={rating.count} size={18} />}
+                {trackRecord && trackRecord.roundedWith > 0 && (
+                  <span className="inline-flex items-center gap-1 text-[12px] font-black text-green bg-green-light border border-green rounded-full px-2.5 py-0.5">
+                    🏌️ また回りたい {trackRecord.againCount}/{trackRecord.roundedWith}
+                  </span>
+                )}
+              </div>
+              {trackRecord && trackRecord.roundedWith > 0 && (
+                <div className="text-[11px] text-sub mt-1">一緒に回った{trackRecord.roundedWith}人のうち{trackRecord.againCount}人が「また回りたい」と回答</div>
               )}
               <div className="text-[13px] text-sub mt-1.5">
                 {[me.age ? `${me.age}歳` : null, me.scoreRange ? `スコア ${me.scoreRange}` : null, me.area || null].filter(Boolean).join(' ・ ') || 'プロフィールを編集してください'}
@@ -150,19 +156,12 @@ export default function MyPage() {
               )}
             </div>
 
-            {/* ステータス行（SNS風） */}
+            {/* ステータス行 ＝ 完了ラウンド（募集して完了＋参加して完了）／ 募集回数 */}
             <div className="mt-4 flex rounded-2xl bg-bg overflow-hidden">
-              <StatCell value={trackRecord ? String(trackRecord.againCount) : '—'} label="また回りたい" accent />
-              <div className="w-px bg-border my-3" />
-              <StatCell value={`${Math.max(me.roundCount || 0, myCompletedRoundCount)}`} label="ラウンド" />
+              <StatCell value={trackRecord ? String(trackRecord.hostedCount + trackRecord.joinedCount) : `${myCompletedRoundCount}`} label="ラウンド" />
               <div className="w-px bg-border my-3" />
               <StatCell value={`${myHostedRounds.length}`} label="募集" />
             </div>
-            {trackRecord && trackRecord.roundedWith > 0 && (
-              <div className="mt-2 text-[10px] text-muted leading-relaxed">
-                「また回りたい」は、一緒に回った{trackRecord.roundedWith}人のうち{trackRecord.againCount}人が回答した実績です（相手のプロフィールにも表示されます）。
-              </div>
-            )}
 
             {me.bio && (
               <div className="mt-3 bg-bg rounded-xl p-3 text-[13px] leading-relaxed whitespace-pre-wrap">{me.bio}</div>
@@ -171,6 +170,7 @@ export default function MyPage() {
             {/* タグ */}
             <div className="mt-3 flex flex-wrap gap-1.5">
               {me.frequency && <span className="px-3 py-1.5 bg-bg text-sub text-[11px] font-bold rounded-full">📅 {me.frequency}</span>}
+              {me.availableDays && <span className="px-3 py-1.5 bg-bg text-sub text-[11px] font-bold rounded-full">🗓️ {me.availableDays}</span>}
               {me.golfHistory && <span className="px-3 py-1.5 bg-bg text-sub text-[11px] font-bold rounded-full">⛳ ゴルフ歴 {me.golfHistory}</span>}
               {me.car && <span className="px-3 py-1.5 bg-bg text-sub text-[11px] font-bold rounded-full">{me.car === 'have' ? '🚗 車あり' : '🚶 車なし'}</span>}
             </div>

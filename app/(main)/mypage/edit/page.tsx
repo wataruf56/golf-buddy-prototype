@@ -36,7 +36,8 @@ const carOptions: { id: CarStatus; label: string }[] = [
   { id: 'have', label: '🚗 あり' },
   { id: 'none', label: 'なし' },
 ];
-const golfHistoryOptions = ['1年未満', '1〜3年', '3〜5年', '5〜10年', '10年以上'];
+const golfHistoryOptions = ['1年未満', '1年', '2年', '3年', '4年', '5年以上'];
+const availableDaysOptions = ['平日', '土日', 'どちらも', 'シフト制'];
 
 export default function ProfileEditPage() {
   const router = useRouter();
@@ -71,6 +72,7 @@ export default function ProfileEditPage() {
   const [frequency, setFrequency] = useState('');
   const [recentScores, setRecentScores] = useState<ScoreEntry[]>([]);
   const [golfHistory, setGolfHistory] = useState('');
+  const [availableDays, setAvailableDays] = useState('');
   const [avatar, setAvatar] = useState('👨');
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
   const [avatarMode, setAvatarMode] = useState<'photo' | 'emoji' | 'golmoti'>('emoji');
@@ -95,6 +97,7 @@ export default function ProfileEditPage() {
     setFrequency(me.frequency || '');
     setRecentScores(Array.isArray(me.recentScores) ? me.recentScores : []);
     setGolfHistory(me.golfHistory || '');
+    setAvailableDays(me.availableDays || '');
     setAvatar(me.avatar || (me.gender === 'female' ? '👩' : '👨'));
     setAvatarUrl(me.avatarUrl || undefined);
     setAvatarMode((me.avatarMode as any) || (me.avatarUrl ? 'photo' : 'emoji'));
@@ -178,6 +181,7 @@ export default function ProfileEditPage() {
         avatarUrl: avatarUrl || '',
         recentScores: cleanedScores,
         golfHistory,
+        availableDays,
       });
       track('profile_save_success', { displayName });
       toast('保存しました');
@@ -361,6 +365,17 @@ export default function ProfileEditPage() {
               >{g}</button>
             ))}
           </div>
+        </Field>
+
+        <Field label="行ける曜日" hint="（任意）">
+          <select
+            value={availableDays}
+            onChange={(e) => setAvailableDays(e.target.value)}
+            className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
+          >
+            <option value="">未設定</option>
+            {availableDaysOptions.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
         </Field>
 
         <Field label="ゴルフ診断タイプ（GOLMOTI）" hint="（任意）">
