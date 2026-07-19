@@ -38,7 +38,6 @@ const partyLabel = (sizes?: string[]) => {
   const l = ['2', '3', '4'].filter((k) => s.includes(k)).map((k) => SIZE_LABEL[k]).join('・');
   return l || '未設定';
 };
-const PARTY_OPTIONS: [string, string][] = [['2', '2サム（2人）でもいい'], ['3', '3サム（3人）でもいい'], ['4', 'フォーサム（4人）でもいい']];
 
 export default function RematchPage() {
   const params = useParams<{ pairId: string }>();
@@ -55,9 +54,9 @@ export default function RematchPage() {
   const touchX = useRef<number | null>(null);
   // 希望人数（2サム/3サム/フォーサム）設定 ＋ 画面内チャット。
   const meId = useStore((s) => s.meId);
-  const [partyOpen, setPartyOpen] = useState(false);
   const [partySel, setPartySel] = useState<Set<string>>(new Set());
   const [partyBusy, setPartyBusy] = useState(false);
+  const partySaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [chatText, setChatText] = useState('');
   const [chatSending, setChatSending] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
@@ -99,20 +98,29 @@ export default function RematchPage() {
   useEffect(() => { if (chatId && chat) store.markChatRead(chatId); }, [chatId, chat?.messages.length]);
   useEffect(() => { chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight }); }, [chat?.messages.length]);
 
-  async function savePartyPref() {
+  async function savePartySizes(sizes: string[]) {
     setPartyBusy(true);
     try {
       const r = await fetch(`/api/rematch/${encodeURIComponent(params.pairId)}/party`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sizes: Array.from(partySel) }), cache: 'no-store',
+        body: JSON.stringify({ sizes }), cache: 'no-store',
       });
       if (!r.ok) throw new Error(String(r.status));
-      toast('希望人数を保存しました🏌️');
-      setPartyOpen(false);
-      await load();
       if (chatId) store.loadChat(chatId);
-    } catch { toast('保存に失敗しました', 'error'); }
-    setPartyBusy(false);
+    } catch { toast('希望人数の保存に失敗しました', 'error'); }
+    finally { setPartyBusy(false); }
+  }
+  // ボタンを直接タップで希望人数をトグル。連続タップの通知連打を避けるため、
+  // 少し待ってから1回だけ保存する（デバウンス）。
+  function toggleParty(k: string) {
+    setPartySel((prev) => {
+      const n = new Set(prev);
+      if (n.has(k)) n.delete(k); else n.add(k);
+      const sizes = Array.from(n);
+      if (partySaveTimer.current) clearTimeout(partySaveTimer.current);
+      partySaveTimer.current = setTimeout(() => savePartySizes(sizes), 700);
+      return n;
+    });
   }
   async function sendChat(imageUrl?: string) {
     const t = chatText.trim();
@@ -229,14 +237,24 @@ export default function RematchPage() {
         </div>
       </div>
 
-      {/* 希望人数（2サム/3サム/フォーサム）。設定ボタンで選択、相手にも共有＆通知される。 */}
+      {/* 希望人数（2サム/3サム/フォーサム）。ボタンを直接タップで設定（複数可＝〜でもいい）。相手にも共有＆通知される。 */}
       <div className="bg-card rounded-card p-3.5 shadow-card mb-4">
-        <div className="flex items-center justify-between gap-2 mb-1.5">
-          <div className="text-[12px] font-black">🏌️ 希望人数（何人で回りたい）</div>
-          <button onClick={() => setPartyOpen(true)} className="px-3.5 py-1.5 bg-green text-white rounded-full text-[11px] font-black flex-shrink-0">⚙️ 設定</button>
+        <div className="text-[12px] font-black mb-2">🏌️ 希望人数（何人で回りたい・複数OK）</div>
+        <div className="flex gap-2 mb-2">
+          {(['2', '3', '4'] as const).map((k) => {
+            const on = partySel.has(k);
+            return (
+              <button
+                key={k}
+                onClick={() => toggleParty(k)}
+                disabled={partyBusy}
+                className={'flex-1 py-2.5 rounded-xl text-[13px] font-bold border-[1.5px] disabled:opacity-60 ' + (on ? 'bg-green text-white border-green' : 'bg-bg border-border text-sub')}
+              >{on ? '✓ ' : ''}{SIZE_LABEL[k]}</button>
+            );
+          })}
         </div>
         <div className="text-[11px] text-sub leading-relaxed">
-          あなた：<b className="text-text">{partyLabel(data.myParty)}</b>　／　{other.displayName}さん：<b className="text-text">{partyLabel(data.theirParty)}</b>
+          {other.displayName}さんの希望：<b className="text-text">{partyLabel(data.theirParty)}</b>
         </div>
       </div>
 
@@ -407,31 +425,6 @@ export default function RematchPage() {
         </div>
       </div>
 
-      {/* 希望人数の設定モーダル（複数選択可＝「〜でもいい」） */}
-      {partyOpen && (
-        <div className="absolute inset-0 z-[120] bg-black/50 flex items-center justify-center p-5 backdrop-blur-sm" onClick={() => setPartyOpen(false)}>
-          <div onClick={(e) => e.stopPropagation()} className="bg-card rounded-card w-full max-w-[340px] p-5 shadow-lg">
-            <div className="text-base font-black mb-1">🏌️ 希望人数</div>
-            <div className="text-[12px] text-sub mb-3 leading-relaxed">何人で回るのがOKか、当てはまるものを選んでください（複数可）。相手にも共有・通知されます。</div>
-            <div className="flex flex-col gap-2 mb-4">
-              {PARTY_OPTIONS.map(([k, label]) => {
-                const on = partySel.has(k);
-                return (
-                  <button
-                    key={k}
-                    onClick={() => setPartySel((prev) => { const n = new Set(prev); if (n.has(k)) n.delete(k); else n.add(k); return n; })}
-                    className={'py-3 rounded-xl text-sm font-bold border-[1.5px] ' + (on ? 'bg-green text-white border-green' : 'bg-bg border-border text-sub')}
-                  >{on ? '✓ ' : ''}{label}</button>
-                );
-              })}
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => setPartyOpen(false)} className="flex-1 py-3 bg-bg text-sub rounded-xl text-sm font-bold">キャンセル</button>
-              <button onClick={savePartyPref} disabled={partyBusy} className="flex-[2] py-3 bg-green text-white rounded-xl text-sm font-black disabled:opacity-50">{partyBusy ? '保存中…' : '保存する'}</button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );
