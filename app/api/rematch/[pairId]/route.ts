@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMeId } from '@/lib/session';
 import { db } from '@/lib/db';
-import { getSession, membersOfPair, overlapDates, recordRematchEvent, listSessionsForUser } from '@/lib/rematch';
+import { getSession, membersOfPair, overlapDates, recordRematchEvent, listSessionsForUser, rematchDayMs } from '@/lib/rematch';
 import { getRematchConfig } from '@/lib/rematchConfig';
 
 // GET /api/rematch/[pairId] — 1ペアの状態（自分視点：自分/相手の候補日・重なり・status）。
@@ -40,9 +40,23 @@ export async function GET(_req: NextRequest, { params }: { params: { pairId: str
   } catch { /* best-effort */ }
   const myPastCandidates = Array.from(pastSet).sort();
 
+  // 次の再会通知が送られる予定時刻（ms）。通知が有効・未決定・未停止・上限未達で、
+  // 前回通知から intervalDays 経過後に送られる。該当しなければ null（今後の通知なし）。
+  let nextNotifyAt: number | null = null;
+  if (
+    cfg.enabled &&
+    s.status !== 'agreed' && s.status !== 'posted' &&
+    (s.optedOutBy || []).length === 0 &&
+    (s.notifyCount || 0) < cfg.maxCycles &&
+    s.lastNotifyAt
+  ) {
+    nextNotifyAt = s.lastNotifyAt + cfg.intervalDays * rematchDayMs;
+  }
+
   return NextResponse.json({
     pairId,
     status: s.status,
+    nextNotifyAt,
     candidateWindowDays: cfg.candidateWindowDays,
     myPastCandidates,
     courseName: s.courseName || '',

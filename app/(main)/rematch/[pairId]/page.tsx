@@ -8,6 +8,7 @@ import { toast } from '@/components/Toast';
 type Data = {
   pairId: string;
   status: 'notified' | 'inputting' | 'agreed' | 'posted' | 'optedout';
+  nextNotifyAt?: number | null;
   candidateWindowDays: number;
   courseName: string;
   roundDate: string;
@@ -130,9 +131,16 @@ export default function RematchPage() {
 
   return (
     <div className="px-5 py-3 pb-10">
-      <div className="flex items-center justify-between mb-3">
-        <button onClick={() => router.back()} className="text-sm text-blue font-semibold">← 戻る</button>
-        <button onClick={optout} className="text-[11px] text-muted underline">この再会通知を止める</button>
+      <div className="flex items-start justify-between mb-3 gap-2">
+        <button onClick={() => router.back()} className="text-sm text-blue font-semibold mt-0.5">← 戻る</button>
+        <div className="text-right">
+          {data.nextNotifyAt != null && !agreed && (
+            <div className="text-[11px] font-bold text-sub whitespace-nowrap mb-0.5">
+              🔔 次の通知: {data.nextNotifyAt <= Date.now() ? 'まもなく' : (() => { const d = new Date(data.nextNotifyAt!); return `${d.getMonth() + 1}/${d.getDate()}`; })()}
+            </div>
+          )}
+          <button onClick={optout} className="text-[11px] text-muted underline whitespace-nowrap">この再会通知を止める</button>
+        </div>
       </div>
 
       {/* 相手カード */}

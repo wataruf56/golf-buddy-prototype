@@ -32,13 +32,16 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
   }
 
   const pct = Math.round((round.currentCount / Math.max(1, round.maxSpots)) * 100);
+  const isFull = round.currentCount >= round.maxSpots;
 
   return (
     <Link
       href={`/round/${round.id}`}
-      className="block bg-card rounded-card p-3 mb-2 shadow-card cursor-pointer"
-      style={round.isOfficial ? { borderLeft: '5px solid #2A8C82' } : isComp ? { borderLeft: '5px solid #E8643C' } : undefined}
+      className="relative block bg-card rounded-card p-3 mb-2 shadow-card cursor-pointer overflow-hidden"
+      style={isFull ? { borderLeft: '5px solid #B9B4A8' } : round.isOfficial ? { borderLeft: '5px solid #2A8C82' } : isComp ? { borderLeft: '5px solid #E8643C' } : undefined}
     >
+      {/* 満員は中身をグレーアウト＋「満員」を中央に大きく重ねる。背後は通常の投稿。 */}
+      <div className={isFull ? 'grayscale opacity-40' : ''}>
       {(round.isOfficial || isComp || (round.pendingApplicantIds || []).length > 0 || hasUnread) && (
         <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
           {round.isOfficial && (
@@ -77,6 +80,12 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
         </div>
         <span className="text-[12px] font-black text-orange whitespace-nowrap">{round.currentCount}/{round.maxSpots}人</span>
       </div>
+      </div>
+      {isFull && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <span style={{ color: '#E01E1E', fontWeight: 900, fontSize: '30px', letterSpacing: '6px', textShadow: '0 0 3px #fff, 0 0 3px #fff, 0 2px 6px rgba(0,0,0,.15)' }}>満員</span>
+        </div>
+      )}
     </Link>
   );
 }
