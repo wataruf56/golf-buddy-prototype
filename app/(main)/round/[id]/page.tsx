@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
+import { confirmDialog } from '@/components/ConfirmDialog';
 import { Avatar } from '@/components/Avatar';
 import { track } from '@/lib/telemetry';
 import { chatIdFor, formatDate, ratingLabel, carLabel, priceLabelForGender, isSplitPrice } from '@/lib/utils';
@@ -283,17 +284,17 @@ export default function RoundDetailPage() {
     }
   }
   async function leave() {
-    if (!confirm('このラウンドから抜けますか？')) return;
+    if (!(await confirmDialog('このラウンドから抜けますか？'))) return;
     try { await store.leaveRound(round!.id); toast('離脱しました'); router.push('/home'); }
     catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }
   async function close() {
-    if (!confirm('この募集を閉じますか？')) return;
+    if (!(await confirmDialog('この募集を閉じますか？'))) return;
     try { await store.closeRound(round!.id); toast('募集を閉じました'); router.push('/home'); }
     catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }
   async function complete() {
-    if (!confirm('ラウンドを完了しますか？\n参加者全員にレビュー依頼が送られます。')) return;
+    if (!(await confirmDialog('ラウンドを完了しますか？\n参加者全員にレビュー依頼が送られます。'))) return;
     try { await store.completeRound(round!.id); toast('ラウンド完了'); router.push('/home'); }
     catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }
@@ -302,12 +303,12 @@ export default function RoundDetailPage() {
     catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }
   async function reject(userId: string) {
-    if (!confirm('この申請を断りますか？')) return;
+    if (!(await confirmDialog('この申請を断りますか？'))) return;
     try { await store.rejectApplicant(round!.id, userId); toast('却下しました'); }
     catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }
   async function kick(userId: string, name: string) {
-    if (!confirm(`${name}さんをラウンドから外しますか？`)) return;
+    if (!(await confirmDialog(`${name}さんをラウンドから外しますか？`))) return;
     try { await store.kickApplicant(round!.id, userId); toast('外しました'); }
     catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }

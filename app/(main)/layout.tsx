@@ -7,6 +7,7 @@ import { TabBar } from '@/components/TabBar';
 import { ReviewOverlay } from '@/components/ReviewOverlay';
 import { BlockerPopup } from '@/components/BlockerPopup';
 import { ToastHost } from '@/components/Toast';
+import { ConfirmHost } from '@/components/ConfirmDialog';
 import { AgeGateScreen } from '@/components/AgeGateScreen';
 import { MatchingBanner } from '@/components/MatchingBanner';
 import { UpdateBanner } from '@/components/UpdateBanner';
@@ -122,6 +123,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       )}
       {overlayOpen && pendingCount > 0 && <ReviewOverlay />}
       <ToastHost />
+      <ConfirmHost />
       <TabBar onBlock={onTabBlock} />
     </PhoneFrame>
   );

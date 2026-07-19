@@ -1,5 +1,7 @@
 'use client';
 
+import { confirmDialog, alertDialog } from '@/components/ConfirmDialog';
+
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -797,21 +799,21 @@ function VisitorManager({ raw, token, onChanged }: { raw: RawEvent[]; token: str
   const [open, setOpen] = useState<string>('');
 
   async function del(body: any, label: string) {
-    if (!confirm(`${label}を削除します。元に戻せません。よろしいですか？`)) return;
+    if (!(await confirmDialog(`${label}を削除します。元に戻せません。よろしいですか？`))) return;
     setBusy(JSON.stringify(body));
     try {
       const r = await fetch(`/api/lp/quiz?token=${encodeURIComponent(token)}`, {
         method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), cache: 'no-store',
       });
       const d = await r.json();
-      if (!r.ok) alert('削除失敗: ' + (d.error || r.status));
+      if (!r.ok) alertDialog('削除失敗: ' + (d.error || r.status));
       else {
         const parts = [`計測ログ ${d.deleted ?? 0}件`];
         if (typeof d.deletedSignals === 'number') parts.push(`LINE通知データ ${d.deletedSignals}件`);
-        alert(`データベースから削除しました（${parts.join(' / ')}）`);
+        alertDialog(`データベースから削除しました（${parts.join(' / ')}）`);
         onChanged();
       }
-    } catch { alert('削除に失敗しました'); }
+    } catch { alertDialog('削除に失敗しました'); }
     finally { setBusy(''); }
   }
 

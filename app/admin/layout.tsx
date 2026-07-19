@@ -1,3 +1,7 @@
+'use client';
+
+import { ConfirmHost } from '@/components/ConfirmDialog';
+
 // Admin layout — pass-through.
 //
 // Auth has been intentionally removed for now. The admin host
@@ -6,5 +10,10 @@
 // /api/admin/_init so the UI never shows a token/password prompt. To
 // re-enable a gate later, restore the cookie check in this file.
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <ConfirmHost />
+    </>
+  );
 }

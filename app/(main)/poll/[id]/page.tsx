@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
+import { confirmDialog } from '@/components/ConfirmDialog';
 import { Avatar } from '@/components/Avatar';
 import { track } from '@/lib/telemetry';
 import { formatDate } from '@/lib/utils';
@@ -149,7 +150,7 @@ export default function PollPage() {
   }
 
   async function removeOption(optionId: string) {
-    if (!confirm('この候補日を削除しますか？')) return;
+    if (!(await confirmDialog('この候補日を削除しますか？'))) return;
     await callApi({ action: 'remove-option', optionId });
   }
 

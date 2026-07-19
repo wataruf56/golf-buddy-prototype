@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { toast } from '@/components/Toast';
+import { confirmDialog } from '@/components/ConfirmDialog';
 
 // 再会エンジンの画面：候補日カレンダー → 3色重なり → この日で決定 → ラウンド投稿へ。
 type Data = {
@@ -111,7 +112,7 @@ export default function RematchPage() {
   }
 
   async function agree(date: string) {
-    if (!confirm(`${mdLabel(date)} で再会を決定しますか？`)) return;
+    if (!(await confirmDialog(`${mdLabel(date)} でラウンドを決定しますか？`))) return;
     try {
       const r = await fetch(`/api/rematch/${encodeURIComponent(params.pairId)}/agree`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date }), cache: 'no-store',
@@ -123,7 +124,7 @@ export default function RematchPage() {
   }
 
   async function optout() {
-    if (!confirm('この相手との再会通知を今後止めますか？')) return;
+    if (!(await confirmDialog('この相手との再会通知を今後止めますか？'))) return;
     try {
       await fetch(`/api/rematch/${encodeURIComponent(params.pairId)}/optout`, { method: 'POST', cache: 'no-store' });
       toast('再会通知を停止しました');
@@ -163,7 +164,7 @@ export default function RematchPage() {
       {agreed && data.agreedDate && (
         <div className="bg-green-light border-[1.5px] border-green rounded-card p-4 mb-3 text-center">
           <div className="text-2xl mb-0.5">🎉</div>
-          <div className="text-lg font-black mb-1">{mdLabel(data.agreedDate)} で再会決定！</div>
+          <div className="text-lg font-black mb-1">{mdLabel(data.agreedDate)} でラウンド決定！</div>
           <div className="text-[12px] text-sub mb-3">このままラウンドを立てて、集合場所などを相談しましょう。</div>
           <a
             href={`/create?rematch=${encodeURIComponent(params.pairId)}`}

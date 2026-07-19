@@ -1,5 +1,7 @@
 'use client';
 
+import { confirmDialog, alertDialog } from '@/components/ConfirmDialog';
+
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
@@ -83,7 +85,7 @@ function Inner() {
     const msg = revert
       ? 'このレビューを削除し、レビュワーに「未レビュー」状態として再依頼します。よろしいですか？'
       : 'このレビューを完全に削除します。よろしいですか？';
-    if (!confirm(msg)) return;
+    if (!(await confirmDialog(msg))) return;
     try {
       const r = await fetch(`/api/admin/reviews?token=${encodeURIComponent(token)}`, {
         method: 'DELETE',
@@ -93,7 +95,7 @@ function Inner() {
       if (!r.ok) throw new Error(`${r.status}`);
       setItems((prev) => prev.filter((x) => x.id !== id));
     } catch (e) {
-      alert(`失敗: ${(e as Error).message}`);
+      alertDialog(`失敗: ${(e as Error).message}`);
     }
   }
 
@@ -181,27 +183,21 @@ function Inner() {
 
 function EditModal({ token, review, onClose, onSaved }: { token: string; review: Review; onClose: () => void; onSaved: () => void }) {
   const [verdict, setVerdict] = useState<Verdict | ''>(review.verdict || '');
-  const [comment, setComment] = useState(review.comment || '');
-  const [tags, setTags] = useState((review.tags || []).join(', '));
   const [busy, setBusy] = useState(false);
 
   async function save() {
+    if (!verdict) { alertDialog('判定を選んでください'); return; }
     setBusy(true);
     try {
       const r = await fetch(`/api/admin/reviews?token=${encodeURIComponent(token)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: review.id,
-          ...(verdict ? { verdict } : {}),
-          comment,
-          tags: tags.split(',').map((s) => s.trim()).filter(Boolean),
-        }),
+        body: JSON.stringify({ id: review.id, verdict }),
       });
       if (!r.ok) throw new Error(`${r.status}`);
       onSaved();
     } catch (e) {
-      alert(`失敗: ${(e as Error).message}`);
+      alertDialog(`失敗: ${(e as Error).message}`);
       setBusy(false);
     }
   }
@@ -222,12 +218,9 @@ function EditModal({ token, review, onClose, onSaved }: { token: string; review:
               >{verdict === k ? '✓ ' : ''}{VERDICT_META[k].emoji} {VERDICT_META[k].label}</button>
             ))}
           </div>
-
-          <div className="text-xs font-bold mb-1">タグ（カンマ区切り）</div>
-          <input value={tags} onChange={(e) => setTags(e.target.value)} className="w-full p-2 mb-3 border border-border rounded text-xs" />
-
-          <div className="text-xs font-bold mb-1">コメント</div>
-          <textarea value={comment} onChange={(e) => setComment(e.target.value)} className="w-full h-24 p-2 border border-border rounded text-xs" />
+          <div className="text-[11px] text-muted leading-relaxed">
+            ※ 現在のレビューは「4択判定」のみです（旧仕様の星・タグ・コメントは廃止）。
+          </div>
         </div>
         <div className="flex border-t border-border">
           <button onClick={onClose} className="flex-1 py-3 text-sm text-sub">キャンセル</button>

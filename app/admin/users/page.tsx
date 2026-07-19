@@ -1,5 +1,7 @@
 'use client';
 
+import { confirmDialog, alertDialog } from '@/components/ConfirmDialog';
+
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -98,7 +100,7 @@ function Inner() {
       setUsers((prev) => prev?.map((x) => x.id === u.id ? { ...x, swingAllowed: !x.swingAllowed } : x) || null);
       setAllowedCount((c) => c + (u.swingAllowed ? -1 : 1));
     } catch (e) {
-      alert(`失敗: ${(e as Error).message}`);
+      alertDialog(`失敗: ${(e as Error).message}`);
     } finally {
       setBusyId('');
     }
@@ -107,7 +109,7 @@ function Inner() {
   async function toggleBan(u: Row) {
     if (!token) return;
     const next = !u.banned;
-    if (next && !confirm(`${u.displayName || 'このユーザー'} を「赤バン」しますか？\nログイン不可・他ユーザーから完全非表示・招待候補からも除外され、一切利用できなくなります。`)) return;
+    if (next && !(await confirmDialog(`${u.displayName || 'このユーザー'} を「赤バン」しますか？\nログイン不可・他ユーザーから完全非表示・招待候補からも除外され、一切利用できなくなります。`))) return;
     setBusyId(u.id);
     try {
       const r = await fetch(`/api/admin/ban?token=${encodeURIComponent(token)}`, {
@@ -118,7 +120,7 @@ function Inner() {
       if (!r.ok) throw new Error(`${r.status}`);
       setUsers((prev) => prev?.map((x) => x.id === u.id ? { ...x, banned: next } : x) || null);
     } catch (e) {
-      alert(`失敗: ${(e as Error).message}`);
+      alertDialog(`失敗: ${(e as Error).message}`);
     } finally {
       setBusyId('');
     }
@@ -150,9 +152,9 @@ function Inner() {
       if (!r.ok) throw new Error(`${r.status}`);
       const d = await r.json();
       setUsers((prev) => prev?.map((x) => x.id === u.id ? { ...x, restriction: d.restriction || {} } : x) || null);
-      alert('部分制限を保存しました');
+      alertDialog('部分制限を保存しました');
     } catch (e) {
-      alert(`失敗: ${(e as Error).message}`);
+      alertDialog(`失敗: ${(e as Error).message}`);
     } finally {
       setBusyId('');
     }

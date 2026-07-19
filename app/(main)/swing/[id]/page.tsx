@@ -6,6 +6,7 @@ import { TabbedReview } from '@/components/swing/TabbedReview';
 import { StatusBadge } from '@/components/swing/StatusBadge';
 import { SnapshotGallery } from '@/components/swing/SnapshotGallery';
 import { toast } from '@/components/Toast';
+import { confirmDialog } from '@/components/ConfirmDialog';
 import type { SwingDoc, SwingSnapshot } from '@/types/swing';
 
 const MODE_LABEL: Record<string, string> = {
@@ -300,7 +301,7 @@ function ShareCard({ swing }: { swing: SwingDoc }) {
 function DangerZone({ swing, onDeleted }: { swing: SwingDoc; onDeleted: () => void }) {
   const [busy, setBusy] = useState(false);
   async function del() {
-    if (!confirm('この解析と動画を完全に削除します。よろしいですか？')) return;
+    if (!(await confirmDialog({ message: 'この解析と動画を完全に削除します。よろしいですか？', danger: true, confirmText: '削除' }))) return;
     setBusy(true);
     try {
       const r = await fetch(`/api/swing/${swing.swingId}`, { method: 'DELETE' });

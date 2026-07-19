@@ -402,7 +402,7 @@ export default function CreatePage() {
         <div className="bg-card rounded-card p-5 shadow-card">
           {rematchPairId && rematchPartnerName && (
             <div className="mb-4 bg-green-light border-[1.5px] border-green rounded-xl p-3">
-              <div className="text-[12px] font-black text-green">🔁 {rematchPartnerName}さんとの再会ラウンド</div>
+              <div className="text-[12px] font-black text-green">🔁 {rematchPartnerName}さんとの再ラウンド</div>
               <div className="text-[11px] text-sub mt-0.5">合意した日程をセットしました。「未定」でも「予約済み」でもOK。投稿すると{rematchPartnerName}さんは招待・承認なしで自動で参加確定になります。</div>
             </div>
           )}

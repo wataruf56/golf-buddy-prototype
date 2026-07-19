@@ -8,6 +8,7 @@ import { Avatar } from '@/components/Avatar';
 import { GolmotiBadge } from '@/components/GolmotiBadge';
 import { GolfBallRating } from '@/components/GolfBallRating';
 import { toast } from '@/components/Toast';
+import { confirmDialog } from '@/components/ConfirmDialog';
 import type { User } from '@/lib/types';
 import { chatIdFor, carLabel, instagramUrl } from '@/lib/utils';
 
@@ -45,7 +46,7 @@ export default function ProfilePage() {
   async function toggleBlock() {
     setMenuOpen(false);
     const action = isBlocked ? 'unblock' : 'block';
-    if (action === 'block' && !confirm(`${user?.displayName ?? 'このユーザー'}をブロックしますか？\nお互いにメッセージできなくなります。`)) return;
+    if (action === 'block' && !(await confirmDialog({ message: `${user?.displayName ?? 'このユーザー'}をブロックしますか？\nお互いにメッセージできなくなります。`, danger: true, confirmText: 'ブロックする' }))) return;
     try {
       const res = await fetch('/api/block', {
         method: 'POST',

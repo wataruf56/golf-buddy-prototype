@@ -1,5 +1,7 @@
 'use client';
 
+import { confirmDialog, alertDialog } from '@/components/ConfirmDialog';
+
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -73,7 +75,7 @@ function Inner() {
 
   async function resetData() {
     if (!token) return;
-    if (!confirm('再会エンジンのテストデータ（セッション＋計測）を全削除しますか？\n進行中の候補日・決定済みもすべて消えます。')) return;
+    if (!(await confirmDialog('再会エンジンのテストデータ（セッション＋計測）を全削除しますか？\n進行中の候補日・決定済みもすべて消えます。'))) return;
     setRunning(true); setMsg('');
     try {
       const r = await fetch(`/api/admin/rematch-reset?token=${encodeURIComponent(token)}`, { method: 'POST', cache: 'no-store' });

@@ -1,5 +1,7 @@
 'use client';
 
+import { confirmDialog, alertDialog } from '@/components/ConfirmDialog';
+
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -94,7 +96,7 @@ function Inner() {
     const msg = cascade
       ? 'このラウンドに紐づく全てを削除します:\n・ラウンド本体\n・参加者の投稿レビュー\n・レビュー依頼\n・グループチャット履歴\n\n本当に削除しますか？'
       : 'このラウンド本体だけを削除します（レビュー・チャット・依頼は残ります）。よろしいですか？';
-    if (!confirm(msg)) return;
+    if (!(await confirmDialog(msg))) return;
     try {
       const r = await fetch(`/api/admin/rounds?token=${encodeURIComponent(token)}`, {
         method: 'DELETE',
@@ -105,10 +107,10 @@ function Inner() {
       const d = await r.json();
       setItems((prev) => prev.filter((x) => x.id !== id));
       if (d.pendingDeleted || d.reviewsDeleted || d.chatMsgsDeleted) {
-        alert(`削除完了\nレビュー: ${d.reviewsDeleted ?? 0}件\nレビュー依頼: ${d.pendingDeleted}件\nチャット: ${d.chatMsgsDeleted}件`);
+        alertDialog(`削除完了\nレビュー: ${d.reviewsDeleted ?? 0}件\nレビュー依頼: ${d.pendingDeleted}件\nチャット: ${d.chatMsgsDeleted}件`);
       }
     } catch (e) {
-      alert(`失敗: ${(e as Error).message}`);
+      alertDialog(`失敗: ${(e as Error).message}`);
     }
   }
 
@@ -124,7 +126,7 @@ function Inner() {
       if (!r.ok) throw new Error(`${r.status}`);
     } catch (e) {
       setItems((prev) => prev.map((x) => (x.id === id ? { ...x, isOfficial: !next } : x)));
-      alert(`公式切替に失敗: ${(e as Error).message}`);
+      alertDialog(`公式切替に失敗: ${(e as Error).message}`);
     }
   }
 
@@ -251,13 +253,13 @@ function RoundMessages({ token, roundId }: { token: string; roundId: string }) {
       const r = await fetch(`/api/admin/round-messages?token=${encodeURIComponent(token)}&roundId=${encodeURIComponent(roundId)}`, { cache: 'no-store' });
       const d = await r.json();
       if (r.ok) { setMsgs(d.items || []); setUsers(d.users || {}); }
-      else { alert('取得失敗: ' + (d.error || r.status)); }
-    } catch { alert('取得失敗'); }
+      else { alertDialog('取得失敗: ' + (d.error || r.status)); }
+    } catch { alertDialog('取得失敗'); }
     finally { setLoading(false); }
   }
 
   async function del(messageId: string) {
-    if (!confirm('このメッセージを削除しますか？（元に戻せません）')) return;
+    if (!(await confirmDialog('このメッセージを削除しますか？（元に戻せません）'))) return;
     try {
       const r = await fetch(`/api/admin/round-messages?token=${encodeURIComponent(token)}`, {
         method: 'DELETE', headers: { 'Content-Type': 'application/json' },
@@ -265,7 +267,7 @@ function RoundMessages({ token, roundId }: { token: string; roundId: string }) {
       });
       if (!r.ok) throw new Error(String(r.status));
       setMsgs((prev) => (prev || []).filter((m) => m.id !== messageId));
-    } catch { alert('削除に失敗しました'); }
+    } catch { alertDialog('削除に失敗しました'); }
   }
 
   return (
