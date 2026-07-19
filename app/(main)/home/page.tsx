@@ -89,11 +89,11 @@ export default function HomePage() {
     if (upcoming.length) return upcoming[0];
     return comps.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0] || null;
   })();
-  // ホームの「ゴルトモ公式コンペ」枠に出す一覧。満員は除外。直近の公式コンペを先頭に
-  // 固定し、残りは開催日の昇順（日程未定は末尾）に並べる。
+  // ホームの「ゴルトモ公式コンペ」枠に出す一覧。直近の公式コンペを先頭に固定し、
+  // 残りは開催日の昇順（日程未定は末尾）。満員も表示する（カード側でグレーアウト＋
+  // 「満員」表示）。
   const displayRounds = (() => {
-    const notFull = rounds.filter((r) => (r.currentCount || 0) < r.maxSpots);
-    const rest = notFull
+    const rest = rounds
       .filter((r) => r.id !== officialComp?.id)
       .sort((a, b) => {
         const am = a.date ? new Date(a.date).getTime() : Infinity;
@@ -293,7 +293,7 @@ export default function HomePage() {
             )}
             <Link href="/search" className="ml-auto text-xs font-black text-green whitespace-nowrap">もっと見る ›</Link>
           </div>
-          <div className="text-[12px] text-sub font-bold mt-1">公式コンペと、募集中のラウンド（満員は非表示）</div>
+          <div className="text-[12px] text-sub font-bold mt-1">公式コンペと、募集中のラウンド</div>
         </div>
         <div className="px-5">
           {displayRounds.length === 0 ? (
