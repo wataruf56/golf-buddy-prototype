@@ -21,7 +21,23 @@ export default function ChatPage() {
   // otherId: from chat participants, or from ?other= query (for new chats with non-buddies)
   const otherIdFromQuery = search?.get('other') || '';
   const otherId = chat?.participants.find((p) => p !== meId) || otherIdFromQuery;
-  const other = users.find((u) => u.id === otherId);
+  const storeOther = users.find((u) => u.id === otherId);
+  // 相手がストア(users)に居ない場合はAPIで取得する。これが無いと、ゴル友一覧には
+  // 出るのにDMを開くと「読み込み中」のまま固まる（一覧は別データでフォールバック
+  // 表示できるが、チャットは users からしか相手を引けなかったため）。
+  const [fetchedOther, setFetchedOther] = useState<any | null>(null);
+  const [otherMissing, setOtherMissing] = useState(false);
+  useEffect(() => {
+    setFetchedOther(null); setOtherMissing(false);
+    if (!otherId || storeOther) return;
+    let cancelled = false;
+    fetch(`/api/users/${encodeURIComponent(otherId)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (cancelled) return; if (d?.user) setFetchedOther(d.user); else setOtherMissing(true); })
+      .catch(() => { if (!cancelled) setOtherMissing(true); });
+    return () => { cancelled = true; };
+  }, [otherId, !!storeOther]);
+  const other = storeOther || fetchedOther;
 
   useEffect(() => {
     if (!params.chatId) return;
@@ -54,7 +70,24 @@ export default function ChatPage() {
     );
   }
 
-  if (!other) return <div className="p-5 text-sub">読み込み中...</div>;
+  if (!other) {
+    // 相手が取得できなかった場合は無限ローディングにせずエラー表示にする。
+    if (otherMissing || !otherId) {
+      return (
+        <div className="flex flex-col h-full">
+          <div className="px-4 py-3 border-b border-border">
+            <button onClick={() => router.back()} className="text-sm text-blue font-semibold">← 戻る</button>
+          </div>
+          <div className="flex-1 flex flex-col items-center justify-center px-5 text-center">
+            <div className="text-4xl mb-3">🔍</div>
+            <div className="text-sm font-black mb-1">相手が見つかりませんでした</div>
+            <div className="text-[12px] text-sub">時間をおいて開き直すか、ゴル友一覧から入り直してください。</div>
+          </div>
+        </div>
+      );
+    }
+    return <div className="p-5 text-sub">読み込み中...</div>;
+  }
   // No chat record yet: show empty thread, sending the first message will create it.
   const messages = chat?.messages || [];
 
