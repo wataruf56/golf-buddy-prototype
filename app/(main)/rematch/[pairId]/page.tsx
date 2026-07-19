@@ -37,8 +37,8 @@ export default function RematchPage() {
   const [notFound, setNotFound] = useState(false);
   // 表示中の月（その月の1日）。左右で切替。
   const [monthCursor, setMonthCursor] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
-  // 過去入力の反映プロンプト。
-  const [pastPrompt, setPastPrompt] = useState(false);
+  // 過去に入力した候補日を「最初から選択済み」にしたことを知らせるフラグ。
+  const [prefilled, setPrefilled] = useState(false);
   const touchX = useRef<number | null>(null);
 
   const load = useCallback(async () => {
@@ -47,9 +47,16 @@ export default function RematchPage() {
       if (!r.ok) { setNotFound(true); setLoading(false); return; }
       const d: Data = await r.json();
       setData(d);
-      setMine(new Set(d.myCandidates || []));
-      // 自分の候補が未入力で、過去に他ペアで入れた候補があれば反映を提案。
-      if ((d.myCandidates || []).length === 0 && (d.myPastCandidates || []).length > 0) setPastPrompt(true);
+      const myCands = d.myCandidates || [];
+      if (myCands.length > 0) {
+        setMine(new Set(myCands));
+      } else {
+        // 自分の候補が未入力なら、過去に他ペアで入れた候補（今後の範囲内）を
+        // 最初から選択済みにする（毎回の入力を省くため）。不要な日はタップで外せる。
+        const past = d.myPastCandidates || [];
+        setMine(new Set(past));
+        setPrefilled(past.length > 0);
+      }
     } catch { setNotFound(true); }
     setLoading(false);
   }, [params.pairId]);
@@ -77,11 +84,6 @@ export default function RematchPage() {
   function toggle(k: string) {
     if (agreed || !inWindow(k)) return;
     setMine((prev) => { const n = new Set(prev); if (n.has(k)) n.delete(k); else n.add(k); return n; });
-  }
-  function applyPast() {
-    const past = (data!.myPastCandidates || []).filter((d) => inWindow(d));
-    setMine((prev) => { const n = new Set(prev); past.forEach((d) => n.add(d)); return n; });
-    setPastPrompt(false);
   }
   function changeMonth(delta: number) {
     setMonthCursor((c) => {
@@ -176,15 +178,10 @@ export default function RematchPage() {
           <div className="text-[13px] font-black mb-1">📅 {agreed ? '入力した候補日（決定済み）' : '行ける日をタップ'}</div>
           <div className="text-[11px] text-sub mb-2">{agreed ? '決まった日は緑、あなたの候補は黄で表示。候補日はそのまま残しています。' : 'お互いに行ける日を出し合うと、重なった日が青で表示されます。左右で月を切り替え。'}</div>
 
-          {/* 過去入力の反映プロンプト（未決定時のみ） */}
-          {!agreed && pastPrompt && (
-            <div className="bg-yellow-light border-[1.5px] border-orange rounded-card p-3 mb-2">
-              <div className="text-[12px] font-black text-orange mb-1.5">過去に入力した候補日を反映しますか？</div>
-              <div className="text-[11px] text-sub mb-2">他の人との調整で出した候補日（{(data.myPastCandidates || []).filter(inWindow).length}日）をまとめてセットできます。反映後に個別で外せます。</div>
-              <div className="flex gap-2">
-                <button onClick={applyPast} className="flex-1 py-2 bg-orange text-white rounded-lg text-[12px] font-black">はい、反映する</button>
-                <button onClick={() => setPastPrompt(false)} className="flex-1 py-2 bg-bg border-[1.5px] border-border rounded-lg text-[12px] font-bold">いいえ</button>
-              </div>
+          {/* 過去に入力した候補日を最初から反映済み（未決定時のみ・案内） */}
+          {!agreed && prefilled && (
+            <div className="bg-yellow-light border-[1.5px] border-orange rounded-card p-2.5 mb-2 text-[11px] font-bold text-orange leading-relaxed">
+              ✅ 過去に入力した候補日を最初から反映しています。不要な日はタップで外せます。この内容で送るには下の「確定して相手に送る」を押してください。
             </div>
           )}
 
