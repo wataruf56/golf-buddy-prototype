@@ -26,6 +26,7 @@ export default function ProfilePage() {
   const isMe = meId === params.id;
 
   const [user, setUser] = useState<User | undefined>(cachedUser);
+  const [notFound, setNotFound] = useState(false);
   const [track, setTrack] = useState<{ roundedWith: number; againCount: number; hostedCount: number; joinedCount: number } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -33,10 +34,12 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!params.id) return;
+    // 相手が取得できなかった場合（404・BAN・削除・通信失敗）は無限ローディングにせず
+    // notFound を立てる。これが無いと「読み込み中」のまま固まる（DMと同種の不具合）。
     fetch(`/api/users/${encodeURIComponent(params.id)}`)
-      .then((r) => r.json())
-      .then((d) => { if (d.user) setUser(d.user); })
-      .catch(() => {});
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.user) setUser(d.user); else setNotFound(true); })
+      .catch(() => setNotFound(true));
     fetch(`/api/users/${encodeURIComponent(params.id)}/track-record`, { cache: 'no-store' })
       .then((r) => r.json())
       .then((d) => setTrack({ roundedWith: d.roundedWith || 0, againCount: d.againCount || 0, hostedCount: d.hostedCount || 0, joinedCount: d.joinedCount || 0 }))
@@ -82,7 +85,21 @@ export default function ProfilePage() {
     }
   }
 
-  if (!user) return <div className="p-5 text-sub">読み込み中...</div>;
+  if (!user) {
+    if (notFound) {
+      return (
+        <div className="px-5 py-3">
+          <button onClick={() => router.back()} className="text-sm text-blue font-semibold mb-6">← 戻る</button>
+          <div className="text-center py-16">
+            <div className="text-4xl mb-3">🔍</div>
+            <div className="text-sm font-black mb-1">ユーザーが見つかりませんでした</div>
+            <div className="text-[12px] text-sub">退会・削除された、または表示できないユーザーの可能性があります。</div>
+          </div>
+        </div>
+      );
+    }
+    return <div className="p-5 text-sub">読み込み中...</div>;
+  }
 
   const metaLine = [user.age ? `${user.age}歳` : null, user.area, carLabel(user.car)].filter(Boolean).join(' ・ ');
 
