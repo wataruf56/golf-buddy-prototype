@@ -6,6 +6,7 @@ import { toast } from '@/components/Toast';
 import { confirmDialog } from '@/components/ConfirmDialog';
 import { store, useStore } from '@/lib/store';
 import { chatIdFor } from '@/lib/utils';
+import { resizeImage } from '@/lib/resizeImage';
 
 // 再会エンジンの画面：候補日カレンダー → 3色重なり → この日で決定 → ラウンド投稿へ。
 type Data = {
@@ -58,7 +59,9 @@ export default function RematchPage() {
   const [partySel, setPartySel] = useState<Set<string>>(new Set());
   const [partyBusy, setPartyBusy] = useState(false);
   const [chatText, setChatText] = useState('');
+  const [chatSending, setChatSending] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const chatFileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     try {
@@ -111,12 +114,23 @@ export default function RematchPage() {
     } catch { toast('保存に失敗しました', 'error'); }
     setPartyBusy(false);
   }
-  async function sendChat() {
+  async function sendChat(imageUrl?: string) {
     const t = chatText.trim();
-    if (!t || !otherId || !chatId) return;
-    setChatText('');
-    try { await store.sendMessage(chatId, otherId, t); }
+    if ((!t && !imageUrl) || !otherId || !chatId || chatSending) return;
+    setChatSending(true);
+    if (!imageUrl) setChatText('');
+    try { await store.sendMessage(chatId, otherId, imageUrl ? '' : t, imageUrl); }
     catch { toast('送信に失敗しました', 'error'); }
+    finally { setChatSending(false); }
+  }
+  async function onPickChatImage(file: File) {
+    if (!file.type.startsWith('image/')) { toast('画像ファイルを選んでください', 'error'); return; }
+    setChatSending(true);
+    let dataUrl = '';
+    try { dataUrl = await resizeImage(file, 1000, 0.6); }
+    catch { toast('画像の読み込みに失敗しました', 'error'); setChatSending(false); return; }
+    setChatSending(false);
+    await sendChat(dataUrl);
   }
 
   const theirSet = useMemo(() => new Set(data?.theirCandidates || []), [data]);
@@ -352,21 +366,43 @@ export default function RematchPage() {
                     <div
                       className={`max-w-[80%] px-3 py-2 text-[13px] leading-relaxed ${mineMsg ? 'bg-green text-white' : 'bg-bg text-text'}`}
                       style={{ borderRadius: mineMsg ? '12px 12px 4px 12px' : '12px 12px 12px 4px' }}
-                    >{m.text}</div>
+                    >
+                      {m.imageUrl && (
+                        <a href={m.imageUrl} target="_blank" rel="noopener noreferrer" className="block mb-1">
+                          <img src={m.imageUrl} alt="画像" className="rounded-lg max-w-full max-h-52 object-cover" />
+                        </a>
+                      )}
+                      {m.text && <span className="whitespace-pre-wrap">{m.text}</span>}
+                    </div>
                   </div>
                 );
               })
             )}
           </div>
-          <div className="flex gap-2 p-2.5 border-t border-border">
+          <div className="flex items-end gap-2 p-2.5 border-t border-border">
+            <button
+              type="button"
+              onClick={() => chatFileRef.current?.click()}
+              disabled={chatSending}
+              aria-label="画像を送る"
+              className="self-end flex-shrink-0 w-9 h-9 rounded-full text-base border-[1.5px] bg-bg border-border text-sub disabled:opacity-50"
+            >📷</button>
             <input
+              ref={chatFileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) onPickChatImage(f); if (chatFileRef.current) chatFileRef.current.value = ''; }}
+            />
+            {/* 改行はEnterで入力可。送信は右のボタンのみ（Enterでは送らない）。 */}
+            <textarea
               value={chatText}
               onChange={(e) => setChatText(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') sendChat(); }}
-              placeholder="メッセージを入力…"
-              className="flex-1 px-3 py-2 border-[1.5px] border-border rounded-full text-[13px] outline-none bg-bg"
+              rows={1}
+              placeholder="メッセージを入力…（改行OK）"
+              className="flex-1 px-3 py-2 border-[1.5px] border-border rounded-[16px] text-[13px] outline-none bg-bg resize-none max-h-24"
             />
-            <button onClick={sendChat} className="px-4 py-2 bg-green text-white rounded-full text-[12px] font-bold flex-shrink-0">送信</button>
+            <button onClick={() => sendChat()} disabled={chatSending} aria-label="送信" className="self-end flex-shrink-0 w-9 h-9 bg-green text-white rounded-full text-sm font-bold disabled:opacity-50">➤</button>
           </div>
         </div>
       </div>

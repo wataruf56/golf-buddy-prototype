@@ -52,7 +52,10 @@ export default function RoundDetailPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteMessage, setInviteMessage] = useState('');
+  // 招待は「招待ボタン→この人へのメッセージ入力→1人ずつ送信」。inviteTarget=送信先。
+  const [inviteTarget, setInviteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [inviteMsg, setInviteMsg] = useState('');
+  const [inviteBusy, setInviteBusy] = useState(false);
   const [interestedOpen, setInterestedOpen] = useState(false);
   // 詳細のセクション切り替えタブ（参加してる人／ピックアップ／組み分け）。
   const [tab, setTab] = useState<'people' | 'pickup' | 'groups'>('people');
@@ -332,10 +335,10 @@ export default function RoundDetailPage() {
       } catch (e) { toast((e as Error).message, 'error'); }
     }
   }
-  async function invite(userId: string, name: string) {
+  async function invite(userId: string, name: string, message?: string) {
     if (restrictions.noInvite) { toast(RESTRICTION_MSG.noInvite, 'error'); return; }
     try {
-      const updated = await store.inviteToRound(round!.id, userId, inviteMessage.trim() || undefined);
+      const updated = await store.inviteToRound(round!.id, userId, (message || '').trim() || undefined);
       if (!storeRound && updated) setFetchedRound((prev) => (prev ? { ...prev, ...updated } : prev));
       toast(`${name}さんを招待しました`);
     } catch (e) { toast((e as Error).message, 'error'); }
@@ -795,17 +798,10 @@ export default function RoundDetailPage() {
 
       {inviteOpen && (
         <PickerModal title="ゴルトモを招待する" onClose={() => setInviteOpen(false)}>
-          <div className="mb-3">
-            <label className="block text-[11px] font-bold text-sub mb-1">一言メッセージ（任意・招待通知に添えられます）</label>
-            <textarea
-              value={inviteMessage}
-              onChange={(e) => setInviteMessage(e.target.value.slice(0, 200))}
-              placeholder="例: 久しぶりに一緒に回りませんか？🏌️"
-              className="w-full h-16 p-2.5 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-none"
-            />
-            <div className="text-[10px] text-muted text-right mt-0.5">{inviteMessage.length}/200</div>
+          <div className="mb-3 text-[12px] text-sub bg-bg rounded-xl p-3 leading-relaxed">
+            💌 招待したい人の「招待」を押すと、その人へのメッセージを入力して<b className="text-text">1人ずつ</b>送れます。
           </div>
-          <InviteSearch inviteState={inviteState} onInvite={invite} />
+          <InviteSearch inviteState={inviteState} onInvite={(id, name) => { setInviteMsg(''); setInviteTarget({ id, name }); }} />
         </PickerModal>
       )}
 
@@ -832,7 +828,7 @@ export default function RoundDetailPage() {
                     ) : st === 'invited' ? (
                       <span className="px-3 py-1.5 bg-bg text-muted border border-border rounded-lg text-xs font-bold flex-shrink-0">招待済み</span>
                     ) : (
-                      <button onClick={() => invite(u.id, u.displayName)} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold flex-shrink-0">招待</button>
+                      <button onClick={() => { setInviteMsg(''); setInviteTarget({ id: u.id, name: u.displayName }); }} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold flex-shrink-0">招待</button>
                     )
                   )}
                 </div>
@@ -840,6 +836,31 @@ export default function RoundDetailPage() {
             })
           )}
         </PickerModal>
+      )}
+
+      {/* 個別招待モーダル：この人にだけメッセージを添えて招待を送る（1人ずつ） */}
+      {inviteTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[210] flex items-center justify-center p-5 backdrop-blur-sm" onClick={() => { if (!inviteBusy) setInviteTarget(null); }}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-card rounded-card w-full max-w-[340px] p-5 shadow-lg">
+            <div className="text-base font-black mb-1">💌 {inviteTarget.name}さんを招待</div>
+            <div className="text-[12px] text-sub mb-3 leading-relaxed">この人へのメッセージを添えて招待できます（任意）。</div>
+            <textarea
+              value={inviteMsg}
+              onChange={(e) => setInviteMsg(e.target.value.slice(0, 200))}
+              placeholder={`例: ${inviteTarget.name}さん、久しぶりに一緒に回りませんか？🏌️`}
+              className="w-full h-20 p-2.5 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-none"
+            />
+            <div className="text-[10px] text-muted text-right mt-0.5 mb-3">{inviteMsg.length}/200</div>
+            <div className="flex gap-2">
+              <button onClick={() => setInviteTarget(null)} disabled={inviteBusy} className="flex-1 py-3 bg-bg text-sub rounded-xl text-sm font-bold disabled:opacity-50">やめる</button>
+              <button
+                onClick={async () => { setInviteBusy(true); await invite(inviteTarget.id, inviteTarget.name, inviteMsg); setInviteBusy(false); setInviteTarget(null); }}
+                disabled={inviteBusy}
+                className="flex-[2] py-3 bg-green text-white rounded-xl text-sm font-black disabled:opacity-50"
+              >{inviteBusy ? '送信中…' : '招待を送る'}</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

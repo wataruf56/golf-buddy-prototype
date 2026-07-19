@@ -401,21 +401,22 @@ export const store = {
     }
   },
 
-  sendMessage: async (chatId: string, otherUserId: string, text: string) => {
+  sendMessage: async (chatId: string, otherUserId: string, text: string, imageUrl?: string) => {
     const { message } = await api<{ message: Message }>('/api/messages', {
       method: 'POST',
-      body: JSON.stringify({ chatId, otherUserId, text }),
+      body: JSON.stringify({ chatId, otherUserId, text, imageUrl }),
     });
+    const preview = text || (imageUrl ? '📷 画像' : '');
     const chats = state.chats.map((c) =>
       c.id === chatId
-        ? { ...c, messages: [...c.messages, message], lastMessage: text, lastMessageAt: message.createdAt }
+        ? { ...c, messages: [...c.messages, message], lastMessage: preview, lastMessageAt: message.createdAt }
         : c
     );
     if (!chats.find((c) => c.id === chatId)) {
       chats.push({
         id: chatId,
         participants: [state.meId, otherUserId].sort() as [string, string],
-        lastMessage: text, lastMessageAt: message.createdAt,
+        lastMessage: preview, lastMessageAt: message.createdAt,
         unreadCount: { [state.meId]: 0, [otherUserId]: 1 },
         messages: [message],
       });

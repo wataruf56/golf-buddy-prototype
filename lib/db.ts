@@ -51,7 +51,7 @@ export interface DB {
 
   listChatsForUser(userId: string): Promise<Chat[]>;
   getChat(chatId: string): Promise<Chat | null>;
-  sendMessage(chatId: string, participants: [string, string], senderId: string, text: string): Promise<Message>;
+  sendMessage(chatId: string, participants: [string, string], senderId: string, text: string, imageUrl?: string): Promise<Message>;
   markChatRead(chatId: string, userId: string): Promise<void>;
 }
 
@@ -268,16 +268,16 @@ class MemoryDB implements DB {
     return this.chats.filter((c) => c.participants.includes(userId));
   }
   async getChat(chatId: string) { return this.chats.find((c) => c.id === chatId) || null; }
-  async sendMessage(chatId: string, participants: [string, string], senderId: string, text: string) {
+  async sendMessage(chatId: string, participants: [string, string], senderId: string, text: string, imageUrl?: string) {
     let chat = this.chats.find((c) => c.id === chatId);
     if (!chat) {
       chat = { id: chatId, participants, lastMessage: '', lastMessageAt: 0,
         unreadCount: { [participants[0]]: 0, [participants[1]]: 0 }, messages: [] };
       this.chats.push(chat);
     }
-    const msg: Message = { id: `m_${Date.now()}`, senderId, text, createdAt: Date.now(), read: false };
+    const msg: Message = { id: `m_${Date.now()}`, senderId, text, createdAt: Date.now(), read: false, ...(imageUrl ? { imageUrl } : {}) };
     chat.messages.push(msg);
-    chat.lastMessage = text;
+    chat.lastMessage = text || (imageUrl ? '📷 画像' : '');
     chat.lastMessageAt = msg.createdAt;
     const other = participants.find((p) => p !== senderId)!;
     chat.unreadCount[other] = (chat.unreadCount[other] || 0) + 1;
@@ -758,14 +758,15 @@ class FirestoreDB implements DB {
     const messages = msgsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })) as Message[];
     return { id: snap.id, ...snap.data(), messages } as Chat;
   }
-  async sendMessage(chatId: string, participants: [string, string], senderId: string, text: string) {
+  async sendMessage(chatId: string, participants: [string, string], senderId: string, text: string, imageUrl?: string) {
     const ref = this.fs.collection('chats').doc(chatId);
     const snap = await ref.get();
     const now = Date.now();
     const other = participants.find((p) => p !== senderId)!;
+    const preview = text || (imageUrl ? '📷 画像' : '');
     if (!snap.exists) {
       await ref.set({
-        participants, lastMessage: text, lastMessageAt: now,
+        participants, lastMessage: preview, lastMessageAt: now,
         unreadCount: { [participants[0]]: 0, [participants[1]]: 0, [other]: 1 },
         createdAt: now,
       });
@@ -773,12 +774,12 @@ class FirestoreDB implements DB {
       const data = snap.data() as any;
       const unread = { ...(data.unreadCount || {}) };
       unread[other] = (unread[other] || 0) + 1;
-      await ref.set({ lastMessage: text, lastMessageAt: now, unreadCount: unread }, { merge: true });
+      await ref.set({ lastMessage: preview, lastMessageAt: now, unreadCount: unread }, { merge: true });
     }
     const msgRef = await ref.collection('messages').add({
-      senderId, text, createdAt: now, read: false,
+      senderId, text, createdAt: now, read: false, ...(imageUrl ? { imageUrl } : {}),
     });
-    return { id: msgRef.id, senderId, text, createdAt: now, read: false };
+    return { id: msgRef.id, senderId, text, createdAt: now, read: false, ...(imageUrl ? { imageUrl } : {}) };
   }
   async markChatRead(chatId: string, userId: string) {
     const ref = this.fs.collection('chats').doc(chatId);

@@ -5,7 +5,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { store, useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
+import { toast } from '@/components/Toast';
 import { ratingLabel } from '@/lib/utils';
+import { resizeImage } from '@/lib/resizeImage';
 
 export default function ChatPage() {
   const params = useParams<{ chatId: string }>();
@@ -16,7 +18,9 @@ export default function ChatPage() {
   const users = useStore((s) => s.users);
   const noDM = useStore((s) => !!s.restrictions.noDM);
   const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   // otherId: from chat participants, or from ?other= query (for new chats with non-buddies)
   const otherIdFromQuery = search?.get('other') || '';
@@ -91,15 +95,24 @@ export default function ChatPage() {
   // No chat record yet: show empty thread, sending the first message will create it.
   const messages = chat?.messages || [];
 
-  async function send() {
-    if (!text.trim() || !other) return;
+  async function send(imageUrl?: string) {
     const t = text.trim();
-    setText('');
-    try { await store.sendMessage(params.chatId, other.id, t); }
+    if ((!t && !imageUrl) || !other || sending) return;
+    setSending(true);
+    if (!imageUrl) setText('');
+    try { await store.sendMessage(params.chatId, other.id, imageUrl ? '' : t, imageUrl); }
     catch (e) {
-      const { toast } = await import('@/components/Toast');
       toast('送信失敗: ' + (e as Error).message, 'error');
-    }
+    } finally { setSending(false); }
+  }
+  async function onPickImage(file: File) {
+    if (!file.type.startsWith('image/')) { toast('画像ファイルを選んでください', 'error'); return; }
+    setSending(true);
+    let dataUrl = '';
+    try { dataUrl = await resizeImage(file, 1000, 0.6); }
+    catch { toast('画像の読み込みに失敗しました', 'error'); setSending(false); return; }
+    setSending(false);
+    await send(dataUrl);
   }
 
   return (
@@ -128,7 +141,12 @@ export default function ChatPage() {
                 className={`max-w-[75%] px-3.5 py-2.5 text-sm leading-relaxed ${mine ? 'bg-green text-white' : 'bg-card text-text shadow-card'}`}
                 style={{ borderRadius: mine ? '14px 14px 4px 14px' : '14px 14px 14px 4px' }}
               >
-                {m.text}
+                {(m as any).imageUrl && (
+                  <a href={(m as any).imageUrl} target="_blank" rel="noopener noreferrer" className="block mb-1">
+                    <img src={(m as any).imageUrl} alt="画像" className="rounded-lg max-w-full max-h-60 object-cover" />
+                  </a>
+                )}
+                {m.text && <div className="whitespace-pre-wrap">{m.text}</div>}
                 <div className={`text-[10px] mt-1 text-right ${mine ? 'text-white/60' : 'text-muted'}`}>
                   {new Date(m.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
                 </div>
@@ -138,15 +156,31 @@ export default function ChatPage() {
         })}
       </div>
 
-      <div className="flex gap-2 px-4 py-3 pb-7 bg-card border-t border-border flex-shrink-0">
+      <div className="flex items-end gap-2 px-4 py-3 pb-7 bg-card border-t border-border flex-shrink-0">
+        {/* 画像添付（ラウンドチャットと同仕様） */}
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={sending}
+          aria-label="画像を送る"
+          className="self-end flex-shrink-0 w-10 h-10 rounded-full text-lg border-[1.5px] bg-bg border-border text-sub disabled:opacity-50"
+        >📷</button>
         <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) onPickImage(f); if (fileRef.current) fileRef.current.value = ''; }}
+        />
+        {/* 改行はEnterで入力可。送信は右の送信ボタンのみ（Enterでは送らない）。 */}
+        <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
-          placeholder="メッセージを入力..."
-          className="flex-1 px-4 py-2.5 border-[1.5px] border-border rounded-full text-sm outline-none bg-bg"
+          rows={1}
+          placeholder="メッセージを入力...（改行OK）"
+          className="flex-1 px-4 py-2.5 border-[1.5px] border-border rounded-[18px] text-sm outline-none bg-bg resize-none max-h-28"
         />
-        <button onClick={send} className="px-4 py-2.5 bg-green text-white rounded-full text-[13px] font-bold">送信</button>
+        <button onClick={() => send()} disabled={sending} aria-label="送信" className="self-end flex-shrink-0 w-10 h-10 bg-green text-white rounded-full text-base font-bold disabled:opacity-50">➤</button>
       </div>
     </div>
   );

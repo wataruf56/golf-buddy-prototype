@@ -28,8 +28,11 @@ export async function POST(req: NextRequest) {
   const ban = await blockedIfBanned(meId); if (ban) return ban;
   const rstDM = await blockedByRestriction(meId, 'noDM', 'メッセージ送信の利用が制限されています。'); if (rstDM) return rstDM;
   const body = await req.json();
-  const { chatId, text, otherUserId } = body || {};
-  if (!chatId || !text || !otherUserId) return NextResponse.json({ error: 'invalid' }, { status: 400 });
+  const { chatId, text, otherUserId, imageUrl } = body || {};
+  const msgText = typeof text === 'string' ? text : '';
+  const img = typeof imageUrl === 'string' && imageUrl ? imageUrl : undefined;
+  // テキスト または 画像 のどちらかがあればOK（ラウンドチャットと同仕様）。
+  if (!chatId || !otherUserId || (!msgText.trim() && !img)) return NextResponse.json({ error: 'invalid' }, { status: 400 });
   // Block enforcement: either side blocking the other prevents new messages.
   const [me, other] = await Promise.all([db.getUser(meId), db.getUser(otherUserId)]);
   if (!isMatchingAllowedByAge(me?.age)) {
@@ -40,10 +43,11 @@ export async function POST(req: NextRequest) {
   if (meBlocksOther) return NextResponse.json({ error: 'blocked_by_self' }, { status: 403 });
   if (otherBlocksMe) return NextResponse.json({ error: 'blocked_by_other' }, { status: 403 });
   const participants: [string, string] = [meId, otherUserId].sort() as [string, string];
-  const message = await db.sendMessage(chatId, participants, meId, text);
+  const message = await db.sendMessage(chatId, participants, meId, msgText.trim(), img);
   // Always record in the in-app inbox (home screen), even if LINE is off.
   const senderName = me?.displayName || 'ゴル友';
-  const preview = text.length > 60 ? text.slice(0, 60) + '…' : text;
+  const previewSrc = msgText.trim() || (img ? '📷 画像を送信しました' : '');
+  const preview = previewSrc.length > 60 ? previewSrc.slice(0, 60) + '…' : previewSrc;
   const dmLink = `/chat/${chatId}?other=${meId}`;
   const { renderNotif } = await import('@/lib/notificationTemplateStore');
   const n = await renderNotif('dm', { '送信者名': senderName, '本文': preview });
