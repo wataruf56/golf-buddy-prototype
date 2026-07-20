@@ -177,6 +177,16 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   function delGroup(gid: string) {
     setGroupsDirty(groups.filter((g) => g.id !== gid)); // members fall back to pool automatically
   }
+  // 組（グループ）全体を1つ上/下へ入れ替えて並び順を変える（例：1組目を3組目へ）。
+  function moveGroup(gid: string, dir: -1 | 1) {
+    const idx = groups.findIndex((g) => g.id === gid);
+    if (idx < 0) return;
+    const to = idx + dir;
+    if (to < 0 || to >= groups.length) return;
+    const next = [...groups];
+    [next[idx], next[to]] = [next[to], next[idx]];
+    setGroupsDirty(next);
+  }
   function setTime(gid: string, t: string) {
     setGroupsDirty(groups.map((g) => (g.id === gid ? { ...g, startTime: t } : g)));
   }
@@ -295,8 +305,15 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
           return (
           <div key={g.id} data-dz={g.id} className={`border-2 border-dashed rounded-xl p-2.5 ${over ? 'border-red-400 bg-red-50' : 'border-border'}`}>
             <div className="flex items-center justify-between mb-1.5 gap-2">
-              <span className="text-[13px] font-black">組{gi + 1} <span className={`text-[11px] ${over ? 'text-red-600 font-bold' : 'text-muted'}`}>({g.memberIds.length}/{GROUP_MAX})</span></span>
-              <span className="flex items-center gap-1.5">
+              <span className="flex items-center gap-1.5 min-w-0">
+                <span className="text-[13px] font-black whitespace-nowrap">組{gi + 1} <span className={`text-[11px] ${over ? 'text-red-600 font-bold' : 'text-muted'}`}>({g.memberIds.length}/{GROUP_MAX})</span></span>
+                {/* 組全体の並び替え（この組を上/下へ。例：1組目を3組目へ） */}
+                <span className="flex items-center gap-0.5 flex-shrink-0">
+                  <button onClick={() => moveGroup(g.id, -1)} disabled={gi === 0} aria-label="この組を上へ" className="w-6 h-6 rounded-md border border-border text-sub font-black bg-card text-[11px] leading-none disabled:opacity-30">↑</button>
+                  <button onClick={() => moveGroup(g.id, 1)} disabled={gi === groups.length - 1} aria-label="この組を下へ" className="w-6 h-6 rounded-md border border-border text-sub font-black bg-card text-[11px] leading-none disabled:opacity-30">↓</button>
+                </span>
+              </span>
+              <span className="flex items-center gap-1.5 flex-shrink-0">
                 <input type="time" value={g.startTime || ''} onChange={(e) => setTime(g.id, e.target.value)} className="text-[12px] border-[1.5px] border-border rounded-lg px-1.5 py-1 bg-bg w-[88px]" />
                 <button onClick={() => delGroup(g.id)} className="w-7 h-7 rounded-lg border border-red-200 text-red-500 font-black bg-card">×</button>
               </span>
