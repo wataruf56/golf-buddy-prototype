@@ -458,6 +458,7 @@ export default function RoundDetailPage() {
           m += exM; f += exF; o += exLegacy;
           return (
             <div className="mb-4">
+              <div className="text-[11px] font-bold text-sub mb-1.5">現在の参加内訳</div>
               <div className="flex flex-wrap gap-1.5">
                 <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-light text-blue">👨 男 {m}</span>
                 <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-pink-100 text-pink-600">👩 女 {f}</span>
@@ -465,11 +466,6 @@ export default function RoundDetailPage() {
                   <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-bg text-sub">未設定 {o}</span>
                 )}
               </div>
-              {(exM + exF) > 0 && (
-                <div className="mt-1.5 text-[10px] font-bold text-sub">
-                  うち主催者の知り合い：👨{exM} ・ 👩{exF}
-                </div>
-              )}
             </div>
           );
         })()}
