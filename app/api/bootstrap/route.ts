@@ -37,15 +37,6 @@ export async function GET() {
     rounds = [];
   }
 
-  // ユーザー自身が関わるラウンド（主催/参加/申請/招待）は、コホート絞り込みや件数上限
-  // (listRounds は最新100件) に関係なく必ず含める。これが無いと、参加中のラウンドが
-  // 「参加予定のラウンド」に出ない（主催した分しか出ない）不具合になる。
-  try {
-    const mine = await db.listRoundsForUser(meId);
-    const have = new Set(rounds.map((r) => r.id));
-    for (const r of mine) if (r && !have.has(r.id)) { rounds.push(r); have.add(r.id); }
-  } catch { /* best-effort */ }
-
   // テストアカウント（検証用）の扱い：一般ユーザーからはプロフィール＆募集を
   // 隠し、機能フラグ（新機能の段階公開）を解決する。テストアカウント本人には
   // 従来どおり全部見える（テスト同士は相互に見える）。
@@ -64,6 +55,16 @@ export async function GET() {
     featureFlags = resolveFeatureFlags(isTestMe, tcfg.features);
     if (hideTest) rounds = rounds.filter((r) => !isTestId(r.hostId));
   } catch { /* 判定不能時はそのまま（隠さない） */ }
+
+  // ユーザー自身が関わるラウンド（主催/参加/申請/招待）は、コホート絞り込み・件数上限
+  // (最新100件)・テストアカウント隠しに関係なく必ず含める。これらのフィルタの「後」に
+  // マージすることで、参加中のラウンドが「参加予定」に確実に出るようにする（フィルタ前だと
+  // 直後の hideTest フィルタ等で再び消えてしまう）。
+  try {
+    const mine = await db.listRoundsForUser(meId);
+    const have = new Set(rounds.map((r) => r.id));
+    for (const r of mine) if (r && !have.has(r.id)) { rounds.push(r); have.add(r.id); }
+  } catch { /* best-effort */ }
   // isOfficial is now an explicit stored flag (admin-toggled per round), so we
   // pass it through as-is — no read-time derivation.
   const pendingReviews = pendingReviewsRes.status === 'fulfilled' ? pendingReviewsRes.value : [];
