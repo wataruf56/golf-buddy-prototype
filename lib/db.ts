@@ -11,6 +11,9 @@ export interface DB {
   listUsers(ids: string[]): Promise<User[]>;
 
   listRounds(opts?: { status?: 'open' | 'closed' | 'completed' }): Promise<Round[]>;
+  // ユーザー自身が関わるラウンド（主催/参加/申請/招待）。コホート絞り込みや件数上限に
+  // 関係なく取得する（「参加予定」に出ない不具合の対策）。
+  listRoundsForUser(userId: string): Promise<Round[]>;
   getRound(id: string): Promise<Round | null>;
   createRound(round: Omit<Round, 'id'>): Promise<Round>;
   updateRound(id: string, patch: Partial<Round>): Promise<void>;
@@ -93,6 +96,11 @@ class MemoryDB implements DB {
     let r = [...this.rounds];
     if (opts?.status) r = r.filter((x) => x.status === opts.status);
     return r.sort((a, b) => b.createdAt - a.createdAt);
+  }
+  async listRoundsForUser(userId: string) {
+    return this.rounds.filter((r) =>
+      r.hostId === userId || (r.applicantIds || []).includes(userId)
+      || (r.pendingApplicantIds || []).includes(userId) || (r.invitedIds || []).includes(userId));
   }
   async getRound(id: string) { return this.rounds.find((r) => r.id === id) || null; }
   async createRound(round: Omit<Round, 'id'>) {
@@ -376,6 +384,23 @@ class FirestoreDB implements DB {
       return rounds;
     } catch (e) {
       console.error('[listRounds] failed', e);
+      return [];
+    }
+  }
+  async listRoundsForUser(userId: string) {
+    try {
+      const col = this.fs.collection('rounds');
+      const [host, appl, pend, inv] = await Promise.all([
+        col.where('hostId', '==', userId).limit(200).get(),
+        col.where('applicantIds', 'array-contains', userId).limit(200).get(),
+        col.where('pendingApplicantIds', 'array-contains', userId).limit(200).get(),
+        col.where('invitedIds', 'array-contains', userId).limit(200).get(),
+      ]);
+      const map = new Map<string, Round>();
+      [...host.docs, ...appl.docs, ...pend.docs, ...inv.docs].forEach((d: any) => map.set(d.id, { id: d.id, ...d.data() } as Round));
+      return Array.from(map.values());
+    } catch (e) {
+      console.error('[listRoundsForUser] failed', e);
       return [];
     }
   }
