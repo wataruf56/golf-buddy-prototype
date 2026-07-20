@@ -177,14 +177,18 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   function delGroup(gid: string) {
     setGroupsDirty(groups.filter((g) => g.id !== gid)); // members fall back to pool automatically
   }
-  // 組（グループ）全体を1つ上/下へ入れ替えて並び順を変える（例：1組目を3組目へ）。
+  // 組を1つ上/下へ移動して並び順を変える（例：1組目のメンバーを3組目へ）。
+  // 「枠（位置）」の時間・コースは固定したまま、メンバーだけを上下の枠と入れ替える。
+  // スタート時間は枠の並び（9:30→10:00…）に紐づくもので、組を動かしても時間は
+  // ずらさない（＝時間はそのまま、その枠に入る人だけが変わる）。
   function moveGroup(gid: string, dir: -1 | 1) {
     const idx = groups.findIndex((g) => g.id === gid);
     if (idx < 0) return;
     const to = idx + dir;
     if (to < 0 || to >= groups.length) return;
     const next = [...groups];
-    [next[idx], next[to]] = [next[to], next[idx]];
+    next[idx] = { ...groups[idx], memberIds: groups[to].memberIds };
+    next[to] = { ...groups[to], memberIds: groups[idx].memberIds };
     setGroupsDirty(next);
   }
   function setTime(gid: string, t: string) {
