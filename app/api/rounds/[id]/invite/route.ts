@@ -53,6 +53,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const { round, added } = await db.inviteToRound(params.id, userId);
 
+  // 招待時の一言メッセージをラウンドに保存（招待された本人がラウンドを開いたときに
+  // 通知だけでなく画面内でも見られるように）。空なら以前の値を保持。
+  if (inviteMessage) {
+    const nextMsgs = { ...(existing.inviteMessages || {}), [userId]: inviteMessage };
+    await db.updateRound(params.id, { inviteMessages: nextMsgs } as any);
+    (round as any).inviteMessages = nextMsgs;
+  }
+
   if (added) {
     const invitee = await db.getUser(userId);
     const host = await db.getUser(meId);

@@ -379,6 +379,19 @@ export default function RoundDetailPage() {
         </div>
       </div>
 
+      {/* 招待された本人向け：主催者からの招待＋一言メッセージを画面内に表示（URLから開いた人にも見える）。 */}
+      {!!meId && (round.invitedIds || []).includes(meId) && round.hostId !== meId
+        && !(round.applicantIds || []).includes(meId) && !(round.pendingApplicantIds || []).includes(meId) && (
+        <div className="bg-green-light border-[1.5px] border-green rounded-card p-4 mb-4">
+          <div className="text-[13px] font-black text-green mb-1.5">💌 {host?.displayName || '主催者'}さんから招待されています</div>
+          {(round.inviteMessages || {})[meId] && (
+            <div className="text-[13px] text-text bg-card rounded-xl p-3 whitespace-pre-wrap leading-relaxed shadow-card">
+              {(round.inviteMessages || {})[meId]}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 未ログイン通知：共有リンクをブラウザで開いた人向け。ログインすると
           参加・ピックアップなどの操作ができる。ログイン後はこのページへ戻る。 */}
       {hydrated && !meId && (

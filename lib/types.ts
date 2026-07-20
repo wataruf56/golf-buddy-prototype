@@ -142,6 +142,9 @@ export type Round = {
   // Users the host has invited to this round (ゴル友 or 気になる people).
   // Invited users get a LINE notification and see the round highlighted.
   invitedIds?: string[];
+  // 招待時に主催者が添えた一言メッセージ。キー: 招待された userId → メッセージ。
+  // 通知だけでなく、招待された本人がラウンドを開いたときに画面内でも表示する。
+  inviteMessages?: Record<string, string>;
   // ms timestamp when the "締切間近" LINE push was sent to 気になる users.
   // Used by the interest-deadline reminder to avoid double-sending. Unset
   // = never sent.
