@@ -334,8 +334,8 @@ export default function HomePage() {
       <section className="mt-2 bg-green-light border-y-2 border-green pt-4 pb-3">
         <div className="px-5 mb-3">
           <div className="text-xl font-black flex items-center gap-2 text-green-dark">
-            <span>🏆</span>
-            <span>ゴルトモ公式コンペ</span>
+            <span>📅</span>
+            <span>直近のラウンド</span>
             {displayRounds.length > 0 && (
               <span className="text-[12px] font-black text-white bg-orange px-2.5 py-1 rounded-full leading-none">{displayRounds.length}件</span>
             )}
