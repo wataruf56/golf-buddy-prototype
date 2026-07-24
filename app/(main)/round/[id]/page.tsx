@@ -58,7 +58,9 @@ export default function RoundDetailPage() {
   const [inviteBusy, setInviteBusy] = useState(false);
   const [interestedOpen, setInterestedOpen] = useState(false);
   // 詳細のセクション切り替えタブ（参加してる人／ピックアップ／組み分け）。
-  const [tab, setTab] = useState<'people' | 'pickup' | 'groups'>('people');
+  const [tab, setTab] = useState<'people' | 'pickup' | 'groups'>(
+    () => (search?.get('tab') === 'groups' ? 'groups' : search?.get('tab') === 'pickup' ? 'pickup' : 'people'),
+  );
   // Host-only: kanji full names of participants (for golf-course registration).
   const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
 

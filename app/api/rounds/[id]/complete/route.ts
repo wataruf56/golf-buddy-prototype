@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { getAdminDb } from '@/lib/firebase';
+import { competitionGroupsComplete } from '@/lib/groups';
 
 export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
   const meId = await getMeId();
@@ -9,6 +10,15 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   const round = await db.getRound(params.id);
   if (!round) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   if (round.hostId !== meId) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+
+  // コンペは組み分け必須。相互レビューは「同じ組」の人だけを対象にするため、全員が
+  // いずれかの組に入っている（または「当日来れなかった人」に移されている）必要がある。
+  if (round.isCompetition && !competitionGroupsComplete(round)) {
+    return NextResponse.json({
+      error: 'groups_incomplete',
+      message: '組分けが未登録です。相互レビューに関わるため、全参加者を組に割り当てる（当日来れなかった人は「当日来れなかった人」に移す）まで完了できません。',
+    }, { status: 400 });
+  }
 
   const { round: updatedRound, pendingForUser } = await db.completeRound(params.id);
   // Create pending review records for ALL participants reviewing each other.

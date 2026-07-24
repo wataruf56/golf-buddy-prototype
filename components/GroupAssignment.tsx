@@ -47,6 +47,11 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
     memberIds: (g.memberIds || []).filter((id) => validInit.has(id)),
   }));
   const [groups, setGroups] = useState<RoundGroup[]>(initial.length ? initial : []);
+  // 当日来れなかった人（登録ユーザーのみ・除外扱い）。組が無くてもエラーにならず、
+  // レビュー対象からも外れる。
+  const [noShow, setNoShow] = useState<string[]>(
+    () => (round.noShowIds || []).filter((id) => registeredIds.includes(id)),
+  );
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -64,8 +69,10 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   }
 
   const assigned = new Set(groups.flatMap((g) => g.memberIds));
-  const pool = participantIds.filter((id) => !assigned.has(id));
-  const needed = Math.ceil(participantIds.length / GROUP_MAX);
+  const noShowSet = new Set(noShow);
+  // 未割り当て = 組にも「当日来れなかった人」にも入っていない参加者。
+  const pool = participantIds.filter((id) => !assigned.has(id) && !noShowSet.has(id));
+  const needed = Math.ceil(Math.max(0, participantIds.length - noShow.length) / GROUP_MAX);
 
   // ---------- read-only view (non-host) ----------
   if (!isHost) {
@@ -109,16 +116,20 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   function setGroupsDirty(next: RoundGroup[]) { setGroups(next); setDirty(true); }
 
   function moveMember(id: string, toZone: string) {
+    // ゲストは「当日来れなかった人」にはできない（レビュー対象外なので不要）。
+    const targetZone = toZone === 'noshow' && isGuest(id) ? 'pool' : toZone;
     setGroups((prev) => {
       // remove from all groups first
       let next = prev.map((g) => ({ ...g, memberIds: g.memberIds.filter((m) => m !== id) }));
-      if (toZone !== 'pool') {
+      if (targetZone !== 'pool' && targetZone !== 'noshow') {
         // 満員でも一時的に受け入れる（他の組へスライドして入れ替えできるように）。
         // 4名超は赤＋「人数オーバー」警告で知らせる。
-        next = next.map((g) => (g.id === toZone ? { ...g, memberIds: [...g.memberIds, id] } : g));
+        next = next.map((g) => (g.id === targetZone ? { ...g, memberIds: [...g.memberIds, id] } : g));
       }
       return next;
     });
+    // 「当日来れなかった人」への出し入れ。
+    setNoShow((prev) => (targetZone === 'noshow' ? Array.from(new Set([...prev, id])) : prev.filter((x) => x !== id)));
     setDirty(true);
   }
 
@@ -226,7 +237,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
     try {
       const res = await fetch(`/api/rounds/${round.id}/groups`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groups, guests }), cache: 'no-store',
+        body: JSON.stringify({ groups, guests, noShowIds: noShow }), cache: 'no-store',
       });
       if (!res.ok) throw new Error(`${res.status}`);
       await store.refreshRounds();
@@ -241,7 +252,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   // setDraggingId による再レンダーでカードのDOMが作り直され、ポインターキャプチャが
   // 外れてドロップが効かなくなる（移動できないバグの原因）。key付き要素を直接返して
   // 同一DOMを保ち、キャプチャを維持する。
-  const renderMember = (id: string, inGroup?: boolean) => {
+  const renderMember = (id: string, inGroup?: boolean, inNoShow?: boolean) => {
     const u = userOf(id);
     return (
       <div
@@ -260,7 +271,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
         <span className="truncate">{nameOf(id)}</span>
         {metaOf(id) && <span className="text-[10px] text-muted font-normal flex-shrink-0">（{metaOf(id)}）</span>}
         {isGuest(id) && <span className="text-[9px] font-bold text-sub bg-bg border border-border rounded px-1 ml-0.5 flex-shrink-0">ゲスト</span>}
-        {inGroup && (
+        {(inGroup || inNoShow) && (
           <button
             type="button"
             aria-label="未割り当てに戻す"
@@ -392,6 +403,15 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
         {pool.length === 0
           ? <div className="text-[11px] text-muted px-1 py-1">全員 組に割り当て済み ✅</div>
           : <div className="flex flex-wrap gap-1.5">{pool.map((id) => renderMember(id))}</div>}
+      </div>
+
+      {/* 当日来れなかった人（除外） */}
+      <div data-dz="noshow" className="border border-dashed border-[#d8ccc0] bg-[#faf7f2] rounded-xl p-2.5 mt-2.5">
+        <div className="text-[13px] font-black mb-0.5 text-sub">🚫 当日来れなかった人 <span className="text-[11px] text-muted">({noShow.length}人)</span></div>
+        <div className="text-[10px] text-muted mb-1.5">当日ドタキャン等でここに移すと、組が無くてもOK・レビュー対象からも外れます。</div>
+        {noShow.length === 0
+          ? <div className="text-[11px] text-muted px-1 py-1">来れなかった人をここにドラッグ</div>
+          : <div className="flex flex-wrap gap-1.5">{noShow.map((id) => renderMember(id, false, true))}</div>}
       </div>
 
       <button onClick={save} disabled={saving || !dirty} className="w-full mt-3 py-3 bg-green text-white rounded-xl text-sm font-bold disabled:opacity-50">

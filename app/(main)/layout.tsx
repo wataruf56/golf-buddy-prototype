@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { PhoneFrame } from '@/components/PhoneFrame';
 import { TabBar } from '@/components/TabBar';
 import { ReviewOverlay } from '@/components/ReviewOverlay';
+import { GroupGate } from '@/components/GroupGate';
 import { BlockerPopup } from '@/components/BlockerPopup';
 import { ToastHost } from '@/components/Toast';
 import { ConfirmHost } from '@/components/ConfirmDialog';
@@ -122,6 +123,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         <BlockerPopup onOpen={() => { setBlockerOpen(false); setOverlayOpen(true); }} />
       )}
       {overlayOpen && pendingCount > 0 && <ReviewOverlay />}
+      <GroupGate />
       <ToastHost />
       <ConfirmHost />
       <TabBar onBlock={onTabBlock} />

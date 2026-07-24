@@ -3,6 +3,7 @@ import { isDemoMode } from './demoMode';
 import { getAdminDb } from './firebase';
 import { mockUsers, mockRounds, mockReviews, mockChats } from './mockData';
 import type { Chat, Message, PendingReview, Review, Round, RoundThread, SchedulePoll, User } from './types';
+import { sameGroupPeerIds, isNoShow } from './groups';
 
 export interface DB {
   getUser(id: string): Promise<User | null>;
@@ -192,12 +193,14 @@ class MemoryDB implements DB {
     return {
       round: r,
       pendingForUser: (userId: string) => {
-        // Competitions (5+ spots) → skip mutual reviews entirely. The host
-        // explicitly marks these (isCompetition) and feedback among 5+
-        // strangers doesn't carry the same weight as a 2〜4 person round.
-        if (r.isCompetition) return [];
         if (!participants.includes(userId)) return [];
-        return participants.filter((p) => p !== userId).map((reviewee) => ({
+        if (isNoShow(r, userId)) return []; // 当日来れなかった人は誰もレビューしない
+        // コンペは「同じ組」の人だけを相互レビュー対象にする（ゲスト・来れなかった人は除外）。
+        // 通常募集（4人以下＝実質1組）は従来どおり全員が対象。
+        const peers = r.isCompetition
+          ? sameGroupPeerIds(r, userId)
+          : participants.filter((p) => p !== userId && !isNoShow(r, p));
+        return peers.map((reviewee) => ({
           id: `p_${id}_${userId}_${reviewee}`,
           roundId: id, reviewerId: userId, revieweeId: reviewee,
           status: 'pending' as const, createdAt: Date.now(),
@@ -608,12 +611,14 @@ class FirestoreDB implements DB {
     return {
       round,
       pendingForUser: (userId: string) => {
-        // Competitions (5+ spots) → skip mutual reviews entirely. Mass
-        // mutual reviews among strangers don't carry the same signal as a
-        // 2〜4 person round and just noise up the queue.
-        if (round.isCompetition) return [];
         if (!participants.includes(userId)) return [];
-        return participants.filter((p) => p !== userId).map((reviewee) => ({
+        if (isNoShow(round, userId)) return []; // 当日来れなかった人は誰もレビューしない
+        // コンペは「同じ組」の人だけを相互レビュー対象にする（ゲスト・来れなかった人は除外）。
+        // 通常募集（4人以下＝実質1組）は従来どおり全員が対象。
+        const peers = round.isCompetition
+          ? sameGroupPeerIds(round, userId)
+          : participants.filter((p) => p !== userId && !isNoShow(round, p));
+        return peers.map((reviewee) => ({
           id: `p_${id}_${userId}_${reviewee}`,
           roundId: id, reviewerId: userId, revieweeId: reviewee,
           status: 'pending' as const, createdAt: Date.now(),

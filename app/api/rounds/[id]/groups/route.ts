@@ -51,6 +51,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     };
   });
 
-  await db.updateRound(params.id, { groups, guests } as any);
-  return NextResponse.json({ ok: true, groups, guests }, { headers: noStore });
+  // 当日来れなかった人（除外）。登録参加者のIDのみ許可（ゲストはレビュー対象外なので不要）。
+  // 組に入っている人は no-show にしない（両方に入っていたら組を優先）。
+  const groupedIds = new Set<string>();
+  for (const g of groups) for (const m of g.memberIds) groupedIds.add(m);
+  const noShowIds: string[] = Array.isArray(body?.noShowIds)
+    ? Array.from(new Set(
+        (body.noShowIds as any[])
+          .filter((id): id is string => typeof id === 'string' && participants.has(id) && !groupedIds.has(id)),
+      )).slice(0, 50)
+    : (round.noShowIds || []);
+
+  await db.updateRound(params.id, { groups, guests, noShowIds } as any);
+  return NextResponse.json({ ok: true, groups, guests, noShowIds }, { headers: noStore });
 }
