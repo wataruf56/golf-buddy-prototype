@@ -8,7 +8,7 @@ import { toast } from '@/components/Toast';
 // 届く。片思いの状態は相手に一切知られない。
 // 参加者・状態は /api/rounds/[id]/match から取得（自分以外の参加者を返す）。
 
-type MatchEntry = { again: boolean; romantic: boolean; matchedAgain: boolean; matchedRomantic: boolean };
+type MatchEntry = { again: boolean; romantic: boolean; matchedAgain: boolean; matchedRomantic: boolean; sameGroup?: boolean };
 type UserInfo = { displayName: string; avatar?: string; avatarUrl?: string; gender?: string; age?: number };
 
 export function MatchPicker({ roundId }: { roundId: string }) {
@@ -73,9 +73,13 @@ export function MatchPicker({ roundId }: { roundId: string }) {
       </div>
 
       <div className="flex flex-col gap-2.5">
-        {ids.map((id) => {
+        {ids
+          .slice()
+          .sort((a, b) => Number((state[b]?.sameGroup) !== false) - Number((state[a]?.sameGroup) !== false))
+          .map((id) => {
           const u = users[id] || { displayName: 'メンバー' };
-          const e = state[id] || { again: false, romantic: false, matchedAgain: false, matchedRomantic: false };
+          const e = state[id] || { again: false, romantic: false, matchedAgain: false, matchedRomantic: false, sameGroup: true };
+          const same = e.sameGroup !== false; // 別の組(コンペ)は「回ってみたい」(=again)だけ
           const initial = (u.displayName || '?').slice(0, 1);
           return (
             <div key={id} className="p-2.5 bg-bg rounded-[10px]">
@@ -86,6 +90,7 @@ export function MatchPicker({ roundId }: { roundId: string }) {
                   {u.gender === 'male' ? ' 👨' : u.gender === 'female' ? ' 👩' : ''}
                   {u.age ? <span className="text-[11px] text-sub font-medium"> ・{u.age}歳</span> : null}
                 </div>
+                {!same && <span className="text-[10px] font-bold text-sub bg-card px-2 py-0.5 rounded-full border border-border">別の組</span>}
                 {e.matchedAgain && <span className="text-[10px] font-black text-green bg-green-light px-2 py-0.5 rounded-full border border-green">🏌️ マッチ</span>}
                 {e.matchedRomantic && <span className="text-[10px] font-black text-pink-600 bg-pink-100 px-2 py-0.5 rounded-full border border-pink-600">💘 マッチ</span>}
               </div>
@@ -94,12 +99,14 @@ export function MatchPicker({ roundId }: { roundId: string }) {
                   onClick={() => toggle(id, 'again')}
                   disabled={!!busy}
                   className={'flex-1 px-2 py-2 rounded-full text-[12px] font-bold border-[1.5px] ' + (e.again ? 'bg-green text-white border-green' : 'bg-card border-border text-sub')}
-                >{e.again ? '✓ ' : ''}🏌️ また回りたい</button>
-                <button
-                  onClick={() => toggle(id, 'romantic')}
-                  disabled={!!busy}
-                  className={'flex-1 px-2 py-2 rounded-full text-[12px] font-bold border-[1.5px] ' + (e.romantic ? 'bg-pink-600 text-white border-pink-600' : 'bg-card border-border text-sub')}
-                >{e.romantic ? '✓ ' : ''}💘 異性として気になる</button>
+                >{e.again ? '✓ ' : ''}🏌️ {same ? 'また回りたい' : '回ってみたい'}</button>
+                {same && (
+                  <button
+                    onClick={() => toggle(id, 'romantic')}
+                    disabled={!!busy}
+                    className={'flex-1 px-2 py-2 rounded-full text-[12px] font-bold border-[1.5px] ' + (e.romantic ? 'bg-pink-600 text-white border-pink-600' : 'bg-card border-border text-sub')}
+                  >{e.romantic ? '✓ ' : ''}💘 異性として気になる</button>
+                )}
               </div>
             </div>
           );

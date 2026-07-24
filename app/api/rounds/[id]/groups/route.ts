@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
+import { getAdminDb } from '@/lib/firebase';
 import type { RoundGroup, RoundGuest } from '@/lib/types';
+import { registeredParticipantIds, sameGroupPeerIds } from '@/lib/groups';
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 
@@ -63,5 +65,46 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     : (round.noShowIds || []);
 
   await db.updateRound(params.id, { groups, guests, noShowIds } as any);
+
+  // 完了済みコンペで組を直した場合、「変わった組」のメンバーだけレビューをやり直す。
+  // = 同組の相手が変わった人について、そのラウンドの提出済み・未提出レビューをリセットし、
+  //   新しい同組ペアで pending を作り直す。again（マッチ）はそのまま残す（本人の意思のため）。
+  try {
+    const adb = getAdminDb() as any;
+    if (adb && round.status === 'completed' && round.isCompetition) {
+      const newRound = { ...round, groups, noShowIds } as any;
+      const peersOf = (r: any, m: string) => new Set(sameGroupPeerIds(r, m));
+      const affected = registeredParticipantIds(round).filter((m) => {
+        const a = peersOf(round, m); const b = peersOf(newRound, m);
+        if (a.size !== b.size) return true;
+        for (const x of a) if (!b.has(x)) return true;
+        return false;
+      });
+      if (affected.length) {
+        const aff = new Set(affected);
+        const touches = (x: any) => aff.has(x?.reviewerId) || aff.has(x?.revieweeId);
+        // 対象メンバーに関わる提出済みレビュー・未提出pendingを削除。
+        for (const coll of ['reviews', 'pendingReviews']) {
+          try {
+            const snap = await adb.collection(coll).where('roundId', '==', params.id).get();
+            const dels: Promise<any>[] = [];
+            snap.forEach((d: any) => { if (touches(d.data())) dels.push(d.ref.delete()); });
+            await Promise.all(dels);
+          } catch (e) { console.warn('[groups re-review] delete failed', coll, (e as Error).message); }
+        }
+        // 新しい同組ペアで pending を作り直す（対象メンバーが関わるぶんだけ）。
+        const toCreate: any[] = [];
+        for (const m of affected) {
+          for (const p of peersOf(newRound, m)) {
+            toCreate.push({ id: `p_${params.id}_${m}_${p}`, roundId: params.id, reviewerId: m, revieweeId: p, status: 'pending', createdAt: Date.now() });
+          }
+        }
+        if (toCreate.length) await db.createPendingReviews(toCreate);
+      }
+    }
+  } catch (e) {
+    console.warn('[groups re-review] failed', (e as Error).message);
+  }
+
   return NextResponse.json({ ok: true, groups, guests, noShowIds }, { headers: noStore });
 }

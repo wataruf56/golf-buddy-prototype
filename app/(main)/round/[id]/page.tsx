@@ -12,6 +12,7 @@ import { chatIdFor, formatDate, ratingLabel, carLabel, priceLabelForGender, isSp
 import { levelConditionLabel } from '@/lib/roundEligibility';
 import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
 import { GroupAssignment } from '@/components/GroupAssignment';
+import { HostNote } from '@/components/HostNote';
 import { CarDispatch } from '@/components/CarDispatch';
 import { PickupStationPicker } from '@/components/PickupStationPicker';
 import { RESTRICTION_MSG } from '@/lib/restrictions';
@@ -58,8 +59,11 @@ export default function RoundDetailPage() {
   const [inviteBusy, setInviteBusy] = useState(false);
   const [interestedOpen, setInterestedOpen] = useState(false);
   // 詳細のセクション切り替えタブ（参加してる人／ピックアップ／組み分け）。
-  const [tab, setTab] = useState<'people' | 'pickup' | 'groups'>(
-    () => (search?.get('tab') === 'groups' ? 'groups' : search?.get('tab') === 'pickup' ? 'pickup' : 'people'),
+  const [tab, setTab] = useState<'people' | 'pickup' | 'groups' | 'hostnote'>(
+    () => {
+      const t = search?.get('tab');
+      return t === 'groups' || t === 'pickup' || t === 'hostnote' ? t : 'people';
+    },
   );
   // Host-only: kanji full names of participants (for golf-course registration).
   const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
@@ -510,13 +514,19 @@ export default function RoundDetailPage() {
           </a>
         )}
 
-        {/* セクション切り替えタブ（参加してる人／ピックアップ／組み分け） */}
+        {/* セクション切り替えタブ（参加してる人／ピックアップ／組み分け／主催者から） */}
         <div className="flex gap-1 mb-4 bg-bg rounded-xl p-1">
-          {([['people', '参加してる人'], ['pickup', 'ピックアップ'], ['groups', '組み分け']] as const).map(([k, label]) => (
+          {(([
+            ['people', '参加してる人'],
+            ['pickup', 'ピックアップ'],
+            ['groups', '組み分け'],
+            // 「主催者から」はコンペ、または既に連絡が書かれている場合に表示。
+            ...((round.isCompetition || round.hostNote) ? [['hostnote', '主催者から']] : []),
+          ] as const)).map(([k, label]) => (
             <button
               key={k}
-              onClick={() => setTab(k)}
-              className={'flex-1 py-2 rounded-lg text-[12px] font-bold ' + (tab === k ? 'bg-card text-green shadow-sm' : 'text-sub')}
+              onClick={() => setTab(k as typeof tab)}
+              className={'flex-1 py-2 rounded-lg text-[11px] font-bold ' + (tab === k ? 'bg-card text-green shadow-sm' : 'text-sub')}
             >
               {label}
             </button>
@@ -702,6 +712,11 @@ export default function RoundDetailPage() {
               </div>
             )}
           </>
+        )}
+
+        {/* ── 主催者から タブ（注意事項・ルール等。主催者のみ編集・参加者は閲覧） ── */}
+        {tab === 'hostnote' && (
+          <HostNote round={round} isHost={isHost} />
         )}
 
         {/* Action buttons */}

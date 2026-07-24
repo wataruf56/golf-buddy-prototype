@@ -18,6 +18,7 @@ export type NotifyType =
   | 'match'            // マッチ成立（また回りたい / 異性として気になる）
   | 'surveyMatch'      // LP診断アンケートで希望した条件（県）に一致する募集が投稿された
   | 'rematch'          // 再会エンジン：また回りたい相手との再会のお知らせ・候補日の往復
+  | 'groupChange'      // 参加者から「組分けの変更を希望」が届いた（主催者）
   | 'pickup';          // 主催者からピックアップ場所（駅）の提案が届いた
 
 // Display metadata for the settings UI. Order = display order.
@@ -37,6 +38,7 @@ export const NOTIFY_TYPES: Array<{ key: NotifyType; label: string; desc: string;
   { key: 'match',            label: '💘 マッチ成立', desc: 'ラウンド後にマッチしたとき', defaultOn: true },
   { key: 'surveyMatch',      label: '🎯 希望条件に合う募集', desc: '診断アンケートで希望したエリアの募集が投稿されたとき', defaultOn: true },
   { key: 'rematch',          label: '🔁 再会のお知らせ', desc: 'また回りたい相手との再会・候補日のやり取りがあったとき', defaultOn: true },
+  { key: 'groupChange',      label: '🔀 組分けの変更希望', desc: '自分のコンペで参加者が組分けの変更を希望したとき（主催者）', defaultOn: true },
   { key: 'pickup',           label: '🚉 ピックアップの提案', desc: '主催者からピックアップ場所の提案が届いたとき', defaultOn: true },
 ];
 
