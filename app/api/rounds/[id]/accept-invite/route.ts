@@ -3,7 +3,6 @@ import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { pushTo, liffUrl } from '@/lib/linePush';
 import { webPushText } from '@/lib/webPush';
-import { isNotifyEnabled } from '@/lib/notifyPrefs';
 import { isMatchingAllowedByAge, getCohort } from '@/lib/ageGate';
 import type { PickupStatus } from '@/lib/types';
 
@@ -82,7 +81,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const { addNotification } = await import('@/lib/notifications');
     addNotification(existing.hostId, 'applyReceived', inApp, link).catch(() => {});
   } catch { /* noop */ }
-  if (isNotifyEnabled(host as any, 'applyReceived')) {
+  // 自分が招待した相手の参加は主催者にとって重要イベントなので、個別の通知設定
+  // （参加申請が届いた）に関係なく必ずLINE/Web pushを送る。ただし全通知OFF(notifyOff)の
+  // 人にだけは送らない（＝完全にLINE通知を切っている人の明示的な意思は尊重）。
+  if (!(host as any)?.notifyOff) {
     pushTo(existing.hostId, inApp, liffUrl(link)).catch(() => {});
     webPushText(existing.hostId, '招待から参加', `${name}さんが参加しました`, link, `round-${params.id}`).catch(() => {});
   }
