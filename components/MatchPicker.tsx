@@ -69,7 +69,8 @@ export function MatchPicker({ roundId }: { roundId: string }) {
       {/* 注意書き（メモ欄） */}
       <div className="mb-3 px-3 py-2.5 bg-green-light rounded-lg text-[11px] text-green leading-relaxed">
         💡 <b>マッチした時だけ</b>、お互いに「マッチングしました」と通知されます。<br />
-        <b>片方がマッチングを希望しなかった場合、相手に知られることはありません。</b>
+        <b>片方がマッチングを希望しなかった場合、相手に知られることはありません。</b><br />
+        🔒 同じ組で回った人のレビューは<b>確定済みで変更できません</b>。別の組の「回ってみたい」だけ後から変更できます。
       </div>
 
       <div className="flex flex-col gap-2.5">
@@ -94,20 +95,25 @@ export function MatchPicker({ roundId }: { roundId: string }) {
                 {e.matchedAgain && <span className="text-[10px] font-black text-green bg-green-light px-2 py-0.5 rounded-full border border-green">🏌️ マッチ</span>}
                 {e.matchedRomantic && <span className="text-[10px] font-black text-pink-600 bg-pink-100 px-2 py-0.5 rounded-full border border-pink-600">💘 マッチ</span>}
               </div>
-              <div className="flex gap-1.5">
-                <button
-                  onClick={() => toggle(id, 'again')}
-                  disabled={!!busy}
-                  className={'flex-1 px-2 py-2 rounded-full text-[12px] font-bold border-[1.5px] ' + (e.again ? 'bg-green text-white border-green' : 'bg-card border-border text-sub')}
-                >{e.again ? '✓ ' : ''}🏌️ {same ? 'また回りたい' : '回ってみたい'}</button>
-                {same && (
+              {same ? (
+                // 同じ組（必須レビュー）は確定済み＝変更不可。現在の選択を表示のみ。
+                <>
+                  <div className="flex gap-1.5">
+                    <div className={'flex-1 px-2 py-2 rounded-full text-[12px] font-bold border-[1.5px] text-center ' + (e.again ? 'bg-green text-white border-green' : 'bg-bg border-border text-muted')}>{e.again ? '✓ ' : ''}🏌️ また回りたい</div>
+                    <div className={'flex-1 px-2 py-2 rounded-full text-[12px] font-bold border-[1.5px] text-center ' + (e.romantic ? 'bg-pink-600 text-white border-pink-600' : 'bg-bg border-border text-muted')}>{e.romantic ? '✓ ' : ''}💘 異性として気になる</div>
+                  </div>
+                  <div className="text-[10px] text-muted mt-1 text-center">🔒 同じ組のレビューは確定済みのため変更できません</div>
+                </>
+              ) : (
+                // 別の組（任意）の「回ってみたい」だけ後から変更できる。
+                <div className="flex gap-1.5">
                   <button
-                    onClick={() => toggle(id, 'romantic')}
+                    onClick={() => toggle(id, 'again')}
                     disabled={!!busy}
-                    className={'flex-1 px-2 py-2 rounded-full text-[12px] font-bold border-[1.5px] ' + (e.romantic ? 'bg-pink-600 text-white border-pink-600' : 'bg-card border-border text-sub')}
-                  >{e.romantic ? '✓ ' : ''}💘 異性として気になる</button>
-                )}
-              </div>
+                    className={'flex-1 px-2 py-2 rounded-full text-[12px] font-bold border-[1.5px] ' + (e.again ? 'bg-green text-white border-green' : 'bg-card border-border text-sub')}
+                  >{e.again ? '✓ ' : ''}🏌️ 回ってみたい</button>
+                </div>
+              )}
             </div>
           );
         })}
