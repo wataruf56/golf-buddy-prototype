@@ -27,6 +27,9 @@ function Inner() {
   const tokenFromUrl = search?.get('token') || '';
   const [token, setToken] = useState('');
   const [cfg, setCfg] = useState<Cfg | null>(null);
+  // 数値入力は「文字列ドラフト」で保持する。value に数値を直接バインドすると、空にできず
+  // 必ず初期値(0など)に戻る／先頭の0が消えない（例: 030）不具合が出るため。保存時に数値へ変換・clamp。
+  const [draft, setDraft] = useState({ intervalDays: '', maxCycles: '', candidateWindowDays: '' });
   const [funnel, setFunnel] = useState<Record<string, number>>({});
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -52,7 +55,15 @@ function Inner() {
     try {
       const r = await fetch(`/api/admin/rematch-config?token=${encodeURIComponent(token)}`, { cache: 'no-store' });
       const j = await r.json();
-      if (r.ok) { setCfg(j.config); setFunnel(j.funnel || {}); }
+      if (r.ok) {
+        setCfg(j.config);
+        setDraft({
+          intervalDays: String(j.config?.intervalDays ?? ''),
+          maxCycles: String(j.config?.maxCycles ?? ''),
+          candidateWindowDays: String(j.config?.candidateWindowDays ?? ''),
+        });
+        setFunnel(j.funnel || {});
+      }
     } catch {}
     setLoaded(true);
   }
@@ -61,13 +72,29 @@ function Inner() {
   async function save() {
     if (!cfg || !token) return;
     setSaving(true); setMsg('');
+    // 文字列ドラフトを数値へ変換＋範囲内にclamp（空欄は既定値に）。
+    const clamp = (v: string, lo: number, hi: number, def: number) => {
+      const n = parseInt(v, 10);
+      return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : def;
+    };
+    const payload: Cfg = {
+      ...cfg,
+      intervalDays: clamp(draft.intervalDays, 0, 365, 14),
+      maxCycles: clamp(draft.maxCycles, 1, 10, 2),
+      candidateWindowDays: clamp(draft.candidateWindowDays, 7, 180, 90),
+    };
     try {
       const r = await fetch(`/api/admin/rematch-config?token=${encodeURIComponent(token)}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...cfg }), cache: 'no-store',
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), cache: 'no-store',
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j?.error || `${r.status}`);
       setCfg(j.config);
+      setDraft({
+        intervalDays: String(j.config?.intervalDays ?? ''),
+        maxCycles: String(j.config?.maxCycles ?? ''),
+        candidateWindowDays: String(j.config?.candidateWindowDays ?? ''),
+      });
       setMsg('保存しました ✅');
     } catch (e) { setMsg('保存失敗: ' + (e as Error).message); }
     setSaving(false);
@@ -136,18 +163,18 @@ function Inner() {
               <Link href={`/admin/test-accounts?token=${token}`} className="inline-block px-3 py-1.5 bg-sub text-white rounded-lg text-[12px] font-bold">🧪 テストアカウント管理を開く ›</Link>
             </div>
             <Field label="通知までの日数（前回完了から / サイクル間隔）" hint="テストは 0（=即時）">
-              <input type="number" min={0} max={365} value={cfg.intervalDays}
-                onChange={(e) => setCfg({ ...cfg, intervalDays: Math.max(0, Math.min(365, Number(e.target.value) || 0)) })}
+              <input type="text" inputMode="numeric" pattern="[0-9]*" value={draft.intervalDays}
+                onChange={(e) => setDraft({ ...draft, intervalDays: e.target.value.replace(/\D/g, '').slice(0, 3) })}
                 className="w-full p-2.5 border-[1.5px] border-border rounded-lg text-sm bg-bg outline-none" />
             </Field>
-            <Field label="同一ペアへの通知の最大回数">
-              <input type="number" min={1} max={10} value={cfg.maxCycles}
-                onChange={(e) => setCfg({ ...cfg, maxCycles: Math.max(1, Math.min(10, Number(e.target.value) || 1)) })}
+            <Field label="同一ペアへの通知の最大回数" hint="1〜10">
+              <input type="text" inputMode="numeric" pattern="[0-9]*" value={draft.maxCycles}
+                onChange={(e) => setDraft({ ...draft, maxCycles: e.target.value.replace(/\D/g, '').slice(0, 2) })}
                 className="w-full p-2.5 border-[1.5px] border-border rounded-lg text-sm bg-bg outline-none" />
             </Field>
-            <Field label="候補日カレンダーの範囲（今後◯日）">
-              <input type="number" min={7} max={180} value={cfg.candidateWindowDays}
-                onChange={(e) => setCfg({ ...cfg, candidateWindowDays: Math.max(7, Math.min(180, Number(e.target.value) || 90)) })}
+            <Field label="候補日カレンダーの範囲（今後◯日）" hint="7〜180">
+              <input type="text" inputMode="numeric" pattern="[0-9]*" value={draft.candidateWindowDays}
+                onChange={(e) => setDraft({ ...draft, candidateWindowDays: e.target.value.replace(/\D/g, '').slice(0, 3) })}
                 className="w-full p-2.5 border-[1.5px] border-border rounded-lg text-sm bg-bg outline-none" />
             </Field>
             <button onClick={save} disabled={saving} className="w-full py-3 bg-green text-white rounded-xl text-sm font-bold disabled:opacity-50">
