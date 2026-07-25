@@ -58,6 +58,8 @@ export default function RoundDetailPage() {
   const [inviteMsg, setInviteMsg] = useState('');
   const [inviteBusy, setInviteBusy] = useState(false);
   const [interestedOpen, setInterestedOpen] = useState(false);
+  // 主催者向け「ラウンドは完了しましたか？」プロンプトを「まだ」で閉じたか（この画面表示中のみ）。
+  const [completionDismissed, setCompletionDismissed] = useState(false);
   // 詳細のセクション切り替えタブ（参加してる人／ピックアップ／組み分け）。
   const [tab, setTab] = useState<'people' | 'pickup' | 'groups' | 'hostnote'>(
     () => {
@@ -158,6 +160,17 @@ export default function RoundDetailPage() {
   const isComp = round.maxSpots >= 5;
   // 招待された本人（まだ参加していない）。招待者は承認待ちを経由せず即参加できる。
   const isInvited = !!meId && (round.invitedIds || []).includes(meId) && !isHost && !isApproved && !isPending;
+  // 主催者向け「ラウンドは完了しましたか？」プロンプト：まだ open で、スタート時間+6.5hを過ぎたら出す。
+  const startMs = (() => {
+    const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(round.date || '');
+    const tm = /^(\d{1,2}):(\d{2})/.exec(round.startTime || '');
+    if (!dm || !tm) return null;
+    const utc = Date.UTC(+dm[1], +dm[2] - 1, +dm[3], +tm[1] - 9, +tm[2]);
+    return Number.isFinite(utc) ? utc : null;
+  })();
+  const showCompletionPrompt = isHost && round.status === 'open'
+    && startMs != null && hydrated && Date.now() >= startMs + 6.5 * 3600 * 1000
+    && !completionDismissed;
   const isFlexible = round.type === 'flexible';
   const dateLabel = round.dateType === 'range' ? round.dateRange : formatDate(round.date);
   const canChatGroup = isHost || isApproved;
@@ -742,6 +755,28 @@ export default function RoundDetailPage() {
         {/* ── 主催者から タブ（注意事項・ルール等。主催者のみ編集・参加者は閲覧） ── */}
         {tab === 'hostnote' && (
           <HostNote round={round} isHost={isHost} />
+        )}
+
+        {/* 主催者向け：スタート+6.5h後の「ラウンドは完了しましたか？」確認プロンプト。
+            「完了しました」で完了処理→参加者全員にレビュー依頼が届く。「まだ」で一旦閉じる。 */}
+        {showCompletionPrompt && (
+          <div className="bg-green-light border-[1.5px] border-green rounded-card p-4 mb-3 mt-4">
+            <div className="text-sm font-black mb-1">🏌️ ラウンドは完了しましたか？</div>
+            <div className="text-[12px] text-sub mb-3 leading-relaxed">「完了しました」を押すと、参加者全員に「レビューをお願いします」の通知が届きます。</div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCompletionDismissed(true)}
+                className="flex-1 py-3 bg-card border border-border text-sub rounded-xl text-sm font-bold"
+              >まだ</button>
+              <button
+                onClick={async () => {
+                  try { await store.completeRound(round!.id); toast('ラウンドを完了しました'); router.push('/home'); }
+                  catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
+                }}
+                className="flex-1 py-3 bg-green text-white rounded-xl text-sm font-black"
+              >完了しました</button>
+            </div>
+          </div>
         )}
 
         {/* Action buttons */}
