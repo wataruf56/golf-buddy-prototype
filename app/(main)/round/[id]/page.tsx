@@ -324,6 +324,11 @@ export default function RoundDetailPage() {
     try { await store.closeRound(round!.id); toast('募集を閉じました'); router.push('/home'); }
     catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }
+  async function deletePost() {
+    if (!(await confirmDialog('この投稿を削除しますか？\n募集・グループチャットを含めて完全に削除され、元に戻せません。'))) return;
+    try { await store.deleteRound(round!.id); toast('投稿を削除しました'); router.push('/home'); }
+    catch (e) { toast('削除に失敗しました: ' + (e as Error).message, 'error'); }
+  }
   async function complete() {
     if (!(await confirmDialog('ラウンドを完了しますか？\n参加者全員にレビュー依頼が送られます。'))) return;
     try { await store.completeRound(round!.id); toast('ラウンド完了'); router.push('/home'); }
@@ -545,6 +550,72 @@ export default function RoundDetailPage() {
           </a>
         )}
 
+        {/* 主要アクション（参加・招待承認・主催者操作）をチャット付近に集約。
+            以前は画面最下部にあり、下までスクロールしないと操作できなかったのを解消。 */}
+        {showCompletionPrompt && (
+          <div className="bg-green-light border-[1.5px] border-green rounded-card p-4 mb-3">
+            <div className="text-sm font-black mb-1">🏌️ ラウンドは完了しましたか？</div>
+            <div className="text-[12px] text-sub mb-3 leading-relaxed">「完了しました」を押すと、参加者全員に「レビューをお願いします」の通知が届きます。</div>
+            <div className="flex gap-2">
+              <button onClick={() => setCompletionDismissed(true)} className="flex-1 py-3 bg-card border border-border text-sub rounded-xl text-sm font-bold">まだ</button>
+              <button
+                onClick={async () => { try { await store.completeRound(round!.id); toast('ラウンドを完了しました'); router.push('/home'); } catch (e) { toast('失敗: ' + (e as Error).message, 'error'); } }}
+                className="flex-1 py-3 bg-green text-white rounded-xl text-sm font-black"
+              >完了しました</button>
+            </div>
+          </div>
+        )}
+
+        {isHost ? (
+          <div className="space-y-2 mb-4">
+            {round.status === 'open' && (
+              <button onClick={() => setInviteOpen(true)} className="w-full py-3 bg-green text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2">
+                <span>💌</span> ゴルトモを招待する
+              </button>
+            )}
+            {isFlexible && round.status === 'open' && (
+              <button onClick={() => setConfirmOpen(true)} className="w-full py-4 bg-blue text-white rounded-xl text-[15px] font-bold">📅 コース確定にする</button>
+            )}
+            {(round.type === 'confirmed' || round.status !== 'open') && (
+              <button onClick={complete} className="w-full py-4 bg-green text-white rounded-xl text-[15px] font-bold">ラウンド完了</button>
+            )}
+            <button onClick={deletePost} className="w-full py-3 bg-red-50 text-red-600 border-[1.5px] border-red-300 rounded-xl text-sm font-bold">🗑 投稿を削除</button>
+          </div>
+        ) : isApproved ? (
+          <div className="space-y-2 mb-4">
+            <div className="text-center py-3 bg-green-light text-green rounded-xl text-sm font-bold">✅ 参加確定</div>
+            <button onClick={leave} className="w-full py-3 bg-card text-red border border-red rounded-xl text-sm font-bold">参加を取りやめる</button>
+          </div>
+        ) : isPending ? (
+          <div className="space-y-2 mb-4">
+            <div className="text-center py-3 bg-yellow-light text-orange rounded-xl text-sm font-bold">⏳ 承認待ち</div>
+            <button onClick={leave} className="w-full py-3 bg-card text-sub border border-border rounded-xl text-sm font-bold">申請を取り下げる</button>
+          </div>
+        ) : isFull ? (
+          <div className="text-center py-3 bg-bg text-muted rounded-xl text-sm font-bold mb-4">満員のため受付終了</div>
+        ) : (
+          <div className="mb-4">
+            <button onClick={join} className="w-full py-4 bg-green text-white rounded-xl text-[15px] font-bold">
+              {!meId
+                ? `LINEログインして参加する（残り${remaining}枠）`
+                : joinReady
+                  ? (isInvited ? `招待を承認して参加する（残り${remaining}枠）` : `参加を申請する（残り${remaining}枠）`)
+                  : !profileReady
+                    ? `プロフィール登録して参加する（残り${remaining}枠）`
+                    : `お名前を登録して参加する（残り${remaining}枠）`}
+            </button>
+            <div className="text-[11px] text-muted text-center mt-2">
+              {!meId
+                ? 'まずは中身を自由に閲覧できます。参加する時だけログインが必要です'
+                : joinReady
+                  ? (isInvited ? '招待されています。承認するとすぐに参加確定になります（送迎の確認だけ挟みます）' : '参加申請の前に、送迎（ピックアップ）についてうかがいます')
+                  : !profileReady
+                    ? '次の画面でプロフィールを登録すると、戻ってきて参加できます'
+                    : 'ゴルフ場への届出用に、お名前（漢字フルネーム）の登録が必要です'}
+            </div>
+          </div>
+        )}
+
         {/* セクション切り替えタブ（参加してる人／ピックアップ／組み分け／主催者から） */}
         <div className="flex gap-1 mb-4 bg-bg rounded-xl p-1">
           {(([
@@ -717,15 +788,6 @@ export default function RoundDetailPage() {
           </div>
         )}
 
-        {/* Host: open the ゴルトモ invite picker */}
-        {isHost && round.status === 'open' && (
-          <button
-            onClick={() => setInviteOpen(true)}
-            className="w-full py-3 bg-green text-white rounded-xl mb-3 text-sm font-bold flex items-center justify-center gap-2"
-          >
-            <span>💌</span> ゴルトモを招待する
-          </button>
-        )}
 
         {/* Anyone: open the 気になる list */}
         {interestedUsers.length > 0 && (
@@ -757,77 +819,6 @@ export default function RoundDetailPage() {
           <HostNote round={round} isHost={isHost} />
         )}
 
-        {/* 主催者向け：スタート+6.5h後の「ラウンドは完了しましたか？」確認プロンプト。
-            「完了しました」で完了処理→参加者全員にレビュー依頼が届く。「まだ」で一旦閉じる。 */}
-        {showCompletionPrompt && (
-          <div className="bg-green-light border-[1.5px] border-green rounded-card p-4 mb-3 mt-4">
-            <div className="text-sm font-black mb-1">🏌️ ラウンドは完了しましたか？</div>
-            <div className="text-[12px] text-sub mb-3 leading-relaxed">「完了しました」を押すと、参加者全員に「レビューをお願いします」の通知が届きます。</div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setCompletionDismissed(true)}
-                className="flex-1 py-3 bg-card border border-border text-sub rounded-xl text-sm font-bold"
-              >まだ</button>
-              <button
-                onClick={async () => {
-                  try { await store.completeRound(round!.id); toast('ラウンドを完了しました'); router.push('/home'); }
-                  catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
-                }}
-                className="flex-1 py-3 bg-green text-white rounded-xl text-sm font-black"
-              >完了しました</button>
-            </div>
-          </div>
-        )}
-
-        {/* Action buttons */}
-        {isHost ? (
-          <div className="space-y-2 mt-4">
-            {isFlexible && round.status === 'open' && (
-              <button onClick={() => setConfirmOpen(true)} className="w-full py-4 bg-blue text-white rounded-xl text-[15px] font-bold">
-                📅 コース確定にする
-              </button>
-            )}
-            {(round.type === 'confirmed' || round.status !== 'open') && (
-              <button onClick={complete} className="w-full py-4 bg-green text-white rounded-xl text-[15px] font-bold">
-                ラウンド完了
-              </button>
-            )}
-            <button onClick={close} className="w-full py-3 bg-bg text-sub rounded-xl text-sm font-bold">募集を閉じる</button>
-          </div>
-        ) : isApproved ? (
-          <div className="space-y-2 mt-2">
-            <div className="text-center py-3 bg-green-light text-green rounded-xl text-sm font-bold">✅ 参加確定</div>
-            <button onClick={leave} className="w-full py-3 bg-card text-red border border-red rounded-xl text-sm font-bold">参加を取りやめる</button>
-          </div>
-        ) : isPending ? (
-          <div className="space-y-2 mt-2">
-            <div className="text-center py-3 bg-yellow-light text-orange rounded-xl text-sm font-bold">⏳ 承認待ち</div>
-            <button onClick={leave} className="w-full py-3 bg-card text-sub border border-border rounded-xl text-sm font-bold">申請を取り下げる</button>
-          </div>
-        ) : isFull ? (
-          <div className="text-center py-3 bg-bg text-muted rounded-xl text-sm font-bold mt-2">満員のため受付終了</div>
-        ) : (
-          <>
-            <button onClick={join} className="w-full py-4 bg-green text-white rounded-xl text-[15px] font-bold mt-2">
-              {!meId
-                ? `LINEログインして参加する（残り${remaining}枠）`
-                : joinReady
-                  ? (isInvited ? `招待を承認して参加する（残り${remaining}枠）` : `参加を申請する（残り${remaining}枠）`)
-                  : !profileReady
-                    ? `プロフィール登録して参加する（残り${remaining}枠）`
-                    : `お名前を登録して参加する（残り${remaining}枠）`}
-            </button>
-            <div className="text-[11px] text-muted text-center mt-2">
-              {!meId
-                ? 'まずは中身を自由に閲覧できます。参加する時だけログインが必要です'
-                : joinReady
-                  ? (isInvited ? '招待されています。承認するとすぐに参加確定になります（送迎の確認だけ挟みます）' : '参加申請の前に、送迎（ピックアップ）についてうかがいます')
-                  : !profileReady
-                    ? '次の画面でプロフィールを登録すると、戻ってきて参加できます'
-                    : 'ゴルフ場への届出用に、お名前（漢字フルネーム）の登録が必要です'}
-            </div>
-          </>
-        )}
       </div>
 
       {round.status === 'completed' && (isHost || isApproved) && (
