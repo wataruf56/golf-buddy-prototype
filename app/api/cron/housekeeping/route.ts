@@ -68,5 +68,13 @@ export async function GET(req: NextRequest) {
     results.rematchNotifier = { error: (e as Error).message };
   }
 
+  try {
+    const { GET: reviewReminders } = await import('../review-reminders/route');
+    const res = await reviewReminders(req);
+    results.reviewReminders = await res.json().catch(() => ({ ok: res.ok }));
+  } catch (e) {
+    results.reviewReminders = { error: (e as Error).message };
+  }
+
   return NextResponse.json({ ok: true, ...results }, { headers: noStore });
 }

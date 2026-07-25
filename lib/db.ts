@@ -53,6 +53,9 @@ export interface DB {
   reportUser(reporterId: string, reportedId: string, reason: string): Promise<void>;
 
   listPendingReviews(reviewerId: string): Promise<PendingReview[]>;
+  // 指定ラウンドで「まだレビューしていない（pending が残っている）人」のIDを返す。
+  // 3日後リマインドを、未レビューのユーザーにだけ送るために使う。
+  listPendingReviewersForRound(roundId: string): Promise<string[]>;
   completePendingReview(id: string, ctx?: { roundId?: string; reviewerId?: string; revieweeId?: string }): Promise<void>;
   createPendingReviews(items: Omit<PendingReview, 'id'>[]): Promise<PendingReview[]>;
 
@@ -267,6 +270,11 @@ class MemoryDB implements DB {
 
   async listPendingReviews(reviewerId: string) {
     return this.pending.filter((p) => p.reviewerId === reviewerId && p.status === 'pending');
+  }
+  async listPendingReviewersForRound(roundId: string) {
+    return Array.from(new Set(
+      this.pending.filter((p) => p.roundId === roundId && p.status === 'pending').map((p) => p.reviewerId),
+    ));
   }
   async completePendingReview(id: string, ctx?: { roundId?: string; reviewerId?: string; revieweeId?: string }) {
     for (const p of this.pending) {
@@ -741,6 +749,19 @@ class FirestoreDB implements DB {
       });
     } catch (e) {
       console.error('[listPendingReviews] failed', e);
+      return [];
+    }
+  }
+  async listPendingReviewersForRound(roundId: string) {
+    try {
+      // 2つの等価フィルタのみ（複合インデックス不要・merge join）。listPendingReviews と同じ作り。
+      const snap = await this.fs.collection('pendingReviews')
+        .where('roundId', '==', roundId).where('status', '==', 'pending').get();
+      const ids = new Set<string>();
+      snap.docs.forEach((d: any) => { const rid = d.data()?.reviewerId; if (rid) ids.add(rid); });
+      return Array.from(ids);
+    } catch (e) {
+      console.error('[listPendingReviewersForRound] failed', e);
       return [];
     }
   }

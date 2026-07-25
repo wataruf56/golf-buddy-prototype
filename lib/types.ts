@@ -136,6 +136,9 @@ export type Round = {
   // round. Used by /api/cron/round-reminders to avoid double-sending. Unset
   // = never sent.
   reviewReminderSentAt?: number;
+  // ms timestamp when the「まだレビューしていない人だけ」への3日後リマインドを
+  // 送った時刻。/api/cron/review-reminders が二重送信を避けるために打刻する。
+  reviewFollowupSentAt?: number;
   // Users who tapped the ♡「気になる」heart on this round. Publicly visible
   // (anyone can see who's interested). The host can invite people from here.
   interestedIds?: string[];

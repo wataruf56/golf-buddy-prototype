@@ -27,6 +27,33 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   const participants = [updatedRound.hostId, ...(updatedRound.applicantIds || [])];
   const allPending = participants.flatMap((reviewer) => pendingForUser(reviewer));
   await db.createPendingReviews(allPending);
+
+  // 完了と同時に、参加者へ「レビューをお願いします」＋レビュー画面URLを通知
+  // （アプリ内インボックス＋LINE＋Web push）。ここで reviewReminderSentAt を打刻するので、
+  // 時間ベースの round-reminders cron が同じラウンドを二重に通知することはない。
+  // 未レビュー者への「3日後リマインド」は /api/cron/review-reminders が担当する。
+  try {
+    const participantIds = Array.from(new Set(participants)).filter(Boolean) as string[];
+    const roundName = updatedRound.title || updatedRound.courseName || 'ラウンド';
+    const link = `/round/${updatedRound.id}`;
+    const { renderNotif } = await import('@/lib/notificationTemplateStore');
+    const n = await renderNotif('reviewReminder', { '募集タイトル': roundName });
+    const { addNotificationMany } = await import('@/lib/notifications');
+    if (n.inApp) addNotificationMany(participantIds, 'reviewReminder', n.inApp, link).catch(() => {});
+    const users = await db.listUsers(participantIds);
+    const { isNotifyEnabled } = await import('@/lib/notifyPrefs');
+    const targetIds = users.filter((u) => isNotifyEnabled(u as any, 'reviewReminder')).map((u) => u.id);
+    if (targetIds.length) {
+      const { pushToMany, liffUrl } = await import('@/lib/linePush');
+      await pushToMany(targetIds, n.line, liffUrl(link)).catch(() => {});
+      const { webPushToMany } = await import('@/lib/webPush');
+      await webPushToMany(targetIds, n.webTitle, n.webBody, link, `review-${updatedRound.id}`).catch(() => {});
+    }
+    await db.updateRound(updatedRound.id, { reviewReminderSentAt: Date.now() } as any);
+  } catch (e) {
+    console.warn('[complete] レビュー依頼通知に失敗', (e as Error).message);
+  }
+
   // マッチングはレビュー完了後の画面で行うため、ここでの全員通知はしない。
   return NextResponse.json({ ok: true });
 }
