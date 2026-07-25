@@ -31,6 +31,9 @@ function Inner() {
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  // 未レビュー者への一斉通知（1回限り）。
+  const [blasting, setBlasting] = useState(false);
+  const [blastMsg, setBlastMsg] = useState('');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -81,6 +84,19 @@ function Inner() {
       setMsg('保存しました ✅');
     } catch (e) { setMsg('保存失敗: ' + (e as Error).message); }
     setSaving(false);
+  }
+
+  async function reviewBlast() {
+    if (blasting) return;
+    if (!window.confirm('いまレビューが未対応の全ユーザーへ、レビュー依頼を今すぐ送ります。1回だけ実行してください。よろしいですか？')) return;
+    setBlasting(true); setBlastMsg('');
+    try {
+      const r = await fetch(`/api/admin/review-blast?token=${encodeURIComponent(token)}`, { method: 'POST', cache: 'no-store' });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || `${r.status}`);
+      setBlastMsg(`✅ 送信しました（対象 ${j.reviewers} 人 / 送信 ${j.sent} 件）`);
+    } catch (e) { setBlastMsg('送信失敗: ' + (e as Error).message); }
+    setBlasting(false);
   }
 
   const label = (d: number) => d === 0 ? '当日の朝' : d === 1 ? '前日' : `${d}日前`;
@@ -153,6 +169,23 @@ function Inner() {
           </div>
         </div>
       )}
+
+      {/* 未レビュー者へ一斉通知（1回限りの手動オペレーション） */}
+      <div className="bg-card rounded-xl shadow-card p-4 mt-4">
+        <div className="text-[13px] font-black mb-1">📣 未レビュー者へ一斉通知（1回限り）</div>
+        <div className="text-[11px] text-muted mb-3 leading-relaxed">
+          いま<b>レビューが未対応の全ユーザー</b>へ「レビューをお願いします」を今すぐ送ります。<br />
+          3日後の自動リマインドとは別の、その場かぎりの手動送信です。<b>連打せず1回だけ</b>押してください。
+        </div>
+        <button
+          onClick={reviewBlast}
+          disabled={blasting}
+          className="w-full py-3 bg-orange text-white rounded-xl text-sm font-black disabled:opacity-50"
+        >
+          {blasting ? '送信中…' : '未レビュー者へ今すぐ一斉通知する'}
+        </button>
+        {blastMsg && <div className="text-[12px] text-center mt-2 font-bold">{blastMsg}</div>}
+      </div>
     </div>
   );
 }

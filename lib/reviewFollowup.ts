@@ -1,7 +1,7 @@
 import 'server-only';
 import { db } from '@/lib/db';
-import { pushToMany, liffUrl } from '@/lib/linePush';
-import { webPushToMany } from '@/lib/webPush';
+import { pushTo, pushToMany, liffUrl } from '@/lib/linePush';
+import { webPushText, webPushToMany } from '@/lib/webPush';
 import { isNotifyEnabled } from '@/lib/notifyPrefs';
 
 // 3日後のレビュー再リマインドの実処理。ラウンド完了時に一度「レビューをお願いします」を
@@ -67,4 +67,59 @@ export async function runReviewFollowup(
   }
 
   return { ok: true, scanned: rounds.length, sent, skipped };
+}
+
+// 【1回限りの一斉通知】いま未対応(pending)のレビューがある全ユーザーへ、レビュー依頼を
+// 今すぐ1回送る（管理画面のボタンから手動実行）。3日後リマインドの時間ゲートや冪等スタンプは
+// 使わない純粋な単発オペレーション。同じユーザーに複数ラウンドの未対応があっても通知は1回だけ、
+// 代表として直近の完了ラウンドのタイトル/リンクを使う。
+export async function runReviewBlast(): Promise<{ ok: boolean; reviewers: number; sent: number }> {
+  const pendings = await db.listAllPendingReviews();
+
+  // reviewerId → 未対応の roundId 集合。
+  const byReviewer = new Map<string, Set<string>>();
+  for (const p of pendings) {
+    if (!p.reviewerId || !p.roundId) continue;
+    if (!byReviewer.has(p.reviewerId)) byReviewer.set(p.reviewerId, new Set());
+    byReviewer.get(p.reviewerId)!.add(p.roundId);
+  }
+
+  const roundCache = new Map<string, any>();
+  const getRound = async (rid: string) => {
+    if (roundCache.has(rid)) return roundCache.get(rid);
+    const r = await db.getRound(rid).catch(() => null);
+    roundCache.set(rid, r);
+    return r;
+  };
+
+  const { renderNotif } = await import('@/lib/notificationTemplateStore');
+  const { addNotification } = await import('@/lib/notifications');
+
+  let sent = 0;
+  for (const [reviewerId, roundIds] of byReviewer) {
+    // 代表ラウンド＝最も新しい完了ラウンド（通知文のタイトル/リンク用）。
+    let best: any = null;
+    for (const rid of roundIds) {
+      const r = await getRound(rid);
+      if (!r) continue;
+      if (!best || (r.completedAt || 0) > (best.completedAt || 0)) best = r;
+    }
+    const roundName = best?.title || best?.courseName || 'ラウンド';
+    const link = best ? `/round/${best.id}` : '/';
+    const n = await renderNotif('reviewReminder', { '募集タイトル': roundName });
+
+    if (n.inApp) addNotification(reviewerId, 'reviewReminder', n.inApp, link).catch(() => {});
+    const u = await db.getUser(reviewerId);
+    if (isNotifyEnabled(u as any, 'reviewReminder')) {
+      try {
+        await pushTo(reviewerId, n.line, liffUrl(link));
+        await webPushText(reviewerId, n.webTitle, n.webBody, link, `review-blast-${reviewerId}`).catch(() => {});
+      } catch (e) {
+        console.warn('[review-blast] push failed', reviewerId, (e as Error).message);
+      }
+    }
+    sent++;
+  }
+
+  return { ok: true, reviewers: byReviewer.size, sent };
 }

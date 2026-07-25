@@ -56,6 +56,8 @@ export interface DB {
   // 指定ラウンドで「まだレビューしていない（pending が残っている）人」のIDを返す。
   // 3日後リマインドを、未レビューのユーザーにだけ送るために使う。
   listPendingReviewersForRound(roundId: string): Promise<string[]>;
+  // 未対応（pending）のレビュー依頼を全件返す。管理画面からの「未レビュー者へ一斉通知」用。
+  listAllPendingReviews(): Promise<PendingReview[]>;
   completePendingReview(id: string, ctx?: { roundId?: string; reviewerId?: string; revieweeId?: string }): Promise<void>;
   createPendingReviews(items: Omit<PendingReview, 'id'>[]): Promise<PendingReview[]>;
 
@@ -275,6 +277,9 @@ class MemoryDB implements DB {
     return Array.from(new Set(
       this.pending.filter((p) => p.roundId === roundId && p.status === 'pending').map((p) => p.reviewerId),
     ));
+  }
+  async listAllPendingReviews() {
+    return this.pending.filter((p) => p.status === 'pending');
   }
   async completePendingReview(id: string, ctx?: { roundId?: string; reviewerId?: string; revieweeId?: string }) {
     for (const p of this.pending) {
@@ -772,6 +777,18 @@ class FirestoreDB implements DB {
       return Array.from(ids);
     } catch (e) {
       console.error('[listPendingReviewersForRound] failed', e);
+      return [];
+    }
+  }
+  async listAllPendingReviews() {
+    try {
+      const snap = await this.fs.collection('pendingReviews').where('status', '==', 'pending').limit(2000).get();
+      return snap.docs.map((d: any) => {
+        const { id: _ignored, ...rest } = d.data();
+        return { id: d.id, ...rest } as PendingReview;
+      });
+    } catch (e) {
+      console.error('[listAllPendingReviews] failed', e);
       return [];
     }
   }
