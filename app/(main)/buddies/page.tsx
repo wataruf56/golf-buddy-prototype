@@ -61,6 +61,10 @@ function Inner() {
   const [pastIds, setPastIds] = useState<string[]>([]);
   const [pastUsers, setPastUsers] = useState<Record<string, MUser>>({});
   const [loaded, setLoaded] = useState(false);
+  // タブ：friends=友達リスト / comp=過去に同じコンペに参加した人。
+  const [tab, setTab] = useState<'friends' | 'comp'>('friends');
+  const [compIds, setCompIds] = useState<string[]>([]);
+  const [compUsers, setCompUsers] = useState<Record<string, MUser>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +86,15 @@ function Inner() {
         if (d?.users) setPastUsers(d.users);
       } catch { /* noop */ } finally { if (!cancelled) setLoaded(true); }
     })();
+    (async () => {
+      try {
+        const res = await fetch('/api/me/comp-participants', { cache: 'no-store', credentials: 'include' });
+        const d = await res.json();
+        if (cancelled) return;
+        if (Array.isArray(d?.participants)) setCompIds(d.participants);
+        if (d?.users) setCompUsers(d.users);
+      } catch { /* noop */ }
+    })();
     return () => { cancelled = true; };
   }, []);
 
@@ -99,8 +112,11 @@ function Inner() {
     seen.add(id); order.push(id);
   }
 
+  // 過去に同じコンペに参加した人（ブロック・自分を除外。取得順＝最近のコンペ順）。
+  const compList = compIds.filter((id) => !blocked.has(id) && id !== meId);
+
   function userOf(id: string): MUser {
-    return (users.find((x) => x.id === id) as any) || matchUsers[id] || pastUsers[id] || { displayName: 'ゴルファー' };
+    return (users.find((x) => x.id === id) as any) || matchUsers[id] || pastUsers[id] || compUsers[id] || { displayName: 'ゴルファー' };
   }
 
   return (
@@ -110,9 +126,61 @@ function Inner() {
         QRでつながった友達／また回りたい・気になる・一緒に回った人が集まります。タップでプロフィール、💬でメッセージ。
       </div>
 
+      {/* タブ切替：友達リスト / 過去に同じコンペに参加した人 */}
+      <div className="px-5 pb-3 flex gap-2">
+        <button
+          onClick={() => setTab('friends')}
+          className={'flex-1 py-2 rounded-full text-[13px] font-bold border-[1.5px] ' + (tab === 'friends' ? 'bg-green text-white border-green' : 'bg-bg border-border text-sub')}
+        >友達</button>
+        <button
+          onClick={() => setTab('comp')}
+          className={'flex-1 py-2 rounded-full text-[13px] font-bold border-[1.5px] ' + (tab === 'comp' ? 'bg-green text-white border-green' : 'bg-bg border-border text-sub')}
+        >🏆 同じコンペ参加者{compList.length > 0 ? `（${compList.length}）` : ''}</button>
+      </div>
+
+      {/* ── 同じコンペ参加者タブ ── */}
+      {tab === 'comp' && (
+        <div className="px-5 pb-24">
+          <div className="text-[12px] text-sub mb-3 leading-relaxed">
+            過去に<b>同じコンペ</b>に参加した人（組が分かれていた人も含む）。💬から直接メッセージを送れます。
+          </div>
+          {compList.length === 0 ? (
+            <Empty title={loaded ? 'まだいません' : '読み込み中...'} desc="コンペ（5人以上）に参加して完了すると、ここに同じコンペの人が表示されます" />
+          ) : (
+            compList.map((id) => {
+              const u = userOf(id);
+              const cid = chatIdFor(meId, id);
+              const chat = chats.find((c) => c.id === cid);
+              const unread = chat?.unreadCount[meId] || 0;
+              return (
+                <div key={id} className="bg-card rounded-card p-4 shadow-card mb-2.5 flex items-center gap-3">
+                  <Link href={`/profile/${id}`} className="flex items-center gap-3 min-w-0 flex-1">
+                    <Avatar user={{ id, displayName: u.displayName, avatar: u.avatar, avatarUrl: u.avatarUrl, avatarMode: u.avatarMode, golmotiType: u.golmotiType, color: u.color || '#2A8C82' } as any} size={48} />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[15px] font-bold truncate">{u.displayName}</span>
+                        {u.gender === 'male' ? <span className="text-[11px]">👨</span> : u.gender === 'female' ? <span className="text-[11px]">👩</span> : null}
+                        {u.age ? <span className="text-[11px] text-sub font-medium">{u.age}歳</span> : null}
+                      </div>
+                      <div className="flex items-center gap-1 mt-1 flex-wrap">
+                        <Badge className="text-orange bg-orange-light border-orange">🏆 同じコンペ</Badge>
+                      </div>
+                    </div>
+                  </Link>
+                  <Link href={`/chat/${cid}?other=${id}`} className="flex items-center gap-1.5 flex-shrink-0">
+                    {unread > 0 && <div className="px-1.5 py-0.5 bg-orange text-white text-[10px] font-bold rounded-full min-w-[18px] text-center">{unread}</div>}
+                    <span className="text-lg">💬</span>
+                  </Link>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
       {/* 過去参加したラウンド（横スクロール）。タップで当時の詳細へ → 同組の相手に
           「また回りたい/気になる」を後からでも付け外しできる。 */}
-      {myPastRounds.length > 0 && (
+      {tab === 'friends' && myPastRounds.length > 0 && (
         <div className="pb-3">
           <div className="px-5 text-[12px] font-black text-sub mb-2">⛳ 過去参加したラウンド（タップで「また回りたい」を編集）</div>
           <div className="flex gap-2.5 overflow-x-auto px-5 pb-1">
@@ -133,6 +201,7 @@ function Inner() {
         </div>
       )}
 
+      {tab === 'friends' && (
       <div className="px-5 pb-24">
         {order.length === 0 ? (
           <Empty
@@ -182,6 +251,7 @@ function Inner() {
           })
         )}
       </div>
+      )}
     </div>
   );
 }
