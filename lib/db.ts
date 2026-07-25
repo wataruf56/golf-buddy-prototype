@@ -15,6 +15,9 @@ export interface DB {
   // ユーザー自身が関わるラウンド（主催/参加/申請/招待）。コホート絞り込みや件数上限に
   // 関係なく取得する（「参加予定」に出ない不具合の対策）。
   listRoundsForUser(userId: string): Promise<Round[]>;
+  // ゴルトモ公式コンペ（isOfficial=true）。年代コホート絞り込みや100件上限に関係なく
+  // 全ユーザーへ見せるため、専用に取得する（公式が他ユーザーに出ない不具合の対策）。
+  listOfficialRounds(): Promise<Round[]>;
   getRound(id: string): Promise<Round | null>;
   createRound(round: Omit<Round, 'id'>): Promise<Round>;
   updateRound(id: string, patch: Partial<Round>): Promise<void>;
@@ -102,6 +105,10 @@ class MemoryDB implements DB {
     return this.rounds.filter((r) =>
       r.hostId === userId || (r.applicantIds || []).includes(userId)
       || (r.pendingApplicantIds || []).includes(userId) || (r.invitedIds || []).includes(userId));
+  }
+  async listOfficialRounds() {
+    return this.rounds.filter((r) => r.isOfficial && r.status === 'open')
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }
   async getRound(id: string) { return this.rounds.find((r) => r.id === id) || null; }
   async createRound(round: Omit<Round, 'id'>) {
@@ -404,6 +411,19 @@ class FirestoreDB implements DB {
       return Array.from(map.values());
     } catch (e) {
       console.error('[listRoundsForUser] failed', e);
+      return [];
+    }
+  }
+  async listOfficialRounds() {
+    try {
+      // 単一フィールドの where のみ（複合インデックス不要）。件数は多くないため 50 件で十分。
+      const snap = await this.fs.collection('rounds').where('isOfficial', '==', true).limit(50).get();
+      const rounds = snap.docs.map((d: any) => ({ id: d.id, ...d.data() })) as Round[];
+      return rounds
+        .filter((r) => r.status === 'open')
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    } catch (e) {
+      console.error('[listOfficialRounds] failed', e);
       return [];
     }
   }

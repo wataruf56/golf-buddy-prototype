@@ -65,6 +65,14 @@ export async function GET() {
     const have = new Set(rounds.map((r) => r.id));
     for (const r of mine) if (r && !have.has(r.id)) { rounds.push(r); have.add(r.id); }
   } catch { /* best-effort */ }
+  // ゴルトモ公式コンペは、年代コホート（20〜30代／40〜50代の分離）や年齢未設定に関係なく
+  // 全ユーザーへ表示する。100件上限で取りこぼす可能性もあるため、公式ラウンドは専用に取得して
+  // フィルタの「後」にマージする（＝公式が他ユーザーに出ない不具合の対策）。
+  try {
+    const official = await db.listOfficialRounds();
+    const have = new Set(rounds.map((r) => r.id));
+    for (const r of official) if (r && !have.has(r.id)) { rounds.push(r); have.add(r.id); }
+  } catch { /* best-effort */ }
   // isOfficial is now an explicit stored flag (admin-toggled per round), so we
   // pass it through as-is — no read-time derivation.
   const pendingReviews = pendingReviewsRes.status === 'fulfilled' ? pendingReviewsRes.value : [];
