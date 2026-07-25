@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { isDemoMode } from '@/lib/demoMode';
-import { getCohort } from '@/lib/ageGate';
 
 export async function GET() {
   const meId = await getMeId();
@@ -28,14 +27,10 @@ export async function GET() {
     db.listReviewsForUser(meId),
   ]);
   let rounds = roundsRes.status === 'fulfilled' ? roundsRes.value : [];
-  // Cohort isolation: only show rounds whose hostCohort matches the user's cohort.
-  // Rounds without hostCohort are treated as orphan/legacy and hidden.
-  const myCohort = getCohort(me?.age);
-  if (myCohort) {
-    rounds = rounds.filter((r) => r.hostCohort === myCohort);
-  } else {
-    rounds = [];
-  }
+  // ラウンドは年代・アカウントに関係なく全ユーザーへ表示する。
+  // （以前は hostCohort が自分の年代（20〜30代／40〜50代）と一致する募集だけを見せ、
+  //  年齢未設定の人には何も見せていなかった。「投稿したラウンドが他ユーザーに見えない」
+  //  という不具合になっていたため、年代コミュニティ分離は撤廃し、全募集を表示する。）
 
   // テストアカウント（検証用）の扱い：一般ユーザーからはプロフィール＆募集を
   // 隠し、機能フラグ（新機能の段階公開）を解決する。テストアカウント本人には

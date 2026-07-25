@@ -393,13 +393,19 @@ class FirestoreDB implements DB {
 
   async listRounds(opts?: { status?: 'open' | 'closed' | 'completed' }) {
     try {
-      let q: any = this.fs.collection('rounds');
-      if (opts?.status) q = q.where('status', '==', opts.status);
-      // sort in code to avoid composite index requirement
-      const snap = await q.limit(100).get();
-      const rounds = snap.docs.map((d: any) => ({ id: d.id, ...d.data() })) as Round[];
-      rounds.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-      return rounds;
+      if (opts?.status) {
+        // status指定あり：where＋orderByは複合インデックスが要るため、従来どおり
+        // 取得後にコード側で新しい順ソート。件数上限は余裕をもって200に。
+        const snap = await this.fs.collection('rounds').where('status', '==', opts.status).limit(200).get();
+        const rounds = snap.docs.map((d: any) => ({ id: d.id, ...d.data() })) as Round[];
+        rounds.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        return rounds;
+      }
+      // status指定なし（フィード全体）：orderByなしのlimitだと__name__順の“任意の100件”に
+      // なり、募集が増えると特定の投稿がフィードから丸ごと漏れていた。単一フィールドの
+      // orderBy（複合インデックス不要）で「作成が新しい順」に確実に上位を取る。
+      const snap = await this.fs.collection('rounds').orderBy('createdAt', 'desc').limit(200).get();
+      return snap.docs.map((d: any) => ({ id: d.id, ...d.data() })) as Round[];
     } catch (e) {
       console.error('[listRounds] failed', e);
       return [];
