@@ -401,11 +401,15 @@ class FirestoreDB implements DB {
         rounds.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
         return rounds;
       }
-      // status指定なし（フィード全体）：orderByなしのlimitだと__name__順の“任意の100件”に
-      // なり、募集が増えると特定の投稿がフィードから丸ごと漏れていた。単一フィールドの
-      // orderBy（複合インデックス不要）で「作成が新しい順」に確実に上位を取る。
-      const snap = await this.fs.collection('rounds').orderBy('createdAt', 'desc').limit(200).get();
-      return snap.docs.map((d: any) => ({ id: d.id, ...d.data() })) as Round[];
+      // status指定なし（フィード全体）。
+      // 注意: orderBy('createdAt') を使うと createdAt を持たない古い募集（7/25コンペ等）が
+      // クエリ結果から除外され、投稿が消えてしまう。そこで orderBy は使わず、limit を
+      // 大きめ(500)にして全件近くを取得し、コード側で「作成が新しい順」に並べる。これで
+      // ①取りこぼし（旧: limit100で漏れる）と ②createdAt無し募集の除外、の両方を回避する。
+      const snap = await this.fs.collection('rounds').limit(500).get();
+      const rounds = snap.docs.map((d: any) => ({ id: d.id, ...d.data() })) as Round[];
+      rounds.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      return rounds;
     } catch (e) {
       console.error('[listRounds] failed', e);
       return [];
