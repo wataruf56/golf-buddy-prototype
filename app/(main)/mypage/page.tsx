@@ -12,7 +12,6 @@ import { NotifySettings } from '@/components/NotifySettings';
 import { AppUpdateButton } from '@/components/AppUpdateButton';
 import { track } from '@/lib/telemetry';
 import { formatDate, instagramUrl } from '@/lib/utils';
-import { APP_VERSION } from '@/lib/version';
 
 const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 const BOT_BASIC_ID = process.env.NEXT_PUBLIC_LINE_BOT_BASIC_ID || '';
@@ -290,7 +289,6 @@ export default function MyPage() {
             <AppUpdateButton />
           </div>
         </details>
-        <div className="text-center text-[11px] text-muted py-2">ver {APP_VERSION}</div>
       </div>
       <div className="h-5" />
 
