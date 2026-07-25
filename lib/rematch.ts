@@ -22,6 +22,11 @@ export type RematchSession = {
   // 希望人数（'2'=2サム / '3'=3サム / '4'=フォーサム。複数可＝「〜でもいい」）。空/未設定=希望なし。
   partyPrefA?: string[];
   partyPrefB?: string[];
+  // 「会い方」の希望（romanticマッチ用。lib/meetOptions の key 配列。複数可）。
+  // 片方がOKな会い方を選び、相手はその中から行ってもいいものだけ選ぶ。両者の重なりが
+  // 「お互いOKな会い方」。空/未設定=希望なし。
+  meetPrefA?: string[];
+  meetPrefB?: string[];
   agreedDate: string | null;
   agreedAt: number | null;
   postedRoundId: string | null;

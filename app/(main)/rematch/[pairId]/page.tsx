@@ -7,6 +7,7 @@ import { confirmDialog } from '@/components/ConfirmDialog';
 import { store, useStore } from '@/lib/store';
 import { chatIdFor } from '@/lib/utils';
 import { resizeImage } from '@/lib/resizeImage';
+import { MEET_OPTIONS, meetLabelOf } from '@/lib/meetOptions';
 
 // 再会エンジンの画面：候補日カレンダー → 3色重なり → この日で決定 → ラウンド投稿へ。
 type Data = {
@@ -22,6 +23,8 @@ type Data = {
   theirCandidates: string[];
   myParty?: string[];
   theirParty?: string[];
+  myMeet?: string[];
+  theirMeet?: string[];
   overlap: string[];
   agreedDate: string | null;
   postedRoundId: string | null;
@@ -57,6 +60,10 @@ export default function RematchPage() {
   const [partySel, setPartySel] = useState<Set<string>>(new Set());
   const [partyBusy, setPartyBusy] = useState(false);
   const partySaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 会い方（romanticマッチ用の複数選択）。人数と同じくボタン直タップ＋デバウンス保存。
+  const [meetSel, setMeetSel] = useState<Set<string>>(new Set());
+  const [meetBusy, setMeetBusy] = useState(false);
+  const meetSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [chatText, setChatText] = useState('');
   const [chatSending, setChatSending] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
@@ -79,6 +86,7 @@ export default function RematchPage() {
         setPrefilled(past.length > 0);
       }
       setPartySel(new Set(d.myParty || []));
+      setMeetSel(new Set(d.myMeet || []));
     } catch { setNotFound(true); }
     setLoading(false);
   }, [params.pairId]);
@@ -122,6 +130,28 @@ export default function RematchPage() {
       return n;
     });
   }
+  async function saveMeetTypes(types: string[]) {
+    setMeetBusy(true);
+    try {
+      const r = await fetch(`/api/rematch/${encodeURIComponent(params.pairId)}/meet`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ types }), cache: 'no-store',
+      });
+      if (!r.ok) throw new Error(String(r.status));
+      if (chatId) store.loadChat(chatId);
+    } catch { toast('会い方の保存に失敗しました', 'error'); }
+    finally { setMeetBusy(false); }
+  }
+  function toggleMeet(k: string) {
+    setMeetSel((prev) => {
+      const n = new Set(prev);
+      if (n.has(k)) n.delete(k); else n.add(k);
+      const types = Array.from(n);
+      if (meetSaveTimer.current) clearTimeout(meetSaveTimer.current);
+      meetSaveTimer.current = setTimeout(() => saveMeetTypes(types), 700);
+      return n;
+    });
+  }
   async function sendChat(imageUrl?: string) {
     const t = chatText.trim();
     if ((!t && !imageUrl) || !otherId || !chatId || chatSending) return;
@@ -157,6 +187,10 @@ export default function RematchPage() {
   const agreed = data.status === 'agreed' || data.status === 'posted';
   const overlapNow = Array.from(mine).filter((d) => theirSet.has(d)).sort();
   const bothEntered = mine.size > 0 && theirSet.size > 0;
+  // 会い方の「お互いOK」（自分の選択 ∩ 相手の選択）。romanticマッチのみ使用。
+  const isRomantic = data.matchKind === 'romantic';
+  const theirMeetSet = new Set(data.theirMeet || []);
+  const meetOverlap = MEET_OPTIONS.filter((o) => meetSel.has(o.key) && theirMeetSet.has(o.key)).map((o) => o.key);
 
   const inWindow = (k: string) => k >= range.today && k <= range.maxDate;
   function toggle(k: string) {
@@ -229,7 +263,7 @@ export default function RematchPage() {
           {other.avatarUrl ? <img src={other.avatarUrl} alt="" className="w-full h-full object-cover" /> : (other.avatar || '⛳')}
         </div>
         <div className="min-w-0">
-          <div className="text-[11px] font-black text-green">🔁 また回りたい相手との再会</div>
+          <div className="text-[11px] font-black text-green">{isRomantic ? '💗 気になる相手との再会' : '🔁 また回りたい相手との再会'}</div>
           <div className="text-base font-black truncate">{other.displayName} さん</div>
           <div className="text-[11px] text-sub">
             {data.roundDate ? `前回 ${mdLabel(data.roundDate)} に` : '前回'}{data.courseName ? `「${data.courseName}」で` : ''}一緒に回りました
@@ -237,26 +271,67 @@ export default function RematchPage() {
         </div>
       </div>
 
-      {/* 希望人数（2サム/3サム/フォーサム）。ボタンを直接タップで設定（複数可＝〜でもいい）。相手にも共有＆通知される。 */}
-      <div className="bg-card rounded-card p-3.5 shadow-card mb-4">
-        <div className="text-[12px] font-black mb-2">🏌️ 希望人数（何人で回りたい・複数OK）</div>
-        <div className="flex gap-2 mb-2">
-          {(['2', '3', '4'] as const).map((k) => {
-            const on = partySel.has(k);
-            return (
-              <button
-                key={k}
-                onClick={() => toggleParty(k)}
-                disabled={partyBusy}
-                className={'flex-1 py-2.5 rounded-xl text-[13px] font-bold border-[1.5px] disabled:opacity-60 ' + (on ? 'bg-green text-white border-green' : 'bg-bg border-border text-sub')}
-              >{on ? '✓ ' : ''}{SIZE_LABEL[k]}</button>
-            );
-          })}
+      {/* romanticマッチ：会い方の複数選択。それ以外：希望人数（2/3/4サム）。
+          どちらもボタン直タップで設定（複数可）。相手にも共有＆通知される。 */}
+      {isRomantic ? (
+        <div className="bg-card rounded-card p-3.5 shadow-card mb-4">
+          <div className="text-[12px] font-black mb-1">💗 会い方（OKなものを選ぶ・複数OK）</div>
+          <div className="text-[11px] text-sub mb-2.5 leading-relaxed">
+            あなたがOKな会い方を選ぶと相手に共有されます。相手も選んだものが「お互いOK」になります。いきなり二人が不安なら、カフェや複数からでも大丈夫。
+          </div>
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            {MEET_OPTIONS.map((o) => {
+              const on = meetSel.has(o.key);
+              const bothOk = on && theirMeetSet.has(o.key);
+              const style: React.CSSProperties = bothOk
+                ? { background: '#EC4899', color: '#fff', borderColor: '#EC4899' }
+                : on
+                  ? { background: '#2A8C82', color: '#fff', borderColor: '#2A8C82' }
+                  : {};
+              return (
+                <button
+                  key={o.key}
+                  onClick={() => toggleMeet(o.key)}
+                  disabled={meetBusy}
+                  style={style}
+                  className={'py-2.5 px-2.5 rounded-xl text-[12px] font-bold border-[1.5px] text-left leading-snug disabled:opacity-60 ' + (on ? '' : 'bg-bg border-border text-sub')}
+                >{on ? '✓ ' : ''}{o.emoji} {o.label}{bothOk ? ' 🤝' : ''}</button>
+              );
+            })}
+          </div>
+          <div className="text-[11px] text-sub leading-relaxed">
+            {other.displayName}さんがOK：<b className="text-text">{meetLabelOf(data.theirMeet)}</b>
+          </div>
+          {meetOverlap.length > 0 && (
+            <div
+              className="mt-2 rounded-xl p-2.5 text-[11px] font-black leading-relaxed border-[1.5px]"
+              style={{ background: '#FCE7F3', borderColor: '#F472B6', color: '#DB2777' }}
+            >
+              🤝 お互いOKな会い方：{meetLabelOf(meetOverlap)}
+            </div>
+          )}
         </div>
-        <div className="text-[11px] text-sub leading-relaxed">
-          {other.displayName}さんの希望：<b className="text-text">{partyLabel(data.theirParty)}</b>
+      ) : (
+        <div className="bg-card rounded-card p-3.5 shadow-card mb-4">
+          <div className="text-[12px] font-black mb-2">🏌️ 希望人数（何人で回りたい・複数OK）</div>
+          <div className="flex gap-2 mb-2">
+            {(['2', '3', '4'] as const).map((k) => {
+              const on = partySel.has(k);
+              return (
+                <button
+                  key={k}
+                  onClick={() => toggleParty(k)}
+                  disabled={partyBusy}
+                  className={'flex-1 py-2.5 rounded-xl text-[13px] font-bold border-[1.5px] disabled:opacity-60 ' + (on ? 'bg-green text-white border-green' : 'bg-bg border-border text-sub')}
+                >{on ? '✓ ' : ''}{SIZE_LABEL[k]}</button>
+              );
+            })}
+          </div>
+          <div className="text-[11px] text-sub leading-relaxed">
+            {other.displayName}さんの希望：<b className="text-text">{partyLabel(data.theirParty)}</b>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 決定済みバナー（決定後もカレンダーは下に残す） */}
       {agreed && data.agreedDate && (
