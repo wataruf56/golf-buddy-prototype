@@ -39,6 +39,16 @@ export default function MyPage() {
       const bm = b.date ? new Date(b.date).getTime() : Infinity;
       return am - bm;
     });
+  // 「過去参加したラウンド」= 自分が主催 or 参加した完了済みラウンド。開催日（なければ
+  // 完了時刻）の新しい順。ここから当時の詳細（参加者・レビュー等）にまた飛べる。
+  const pastRounds = myRounds
+    .filter((r) => r.status === 'completed')
+    .slice()
+    .sort((a, b) => {
+      const am = a.date ? new Date(a.date).getTime() : (a.completedAt || 0);
+      const bm = b.date ? new Date(b.date).getTime() : (b.completedAt || 0);
+      return bm - am;
+    });
   // "ラウンド回数" = COMPLETED rounds I was in (host or approved applicant).
   // Only finished rounds count — open/recruiting ones don't. We take the max
   // of this live count and the stored roundCount (which is incremented at
@@ -222,6 +232,30 @@ export default function MyPage() {
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${r.status === 'open' ? 'bg-green-light text-green' : r.status === 'completed' ? 'bg-blue-light text-blue' : 'bg-bg text-sub'}`}>
                   {r.status === 'open' ? '募集中' : r.status === 'completed' ? '完了' : '終了'}
                 </span>
+              </Link>
+            );
+          })}
+          </div>
+        </details>
+
+
+        <details className="bg-card rounded-card shadow-card mb-4">
+          <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
+            <span className="text-[13px] font-bold">過去参加したラウンド</span>
+            <span className="text-[11px] text-muted">{pastRounds.length}件 ▾</span>
+          </summary>
+          <div className="px-4 pb-4">
+          {pastRounds.length === 0 ? (
+            <div className="text-xs text-muted py-3 text-center">完了したラウンドはまだありません</div>
+          ) : pastRounds.map((r) => {
+            const role = r.hostId === me.id ? '主催' : '参加';
+            return (
+              <Link href={`/round/${r.id}`} key={r.id} className="flex justify-between items-center p-2.5 bg-bg rounded-[10px] mb-1.5">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-bold truncate">{r.title}</div>
+                  <div className="text-[11px] text-muted">{formatDate(r.date) || r.dateRange} ・ {role}</div>
+                </div>
+                <span className="text-[11px] text-blue font-bold flex-shrink-0 ml-2">詳細 →</span>
               </Link>
             );
           })}
