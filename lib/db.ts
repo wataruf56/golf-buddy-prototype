@@ -34,6 +34,10 @@ export interface DB {
   setInterest(id: string, userId: string, interested: boolean): Promise<{ round: Round; added: boolean }>;
   // Host invites a user. Returns the updated round and whether newly invited.
   inviteToRound(id: string, userId: string): Promise<{ round: Round; added: boolean }>;
+  // 招待された本人が承認して即参加（承認待ちを経由せず applicantIds に入る）。
+  acceptInvite(id: string, userId: string): Promise<Round>;
+  // 主催者が送った招待を取り消す（invitedIds から外す）。
+  uninviteFromRound(id: string, userId: string): Promise<Round>;
 
   // 日程調整（調整さん）ポール — 募集とは独立したコレクション。
   createPoll(poll: Omit<SchedulePoll, 'id'>): Promise<SchedulePoll>;
@@ -163,6 +167,24 @@ class MemoryDB implements DB {
     const r = this.rounds.find((x) => x.id === id);
     if (!r) throw new Error('round not found');
     r.pendingApplicantIds = (r.pendingApplicantIds || []).filter((x) => x !== userId);
+    return r;
+  }
+  async acceptInvite(id: string, userId: string) {
+    const r = this.rounds.find((x) => x.id === id);
+    if (!r) throw new Error('round not found');
+    if (r.hostId === userId) return r;
+    if (!r.applicantIds.includes(userId)) {
+      r.applicantIds.push(userId);
+      r.currentCount += 1;
+    }
+    r.pendingApplicantIds = (r.pendingApplicantIds || []).filter((x) => x !== userId);
+    r.invitedIds = (r.invitedIds || []).filter((x) => x !== userId);
+    return r;
+  }
+  async uninviteFromRound(id: string, userId: string) {
+    const r = this.rounds.find((x) => x.id === id);
+    if (!r) throw new Error('round not found');
+    r.invitedIds = (r.invitedIds || []).filter((x) => x !== userId);
     return r;
   }
   async kickApplicant(id: string, userId: string) {
@@ -596,6 +618,33 @@ class FirestoreDB implements DB {
       const pending = (data.pendingApplicantIds || []).filter((x) => x !== userId);
       tx.set(ref, { pendingApplicantIds: pending }, { merge: true });
       return { ...data, id: snap.id, pendingApplicantIds: pending } as Round;
+    });
+  }
+  async acceptInvite(id: string, userId: string) {
+    const ref = this.fs.collection('rounds').doc(id);
+    return await this.fs.runTransaction(async (tx: any) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('round not found');
+      const data = snap.data() as Omit<Round, 'id'>;
+      const applicants = data.applicantIds || [];
+      const already = applicants.includes(userId);
+      const applicantIds = already ? applicants : [...applicants, userId];
+      const currentCount = already ? (data.currentCount || 1) : (data.currentCount || 1) + 1;
+      const pendingApplicantIds = (data.pendingApplicantIds || []).filter((x) => x !== userId);
+      const invitedIds = (data.invitedIds || []).filter((x) => x !== userId);
+      tx.set(ref, { applicantIds, currentCount, pendingApplicantIds, invitedIds }, { merge: true });
+      return { ...data, id: snap.id, applicantIds, currentCount, pendingApplicantIds, invitedIds } as Round;
+    });
+  }
+  async uninviteFromRound(id: string, userId: string) {
+    const ref = this.fs.collection('rounds').doc(id);
+    return await this.fs.runTransaction(async (tx: any) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('round not found');
+      const data = snap.data() as Omit<Round, 'id'>;
+      const invitedIds = (data.invitedIds || []).filter((x) => x !== userId);
+      tx.set(ref, { invitedIds }, { merge: true });
+      return { ...data, id: snap.id, invitedIds } as Round;
     });
   }
   async kickApplicant(id: string, userId: string) {

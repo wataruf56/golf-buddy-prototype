@@ -297,6 +297,24 @@ export const store = {
     return round;
   },
 
+  // 招待された本人が承認して即参加（承認待ちなし）。
+  acceptInvite: async (roundId: string, pickup?: { status?: PickupStatus; stations?: string[]; capacity?: number }) => {
+    const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/accept-invite`, {
+      method: 'POST', body: pickup ? JSON.stringify({ pickup }) : undefined,
+    });
+    setState({ rounds: state.rounds.map((r) => (r.id === roundId ? round : r)) });
+    return round;
+  },
+
+  // 主催者が送った招待を取り消す。
+  uninviteFromRound: async (roundId: string, userId: string) => {
+    const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/uninvite`, {
+      method: 'POST', body: JSON.stringify({ userId }),
+    });
+    setState({ rounds: state.rounds.map((r) => (r.id === roundId ? { ...r, ...round } : r)) });
+    return round;
+  },
+
   confirmCourse: async (roundId: string, info: { courseName: string; date: string; startTime: string; price?: string }) => {
     const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/confirm-course`, {
       method: 'POST', body: JSON.stringify(info),

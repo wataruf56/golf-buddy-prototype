@@ -156,6 +156,8 @@ export default function RoundDetailPage() {
   const isFull = round.currentCount >= round.maxSpots;
   const remaining = round.maxSpots - round.currentCount;
   const isComp = round.maxSpots >= 5;
+  // 招待された本人（まだ参加していない）。招待者は承認待ちを経由せず即参加できる。
+  const isInvited = !!meId && (round.invitedIds || []).includes(meId) && !isHost && !isApproved && !isPending;
   const isFlexible = round.type === 'flexible';
   const dateLabel = round.dateType === 'range' ? round.dateRange : formatDate(round.date);
   const canChatGroup = isHost || isApproved;
@@ -219,13 +221,20 @@ export default function RoundDetailPage() {
     setPickupOpen(true);
   }
 
-  // ピックアップ回答を添えて参加申込を確定する。
+  // ピックアップ回答を添えて参加を確定する。招待された人は承認待ちを経由せず即参加。
   async function submitJoin(pickup: { status?: PickupStatus; stations?: string[]; capacity?: number }) {
     try {
-      await store.joinRound(round!.id, pickup);
-      track('join_round_success', { roundId: round!.id });
-      setPickupOpen(false);
-      toast('参加申請を送信しました');
+      if (isInvited) {
+        await store.acceptInvite(round!.id, pickup);
+        track('accept_invite_success', { roundId: round!.id });
+        setPickupOpen(false);
+        toast('参加しました🎉');
+      } else {
+        await store.joinRound(round!.id, pickup);
+        track('join_round_success', { roundId: round!.id });
+        setPickupOpen(false);
+        toast('参加申請を送信しました');
+      }
     } catch (e) {
       track('join_round_error', { message: (e as Error).message });
       toast((e as Error).message, 'error');
@@ -347,6 +356,15 @@ export default function RoundDetailPage() {
       const updated = await store.inviteToRound(round!.id, userId, (message || '').trim() || undefined);
       if (!storeRound && updated) setFetchedRound((prev) => (prev ? { ...prev, ...updated } : prev));
       toast(`${name}さんを招待しました`);
+    } catch (e) { toast((e as Error).message, 'error'); }
+  }
+  // 招待済みの相手の「招待」を再度押したとき：確認のうえ招待を取り消す。
+  async function uninvite(userId: string, name: string) {
+    if (!(await confirmDialog(`${name}さんへの招待を取り消しますか？`))) return;
+    try {
+      const updated = await store.uninviteFromRound(round!.id, userId);
+      if (!storeRound && updated) setFetchedRound((prev) => (prev ? { ...prev, ...updated } : prev));
+      toast(`${name}さんへの招待を取り消しました`);
     } catch (e) { toast((e as Error).message, 'error'); }
   }
 
@@ -673,7 +691,14 @@ export default function RoundDetailPage() {
                     <div className="text-[10px] text-sub">{describeUser(u)} ・ {ratingLabel(u)}</div>
                   </div>
                 </Link>
-                <span className="text-[10px] text-sub font-bold flex-shrink-0">招待済み</span>
+                {isHost ? (
+                  <button
+                    onClick={() => uninvite(u.id, u.displayName)}
+                    className="px-3 py-1.5 bg-card text-red border border-red rounded-lg text-[11px] font-bold flex-shrink-0"
+                  >招待を取り消し</button>
+                ) : (
+                  <span className="text-[10px] text-sub font-bold flex-shrink-0">招待済み</span>
+                )}
               </div>
             ))}
           </div>
@@ -752,7 +777,7 @@ export default function RoundDetailPage() {
               {!meId
                 ? `LINEログインして参加する（残り${remaining}枠）`
                 : joinReady
-                  ? `参加を申請する（残り${remaining}枠）`
+                  ? (isInvited ? `招待を承認して参加する（残り${remaining}枠）` : `参加を申請する（残り${remaining}枠）`)
                   : !profileReady
                     ? `プロフィール登録して参加する（残り${remaining}枠）`
                     : `お名前を登録して参加する（残り${remaining}枠）`}
@@ -761,9 +786,9 @@ export default function RoundDetailPage() {
               {!meId
                 ? 'まずは中身を自由に閲覧できます。参加する時だけログインが必要です'
                 : joinReady
-                  ? '参加申請の前に、送迎（ピックアップ）についてうかがいます'
+                  ? (isInvited ? '招待されています。承認するとすぐに参加確定になります（送迎の確認だけ挟みます）' : '参加申請の前に、送迎（ピックアップ）についてうかがいます')
                   : !profileReady
-                    ? '次の画面でプロフィールを登録すると、戻ってきて参加申請できます'
+                    ? '次の画面でプロフィールを登録すると、戻ってきて参加できます'
                     : 'ゴルフ場への届出用に、お名前（漢字フルネーム）の登録が必要です'}
             </div>
           </>
@@ -818,7 +843,7 @@ export default function RoundDetailPage() {
           <div className="mb-3 text-[12px] text-sub bg-bg rounded-xl p-3 leading-relaxed">
             💌 招待したい人の「招待」を押すと、その人へのメッセージを入力して<b className="text-text">1人ずつ</b>送れます。
           </div>
-          <InviteSearch inviteState={inviteState} onInvite={(id, name) => { setInviteMsg(''); setInviteTarget({ id, name }); }} />
+          <InviteSearch inviteState={inviteState} onInvite={(id, name) => { setInviteMsg(''); setInviteTarget({ id, name }); }} onUninvite={(id, name) => uninvite(id, name)} />
         </PickerModal>
       )}
 
@@ -843,7 +868,7 @@ export default function RoundDetailPage() {
                     st === 'joined' ? (
                       <span className="px-3 py-1.5 bg-bg text-muted border border-border rounded-lg text-xs font-bold flex-shrink-0">参加済み</span>
                     ) : st === 'invited' ? (
-                      <span className="px-3 py-1.5 bg-bg text-muted border border-border rounded-lg text-xs font-bold flex-shrink-0">招待済み</span>
+                      <button onClick={() => uninvite(u.id, u.displayName)} className="px-3 py-1.5 bg-card text-red border border-red rounded-lg text-xs font-bold flex-shrink-0">招待済み（取消）</button>
                     ) : (
                       <button onClick={() => { setInviteMsg(''); setInviteTarget({ id: u.id, name: u.displayName }); }} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold flex-shrink-0">招待</button>
                     )
@@ -1015,7 +1040,7 @@ function ScoreEntryCard({ round, host, applicants }: {
 // 招待候補の検索。登録している全ユーザー（同年代）から性別・年齢・名前で絞り込み、
 // 招待ボタンを出す。検索は /api/users/search。
 type SearchUser = { id: string; displayName: string; avatar: string; avatarUrl?: string; age?: number; gender?: string; area?: string; scoreRange?: string; car?: string; reviewAvg?: number; reviewCount?: number };
-function InviteSearch({ inviteState, onInvite }: { inviteState: (id: string) => 'joined' | 'invited' | 'open'; onInvite: (id: string, name: string) => void }) {
+function InviteSearch({ inviteState, onInvite, onUninvite }: { inviteState: (id: string) => 'joined' | 'invited' | 'open'; onInvite: (id: string, name: string) => void; onUninvite: (id: string, name: string) => void }) {
   const [gender, setGender] = useState<'' | 'male' | 'female'>('');
   const [q, setQ] = useState('');
   const [minAge, setMinAge] = useState('');
@@ -1085,7 +1110,7 @@ function InviteSearch({ inviteState, onInvite }: { inviteState: (id: string) => 
             {st === 'joined' ? (
               <span className="px-3 py-1.5 bg-bg text-muted border border-border rounded-lg text-xs font-bold flex-shrink-0">参加済み</span>
             ) : st === 'invited' ? (
-              <span className="px-3 py-1.5 bg-bg text-muted border border-border rounded-lg text-xs font-bold flex-shrink-0">招待済み</span>
+              <button onClick={() => onUninvite(u.id, u.displayName)} className="px-3 py-1.5 bg-card text-red border border-red rounded-lg text-xs font-bold flex-shrink-0">招待済み（取消）</button>
             ) : (
               <button onClick={() => onInvite(u.id, u.displayName)} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold flex-shrink-0">招待</button>
             )}
