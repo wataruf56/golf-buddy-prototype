@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getMeId } from '@/lib/session';
 import { getAdminDb } from '@/lib/firebase';
 import { db as appDb } from '@/lib/db';
+import { isSameGroup, isNoShow } from '@/lib/groups';
+import type { Round } from '@/lib/types';
 
 // 過去に「同組で一緒にラウンドした人」の一覧。完了済みラウンド（status==completed）で
 // 自分と同じ組だった参加者（主催者＋承認済み applicant）を集めて返す。ゴル友タブの
@@ -28,13 +30,18 @@ export async function GET(_req: NextRequest) {
     const consider = (doc: any) => {
       if (seenRounds.has(doc.id)) return;
       seenRounds.add(doc.id);
-      const r = doc.data() || {};
+      const r = { id: doc.id, ...(doc.data() || {}) } as Round;
       if (r.status !== 'completed') return;
       const members: string[] = [r.hostId, ...((r.applicantIds as string[]) || [])].filter(Boolean);
       if (!members.includes(meId)) return;
+      if (isNoShow(r, meId)) return; // 自分が当日来られなかった回は対象外
       const when = r.completedAt || r.createdAt || 0;
       for (const id of members) {
         if (!id || id === meId) continue;
+        // 「一緒に回った」は “同じ組で回った人” だけに付ける。通常募集は全員が同組扱い、
+        // コンペは実際に同じ組（groups）だった相手のみ。当日欠席の相手は除外。
+        if (!isSameGroup(r, meId, id)) continue;
+        if (isNoShow(r, id)) continue;
         partnerIds.add(id);
         if (when > (lastRoundAt[id] || 0)) lastRoundAt[id] = when;
       }
