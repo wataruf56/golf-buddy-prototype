@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getMeId } from '@/lib/session';
 import { getAdminDb } from '@/lib/firebase';
 import { db as appDb } from '@/lib/db';
-import { isSameGroup, isNoShow } from '@/lib/groups';
+import { isNoShow } from '@/lib/groups';
 import type { Round } from '@/lib/types';
 
 // 過去に「同組で一緒にラウンドした人」の一覧。完了済みラウンド（status==completed）で
@@ -36,11 +36,16 @@ export async function GET(_req: NextRequest) {
       if (!members.includes(meId)) return;
       if (isNoShow(r, meId)) return; // 自分が当日来られなかった回は対象外
       const when = r.completedAt || r.createdAt || 0;
+      // 「一緒に回った」は “同じ組で回った人” だけに付ける。isCompetition フラグに依存せず、
+      // 組（groups）が設定されていれば必ず「自分と同じ組のメンバー」だけに絞る（コンペで組が
+      // 分かれた場合の対策）。groups が無い通常募集は全員が一緒に回った扱い。
+      const groups: any[] = Array.isArray((r as any).groups) ? (r as any).groups : [];
+      const myGroupIds: Set<string> | null = groups.length > 0
+        ? new Set(((groups.find((g: any) => (g?.memberIds || []).includes(meId))?.memberIds) || []) as string[])
+        : null;
       for (const id of members) {
         if (!id || id === meId) continue;
-        // 「一緒に回った」は “同じ組で回った人” だけに付ける。通常募集は全員が同組扱い、
-        // コンペは実際に同じ組（groups）だった相手のみ。当日欠席の相手は除外。
-        if (!isSameGroup(r, meId, id)) continue;
+        if (myGroupIds && !myGroupIds.has(id)) continue; // 別の組は除外
         if (isNoShow(r, id)) continue;
         partnerIds.add(id);
         if (when > (lastRoundAt[id] || 0)) lastRoundAt[id] = when;
