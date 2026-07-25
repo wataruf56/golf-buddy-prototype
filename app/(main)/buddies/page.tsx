@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useStore, getMe } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { toast } from '@/components/Toast';
-import { chatIdFor } from '@/lib/utils';
+import { chatIdFor, formatDate } from '@/lib/utils';
 
 type MatchInfo = { again: boolean; romantic: boolean };
 type MUser = { displayName: string; avatar?: string; avatarUrl?: string; avatarMode?: string; golmotiType?: string; color?: string; gender?: string; age?: number };
@@ -27,7 +27,19 @@ function Inner() {
   const me = useStore(getMe);
   const chats = useStore((s) => s.chats);
   const users = useStore((s) => s.users);
+  const rounds = useStore((s) => s.rounds);
   const blocked = new Set(me.blockedUserIds || []);
+
+  // 過去に自分が主催/参加した完了ラウンド（新しい順）。ここから当時の詳細に飛べば、
+  // 同じ組の相手に「また回りたい/気になる」を後からでも付け外しできる。
+  const myPastRounds = rounds
+    .filter((r) => r.status === 'completed' && (r.hostId === meId || (r.applicantIds || []).includes(meId)))
+    .slice()
+    .sort((a, b) => {
+      const am = a.date ? new Date(a.date).getTime() : (a.completedAt || 0);
+      const bm = b.date ? new Date(b.date).getTime() : (b.completedAt || 0);
+      return bm - am;
+    });
 
   // 「候補日」→ 再会セッションを用意してカレンダーへ。
   const [rematchBusy, setRematchBusy] = useState('');
@@ -97,6 +109,29 @@ function Inner() {
       <div className="px-5 pb-3 text-[13px] text-sub">
         QRでつながった友達／また回りたい・気になる・一緒に回った人が集まります。タップでプロフィール、💬でメッセージ。
       </div>
+
+      {/* 過去参加したラウンド（横スクロール）。タップで当時の詳細へ → 同組の相手に
+          「また回りたい/気になる」を後からでも付け外しできる。 */}
+      {myPastRounds.length > 0 && (
+        <div className="pb-3">
+          <div className="px-5 text-[12px] font-black text-sub mb-2">⛳ 過去参加したラウンド（タップで「また回りたい」を編集）</div>
+          <div className="flex gap-2.5 overflow-x-auto px-5 pb-1">
+            {myPastRounds.map((r) => (
+              <Link
+                key={r.id}
+                href={`/round/${r.id}`}
+                className="flex-shrink-0 w-44 bg-card rounded-card p-3 shadow-card border border-border"
+              >
+                <div className="text-[13px] font-bold truncate">{r.title || r.courseName || 'ラウンド'}</div>
+                <div className="text-[11px] text-muted mt-1 truncate">
+                  {formatDate(r.date) || r.dateRange || ''}{r.hostId === meId ? ' ・主催' : ' ・参加'}
+                </div>
+                <div className="text-[11px] text-blue font-bold mt-2">また回りたいを編集 →</div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="px-5 pb-24">
         {order.length === 0 ? (
