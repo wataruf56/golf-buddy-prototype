@@ -112,8 +112,11 @@ export default function SearchPage() {
       // Date-fixed rounds: only future. Date-undecided rounds: always pass (shown separately).
       if (ms !== null && ms < todayMs) return false;
     } else if (filterPeriod === 'past') {
-      if (ms === null) return false; // undecided rounds excluded
-      if (ms >= todayMs) return false;
+      // 過去＝開催日が今日より前、または既に完了したラウンド（もう終わっている）。
+      // 日付が未設定でも、完了しているものは過去として表示する（例：日付情報が欠けた
+      // 完了コンペも「過去」で確実に出す）。
+      const isPastDate = ms !== null && ms < todayMs;
+      if (!isPastDate && r.status !== 'completed') return false;
     } else if (filterPeriod === 'thisWeek') {
       if (ms === null) return false;
       if (ms < todayMs || ms > weekEndMs) return false;
@@ -150,7 +153,9 @@ export default function SearchPage() {
   }, [rounds, filterCourse, filterCompOnly, filterGender, filterBeginnerOnly, filterArea, filterPeriod, filterStatus, filterHasSpots, filterPriceMax, keyword, sortBy, me?.gender]);
 
   const filteredUndecided = useMemo(() => {
-    if (filterPeriod === 'past' || filterPeriod === 'thisWeek' || filterPeriod === 'thisMonth') return [];
+    // 日付が厳密な「今週／今月」だけ日程未定を除外。全期間・今日以降・過去では、日付未設定の
+    // ラウンド（例：完了したが日付情報が欠けたコンペ）も条件に合えば表示する。
+    if (filterPeriod === 'thisWeek' || filterPeriod === 'thisMonth') return [];
     return rounds.filter((r) => matches(r) && !r.date)
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   // eslint-disable-next-line react-hooks/exhaustive-deps
