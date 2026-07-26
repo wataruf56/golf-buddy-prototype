@@ -18,6 +18,7 @@ export const metadata: Metadata = {
   description: 'ゴル友マッチングとAIスイング解析が一つになったLINEアプリ。ゴルフ版MBTIの16タイプ性格診断で同年代のゴルファーと一緒にラウンドを回ろう。',
   manifest: '/manifest.json',
   appleWebApp: { capable: true, statusBarStyle: 'default', title: 'ゴルトモ' },
+  verification: { google: 'wvbjf_-RpkgDVPZeiDYkIjvqAfvsFe9bQMEaiya3jN4' },
   openGraph: {
     type: 'website',
     siteName: 'ゴルトモ',
