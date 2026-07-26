@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMeId } from '@/lib/session';
-import { db } from '@/lib/db';
-import { getSession, saveSession, membersOfPair, notifyRematch } from '@/lib/rematch';
+import { getSession, saveSession, membersOfPair } from '@/lib/rematch';
 
 // POST /api/rematch/[pairId]/party  body: { sizes: string[] }  ('2'|'3'|'4')
-// 再会の「希望人数」（2サム/3サム/フォーサム。複数可＝〜でもいい）を自分側に保存し、
-// 相手へ通知＋2人のDMに設定内容を投稿する（画面内チャットに履歴として残る）。
+// 再会の「希望人数」（2サム/3サム/フォーサム。複数可＝〜でもいい）を自分側に「黙って保存」する。
+// チャット投稿も通知も出さない（相手は再会画面のグレー表示で確認できる）。
 const noStore = { 'Cache-Control': 'no-store' };
-const SIZE_LABEL: Record<string, string> = { '2': '2サム', '3': '3サム', '4': 'フォーサム' };
-const labelOf = (sizes: string[]) =>
-  ['2', '3', '4'].filter((s) => sizes.includes(s)).map((s) => SIZE_LABEL[s]).join('・') || '指定なし';
 
 export async function POST(req: NextRequest, { params }: { params: { pairId: string } }) {
   const meId = await getMeId();
@@ -31,23 +27,7 @@ export async function POST(req: NextRequest, { params }: { params: { pairId: str
   const isA = s.userA === meId;
   await saveSession(pairId, { [isA ? 'partyPrefA' : 'partyPrefB']: sizes } as any);
 
-  const otherId = isA ? s.userB : s.userA;
-  const label = labelOf(sizes);
-  const me = await db.getUser(meId);
-  const myName = me?.displayName || '相手';
-  const link = `/rematch/${pairId}`;
-
-  // 希望が入ったときだけ相手へ通知（未読バッジ／お知らせ）する。チャットには投稿しない
-  // （選択のたびにDMが埋もれるのを防ぐ）。
-  if (sizes.length > 0) {
-    const n = {
-      inApp: `${myName}さんが再会の希望人数を送りました（${label}）`,
-      line: `${myName}さんが再会の希望人数を送りました（${label}）`,
-      webTitle: '再会の希望人数',
-      webBody: `${myName}さん：${label}`,
-    };
-    await notifyRematch(otherId, n, link);
-  }
-
+  // 希望人数も「黙って保存」する。チャット投稿も通知も出さない（相手は再会画面のグレー表示で
+  // 確認できる）。日程の「候補日を送る」「この日で決定」は従来どおり通知する。
   return NextResponse.json({ ok: true, myParty: sizes }, { headers: noStore });
 }

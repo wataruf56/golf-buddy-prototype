@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMeId } from '@/lib/session';
-import { db } from '@/lib/db';
-import { getSession, saveSession, membersOfPair, notifyRematch } from '@/lib/rematch';
-import { MEET_KEYS, meetLabelOf } from '@/lib/meetOptions';
+import { getSession, saveSession, membersOfPair } from '@/lib/rematch';
+import { MEET_KEYS } from '@/lib/meetOptions';
 
 // POST /api/rematch/[pairId]/meet  body: { types: string[] }  (lib/meetOptions の key)
 // 「会い方」の希望（二人でラウンド/カフェ/ご飯 など。複数可＝〜でもいい）を自分側に保存し、
@@ -30,23 +29,8 @@ export async function POST(req: NextRequest, { params }: { params: { pairId: str
   const isA = s.userA === meId;
   await saveSession(pairId, { [isA ? 'meetPrefA' : 'meetPrefB']: types } as any);
 
-  const otherId = isA ? s.userB : s.userA;
-  const label = meetLabelOf(types);
-  const me = await db.getUser(meId);
-  const myName = me?.displayName || '相手';
-  const link = `/rematch/${pairId}`;
-
-  // 希望が入ったときだけ相手へ通知（未読バッジ／お知らせ）する。チャットには投稿しない
-  // （選択のたびにDMが埋もれるのを防ぐ。相手はこの通知で「更新があった」と気づく）。
-  if (types.length > 0) {
-    const n = {
-      inApp: `${myName}さんが会い方の希望を送りました（${label}）`,
-      line: `${myName}さんが会い方の希望を送りました（${label}）`,
-      webTitle: '会い方の希望',
-      webBody: `${myName}さん：${label}`,
-    };
-    await notifyRematch(otherId, n, link);
-  }
-
+  // 会い方の希望は「黙って保存」する。チャット投稿も通知（お知らせ／LINE/Web push）も出さない。
+  // 相手は再会画面を開いたときに、グレー表示で相手の選択を確認できる（低頻度の希望共有のため
+  // 都度の通知は不要、という方針）。日程の「候補日を送る」「この日で決定」は従来どおり通知する。
   return NextResponse.json({ ok: true, myMeet: types }, { headers: noStore });
 }
