@@ -65,6 +65,7 @@ function Inner() {
   }
 
   const items = [
+    { href: `/admin/analytics?token=${token}`, emoji: '📈', title: 'アクセス分析', desc: '登録者数の推移 / 時間帯別アクセス / カレンダー（日付タップで時間帯別）' },
     { href: `/admin/activity?token=${token}`, emoji: '📈', title: '利用状況レポート', desc: 'アクティブユーザー / 操作ログ / スイング解析の利用状況' },
     { href: `/admin/lp?token=${token}`, emoji: '📊', title: 'LP診断レポート', desc: '来訪 / 診断ファネル / 結果タイプ / 興味シグナル需要プール' },
     { href: `/admin/users?token=${token}`, emoji: '👥', title: 'ユーザー管理', desc: 'LINE登録ユーザー一覧 / Swing許可リスト編集' },
