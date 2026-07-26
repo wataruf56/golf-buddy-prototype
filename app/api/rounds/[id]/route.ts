@@ -12,8 +12,12 @@ const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 // via a shared link before completing profile registration — bootstrap's
 // cohort filter would otherwise leave their store.rounds empty).
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  const round = await db.getRound(params.id);
-  if (!round) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  const stored = await db.getRound(params.id);
+  if (!stored) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  // 組み分け希望は主催者のみ集計閲覧可。閲覧者に応じて groupPrefs を絞る。
+  const viewerId = await getMeId();
+  const { stripGroupPrefsForViewer } = await import('@/lib/roundView');
+  const round = stripGroupPrefsForViewer(stored, viewerId);
   // isOfficial is an explicit stored flag now (admin-toggled), passed as-is.
   const userIds = new Set<string>([round.hostId]);
   for (const a of round.applicantIds || []) userIds.add(a);

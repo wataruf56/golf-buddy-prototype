@@ -12,6 +12,7 @@ import { chatIdFor, formatDate, ratingLabel, carLabel, priceLabelForGender, isSp
 import { levelConditionLabel } from '@/lib/roundEligibility';
 import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
 import { GroupAssignment } from '@/components/GroupAssignment';
+import { GroupPrefs } from '@/components/GroupPrefs';
 import { HostNote } from '@/components/HostNote';
 import { CarDispatch } from '@/components/CarDispatch';
 import { PickupStationPicker } from '@/components/PickupStationPicker';
@@ -832,7 +833,11 @@ export default function RoundDetailPage() {
         {tab === 'groups' && (
           <>
             {isComp && (isHost || isApproved) ? (
-              <GroupAssignment round={round} users={users as User[]} isHost={isHost} />
+              <>
+                {/* 組み分け希望：主催者は集計、参加者は自分の希望入力。 */}
+                {meId && <GroupPrefs round={round} users={users as User[]} meId={meId} isHost={isHost} />}
+                <GroupAssignment round={round} users={users as User[]} isHost={isHost} />
+              </>
             ) : (
               <div className="text-center text-sub text-sm py-8 leading-relaxed">
                 組み分け（スタート時間・コース）は、<br />5人以上のコンペ・イベントで<br />主催者・参加者が使えます。

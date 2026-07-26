@@ -148,6 +148,12 @@ export async function GET() {
   let notifications: any[] = [];
   try { const { listNotifications } = await import('@/lib/notifications'); notifications = await listNotifications(meId, 30); } catch {}
 
+  // 組み分け希望（groupPrefs）は主催者のみ集計閲覧可。閲覧者以外の希望は落とす。
+  try {
+    const { stripGroupPrefsForViewer } = await import('@/lib/roundView');
+    rounds = rounds.map((r) => stripGroupPrefsForViewer(r, meId));
+  } catch { /* 失敗時はそのまま（万一でも致命的でない） */ }
+
   return NextResponse.json({
     ok: true, meId, me, users: safeUsers, rounds, pendingReviews, chats, buddyIds, roundChatActivity, banned, restrictions, isAdmin, notifications,
     isTestAccount: isTestMe, featureFlags,
