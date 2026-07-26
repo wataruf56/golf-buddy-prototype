@@ -33,6 +33,17 @@ const DEFAULT_TITLE_PRESETS = [
   '気軽にゴルフ仲間募集',
 ];
 
+// 飲み会（eventType='drink'）用のタイトル定型文。
+const DRINK_TITLE_PRESETS = [
+  'ゴルフ好きで集まって飲もう！',
+  'ラウンド後の打ち上げ🍻',
+  'ゴルフ談義しながら飲み会',
+  'ゆるっと親睦会',
+  '初参加歓迎！飲み会',
+  '同世代でわいわい飲み会',
+  'コンペのお疲れ会',
+];
+
 export default function CreatePage() {
   const router = useRouter();
   const meId = useStore((s) => s.meId);
@@ -45,6 +56,10 @@ export default function CreatePage() {
   // ピックアップ可否（必須で選択）。'' = 未選択 / 'yes' = 送迎できる / 'no' = しない。
   const [pickupMode, setPickupMode] = useState<'' | 'yes' | 'no'>('');
   const [type, setType] = useState<RoundType>('confirmed');
+  // イベント種別。'golf' = 通常のラウンド募集 / 'drink' = 飲み会など（コース・送迎・レビュー無し）。
+  const [eventType, setEventType] = useState<'golf' | 'drink'>('golf');
+  // 飲み会の会場（店名やエリアの自由記述・任意）。
+  const [venue, setVenue] = useState('');
   // Admin-only (福田渉): post as ゴルトモ公式 or as personal account.
   const [postAsOfficial, setPostAsOfficial] = useState<boolean>(false);
 
@@ -197,40 +212,58 @@ export default function CreatePage() {
   timeSlots.push('24:00'); // ナイター対応（深夜0時まで選択可）
 
   function chooseType(t: RoundType) {
+    setEventType('golf');
     setType(t);
+    setTab('basic');
+    setStep('form');
+  }
+  // 飲み会を企画：コース・送迎・レビュー無しのシンプル募集。
+  function chooseDrink() {
+    setEventType('drink');
+    setType('confirmed');   // 内部的には日付固定イベント扱い
+    setDateType('fixed');
+    setPickupMode('no');    // 送迎の概念なし（必須チェックを通すため）
+    setStartTime('19:00');  // 飲み会の既定開始時刻
+    setTab('basic');
     setStep('form');
   }
 
   async function publish() {
     // 必須チェック（タブで抜け漏れが起きないよう、足りないタブへ切り替えて知らせる）。
-    const basicMissing = type === 'confirmed'
-      ? (!courseName.trim() || !area || !date)
-      : (!area || (dateType === 'fixed' ? !date : !dateRange.trim()));
+    const isDrink = eventType === 'drink';
+    const basicMissing = isDrink
+      ? !date                                   // 飲み会は日付だけ必須（場所・エリア・時間は任意）
+      : type === 'confirmed'
+        ? (!courseName.trim() || !area || !date)
+        : (!area || (dateType === 'fixed' ? !date : !dateRange.trim()));
     if (basicMissing) {
-      toast('募集内容の必須項目（コース／エリア／日程）を入力してください', 'error');
+      toast(isDrink ? '開催日を入力してください' : '募集内容の必須項目（コース／エリア／日程）を入力してください', 'error');
       setTab('basic'); return;
     }
     if (maxSpots < 2) {
       toast('募集人数を入力してください', 'error');
       setTab('count'); return;
     }
-    if (pickupMode === '') {
+    // 飲み会はピックアップ（送迎）の概念がないのでチェックしない。
+    if (!isDrink && pickupMode === '') {
       toast('ピックアップ（送迎）の可否を選んでください', 'error');
       setTab('pickup'); return;
     }
     // 内訳(自分含む全体) → 実募集枠へ変換して送信（保存データの意味は従来どおり）。
     const rSlots = recruitmentSlots();
-    const offerPickup = pickupMode === 'yes';
+    const offerPickup = !isDrink && pickupMode === 'yes';
     const payload = {
-      title: title || (type === 'confirmed' ? 'ラウンド募集' : 'コース未定の募集'),
-      type,
-      courseName: type === 'confirmed' ? courseName : undefined,
+      eventType,
+      title: title || (isDrink ? '飲み会' : type === 'confirmed' ? 'ラウンド募集' : 'コース未定の募集'),
+      type: isDrink ? 'confirmed' : type,
+      courseName: !isDrink && type === 'confirmed' ? courseName : undefined,
+      venue: isDrink && venue.trim() ? venue.trim() : undefined,
       area: area || undefined,
-      dateType: (type === 'confirmed' ? 'fixed' : dateType) as 'fixed' | 'range',
-      date: type === 'confirmed' ? date : (dateType === 'fixed' ? date : undefined),
-      dateRange: type === 'flexible' && dateType === 'range' ? dateRange : undefined,
-      startTime: type === 'confirmed' ? startTime : undefined,
-      meetingInfo: type === 'confirmed' && meetingInfo.trim() ? meetingInfo.trim() : undefined,
+      dateType: (isDrink || type === 'confirmed' ? 'fixed' : dateType) as 'fixed' | 'range',
+      date: isDrink ? date : (type === 'confirmed' ? date : (dateType === 'fixed' ? date : undefined)),
+      dateRange: !isDrink && type === 'flexible' && dateType === 'range' ? dateRange : undefined,
+      startTime: isDrink ? (startTime || undefined) : (type === 'confirmed' ? startTime : undefined),
+      meetingInfo: !isDrink && type === 'confirmed' && meetingInfo.trim() ? meetingInfo.trim() : undefined,
       maxSpots,
       externalMale,
       externalFemale,
@@ -377,6 +410,24 @@ export default function CreatePage() {
             </div>
           </button>
 
+          {/* ゴルフ以外：飲み会などの集まり（コース・送迎・レビュー無し） */}
+          <div className="text-[13px] text-sub mt-5 mb-3">ゴルフ以外の集まり</div>
+          <button
+            onClick={chooseDrink}
+            className="w-full text-left bg-card rounded-card p-5 shadow-card mb-3 border-2 border-orange-light"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-14 h-14 rounded-2xl bg-orange-light flex items-center justify-center text-3xl">
+                🍻
+              </div>
+              <div className="flex-1">
+                <div className="text-base font-black">飲み会・親睦会を企画</div>
+                <div className="text-xs text-sub mt-1">ゴルフ場なしでOK。場所・日時・会費で募集</div>
+              </div>
+              <div className="text-xl text-muted">›</div>
+            </div>
+          </button>
+
           <div className="bg-yellow-light rounded-xl p-3.5 mt-2">
             <div className="text-xs font-bold text-orange mb-1">💡 5人以上の募集について</div>
             <div className="text-[11px] text-sub leading-relaxed">5〜50人の募集はコンペ・イベント扱いとなり、専用デザインで表示されます</div>
@@ -388,6 +439,8 @@ export default function CreatePage() {
   }
 
   const isConfirmed = type === 'confirmed';
+  const isDrink = eventType === 'drink';
+  const activeTitlePresets = isDrink ? DRINK_TITLE_PRESETS : titlePresets;
 
   return (
     <>
@@ -395,7 +448,7 @@ export default function CreatePage() {
         <button onClick={() => setStep('select')} className="text-sm text-blue font-semibold">← タイプ選択へ</button>
       </div>
       <div className="px-5 pt-2 pb-4 text-2xl font-black">
-        {isConfirmed ? '⛳ コース予約済みで募集' : '🗺️ コース未定で募集'}
+        {isDrink ? '🍻 飲み会・親睦会を企画' : isConfirmed ? '⛳ コース予約済みで募集' : '🗺️ コース未定で募集'}
       </div>
 
       <div className="px-5">
@@ -407,9 +460,11 @@ export default function CreatePage() {
             </div>
           )}
 
-          {/* セクション切り替えタブ（募集内容／募集人数／ピックアップ） */}
+          {/* セクション切り替えタブ（募集内容／募集人数／ピックアップ）。飲み会は送迎タブなし。 */}
           <div className="flex gap-1 mb-4 bg-bg rounded-xl p-1">
-            {([['basic', '募集内容'], ['count', '募集人数'], ['pickup', 'ピックアップ']] as const).map(([k, label]) => (
+            {(isDrink
+              ? ([['basic', '内容'], ['count', '募集人数']] as const)
+              : ([['basic', '募集内容'], ['count', '募集人数'], ['pickup', 'ピックアップ']] as const)).map(([k, label]) => (
               <button
                 key={k}
                 type="button"
@@ -426,7 +481,7 @@ export default function CreatePage() {
           <>
           <Field label="タイトル">
             <select
-              value={titleFree ? '__free__' : (titlePresets.includes(title) ? title : (title ? '__free__' : ''))}
+              value={titleFree ? '__free__' : (activeTitlePresets.includes(title) ? title : (title ? '__free__' : ''))}
               onChange={(e) => {
                 const v = e.target.value;
                 if (v === '__free__') { setTitleFree(true); setTitle(''); }
@@ -435,10 +490,10 @@ export default function CreatePage() {
               className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
             >
               <option value="">選択してください</option>
-              {titlePresets.map((t) => <option key={t} value={t}>{t}</option>)}
+              {activeTitlePresets.map((t) => <option key={t} value={t}>{t}</option>)}
               <option value="__free__">✏️ 自由入力</option>
             </select>
-            {(titleFree || (title && !titlePresets.includes(title))) && (
+            {(titleFree || (title && !activeTitlePresets.includes(title))) && (
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value.slice(0, 60))}
@@ -449,7 +504,30 @@ export default function CreatePage() {
             )}
           </Field>
 
-          {isConfirmed ? (
+          {isDrink ? (
+            <>
+              <Field label="場所（店名・エリアなど）" hint="（任意・「未定」でもOK）">
+                <input value={venue} onChange={(e) => setVenue(e.target.value.slice(0, 60))} placeholder="例: 新宿の居酒屋 / 未定（あとで決める）" className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+              </Field>
+              <Field label="エリア" hint="（任意）">
+                <select value={area} onChange={(e) => setArea(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none">
+                  <option value="">選択しない</option>
+                  {allAreas.map((a) => <option key={a}>{a}</option>)}
+                </select>
+              </Field>
+              <Field label="開催日" required>
+                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full min-w-0 max-w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none appearance-none" style={{ boxSizing: 'border-box' }} />
+              </Field>
+              <Field label="開始時間" hint="（任意）">
+                <select value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none">
+                  {timeSlots.map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </Field>
+              <Field label="会費の目安" hint="（任意）">
+                <input value={price} onChange={(e) => setPrice(e.target.value.slice(0, 40))} placeholder="例: ¥4,000〜5,000 / 割り勘" className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+              </Field>
+            </>
+          ) : isConfirmed ? (
             <>
               <Field label="ゴルフ場名" required>
                 <input value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="例: 湘南カントリークラブ" className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
@@ -630,7 +708,7 @@ export default function CreatePage() {
             onClick={publish}
             className={cn('w-full py-4 rounded-xl text-[15px] font-bold text-white', isComp ? 'bg-orange' : 'bg-green')}
           >
-            {isComp ? '🏆 コンペ募集を公開する' : '募集を公開する'}
+            {isDrink ? (isComp ? '🍻 飲み会を公開する（5人以上）' : '🍻 飲み会を公開する') : isComp ? '🏆 コンペ募集を公開する' : '募集を公開する'}
           </button>
         </div>
       </div>

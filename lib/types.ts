@@ -71,14 +71,23 @@ export type ScoreEntry = { score: number; date: string };
 export type RoundType = 'confirmed' | 'flexible';
 export type DateType = 'fixed' | 'range';
 export type RoundStatus = 'open' | 'closed' | 'completed';
+// イベント種別。'golf' = 通常のゴルフラウンド（既定・未設定は golf 扱い）。
+// 'drink' = 飲み会などゴルフ以外の集まり。ゴルフ場・組み分け・送迎・スコア・
+// 相互レビュー/再会エンジンは使わず、場所(任意)/日時/会費/定員だけで募集する。
+export type EventType = 'golf' | 'drink';
 
 export type Round = {
   id: string;
   hostId: string;
   hostCohort?: 'a' | 'b';        // 'a' = 20s/30s, 'b' = 40s/50s. Stamped at creation time.
   title: string;
+  // 未設定の既存データは 'golf' とみなす（後方互換）。
+  eventType?: EventType;
   type: RoundType;
   courseName?: string;
+  // 飲み会(eventType='drink')の会場（店名やエリアの自由記述・任意「未定」OK）。
+  // ゴルフの courseName に相当する表示用フィールド。
+  venue?: string;
   area?: string;
   dateType: DateType;
   date?: string;

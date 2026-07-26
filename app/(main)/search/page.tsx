@@ -8,12 +8,14 @@ import type { Round } from '@/lib/types';
 import { cn, priceValueForGender } from '@/lib/utils';
 
 type Period = 'all' | 'upcoming' | 'past' | 'thisWeek' | 'thisMonth';
+type CategoryFilter = 'all' | 'golf' | 'drink';
 type CourseFilter = 'all' | 'confirmed' | 'flexible';
 type StatusFilter = 'all' | 'open' | 'closed' | 'completed';
 type GenderFilter = 'all' | 'male' | 'female' | 'mixed';
 type SortBy = 'date' | 'createdAt';
 
 type Filters = {
+  category: CategoryFilter;
   course: CourseFilter; compOnly: boolean; gender: GenderFilter; area: string;
   period: Period; status: StatusFilter; hasSpots: boolean; beginnerOnly: boolean; priceMax: string;
   keyword: string; sortBy: SortBy;
@@ -21,6 +23,7 @@ type Filters = {
 // 初期状態：詳細フィルターは閉じ、「募集中」かつ「今日以降」のみ表示。
 // 過去の日付は period='past'（または全期間）を選んだ時だけ表示される。
 const defaultFilters: Filters = {
+  category: 'all',
   course: 'all', compOnly: false, gender: 'all', area: 'all',
   period: 'upcoming', status: 'open', hasSpots: false, beginnerOnly: false, priceMax: '',
   keyword: '', sortBy: 'date', // 初期は開催日の昇順（公式コンペ等の優先なし）
@@ -49,6 +52,7 @@ export default function SearchPage() {
   const [open, setOpen] = useState(false); // 初期は詳細フィルターを閉じる
 
   // Convenience getters for applied filters (used by matches/sort below)
+  const filterCategory = applied.category;
   const filterCourse = applied.course;
   const filterCompOnly = applied.compOnly;
   const filterGender = applied.gender;
@@ -74,8 +78,13 @@ export default function SearchPage() {
   function matches(r: Round): boolean {
     // Status
     if (filterStatus !== 'all' && r.status !== filterStatus) return false;
-    // Course type
-    if (filterCourse !== 'all' && r.type !== filterCourse) return false;
+    // Category（ゴルフ / 飲み会）。未設定の既存データは golf 扱い。
+    if (filterCategory !== 'all') {
+      const cat = r.eventType === 'drink' ? 'drink' : 'golf';
+      if (cat !== filterCategory) return false;
+    }
+    // Course type（飲み会には適用しない）
+    if (filterCourse !== 'all' && r.eventType !== 'drink' && r.type !== filterCourse) return false;
     // Scale
     if (filterCompOnly && r.maxSpots < 5) return false;
     // 初心者歓迎（初心者OKの募集のみ）
@@ -94,7 +103,7 @@ export default function SearchPage() {
     }
     // Area
     if (filterArea !== 'all') {
-      const inArea = r.area === filterArea || r.courseName?.includes(filterArea);
+      const inArea = r.area === filterArea || r.courseName?.includes(filterArea) || r.venue?.includes(filterArea);
       if (!inArea) return false;
     }
     // Has-spots
@@ -127,7 +136,7 @@ export default function SearchPage() {
     // Keyword
     if (keyword.trim()) {
       const k = keyword.trim().toLowerCase();
-      const hay = [r.title, r.area, r.courseName, r.description, r.dateRange].filter(Boolean).join(' ').toLowerCase();
+      const hay = [r.title, r.area, r.courseName, r.venue, r.description, r.dateRange].filter(Boolean).join(' ').toLowerCase();
       if (!hay.includes(k)) return false;
     }
     return true;
@@ -150,7 +159,7 @@ export default function SearchPage() {
     }
     return list;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rounds, filterCourse, filterCompOnly, filterGender, filterBeginnerOnly, filterArea, filterPeriod, filterStatus, filterHasSpots, filterPriceMax, keyword, sortBy, me?.gender]);
+  }, [rounds, filterCategory, filterCourse, filterCompOnly, filterGender, filterBeginnerOnly, filterArea, filterPeriod, filterStatus, filterHasSpots, filterPriceMax, keyword, sortBy, me?.gender]);
 
   const filteredUndecided = useMemo(() => {
     // 日付が厳密な「今週／今月」だけ日程未定を除外。全期間・今日以降・過去では、日付未設定の
@@ -159,7 +168,7 @@ export default function SearchPage() {
     return rounds.filter((r) => matches(r) && !r.date)
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rounds, filterCourse, filterCompOnly, filterGender, filterBeginnerOnly, filterArea, filterPeriod, filterStatus, filterHasSpots, filterPriceMax, keyword, me?.gender]);
+  }, [rounds, filterCategory, filterCourse, filterCompOnly, filterGender, filterBeginnerOnly, filterArea, filterPeriod, filterStatus, filterHasSpots, filterPriceMax, keyword, me?.gender]);
 
   const total = filteredFixed.length + filteredUndecided.length;
 
@@ -191,6 +200,19 @@ export default function SearchPage() {
 
         {open && (
           <div className="bg-card border border-border rounded-xl p-4 mb-2 space-y-4">
+            <FilterGroup label="種別">
+              <Chips
+                options={[
+                  { id: 'all', label: 'すべて' },
+                  { id: 'golf', label: '⛳ ゴルフ' },
+                  { id: 'drink', label: '🍻 飲み会' },
+                ]}
+                value={draft.category}
+                onChange={(v) => patch('category', v as CategoryFilter)}
+                color="orange"
+              />
+            </FilterGroup>
+
             <FilterGroup label="期間">
               <Chips
                 options={[

@@ -13,11 +13,15 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
   const me = useStore(getMe);
   const hasUnread = unreadRoundIds.has(round.id);
   const isComp = round.maxSpots >= 5;
+  const isDrink = round.eventType === 'drink';
   const dateLabel = round.dateType === 'range' ? round.dateRange : formatDate(round.date);
-  const placeLabel = round.type === 'confirmed'
-    ? `${round.courseName || ''}${round.area ? `（${round.area}）` : ''}`
-    : round.area;
-  const placeIcon = round.type === 'confirmed' ? '⛳' : '📍';
+  const placeLabel = isDrink
+    ? `${round.venue || ''}${round.venue && round.area ? '（' + round.area + '）' : round.area || ''}`
+    : round.type === 'confirmed'
+      ? `${round.courseName || ''}${round.area ? `（${round.area}）` : ''}`
+      : round.area;
+  const placeIcon = isDrink ? '🍻' : round.type === 'confirmed' ? '⛳' : '📍';
+  const placeFallback = isDrink ? '場所未定' : round.type === 'confirmed' ? 'コース調整中' : 'コース未定';
   const pickup = round.pickupStations || [];
   // 費用は閲覧者の性別に応じて表示（男女別料金が設定されている場合）。
   const priceLabel = priceLabelForGender(round, me?.gender);
@@ -42,12 +46,15 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
     >
       {/* 満員は中身をグレーアウト＋「満員」を中央に大きく重ねる。背後は通常の投稿。 */}
       <div className={isFull ? 'grayscale opacity-40' : ''}>
-      {(round.isOfficial || isComp || (round.pendingApplicantIds || []).length > 0 || hasUnread) && (
+      {(round.isOfficial || isComp || isDrink || (round.pendingApplicantIds || []).length > 0 || hasUnread) && (
         <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
           {round.isOfficial && (
             <span className="inline-flex items-center gap-1 px-2 py-[2px] rounded-full text-[10px] font-black bg-green text-white">✓ ゴルトモ公式</span>
           )}
-          {isComp && (
+          {isDrink && (
+            <span className="inline-flex items-center gap-1 px-2 py-[2px] rounded-full text-[10px] font-bold bg-orange text-white">🍻 飲み会</span>
+          )}
+          {isComp && !isDrink && (
             <span className="inline-flex items-center gap-1 px-2 py-[2px] rounded-full text-[10px] font-bold bg-orange text-white">🏆 コンペ</span>
           )}
           {(round.pendingApplicantIds || []).length > 0 && (
@@ -61,7 +68,7 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
 
       {/* 日付 → コース名（県）→ タイトル（金額は男女比の行の左に表示） */}
       <div className="text-[14px] font-black">📅 {dateLabel}</div>
-      <div className="text-[12px] font-bold text-sub mt-0.5">{placeIcon} {placeLabel || (round.type === 'confirmed' ? 'コース調整中' : 'コース未定')}</div>
+      <div className="text-[12px] font-bold text-sub mt-0.5">{placeIcon} {placeLabel || placeFallback}</div>
       <div className="text-[14px] font-black leading-snug mt-0.5">{round.title}</div>
 
       {/* ピックアップ（あれば1行で簡潔に） */}

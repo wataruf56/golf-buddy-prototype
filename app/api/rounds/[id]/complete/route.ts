@@ -20,6 +20,13 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   }
 
   const { round: updatedRound, pendingForUser } = await db.completeRound(params.id);
+
+  // 飲み会（eventType='drink'）は相互レビュー/再会エンジンを持たない。完了として
+  // 記録するだけで、pendingレビューの生成もレビュー依頼通知も行わない。
+  if (updatedRound.eventType === 'drink') {
+    return NextResponse.json({ ok: true });
+  }
+
   // 同組の全員ぶんの pending を作る。以前は「既に again/romantic 済みの相手」を
   // スキップしていたが、レビュー画面で「過去に押した状態」で再表示し、外せば解除
   // できるようにするため、スキップせず全員ぶん作る（クライアント側で現在のlike状態を

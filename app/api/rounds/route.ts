@@ -56,12 +56,18 @@ export async function POST(req: NextRequest) {
     spotsAny === 0 && spotsFemale === 0 && spotsMale > 0 ? 'male'
     : spotsAny === 0 && spotsMale === 0 && spotsFemale > 0 ? 'female'
     : 'any';
+  // イベント種別。'drink' の場合はゴルフ場/組み分け/送迎/レビューを持たない飲み会募集。
+  const eventType: 'golf' | 'drink' = body.eventType === 'drink' ? 'drink' : 'golf';
+  const isDrink = eventType === 'drink';
   const round: Omit<Round, 'id'> = {
     hostId: meId,
     hostCohort: cohort,
     title: body.title,
-    type: body.type,
-    courseName: body.courseName,
+    eventType,
+    // 飲み会はコース確定/未定の概念がないので、内部的には 'confirmed'（日付固定）として扱う。
+    type: isDrink ? 'confirmed' : body.type,
+    courseName: isDrink ? undefined : body.courseName,
+    venue: isDrink && body.venue ? String(body.venue).slice(0, 60) : undefined,
     area: body.area,
     dateType: body.dateType,
     date: body.date,
@@ -79,19 +85,19 @@ export async function POST(req: NextRequest) {
     // 男女別料金（両方あるときだけ有効）。
     priceMale: body.priceMale ? String(body.priceMale).slice(0, 40) : undefined,
     priceFemale: body.priceFemale ? String(body.priceFemale).slice(0, 40) : undefined,
-    beginnerOnly,
+    beginnerOnly: isDrink ? false : beginnerOnly,
     genderCondition,
     // Derive the display label from the structured fields so older list/card
     // UIs that only read levelCondition still show the right thing.
     levelCondition: levelConditionLabel({ beginnerOnly, genderCondition, levelCondition: '' }),
     description: body.description,
     meetingInfo: body.meetingInfo ? String(body.meetingInfo).slice(0, 200) : undefined,
-    pickupStations: Array.isArray(body.pickupStations)
+    pickupStations: isDrink ? undefined : (Array.isArray(body.pickupStations)
       ? body.pickupStations.map((x: any) => String(x).slice(0, 20)).slice(0, 20)
-      : undefined,
-    pickupCapacity: typeof body.pickupCapacity === 'number' && body.pickupCapacity > 0
-      ? Math.min(8, Math.floor(body.pickupCapacity)) : undefined,
-    pickupOffered: typeof body.pickupOffered === 'boolean' ? body.pickupOffered : undefined,
+      : undefined),
+    pickupCapacity: isDrink ? undefined : (typeof body.pickupCapacity === 'number' && body.pickupCapacity > 0
+      ? Math.min(8, Math.floor(body.pickupCapacity)) : undefined),
+    pickupOffered: isDrink ? false : (typeof body.pickupOffered === 'boolean' ? body.pickupOffered : undefined),
     status: 'open',
     isCompetition: maxSpots >= 5,
     // "ゴルトモ公式" は管理者（福田渉）のみが選択可能。クライアントの申告は

@@ -50,6 +50,8 @@ export async function runRematchNotifier(limit = MAX_PER_TICK): Promise<{ ok: bo
 
   // 完了ラウンドを新しい順に。同一ペアは直近ラウンドを文脈として1回だけ扱う。
   const rounds = (await db.listRounds({ status: 'completed' }))
+    // 飲み会（eventType='drink'）は相互レビュー/再会エンジンの対象外。
+    .filter((r) => r.eventType !== 'drink')
     .filter((r) => (r.completedAt || 0) > 0 && (r.completedAt || 0) <= threshold)
     .sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
 

@@ -173,6 +173,8 @@ export default function RoundDetailPage() {
     && startMs != null && hydrated && Date.now() >= startMs + 6.5 * 3600 * 1000
     && !completionDismissed;
   const isFlexible = round.type === 'flexible';
+  // 飲み会（eventType='drink'）: ゴルフ場・組み分け・送迎・スコア・相互レビューを持たない。
+  const isDrink = round.eventType === 'drink';
   const dateLabel = round.dateType === 'range' ? round.dateRange : formatDate(round.date);
   const canChatGroup = isHost || isApproved;
 
@@ -285,9 +287,12 @@ export default function RoundDetailPage() {
   async function copyShareText() {
     const r = round!;
     const url = `https://app.goltomo.com/round/${r.id}`;
-    const place = r.type === 'confirmed'
-      ? `${r.courseName || 'コース調整中'}${r.area ? `（${r.area}）` : ''}`
-      : (r.area || 'エリア未定');
+    const isDrink = r.eventType === 'drink';
+    const place = isDrink
+      ? (r.venue ? `${r.venue}${r.area ? `（${r.area}）` : ''}` : (r.area || '場所未定'))
+      : r.type === 'confirmed'
+        ? `${r.courseName || 'コース調整中'}${r.area ? `（${r.area}）` : ''}`
+        : (r.area || 'エリア未定');
     const priceStr = priceLabelForGender(r, undefined); // 両性別を併記（受け取る側に合わせて判断できる）
     // 参加人数と男女内訳（主催者＋承認済み参加者＋知り合い枠）。
     let male = r.externalMale || 0;
@@ -298,7 +303,7 @@ export default function RoundDetailPage() {
       else if (u?.gender === 'female') female++;
     }
     const lines = [
-      `⛳ ${r.title}`,
+      `${isDrink ? '🍻' : '⛳'} ${r.title}`,
       `📅 ${dateLabel}${r.startTime ? ` ${r.startTime}` : ''}`,
       `📍 ${place}`,
       priceStr ? `💰 参加費 ${priceStr}` : '',
@@ -331,8 +336,10 @@ export default function RoundDetailPage() {
     catch (e) { toast('削除に失敗しました: ' + (e as Error).message, 'error'); }
   }
   async function complete() {
-    if (!(await confirmDialog('ラウンドを完了しますか？\n参加者全員にレビュー依頼が送られます。'))) return;
-    try { await store.completeRound(round!.id); toast('ラウンド完了'); router.push('/home'); }
+    const drink = round!.eventType === 'drink';
+    const msg = drink ? 'この飲み会を完了にしますか？' : 'ラウンドを完了しますか？\n参加者全員にレビュー依頼が送られます。';
+    if (!(await confirmDialog(msg))) return;
+    try { await store.completeRound(round!.id); toast(drink ? '飲み会を完了しました' : 'ラウンド完了'); router.push('/home'); }
     catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }
   async function approve(userId: string) {
@@ -454,10 +461,13 @@ export default function RoundDetailPage() {
       )}
 
       <div className="bg-card rounded-card p-5 shadow-card">
-        {isComp && (
+        {isDrink && (
+          <span className="inline-block px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-orange text-white mb-3">🍻 飲み会・親睦会</span>
+        )}
+        {isComp && !isDrink && (
           <span className="inline-block px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-orange text-white mb-3">🏆 コンペ・イベント</span>
         )}
-        {isFlexible && (
+        {isFlexible && !isDrink && (
           <span className="inline-block px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-[#EFEFEC] text-sub mb-3 ml-2">📍 コース未定</span>
         )}
         <div className="text-xl font-black mb-4">{round.title}</div>
@@ -469,9 +479,13 @@ export default function RoundDetailPage() {
 
         <div className="grid grid-cols-2 gap-2.5 mb-4">
           <Cell label="日時">{dateLabel} {round.startTime || ''}</Cell>
-          <Cell label={round.type === 'confirmed' ? 'コース' : 'エリア'}>{round.type === 'confirmed' ? round.courseName : round.area}</Cell>
-          <Cell label="レベル">{levelConditionLabel(round)}</Cell>
-          <Cell label="費用目安">{priceLabelForGender(round, me?.gender) || '—'}{isSplitPrice(round) && me?.gender ? <span className="ml-1 text-[9px] text-muted font-bold">（{me.gender === 'female' ? '女性' : '男性'}）</span> : null}</Cell>
+          {isDrink ? (
+            <Cell label="お店・場所">{round.venue || round.area || '未定'}</Cell>
+          ) : (
+            <Cell label={round.type === 'confirmed' ? 'コース' : 'エリア'}>{round.type === 'confirmed' ? round.courseName : round.area}</Cell>
+          )}
+          {!isDrink && <Cell label="レベル">{levelConditionLabel(round)}</Cell>}
+          <Cell label="費用目安">{priceLabelForGender(round, me?.gender) || '—'}{!isDrink && isSplitPrice(round) && me?.gender ? <span className="ml-1 text-[9px] text-muted font-bold">（{me.gender === 'female' ? '女性' : '男性'}）</span> : null}</Cell>
         </div>
 
         {/* 集合場所・集合時間（日時のすぐ下）。主催者が記入していれば表示。 */}
@@ -555,8 +569,8 @@ export default function RoundDetailPage() {
             以前は画面最下部にあり、下までスクロールしないと操作できなかったのを解消。 */}
         {showCompletionPrompt && (
           <div className="bg-green-light border-[1.5px] border-green rounded-card p-4 mb-3">
-            <div className="text-sm font-black mb-1">🏌️ ラウンドは完了しましたか？</div>
-            <div className="text-[12px] text-sub mb-3 leading-relaxed">「完了しました」を押すと、参加者全員に「レビューをお願いします」の通知が届きます。</div>
+            <div className="text-sm font-black mb-1">{isDrink ? '🍻 飲み会は終わりましたか？' : '🏌️ ラウンドは完了しましたか？'}</div>
+            <div className="text-[12px] text-sub mb-3 leading-relaxed">{isDrink ? '「完了しました」を押すと、募集を締めて記録に残します（写真アルバムは引き続き使えます）。' : '「完了しました」を押すと、参加者全員に「レビューをお願いします」の通知が届きます。'}</div>
             <div className="flex gap-2">
               <button onClick={() => setCompletionDismissed(true)} className="flex-1 py-3 bg-card border border-border text-sub rounded-xl text-sm font-bold">まだ</button>
               <button
@@ -578,7 +592,7 @@ export default function RoundDetailPage() {
               <button onClick={() => setConfirmOpen(true)} className="w-full py-4 bg-blue text-white rounded-xl text-[15px] font-bold">📅 コース確定にする</button>
             )}
             {(round.type === 'confirmed' || round.status !== 'open') && (
-              <button onClick={complete} className="w-full py-4 bg-green text-white rounded-xl text-[15px] font-bold">ラウンド完了</button>
+              <button onClick={complete} className="w-full py-4 bg-green text-white rounded-xl text-[15px] font-bold">{isDrink ? '飲み会を完了' : 'ラウンド完了'}</button>
             )}
             <button onClick={deletePost} className="w-full py-3 bg-red-50 text-red-600 border-[1.5px] border-red-300 rounded-xl text-sm font-bold">🗑 投稿を削除</button>
           </div>
@@ -621,8 +635,8 @@ export default function RoundDetailPage() {
         <div className="flex gap-1 mb-4 bg-bg rounded-xl p-1">
           {(([
             ['people', '参加してる人'],
-            ['pickup', 'ピックアップ'],
-            ['groups', '組み分け'],
+            // 飲み会はピックアップ（送迎）・組み分けの概念がないので出さない。
+            ...(isDrink ? [] : [['pickup', 'ピックアップ'], ['groups', '組み分け']]),
             // 「主催者から」はコンペ、または既に連絡が書かれている場合に表示。
             ...((round.isCompetition || round.hostNote) ? [['hostnote', '主催者から']] : []),
             // アルバムは参加者（主催者＋承認済み）だけに表示。
@@ -829,7 +843,8 @@ export default function RoundDetailPage() {
 
       </div>
 
-      {round.status === 'completed' && (isHost || isApproved) && (
+      {/* 飲み会は相互レビュー/マッチング（また回りたい等）を持たない。 */}
+      {!isDrink && round.status === 'completed' && (isHost || isApproved) && (
         <div className="bg-card rounded-card p-4 mb-3 shadow-card">
           <div className="text-sm font-black mb-2">💘 ラウンド後のマッチング</div>
           <MatchPicker roundId={round.id} />
