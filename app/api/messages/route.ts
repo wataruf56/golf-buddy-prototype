@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
-import { pushToResult, liffUrl } from '@/lib/linePush';
+import { pushTo, liffUrl } from '@/lib/linePush';
 import { webPushText } from '@/lib/webPush';
 import { isNotifyEnabled } from '@/lib/notifyPrefs';
 import { isMatchingAllowedByAge } from '@/lib/ageGate';
@@ -55,17 +55,12 @@ export async function POST(req: NextRequest) {
     const { addNotification } = await import('@/lib/notifications');
     if (n.inApp) addNotification(otherUserId, 'dm', n.inApp, dmLink).catch(() => {});
   }
-  // LINE + web push, gated on the recipient's "dm" preference.
-  // 【一時デバッグ】DMのLINE通知が届かない調査のため、pushの実行結果をレスポンスに含めて
-  // 送信者に見えるようにしている（原因特定後に外す）。
-  const dmEnabled = isNotifyEnabled(other as any, 'dm');
-  let dmPush: any = { enabled: dmEnabled, recipient: otherUserId };
-  if (dmEnabled) {
-    const pr = await pushToResult(otherUserId, n.line, liffUrl(dmLink));
-    dmPush = { ...dmPush, ok: pr.ok, status: pr.status, detail: (pr.detail || '').slice(0, 160) };
+  // Fire-and-forget LINE + web push, gated on the recipient's "dm" preference。
+  // ※ LINE公式アカウントの月間配信上限に達すると 429 で失敗する（アカウントのプランで対処）。
+  //   Web push はLINEの上限とは無関係に届く。
+  if (isNotifyEnabled(other as any, 'dm')) {
+    pushTo(otherUserId, n.line, liffUrl(dmLink)).catch(() => {});
     webPushText(otherUserId, n.webTitle, n.webBody, dmLink, `chat-${chatId}`).catch(() => {});
-  } else {
-    dmPush = { ...dmPush, ok: false, reason: 'dm_pref_off_or_master_off', notifyOff: !!(other as any)?.notifyOff, dmPref: (other as any)?.notifyPrefs?.dm };
   }
-  return NextResponse.json({ message, dmPush });
+  return NextResponse.json({ message });
 }

@@ -420,21 +420,10 @@ export const store = {
   },
 
   sendMessage: async (chatId: string, otherUserId: string, text: string, imageUrl?: string) => {
-    const res = await api<{ message: Message; dmPush?: any }>('/api/messages', {
+    const { message } = await api<{ message: Message }>('/api/messages', {
       method: 'POST',
       body: JSON.stringify({ chatId, otherUserId, text, imageUrl }),
     });
-    const message = res.message;
-    // 【一時デバッグ】DMのLINE通知の実行結果を送信者にトースト表示（原因特定用・後で外す）。
-    try {
-      const d = res.dmPush;
-      if (d) {
-        const { toast } = await import('@/components/Toast');
-        if (d.enabled === false) toast(`DM通知OFF（受信者設定）dm=${String(d.dmPref)} 全体OFF=${String(d.notifyOff)}`, 'error');
-        else if (d.ok) toast('DM通知 LINE送信OK ✅');
-        else toast(`DM通知 LINE失敗: ${d.status} ${d.detail || ''}`.slice(0, 90), 'error');
-      }
-    } catch { /* noop */ }
     const preview = text || (imageUrl ? '📷 画像' : '');
     const chats = state.chats.map((c) =>
       c.id === chatId
