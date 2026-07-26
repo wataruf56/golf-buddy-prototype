@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { toast } from '@/components/Toast';
 import { confirmDialog } from '@/components/ConfirmDialog';
 import { resizeImage } from '@/lib/resizeImage';
@@ -124,17 +125,23 @@ export function RoundAlbum({ roundId, meId, isHost }: { roundId: string; meId: s
         </div>
       )}
 
-      {/* 拡大ビュー */}
-      {viewer && (
-        <div className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-4" onClick={() => setViewer(null)}>
-          <img src={viewer} alt="" className="max-w-full max-h-full object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
-          <button className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 text-white text-xl font-black" onClick={() => setViewer(null)}>×</button>
-          <button
-            onClick={(e) => { e.stopPropagation(); savePhoto(viewer); }}
-            disabled={saving}
-            className="absolute bottom-6 left-1/2 -translate-x-1/2 px-5 py-3 bg-white text-black rounded-full text-sm font-black shadow-lg disabled:opacity-60 flex items-center gap-2"
-          >⬇ {saving ? '保存中…' : '写真を保存'}</button>
-        </div>
+      {/* 拡大ビュー（画面全体に確実に出すため body へポータル） */}
+      {viewer && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-black/95 flex flex-col" onClick={() => setViewer(null)}>
+          {/* 上部バー：保存＋閉じる（下部ナビに隠れないよう上に配置） */}
+          <div className="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => savePhoto(viewer)}
+              disabled={saving}
+              className="px-4 py-2.5 bg-white text-black rounded-full text-sm font-black shadow-lg disabled:opacity-60"
+            >⬇ {saving ? '保存中…' : '写真を保存'}</button>
+            <button onClick={() => setViewer(null)} className="w-10 h-10 rounded-full bg-white/20 text-white text-xl font-black">×</button>
+          </div>
+          <div className="flex-1 min-h-0 flex items-center justify-center p-4">
+            <img src={viewer} alt="" className="max-w-full max-h-full object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
+          </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
