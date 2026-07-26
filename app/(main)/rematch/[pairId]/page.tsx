@@ -106,51 +106,47 @@ export default function RematchPage() {
   useEffect(() => { if (chatId && chat) store.markChatRead(chatId); }, [chatId, chat?.messages.length]);
   useEffect(() => { chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight }); }, [chat?.messages.length]);
 
-  async function savePartySizes(sizes: string[]) {
-    setPartyBusy(true);
-    try {
-      const r = await fetch(`/api/rematch/${encodeURIComponent(params.pairId)}/party`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sizes }), cache: 'no-store',
-      });
-      if (!r.ok) throw new Error(String(r.status));
-      if (chatId) store.loadChat(chatId);
-    } catch { toast('希望人数の保存に失敗しました', 'error'); }
-    finally { setPartyBusy(false); }
-  }
-  // ボタンを直接タップで希望人数をトグル。連続タップの通知連打を避けるため、
-  // 少し待ってから1回だけ保存する（デバウンス）。
+  // 希望人数：ボタンはローカル選択のみ（自動保存しない）。下の「送信」で1回だけ保存する。
   function toggleParty(k: string) {
     setPartySel((prev) => {
       const n = new Set(prev);
       if (n.has(k)) n.delete(k); else n.add(k);
-      const sizes = Array.from(n);
-      if (partySaveTimer.current) clearTimeout(partySaveTimer.current);
-      partySaveTimer.current = setTimeout(() => savePartySizes(sizes), 700);
       return n;
     });
   }
-  async function saveMeetTypes(types: string[]) {
-    setMeetBusy(true);
+  async function savePartySizes() {
+    setPartyBusy(true);
     try {
-      const r = await fetch(`/api/rematch/${encodeURIComponent(params.pairId)}/meet`, {
+      const r = await fetch(`/api/rematch/${encodeURIComponent(params.pairId)}/party`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ types }), cache: 'no-store',
+        body: JSON.stringify({ sizes: Array.from(partySel) }), cache: 'no-store',
       });
       if (!r.ok) throw new Error(String(r.status));
-      if (chatId) store.loadChat(chatId);
-    } catch { toast('会い方の保存に失敗しました', 'error'); }
-    finally { setMeetBusy(false); }
+      toast('希望人数を送信しました');
+      await load();
+    } catch { toast('送信に失敗しました', 'error'); }
+    finally { setPartyBusy(false); }
   }
+  // 会い方：同上。ローカル選択のみ→「送信」で保存。
   function toggleMeet(k: string) {
     setMeetSel((prev) => {
       const n = new Set(prev);
       if (n.has(k)) n.delete(k); else n.add(k);
-      const types = Array.from(n);
-      if (meetSaveTimer.current) clearTimeout(meetSaveTimer.current);
-      meetSaveTimer.current = setTimeout(() => saveMeetTypes(types), 700);
       return n;
     });
+  }
+  async function saveMeetTypes() {
+    setMeetBusy(true);
+    try {
+      const r = await fetch(`/api/rematch/${encodeURIComponent(params.pairId)}/meet`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ types: Array.from(meetSel) }), cache: 'no-store',
+      });
+      if (!r.ok) throw new Error(String(r.status));
+      toast('会い方を送信しました');
+      await load();
+    } catch { toast('送信に失敗しました', 'error'); }
+    finally { setMeetBusy(false); }
   }
   async function sendChat(imageUrl?: string) {
     const t = chatText.trim();
@@ -191,6 +187,7 @@ export default function RematchPage() {
   const isRomantic = data.matchKind === 'romantic';
   const theirMeetSet = new Set(data.theirMeet || []);
   const meetOverlap = MEET_OPTIONS.filter((o) => meetSel.has(o.key) && theirMeetSet.has(o.key)).map((o) => o.key);
+  const theirPartySet = new Set(data.theirParty || []);
 
   const inWindow = (k: string) => k >= range.today && k <= range.maxDate;
   function toggle(k: string) {
@@ -277,31 +274,40 @@ export default function RematchPage() {
         <div className="bg-card rounded-card p-3.5 shadow-card mb-4">
           <div className="text-[12px] font-black mb-1">💗 会い方（OKなものを選ぶ・複数OK）</div>
           <div className="text-[11px] text-sub mb-2.5 leading-relaxed">
-            あなたがOKな会い方を選ぶと相手に共有されます。相手も選んだものが「お互いOK」になります。いきなり二人が不安なら、カフェや複数からでも大丈夫。
+            OKな会い方を選んで下の「送信」を押すと相手に共有されます。<b className="text-text">グレー</b>は相手が選んでいるもの、<b style={{ color: '#DB2777' }}>ピンク🤝</b>はお互いOK。いきなり二人が不安なら、カフェや複数からでも大丈夫。
           </div>
-          <div className="grid grid-cols-2 gap-2 mb-2">
+          <div className="grid grid-cols-2 gap-2 mb-2.5">
             {MEET_OPTIONS.map((o) => {
-              const on = meetSel.has(o.key);
-              const bothOk = on && theirMeetSet.has(o.key);
+              const mine = meetSel.has(o.key);
+              const theirs = theirMeetSet.has(o.key);
+              const bothOk = mine && theirs;
               const style: React.CSSProperties = bothOk
                 ? { background: '#EC4899', color: '#fff', borderColor: '#EC4899' }
-                : on
+                : mine
                   ? { background: '#2A8C82', color: '#fff', borderColor: '#2A8C82' }
-                  : {};
+                  : theirs
+                    ? { background: '#E5E5E5', color: '#6b6b6b', borderColor: '#D0D0D0' } // 相手だけ＝グレー
+                    : {};
               return (
                 <button
                   key={o.key}
                   onClick={() => toggleMeet(o.key)}
                   disabled={meetBusy}
                   style={style}
-                  className={'py-2.5 px-2.5 rounded-xl text-[12px] font-bold border-[1.5px] text-left leading-snug disabled:opacity-60 ' + (on ? '' : 'bg-bg border-border text-sub')}
-                >{on ? '✓ ' : ''}{o.emoji} {o.label}{bothOk ? ' 🤝' : ''}</button>
+                  className={'py-2.5 px-2.5 rounded-xl text-[12px] font-bold border-[1.5px] text-left leading-snug disabled:opacity-60 ' + (mine || theirs ? '' : 'bg-bg border-border text-sub')}
+                >{mine ? '✓ ' : ''}{o.emoji} {o.label}{bothOk ? ' 🤝' : theirs && !mine ? '（相手）' : ''}</button>
               );
             })}
           </div>
-          <div className="text-[11px] text-sub leading-relaxed">
-            {other.displayName}さんがOK：<b className="text-text">{meetLabelOf(data.theirMeet)}</b>
+          {/* 凡例 */}
+          <div className="flex items-center gap-3 text-[10px] font-bold text-sub mb-2 flex-wrap">
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#2A8C82' }} />自分</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#E5E5E5', border: '1px solid #D0D0D0' }} />相手</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#EC4899' }} />お互いOK</span>
           </div>
+          <button onClick={saveMeetTypes} disabled={meetBusy} className="w-full py-2.5 bg-pink-600 text-white rounded-xl text-[13px] font-black disabled:opacity-50">
+            {meetBusy ? '送信中…' : `この会い方で送信（${meetSel.size}件）`}
+          </button>
           {meetOverlap.length > 0 && (
             <div
               className="mt-2 rounded-xl p-2.5 text-[11px] font-black leading-relaxed border-[1.5px]"
@@ -313,23 +319,36 @@ export default function RematchPage() {
         </div>
       ) : (
         <div className="bg-card rounded-card p-3.5 shadow-card mb-4">
-          <div className="text-[12px] font-black mb-2">🏌️ 希望人数（何人で回りたい・複数OK）</div>
-          <div className="flex gap-2 mb-2">
+          <div className="text-[12px] font-black mb-1">🏌️ 希望人数（何人で回りたい・複数OK）</div>
+          <div className="text-[11px] text-sub mb-2.5 leading-relaxed">
+            希望を選んで下の「送信」を押すと相手に共有されます。<b className="text-text">グレー</b>は相手が選んでいるもの、<b className="text-green">緑🤝</b>はお互いOK。
+          </div>
+          <div className="flex gap-2 mb-2.5">
             {(['2', '3', '4'] as const).map((k) => {
-              const on = partySel.has(k);
+              const mine = partySel.has(k);
+              const theirs = theirPartySet.has(k);
+              const bothOk = mine && theirs;
+              const style: React.CSSProperties = bothOk
+                ? { background: '#1F6D63', color: '#fff', borderColor: '#1F6D63' }
+                : mine
+                  ? { background: '#2A8C82', color: '#fff', borderColor: '#2A8C82' }
+                  : theirs
+                    ? { background: '#E5E5E5', color: '#6b6b6b', borderColor: '#D0D0D0' }
+                    : {};
               return (
                 <button
                   key={k}
                   onClick={() => toggleParty(k)}
                   disabled={partyBusy}
-                  className={'flex-1 py-2.5 rounded-xl text-[13px] font-bold border-[1.5px] disabled:opacity-60 ' + (on ? 'bg-green text-white border-green' : 'bg-bg border-border text-sub')}
-                >{on ? '✓ ' : ''}{SIZE_LABEL[k]}</button>
+                  style={style}
+                  className={'flex-1 py-2.5 rounded-xl text-[13px] font-bold border-[1.5px] disabled:opacity-60 ' + (mine || theirs ? '' : 'bg-bg border-border text-sub')}
+                >{mine ? '✓ ' : ''}{SIZE_LABEL[k]}{bothOk ? ' 🤝' : theirs && !mine ? '（相手）' : ''}</button>
               );
             })}
           </div>
-          <div className="text-[11px] text-sub leading-relaxed">
-            {other.displayName}さんの希望：<b className="text-text">{partyLabel(data.theirParty)}</b>
-          </div>
+          <button onClick={savePartySizes} disabled={partyBusy} className="w-full py-2.5 bg-green text-white rounded-xl text-[13px] font-black disabled:opacity-50">
+            {partyBusy ? '送信中…' : `この希望人数で送信（${partySel.size}件）`}
+          </button>
         </div>
       )}
 

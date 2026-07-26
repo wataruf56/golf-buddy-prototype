@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMeId } from '@/lib/session';
 import { db } from '@/lib/db';
-import { chatIdFor } from '@/lib/utils';
 import { getSession, saveSession, membersOfPair, notifyRematch } from '@/lib/rematch';
 import { MEET_KEYS, meetLabelOf } from '@/lib/meetOptions';
 
@@ -37,16 +36,12 @@ export async function POST(req: NextRequest, { params }: { params: { pairId: str
   const myName = me?.displayName || '相手';
   const link = `/rematch/${pairId}`;
 
-  // 希望が入ったときだけ通知＋チャット投稿する（クリア時は静かに保存）。
+  // 希望が入ったときだけ相手へ通知（未読バッジ／お知らせ）する。チャットには投稿しない
+  // （選択のたびにDMが埋もれるのを防ぐ。相手はこの通知で「更新があった」と気づく）。
   if (types.length > 0) {
-    try {
-      const participants = [s.userA, s.userB].sort() as [string, string];
-      await db.sendMessage(chatIdFor(s.userA, s.userB), participants, meId, `🤝 会い方の希望：${label}`);
-    } catch { /* チャット投稿失敗は無視 */ }
-
     const n = {
-      inApp: `${myName}さんが会い方の希望を設定しました（${label}）`,
-      line: `${myName}さんが会い方の希望を設定しました（${label}）`,
+      inApp: `${myName}さんが会い方の希望を送りました（${label}）`,
+      line: `${myName}さんが会い方の希望を送りました（${label}）`,
       webTitle: '会い方の希望',
       webBody: `${myName}さん：${label}`,
     };

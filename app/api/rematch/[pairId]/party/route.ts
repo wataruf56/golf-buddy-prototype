@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMeId } from '@/lib/session';
 import { db } from '@/lib/db';
-import { chatIdFor } from '@/lib/utils';
 import { getSession, saveSession, membersOfPair, notifyRematch } from '@/lib/rematch';
 
 // POST /api/rematch/[pairId]/party  body: { sizes: string[] }  ('2'|'3'|'4')
@@ -38,18 +37,12 @@ export async function POST(req: NextRequest, { params }: { params: { pairId: str
   const myName = me?.displayName || '相手';
   const link = `/rematch/${pairId}`;
 
-  // 希望が入ったときだけ通知＋チャット投稿する（クリア時は静かに保存）。
+  // 希望が入ったときだけ相手へ通知（未読バッジ／お知らせ）する。チャットには投稿しない
+  // （選択のたびにDMが埋もれるのを防ぐ）。
   if (sizes.length > 0) {
-    // 2人のDMに履歴として投稿（画面内チャットに出る）。db.sendMessage は自動通知しないので
-    // 別途 notifyRematch で相手にプッシュする。
-    try {
-      const participants = [s.userA, s.userB].sort() as [string, string];
-      await db.sendMessage(chatIdFor(s.userA, s.userB), participants, meId, `🏌️ 希望人数：${label} でお願いします`);
-    } catch { /* チャット投稿失敗は無視 */ }
-
     const n = {
-      inApp: `${myName}さんが再会の希望人数を設定しました（${label}）`,
-      line: `${myName}さんが再会の希望人数を設定しました（${label}）`,
+      inApp: `${myName}さんが再会の希望人数を送りました（${label}）`,
+      line: `${myName}さんが再会の希望人数を送りました（${label}）`,
       webTitle: '再会の希望人数',
       webBody: `${myName}さん：${label}`,
     };
