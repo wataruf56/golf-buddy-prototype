@@ -317,6 +317,14 @@ export type RoundThread = {
   createdAt: number;
 };
 
+// ラウンドの写真アルバム（参加者で写真を共有）。画像は resize 済みの dataURL を保存。
+export type RoundPhoto = {
+  id: string;
+  url: string;        // data:image/... base64（リサイズ済み）
+  uploadedBy: string; // アップロードした人のuserId
+  createdAt: number;
+};
+
 export type Chat = {
   id: string;
   participants: [string, string];

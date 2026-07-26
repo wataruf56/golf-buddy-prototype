@@ -2,7 +2,7 @@ import 'server-only';
 import { isDemoMode } from './demoMode';
 import { getAdminDb } from './firebase';
 import { mockUsers, mockRounds, mockReviews, mockChats } from './mockData';
-import type { Chat, Message, PendingReview, Review, Round, RoundThread, SchedulePoll, User } from './types';
+import type { Chat, Message, PendingReview, Review, Round, RoundThread, RoundPhoto, SchedulePoll, User } from './types';
 import { sameGroupPeerIds, isNoShow } from './groups';
 
 export interface DB {
@@ -49,6 +49,11 @@ export interface DB {
   addRoundMessage(roundId: string, senderId: string, text: string, threadId?: string, imageUrl?: string): Promise<Message>;
   listRoundThreads(roundId: string): Promise<RoundThread[]>;
   createRoundThread(roundId: string, name: string, userId: string): Promise<RoundThread>;
+
+  // ラウンドの写真アルバム。
+  listRoundPhotos(roundId: string): Promise<RoundPhoto[]>;
+  addRoundPhoto(roundId: string, userId: string, url: string): Promise<RoundPhoto>;
+  deleteRoundPhoto(roundId: string, photoId: string): Promise<void>;
 
   listReviewsForUser(revieweeId: string): Promise<Review[]>;
   listReviewsByUser(reviewerId: string): Promise<Review[]>;
@@ -359,6 +364,20 @@ class MemoryDB implements DB {
     arr.push(t);
     this.roundThreads.set(roundId, arr);
     return t;
+  }
+  private roundPhotos: Map<string, RoundPhoto[]> = new Map();
+  async listRoundPhotos(roundId: string) {
+    return [...(this.roundPhotos.get(roundId) || [])].sort((a, b) => b.createdAt - a.createdAt);
+  }
+  async addRoundPhoto(roundId: string, userId: string, url: string) {
+    const p: RoundPhoto = { id: `ph_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, url, uploadedBy: userId, createdAt: Date.now() };
+    const arr = this.roundPhotos.get(roundId) || [];
+    arr.push(p);
+    this.roundPhotos.set(roundId, arr);
+    return p;
+  }
+  async deleteRoundPhoto(roundId: string, photoId: string) {
+    this.roundPhotos.set(roundId, (this.roundPhotos.get(roundId) || []).filter((p) => p.id !== photoId));
   }
 }
 
@@ -971,6 +990,20 @@ class FirestoreDB implements DB {
     const now = Date.now();
     const ref = await this.fs.collection('rounds').doc(roundId).collection('threads').add({ name, createdBy: userId, createdAt: now });
     return { id: ref.id, name, createdBy: userId, createdAt: now };
+  }
+  async listRoundPhotos(roundId: string) {
+    const snap = await this.fs.collection('rounds').doc(roundId).collection('photos')
+      .orderBy('createdAt', 'desc').limit(200).get();
+    return snap.docs.map((d: any) => ({ id: d.id, ...d.data() })) as RoundPhoto[];
+  }
+  async addRoundPhoto(roundId: string, userId: string, url: string) {
+    const now = Date.now();
+    const ref = await this.fs.collection('rounds').doc(roundId).collection('photos')
+      .add({ url, uploadedBy: userId, createdAt: now });
+    return { id: ref.id, url, uploadedBy: userId, createdAt: now };
+  }
+  async deleteRoundPhoto(roundId: string, photoId: string) {
+    await this.fs.collection('rounds').doc(roundId).collection('photos').doc(photoId).delete();
   }
 }
 

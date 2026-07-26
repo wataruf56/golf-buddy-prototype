@@ -18,6 +18,7 @@ import { PickupStationPicker } from '@/components/PickupStationPicker';
 import { RESTRICTION_MSG } from '@/lib/restrictions';
 import { readApiError } from '@/lib/apiError';
 import { MatchPicker } from '@/components/MatchPicker';
+import { RoundAlbum } from '@/components/RoundAlbum';
 import type { Round, User, PickupStatus } from '@/lib/types';
 
 // Brand launch URL — handled by middleware, redirects to liff.line.me/{id}
@@ -61,7 +62,7 @@ export default function RoundDetailPage() {
   // 主催者向け「ラウンドは完了しましたか？」プロンプトを「まだ」で閉じたか（この画面表示中のみ）。
   const [completionDismissed, setCompletionDismissed] = useState(false);
   // 詳細のセクション切り替えタブ（参加してる人／ピックアップ／組み分け）。
-  const [tab, setTab] = useState<'people' | 'pickup' | 'groups' | 'hostnote'>(
+  const [tab, setTab] = useState<'people' | 'pickup' | 'groups' | 'hostnote' | 'album'>(
     () => {
       const t = search?.get('tab');
       return t === 'groups' || t === 'pickup' || t === 'hostnote' ? t : 'people';
@@ -624,6 +625,8 @@ export default function RoundDetailPage() {
             ['groups', '組み分け'],
             // 「主催者から」はコンペ、または既に連絡が書かれている場合に表示。
             ...((round.isCompetition || round.hostNote) ? [['hostnote', '主催者から']] : []),
+            // アルバムは参加者（主催者＋承認済み）だけに表示。
+            ...((isHost || isApproved) ? [['album', '📷 アルバム']] : []),
           ] as const)).map(([k, label]) => (
             <button
               key={k}
@@ -817,6 +820,11 @@ export default function RoundDetailPage() {
         {/* ── 主催者から タブ（注意事項・ルール等。主催者のみ編集・参加者は閲覧） ── */}
         {tab === 'hostnote' && (
           <HostNote round={round} isHost={isHost} />
+        )}
+
+        {/* ── 📷 アルバム タブ（参加者で写真を共有） ── */}
+        {tab === 'album' && (isHost || isApproved) && (
+          <RoundAlbum roundId={round.id} meId={meId} isHost={isHost} />
         )}
 
       </div>

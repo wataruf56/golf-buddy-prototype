@@ -107,6 +107,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (on && kind === 'romantic' && !isSameGroup(round, meId, toUserId)) {
     return NextResponse.json({ error: 'not_same_group', message: '「気になる」は同じ組の相手のみ選べます' }, { status: 403, headers: noStore });
   }
+  // 「異性として気になる」は異性同士のときだけ（同性には付けられない）。
+  if (on && kind === 'romantic') {
+    const [meU, toU] = await Promise.all([db.getUser(meId), db.getUser(toUserId)]);
+    const g1 = meU?.gender, g2 = toU?.gender;
+    const opp = (g1 === 'male' || g1 === 'female') && (g2 === 'male' || g2 === 'female') && g1 !== g2;
+    if (!opp) {
+      return NextResponse.json({ error: 'not_opposite_sex', message: '「異性として気になる」は異性の相手のみ選べます' }, { status: 403, headers: noStore });
+    }
+  }
 
   await setLike(docId(kind, meId, toUserId), { from: meId, to: toUserId, kind, roundId: params.id, ts: Date.now() }, on);
 

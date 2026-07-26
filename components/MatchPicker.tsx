@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from '@/components/Toast';
+import { useStore, getMe } from '@/lib/store';
 
 // ラウンドに参加した人を一覧表示し、「また回りたい」「異性として気になる」を
 // それぞれ選べるマッチングUI。マッチ（相互に選択）した時だけ双方に通知が
@@ -12,6 +13,10 @@ type MatchEntry = { again: boolean; romantic: boolean; matchedAgain: boolean; ma
 type UserInfo = { displayName: string; avatar?: string; avatarUrl?: string; gender?: string; age?: number };
 
 export function MatchPicker({ roundId }: { roundId: string }) {
+  const me = useStore(getMe);
+  // 「異性として気になる」は異性同士のときだけ。自分と相手の性別が両方あり、かつ異なる場合。
+  const isOpp = (g?: string) =>
+    (me?.gender === 'male' || me?.gender === 'female') && (g === 'male' || g === 'female') && me.gender !== g;
   const [state, setState] = useState<Record<string, MatchEntry>>({});
   const [users, setUsers] = useState<Record<string, UserInfo>>({});
   const [ids, setIds] = useState<string[]>([]);
@@ -100,7 +105,9 @@ export function MatchPicker({ roundId }: { roundId: string }) {
                 <>
                   <div className="flex gap-1.5">
                     <div className={'flex-1 px-2 py-2 rounded-full text-[12px] font-bold border-[1.5px] text-center ' + (e.again ? 'bg-green text-white border-green' : 'bg-bg border-border text-muted')}>{e.again ? '✓ ' : ''}🏌️ また回りたい</div>
-                    <div className={'flex-1 px-2 py-2 rounded-full text-[12px] font-bold border-[1.5px] text-center ' + (e.romantic ? 'bg-pink-600 text-white border-pink-600' : 'bg-bg border-border text-muted')}>{e.romantic ? '✓ ' : ''}💘 異性として気になる</div>
+                    {isOpp(u.gender) && (
+                      <div className={'flex-1 px-2 py-2 rounded-full text-[12px] font-bold border-[1.5px] text-center ' + (e.romantic ? 'bg-pink-600 text-white border-pink-600' : 'bg-bg border-border text-muted')}>{e.romantic ? '✓ ' : ''}💘 異性として気になる</div>
+                    )}
                   </div>
                   <div className="text-[10px] text-muted mt-1 text-center">🔒 同じ組のレビューは確定済みのため変更できません</div>
                 </>
