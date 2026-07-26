@@ -47,6 +47,35 @@ export function RoundAlbum({ roundId, meId, isHost }: { roundId: string; meId: s
     else toast('アップロードに失敗しました', 'error');
   }
 
+  // 表示中の写真を端末に保存（ダウンロード）。iOS/LINEアプリ内は Web Share（写真に保存）を
+  // 優先し、無ければ <a download>、最後は新規タブ（長押しで保存）にフォールバックする。
+  const [saving, setSaving] = useState(false);
+  async function savePhoto(url: string) {
+    if (saving) return;
+    setSaving(true);
+    const filename = `goltomo_${Date.now()}.jpg`;
+    try {
+      const blob = await (await fetch(url)).blob();
+      const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+      const nav = navigator as any;
+      if (nav.canShare && nav.canShare({ files: [file] })) {
+        await nav.share({ files: [file] });
+        setSaving(false);
+        return;
+      }
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objUrl; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(objUrl), 4000);
+      toast('写真を保存しました');
+    } catch {
+      try { window.open(url, '_blank'); toast('画像を長押しで保存してください'); }
+      catch { toast('保存に失敗しました', 'error'); }
+    }
+    setSaving(false);
+  }
+
   async function remove(p: RoundPhoto) {
     if (!(await confirmDialog('この写真を削除しますか？'))) return;
     try {
@@ -98,8 +127,13 @@ export function RoundAlbum({ roundId, meId, isHost }: { roundId: string; meId: s
       {/* 拡大ビュー */}
       {viewer && (
         <div className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-4" onClick={() => setViewer(null)}>
-          <img src={viewer} alt="" className="max-w-full max-h-full object-contain rounded-lg" />
+          <img src={viewer} alt="" className="max-w-full max-h-full object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
           <button className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 text-white text-xl font-black" onClick={() => setViewer(null)}>×</button>
+          <button
+            onClick={(e) => { e.stopPropagation(); savePhoto(viewer); }}
+            disabled={saving}
+            className="absolute bottom-6 left-1/2 -translate-x-1/2 px-5 py-3 bg-white text-black rounded-full text-sm font-black shadow-lg disabled:opacity-60 flex items-center gap-2"
+          >⬇ {saving ? '保存中…' : '写真を保存'}</button>
         </div>
       )}
     </div>

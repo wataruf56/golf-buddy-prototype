@@ -5,7 +5,7 @@ import { getMeId } from '@/lib/session';
 // ラウンドの写真アルバム。参加者（主催者＋承認済み参加者）だけが閲覧・投稿できる。
 // 画像はクライアントでリサイズ済みの dataURL(base64) を受け取り、rounds/{id}/photos に保存。
 const noStore = { 'Cache-Control': 'no-store' };
-const MAX_LEN = 1_500_000; // dataURLの上限（約1.1MB画像相当）。Firestoreドキュメント上限対策。
+const MAX_LEN = 1_000_000; // dataURLの上限。Firestoreドキュメント上限(約1MB)に収まるよう安全側に。
 
 function isMember(round: any, meId: string): boolean {
   return round.hostId === meId || (round.applicantIds || []).includes(meId);
