@@ -47,6 +47,17 @@ export async function pushTo(userId: string, text: string, link?: string): Promi
   if (!r.ok) console.warn('[linePush] push failed', { userId, status: r.status, detail: r.detail?.slice(0, 200) });
 }
 
+// pushTo と同じだが、LINE APIの実行結果（ok/status/detail）を返す。診断用。
+export async function pushToResult(userId: string, text: string, link?: string): Promise<{ ok: boolean; status: number; detail?: string }> {
+  if (!userId) return { ok: false, status: 0, detail: 'no userId' };
+  if (!text) return { ok: false, status: 0, detail: 'empty text' };
+  const body = link ? `${text}\n${link}` : text;
+  const messages: LineMessage[] = [{ type: 'text', text: body.slice(0, 4900) }];
+  const r = await callLine(PUSH_ENDPOINT, { to: userId, messages });
+  if (!r.ok) console.warn('[linePush] push failed', { userId, status: r.status, detail: r.detail?.slice(0, 200) });
+  return r;
+}
+
 export async function pushToMany(userIds: string[], text: string, link?: string): Promise<void> {
   const ids = userIds.filter(Boolean);
   if (!ids.length || !text) return;
