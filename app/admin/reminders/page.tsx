@@ -34,9 +34,6 @@ function Inner() {
   // 未レビュー者への一斉通知（1回限り）。
   const [blasting, setBlasting] = useState(false);
   const [blastMsg, setBlastMsg] = useState('');
-  // 「気になる系」通知を全員OFFにする移行（1回限り）。
-  const [migrating, setMigrating] = useState(false);
-  const [migrateMsg, setMigrateMsg] = useState('');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -100,19 +97,6 @@ function Inner() {
       setBlastMsg(`✅ 送信しました（対象 ${j.reviewers} 人 / 送信 ${j.sent} 件）`);
     } catch (e) { setBlastMsg('送信失敗: ' + (e as Error).message); }
     setBlasting(false);
-  }
-
-  async function migrateInterestOff() {
-    if (migrating) return;
-    if (!window.confirm('既存ユーザー全員の「気になる系」LINE通知（気になるが押された／締切間近）を一括OFFにします。1回だけ実行してください。よろしいですか？')) return;
-    setMigrating(true); setMigrateMsg('');
-    try {
-      const r = await fetch(`/api/admin/notif-off-migrate?token=${encodeURIComponent(token)}`, { method: 'POST', cache: 'no-store' });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j?.error || `${r.status}`);
-      setMigrateMsg(`✅ 完了（${j.updated} 人を一括OFFにしました）`);
-    } catch (e) { setMigrateMsg('失敗: ' + (e as Error).message); }
-    setMigrating(false);
   }
 
   const label = (d: number) => d === 0 ? '当日の朝' : d === 1 ? '前日' : `${d}日前`;
@@ -201,22 +185,6 @@ function Inner() {
           {blasting ? '送信中…' : '未レビュー者へ今すぐ一斉通知する'}
         </button>
         {blastMsg && <div className="text-[12px] text-center mt-2 font-bold">{blastMsg}</div>}
-      </div>
-
-      {/* 「気になる系」通知を全員OFFにする移行（1回限り） */}
-      <div className="bg-card rounded-xl shadow-card p-4 mt-4">
-        <div className="text-[13px] font-black mb-1">🔕 「気になる系」通知を全員OFF（1回限り）</div>
-        <div className="text-[11px] text-muted mb-3 leading-relaxed">
-          既存ユーザー全員の <b>「💚 気になるが押された」「⏰ 締切間近」</b> のLINE通知を一括でOFFにします（初期値OFFへの移行）。ユーザーは自分で再度ONにできます。<b>1回だけ</b>押してください。
-        </div>
-        <button
-          onClick={migrateInterestOff}
-          disabled={migrating}
-          className="w-full py-3 bg-sub text-white rounded-xl text-sm font-black disabled:opacity-50"
-        >
-          {migrating ? '実行中…' : '既存ユーザーを一括OFFにする'}
-        </button>
-        {migrateMsg && <div className="text-[12px] text-center mt-2 font-bold">{migrateMsg}</div>}
       </div>
     </div>
   );

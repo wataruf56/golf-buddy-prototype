@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { APP_VERSION } from '@/lib/appUpdate';
 
 export default function AdminTop() {
   return (
@@ -17,6 +18,21 @@ function Inner() {
   const tokenFromUrl = search?.get('token') || '';
   const [token, setToken] = useState('');
   const [stats, setStats] = useState<{ users: number; swingAllowed: number } | null>(null);
+  // 「気になる系」通知を全員OFFにする移行（1回限り）。
+  const [migrating, setMigrating] = useState(false);
+  const [migrateMsg, setMigrateMsg] = useState('');
+  async function migrateInterestOff() {
+    if (migrating) return;
+    if (!window.confirm('既存ユーザー全員の「気になる系」LINE通知（気になるが押された／締切間近）を一括OFFにします。1回だけ実行してください。よろしいですか？')) return;
+    setMigrating(true); setMigrateMsg('');
+    try {
+      const r = await fetch(`/api/admin/notif-off-migrate?token=${encodeURIComponent(token)}`, { method: 'POST', cache: 'no-store' });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || `${r.status}`);
+      setMigrateMsg(`✅ 完了（${j.updated} 人を一括OFFにしました）`);
+    } catch (e) { setMigrateMsg('失敗: ' + (e as Error).message); }
+    setMigrating(false);
+  }
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -105,10 +121,26 @@ function Inner() {
         ))}
       </div>
 
+      {/* 通知の一括OFF移行（1回限り・見つけやすいよう管理トップに配置） */}
+      <div className="bg-card rounded-xl shadow-card p-4 mt-4">
+        <div className="text-[13px] font-black mb-1">🔕 「気になる系」通知を全員OFF（1回限り）</div>
+        <div className="text-[11px] text-sub mb-3 leading-relaxed">
+          既存ユーザー全員の <b>「💚 気になるが押された」「⏰ 締切間近」</b> のLINE通知を一括OFFにします（初期値OFFへの移行）。ユーザーは自分で再度ONにできます。<b>1回だけ</b>押してください。
+        </div>
+        <button
+          onClick={migrateInterestOff}
+          disabled={migrating}
+          className="w-full py-3 bg-sub text-white rounded-xl text-sm font-black disabled:opacity-50"
+        >{migrating ? '実行中…' : '既存ユーザーを一括OFFにする'}</button>
+        {migrateMsg && <div className="text-[12px] text-center mt-2 font-bold">{migrateMsg}</div>}
+      </div>
+
       <button
         onClick={() => { localStorage.removeItem('gb_admin_token'); setToken(''); }}
         className="w-full mt-6 p-3 text-xs text-muted underline"
       >トークンを忘れる (ログアウト)</button>
+
+      <div className="text-center text-[11px] text-muted py-3">管理画面 ver {APP_VERSION}</div>
     </div>
   );
 }
