@@ -75,13 +75,11 @@ export async function POST(req: NextRequest) {
       const link = `/profile/${revieweeId}`;
       const { renderNotif } = await import('@/lib/notificationTemplateStore');
       const n = await renderNotif('review', {});
-      // Always record in the in-app inbox (home screen), even if LINE is off.
+      // 【LINE配信上限対策】レビュー着信のLINEプッシュは廃止。アプリ内お知らせ＋Web push
+      // （LINE上限とは無関係）のみに変更。Web pushは受信者が許可していれば届く。
       const { addNotification } = await import('@/lib/notifications');
       if (n.inApp) addNotification(revieweeId, 'review', n.inApp, link).catch(() => {});
-      if (isNotifyEnabled(reviewee as any, 'review')) {
-        pushTo(revieweeId, n.line, liffUrl(link)).catch(() => {});
-        webPushText(revieweeId, n.webTitle, n.webBody, link, `review-${roundId}`).catch(() => {});
-      }
+      webPushText(revieweeId, n.webTitle, n.webBody, link, `review-${roundId}`).catch(() => {});
     } catch { /* non-fatal */ }
 
     return NextResponse.json({ review });

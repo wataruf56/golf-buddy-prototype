@@ -19,22 +19,28 @@ export type NotifyType =
   | 'surveyMatch'      // LP診断アンケートで希望した条件（県）に一致する募集が投稿された
   | 'rematch'          // 再会エンジン：また回りたい相手との再会のお知らせ・候補日の往復
   | 'groupChange'      // 参加者から「組分けの変更を希望」が届いた（主催者）
-  | 'pickup';          // 主催者からピックアップ場所（駅）の提案が届いた
+  | 'pickup'           // 主催者からピックアップ場所（駅）の提案が届いた
+  | 'unread';          // 未読メッセージのまとめ通知（1日3回・DM即時通知の代替）
 
-// Display metadata for the settings UI. Order = display order.
-export const NOTIFY_TYPES: Array<{ key: NotifyType; label: string; desc: string; defaultOn: boolean }> = [
-  { key: 'dm',             label: '💬 ダイレクトメッセージ', desc: '1対1のメッセージが届いたとき', defaultOn: true },
+// Display metadata for the settings UI. Order = display order。
+// hidden=true は設定画面に出さない（＝一般ユーザーには非公開。LINE通知も止めている項目）。
+export const NOTIFY_TYPES: Array<{ key: NotifyType; label: string; desc: string; defaultOn: boolean; hidden?: boolean }> = [
+  // 【LINE配信上限対策】DM・レビュー着信のLINE通知は廃止（設定画面から非表示）。アプリ内お知らせは維持。
+  //   DMは代わりに「未読ダイジェスト」cron（9/15/21時に未読があれば1通）で通知する。
+  { key: 'dm',             label: '💬 ダイレクトメッセージ', desc: '1対1のメッセージが届いたとき', defaultOn: true, hidden: true },
   { key: 'mention',        label: '📣 メンション',           desc: 'グループチャットで自分が指名されたとき', defaultOn: true },
   { key: 'applyReceived',  label: '🆕 参加申請が届いた',     desc: '自分の募集に参加申請が来たとき', defaultOn: true },
   { key: 'applyApproved',  label: '✅ 参加が承認された',     desc: '申し込んだ募集が承認されたとき', defaultOn: true },
-  { key: 'review',         label: '⭐ レビューが届いた',     desc: '自分へのレビューが投稿されたとき', defaultOn: true },
+  { key: 'review',         label: '⭐ レビューが届いた',     desc: '自分へのレビューが投稿されたとき', defaultOn: true, hidden: true },
   { key: 'roundChat',      label: '🏌️ ラウンドチャット',     desc: '参加ラウンドのグループチャットの新着（多めに届きます）', defaultOn: false },
   { key: 'swing',          label: '📊 スイング解析の完了',   desc: 'AI解析が終わったとき', defaultOn: true },
   { key: 'reviewReminder', label: '📝 レビューのお願い',     desc: 'ラウンド後にレビューを促す通知', defaultOn: true },
   { key: 'roundUpcoming',  label: '📅 開催前リマインド',     desc: '参加ラウンドの1ヶ月前・1週間前・前日にお知らせ', defaultOn: true },
   { key: 'invited',          label: '💌 ラウンドに招待された', desc: '募集者からラウンドに招待されたとき', defaultOn: true },
-  { key: 'interestReceived', label: '💚 「気になる」が押された', desc: '自分の募集に「気になる」が押されたとき', defaultOn: true },
-  { key: 'interestDeadline', label: '⏰ 気になるラウンドの締切間近', desc: '「気になる」した募集の開催が近づいたとき', defaultOn: true },
+  // 【配信上限対策】初期OFF（既存ユーザーも一括OFFへ移行）。ユーザーが自分でONにはできる。
+  { key: 'interestReceived', label: '💚 「気になる」が押された', desc: '自分の募集に「気になる」が押されたとき', defaultOn: false },
+  { key: 'interestDeadline', label: '⏰ 気になるラウンドの締切間近', desc: '「気になる」した募集の開催が近づいたとき', defaultOn: false },
+  { key: 'unread',           label: '📩 未読メッセージのお知らせ', desc: '未読のメッセージがある時に1日3回まとめてお知らせ', defaultOn: true },
   { key: 'match',            label: '💘 マッチ成立', desc: 'ラウンド後にマッチしたとき', defaultOn: true },
   { key: 'surveyMatch',      label: '🎯 希望条件に合う募集', desc: '診断アンケートで希望したエリアの募集が投稿されたとき', defaultOn: true },
   { key: 'rematch',          label: '🔁 再会のお知らせ', desc: 'また回りたい相手との再会・候補日のやり取りがあったとき', defaultOn: true },

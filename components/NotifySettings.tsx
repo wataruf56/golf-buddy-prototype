@@ -81,7 +81,7 @@ export function NotifySettings({ onClose }: { onClose: () => void }) {
           <div className={`px-5 pt-2 pb-3 ${masterOn ? '' : 'opacity-40 pointer-events-none'}`}>
             <div className="text-[11px] font-bold text-sub px-1 mb-1.5">受け取る通知を選ぶ</div>
             <div className="flex flex-col gap-1.5">
-              {NOTIFY_TYPES.map((t) => (
+              {NOTIFY_TYPES.filter((t) => !t.hidden).map((t) => (
                 <button
                   key={t.key}
                   onClick={() => setPrefs((p) => ({ ...p, [t.key]: !p[t.key] }))}

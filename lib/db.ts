@@ -71,6 +71,8 @@ export interface DB {
   createPendingReviews(items: Omit<PendingReview, 'id'>[]): Promise<PendingReview[]>;
 
   listChatsForUser(userId: string): Promise<Chat[]>;
+  // 直近のDMチャット（未読ダイジェストのcronで、未読を持つユーザーを集めるのに使う）。
+  listRecentChats(limit: number): Promise<Chat[]>;
   getChat(chatId: string): Promise<Chat | null>;
   sendMessage(chatId: string, participants: [string, string], senderId: string, text: string, imageUrl?: string): Promise<Message>;
   markChatRead(chatId: string, userId: string): Promise<void>;
@@ -324,6 +326,9 @@ class MemoryDB implements DB {
 
   async listChatsForUser(userId: string) {
     return this.chats.filter((c) => c.participants.includes(userId));
+  }
+  async listRecentChats(limit: number) {
+    return [...this.chats].sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0)).slice(0, limit);
   }
   async getChat(chatId: string) { return this.chats.find((c) => c.id === chatId) || null; }
   async sendMessage(chatId: string, participants: [string, string], senderId: string, text: string, imageUrl?: string) {
@@ -903,6 +908,15 @@ class FirestoreDB implements DB {
     return created;
   }
 
+  async listRecentChats(limit: number) {
+    try {
+      const snap = await this.fs.collection('chats').orderBy('lastMessageAt', 'desc').limit(limit).get();
+      return snap.docs.map((d: any) => ({ id: d.id, ...d.data(), messages: [] } as Chat));
+    } catch (e) {
+      console.error('[listRecentChats] failed', e);
+      return [];
+    }
+  }
   async listChatsForUser(userId: string) {
     // Avoid composite-index requirement: filter only, sort in app code.
     try {

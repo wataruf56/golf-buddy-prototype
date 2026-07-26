@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
-import { pushTo, liffUrl } from '@/lib/linePush';
 import { webPushText } from '@/lib/webPush';
-import { isNotifyEnabled } from '@/lib/notifyPrefs';
 import { isMatchingAllowedByAge } from '@/lib/ageGate';
 
 export async function GET(req: NextRequest) {
@@ -55,12 +53,9 @@ export async function POST(req: NextRequest) {
     const { addNotification } = await import('@/lib/notifications');
     if (n.inApp) addNotification(otherUserId, 'dm', n.inApp, dmLink).catch(() => {});
   }
-  // Fire-and-forget LINE + web push, gated on the recipient's "dm" preference。
-  // ※ LINE公式アカウントの月間配信上限に達すると 429 で失敗する（アカウントのプランで対処）。
-  //   Web push はLINEの上限とは無関係に届く。
-  if (isNotifyEnabled(other as any, 'dm')) {
-    pushTo(otherUserId, n.line, liffUrl(dmLink)).catch(() => {});
-    webPushText(otherUserId, n.webTitle, n.webBody, dmLink, `chat-${chatId}`).catch(() => {});
-  }
+  // 【LINE配信上限対策】DM着信ごとのLINEプッシュは廃止（DMは1通ごとに来ると上限をすぐ使い切る）。
+  // 代わりに /api/cron/unread-digest が9/15/21時に「未読があれば1通」まとめて送る。
+  // ここではアプリ内お知らせ＋Web push（LINE上限と無関係）のみ。
+  webPushText(otherUserId, n.webTitle, n.webBody, dmLink, `chat-${chatId}`).catch(() => {});
   return NextResponse.json({ message });
 }

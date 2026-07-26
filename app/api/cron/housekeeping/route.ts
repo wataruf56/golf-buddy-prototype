@@ -76,5 +76,13 @@ export async function GET(req: NextRequest) {
     results.reviewReminders = { error: (e as Error).message };
   }
 
+  try {
+    const { GET: unreadDigest } = await import('../unread-digest/route');
+    const res = await unreadDigest(req);
+    results.unreadDigest = await res.json().catch(() => ({ ok: res.ok }));
+  } catch (e) {
+    results.unreadDigest = { error: (e as Error).message };
+  }
+
   return NextResponse.json({ ok: true, ...results }, { headers: noStore });
 }
