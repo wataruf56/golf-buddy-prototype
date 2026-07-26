@@ -7,6 +7,7 @@ import { useStore, getMe } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { toast } from '@/components/Toast';
 import { chatIdFor, formatDate } from '@/lib/utils';
+import { ADMIN_MANAGER_ID, ADMIN_MANAGER_NAME } from '@/lib/adminManagerId';
 
 type MatchInfo = { again: boolean; romantic: boolean };
 type MUser = { displayName: string; avatar?: string; avatarUrl?: string; avatarMode?: string; golmotiType?: string; color?: string; gender?: string; age?: number };
@@ -205,6 +206,25 @@ function Inner() {
 
       {tab === 'friends' && (
       <div className="px-5 pb-24">
+        {/* 管理人（運営サポート窓口）。常に先頭に固定表示。困りごとや通報後のやりとりに使える。 */}
+        {(() => {
+          const cid = chatIdFor(meId, ADMIN_MANAGER_ID);
+          const chat = chats.find((c) => c.id === cid);
+          const unread = chat?.unreadCount[meId] || 0;
+          return (
+            <Link href={`/chat/${cid}?other=${ADMIN_MANAGER_ID}`} className="bg-card rounded-card p-4 shadow-card mb-2.5 flex items-center gap-3 border-[1.5px] border-green-light">
+              <div className="w-12 h-12 rounded-full bg-green-light flex items-center justify-center text-2xl flex-shrink-0">🛡️</div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[15px] font-bold">{ADMIN_MANAGER_NAME}<span className="ml-1.5 text-[10px] font-black text-green bg-green-light border border-green rounded-full px-1.5 py-0.5">運営</span></div>
+                <div className="text-[11px] text-sub mt-0.5">困りごと・通報後のやりとりはこちら</div>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                {unread > 0 && <div className="px-1.5 py-0.5 bg-orange text-white text-[10px] font-bold rounded-full min-w-[18px] text-center">{unread}</div>}
+                <span className="text-lg">💬</span>
+              </div>
+            </Link>
+          );
+        })()}
         {order.length === 0 ? (
           <Empty
             title={loaded ? 'まだ友達がいません' : '読み込み中...'}

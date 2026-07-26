@@ -31,6 +31,9 @@ export default function ProfilePage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
+  // 通報の種別（カテゴリ）。ドタキャン申告もここに含める。
+  const [reportCat, setReportCat] = useState<'' | 'inappropriate' | 'noshow' | 'no_contact' | 'other'>('');
+  const [reportBusy, setReportBusy] = useState(false);
 
   useEffect(() => {
     if (!params.id) return;
@@ -66,22 +69,27 @@ export default function ProfilePage() {
   }
 
   async function submitReport() {
-    if (!reportReason.trim()) {
-      toast('通報理由を入力してください', 'error');
+    if (!reportCat) {
+      toast('通報の種類を選んでください', 'error');
       return;
     }
+    if (reportBusy) return;
+    setReportBusy(true);
     try {
       const res = await fetch('/api/report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: params.id, reason: reportReason }),
+        body: JSON.stringify({ userId: params.id, reason: reportCat, detail: reportReason.trim() }),
       });
       if (!res.ok) throw new Error(`${res.status}`);
-      toast('通報を受け付けました');
+      toast('通報を受け付けました。運営が確認します。');
       setReportOpen(false);
       setReportReason('');
+      setReportCat('');
     } catch (e) {
       toast('失敗: ' + (e as Error).message, 'error');
+    } finally {
+      setReportBusy(false);
     }
   }
 
@@ -159,6 +167,8 @@ export default function ProfilePage() {
           {track && track.roundedWith > 0 && (
             <div className="text-[11px] text-sub mt-1">この人をレビューした{track.roundedWith}人のうち{track.againCount}人が「また回りたい」と回答</div>
           )}
+          {/* マナー/信頼度（運営が通報・ドタキャンを確認して下げる指標）。良好時は控えめに表示。 */}
+          <MannerBadge penalty={(user as any).mannerPenalty || 0} />
           {metaLine && <div className="text-[13px] text-sub mt-1.5">{metaLine}</div>}
           {user.golmotiType && (
             <div className="mt-2.5">
@@ -223,21 +233,56 @@ export default function ProfilePage() {
         <div className="absolute inset-0 bg-black/50 z-[150] flex items-center justify-center p-5 backdrop-blur-sm">
           <div className="bg-card rounded-card p-5 w-full max-w-[350px] shadow-lg">
             <div className="text-lg font-black mb-1">通報</div>
-            <div className="text-[12px] text-sub mb-4">{user.displayName} さんを通報します。理由を教えてください。</div>
+            <div className="text-[12px] text-sub mb-3">{user.displayName} さんを運営に通報します。種類を選んでください。内容は運営が確認します。</div>
+            <div className="flex flex-col gap-1.5 mb-3">
+              {([
+                ['inappropriate', '🚫 不適切な行為・迷惑行為'],
+                ['noshow', '🙅 ドタキャン（無断キャンセル）'],
+                ['no_contact', '📵 連絡が取れない'],
+                ['other', '⚠️ その他'],
+              ] as const).map(([k, label]) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setReportCat(k)}
+                  className={'w-full text-left px-3 py-2.5 rounded-[10px] border-[1.5px] text-[13px] font-bold ' + (reportCat === k ? 'border-red bg-red-50 text-red-600' : 'border-border bg-bg text-sub')}
+                >{label}</button>
+              ))}
+            </div>
             <textarea
               value={reportReason}
               onChange={(e) => setReportReason(e.target.value.slice(0, 500))}
-              placeholder="例: 不適切なメッセージを送ってきた"
-              className="w-full h-28 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-none"
+              placeholder="状況をできるだけ詳しく（任意・いつ／どのラウンドで／何があったか）"
+              className="w-full h-24 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-none"
             />
             <div className="text-[10px] text-muted text-right mt-0.5">{reportReason.length}/500</div>
             <div className="flex gap-2 mt-3">
-              <button onClick={() => { setReportOpen(false); setReportReason(''); }} className="flex-1 py-3 bg-bg text-sub rounded-xl text-sm font-bold">キャンセル</button>
-              <button onClick={submitReport} className="flex-1 py-3 bg-red text-white rounded-xl text-sm font-bold">通報する</button>
+              <button onClick={() => { setReportOpen(false); setReportReason(''); setReportCat(''); }} className="flex-1 py-3 bg-bg text-sub rounded-xl text-sm font-bold">キャンセル</button>
+              <button onClick={submitReport} disabled={reportBusy || !reportCat} className="flex-1 py-3 bg-red text-white rounded-xl text-sm font-bold disabled:opacity-50">{reportBusy ? '送信中…' : '通報する'}</button>
             </div>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// マナー/信頼度バッジ。penalty=0 は「良好」を控えめに、1以上は警告色で表示。
+function MannerBadge({ penalty }: { penalty: number }) {
+  const p = Math.max(0, Math.floor(penalty || 0));
+  if (p <= 0) {
+    return (
+      <div className="mt-1.5">
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-green bg-green-light border border-green rounded-full px-2.5 py-0.5">🤝 マナー良好</span>
+      </div>
+    );
+  }
+  const label = p === 1 ? '⚠️ 運営から注意あり' : '🚫 要注意（運営確認済み）';
+  return (
+    <div className="mt-1.5">
+      <span className="inline-flex items-center gap-1 text-[11px] font-black text-red-600 bg-red-50 border border-red-300 rounded-full px-2.5 py-0.5">
+        {label}{p > 1 ? ` ×${p}` : ''}
+      </span>
     </div>
   );
 }

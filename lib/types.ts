@@ -64,6 +64,12 @@ export type User = {
   // bypass this counter entirely; everyone else gets SWING_FREE_LIMIT runs
   // per calendar month (default 1). Reset semantics live in lib/swingQuota.
   swingUsage?: { month: string; count: number; lifetimeCount?: number };
+  // マナー/信頼度のペナルティ点。運営が通報・ドタキャンを事実確認したうえで「評価を下げる」
+  // ボタンで加算する。0=良好。大きいほどマナー評価が低い。★（また回りたい率）とは別指標。
+  mannerPenalty?: number;
+  // システムアカウント（例：「管理人」）。検索・招待・マッチング等の一般ユーザー一覧からは
+  // 除外し、DM（サポート窓口）としてのみ振る舞う。
+  isSystem?: boolean;
 };
 
 export type ScoreEntry = { score: number; date: string };

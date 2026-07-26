@@ -14,6 +14,18 @@ function ageBucket(age: number | undefined): string {
 }
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+  // 「管理人」サポート窓口は、まだドキュメントが無くても表示できるよう合成して返す。
+  const { ADMIN_MANAGER_ID, ADMIN_MANAGER_NAME, ADMIN_MANAGER_AVATAR } = await import('@/lib/adminManagerId');
+  if (params.id === ADMIN_MANAGER_ID) {
+    return NextResponse.json({
+      user: {
+        id: ADMIN_MANAGER_ID, displayName: ADMIN_MANAGER_NAME, avatar: ADMIN_MANAGER_AVATAR,
+        color: '#2A8C82', age: 0, area: '', scoreRange: '', playStyle: '', frequency: '',
+        reviewAvg: 0, reviewCount: 0, roundCount: 0, buddyCount: 0, isSystem: true,
+      },
+      reviews: [],
+    });
+  }
   const user = await db.getUser(params.id);
   if (!user) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   // 赤バン（アカウント停止）ユーザーのプロフィールは他者から見えない。

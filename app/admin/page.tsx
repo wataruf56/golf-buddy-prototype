@@ -91,6 +91,8 @@ function Inner() {
     { href: `/admin/rematch?token=${token}`, emoji: '🔁', title: '再会エンジン', desc: '再会通知のタイミング設定・今すぐ実行（テスト）・5段ファネル' },
     { href: `/admin/test-accounts?token=${token}`, emoji: '🧪', title: 'テストアカウント管理', desc: '検証用アカウントの登録 / 一般ユーザーから隠す / 新機能の段階公開' },
     { href: `/admin/notification-templates?token=${token}`, emoji: '✉️', title: '通知メッセージ編集', desc: 'アプリ内 / LINE / スマホ通知の文面をすべて編集' },
+    { href: `/admin/reports?token=${token}`, emoji: '🚨', title: '通報の管理', desc: '通報一覧 / 事実確認して「評価を下げる」/ 通報者とチャット' },
+    { href: `/admin/support?token=${token}`, emoji: '🛡️', title: '管理人チャット', desc: 'ユーザーと「管理人」名義でDM（サポート窓口）' },
     { href: `/admin/reviews?token=${token}`, emoji: '📝', title: 'レビュー', desc: '編集・削除・差し戻し（再依頼）' },
     { href: `/admin/swing?token=${token}`, emoji: '🏌️', title: 'スイング解析モニタ', desc: '解析履歴・状態確認・スタック復旧' },
     { href: `/admin/system?token=${token}`, emoji: '🔧', title: 'システム状態', desc: '環境変数 / GCS / LINE Bot 接続確認' },
