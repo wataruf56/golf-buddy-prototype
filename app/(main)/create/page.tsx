@@ -240,7 +240,8 @@ export default function CreatePage() {
       toast(isDrink ? '開催日を入力してください' : '募集内容の必須項目（コース／エリア／日程）を入力してください', 'error');
       setTab('basic'); return;
     }
-    if (maxSpots < 2) {
+    // 飲み会は募集人数を決めない（定員なし）。人数チェックはゴルフのみ。
+    if (!isDrink && maxSpots < 2) {
       toast('募集人数を入力してください', 'error');
       setTab('count'); return;
     }
@@ -460,21 +461,22 @@ export default function CreatePage() {
             </div>
           )}
 
-          {/* セクション切り替えタブ（募集内容／募集人数／ピックアップ）。飲み会は送迎タブなし。 */}
-          <div className="flex gap-1 mb-4 bg-bg rounded-xl p-1">
-            {(isDrink
-              ? ([['basic', '内容'], ['count', '募集人数']] as const)
-              : ([['basic', '募集内容'], ['count', '募集人数'], ['pickup', 'ピックアップ']] as const)).map(([k, label]) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => setTab(k)}
-                className={'flex-1 py-2 rounded-lg text-[12px] font-black ' + (tab === k ? 'bg-orange text-white shadow-sm' : 'text-sub')}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          {/* セクション切り替えタブ（募集内容／募集人数／ピックアップ）。
+              飲み会は「募集人数」も「ピックアップ」も無く1セクションのみなのでタブ自体を出さない。 */}
+          {!isDrink && (
+            <div className="flex gap-1 mb-4 bg-bg rounded-xl p-1">
+              {([['basic', '募集内容'], ['count', '募集人数'], ['pickup', 'ピックアップ']] as const).map(([k, label]) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setTab(k)}
+                  className={'flex-1 py-2 rounded-lg text-[12px] font-black ' + (tab === k ? 'bg-orange text-white shadow-sm' : 'text-sub')}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* ── 募集内容 タブ（前半） ── */}
           {tab === 'basic' && (
@@ -506,14 +508,8 @@ export default function CreatePage() {
 
           {isDrink ? (
             <>
-              <Field label="場所（店名・エリアなど）" hint="（任意・「未定」でもOK）">
-                <input value={venue} onChange={(e) => setVenue(e.target.value.slice(0, 60))} placeholder="例: 新宿の居酒屋 / 未定（あとで決める）" className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
-              </Field>
-              <Field label="エリア" hint="（任意）">
-                <select value={area} onChange={(e) => setArea(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none">
-                  <option value="">選択しない</option>
-                  {allAreas.map((a) => <option key={a}>{a}</option>)}
-                </select>
+              <Field label="場所（店名など）" hint="（任意・「未定」でもOK）">
+                <input value={venue} onChange={(e) => setVenue(e.target.value.slice(0, 60))} placeholder="例: 新宿の居酒屋◯◯ / 未定（あとで決める）" className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
               </Field>
               <Field label="開催日" required>
                 <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full min-w-0 max-w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none appearance-none" style={{ boxSizing: 'border-box' }} />

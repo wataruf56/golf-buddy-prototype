@@ -33,7 +33,8 @@ function Inner() {
   // 過去に自分が主催/参加した完了ラウンド（新しい順）。ここから当時の詳細に飛べば、
   // 同じ組の相手に「また回りたい/気になる」を後からでも付け外しできる。
   const myPastRounds = rounds
-    .filter((r) => r.status === 'completed' && (r.hostId === meId || (r.applicantIds || []).includes(meId)))
+    // 飲み会は「また回りたい」等のマッチングを持たないので、この編集導線には出さない。
+    .filter((r) => r.eventType !== 'drink' && r.status === 'completed' && (r.hostId === meId || (r.applicantIds || []).includes(meId)))
     .slice()
     .sort((a, b) => {
       const am = a.date ? new Date(a.date).getTime() : (a.completedAt || 0);

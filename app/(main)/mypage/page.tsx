@@ -56,7 +56,7 @@ export default function MyPage() {
   // set still count.
   const myCompletedRoundCount = useStore((s) =>
     s.rounds.filter((r) =>
-      r.status === 'completed' && (r.hostId === s.meId || r.applicantIds.includes(s.meId))
+      r.eventType !== 'drink' && r.status === 'completed' && (r.hostId === s.meId || r.applicantIds.includes(s.meId))
     ).length
   );
   // Pending applications waiting for ME to approve (across rounds I host)

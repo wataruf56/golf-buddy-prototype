@@ -156,9 +156,11 @@ export default function RoundDetailPage() {
   const isHost = round.hostId === meId;
   const isApproved = round.applicantIds.includes(meId);
   const isPending = (round.pendingApplicantIds || []).includes(meId);
-  const isFull = round.currentCount >= round.maxSpots;
+  // 飲み会（eventType='drink'）: 定員なし・ゴルフ場/組み分け/送迎/レビュー無し。
+  const isDrink = round.eventType === 'drink';
+  const isFull = !isDrink && round.currentCount >= round.maxSpots;
   const remaining = round.maxSpots - round.currentCount;
-  const isComp = round.maxSpots >= 5;
+  const isComp = !isDrink && round.maxSpots >= 5;
   // 招待された本人（まだ参加していない）。招待者は承認待ちを経由せず即参加できる。
   const isInvited = !!meId && (round.invitedIds || []).includes(meId) && !isHost && !isApproved && !isPending;
   // 主催者向け「ラウンドは完了しましたか？」プロンプト：まだ open で、スタート時間+6.5hを過ぎたら出す。
@@ -173,8 +175,6 @@ export default function RoundDetailPage() {
     && startMs != null && hydrated && Date.now() >= startMs + 6.5 * 3600 * 1000
     && !completionDismissed;
   const isFlexible = round.type === 'flexible';
-  // 飲み会（eventType='drink'）: ゴルフ場・組み分け・送迎・スコア・相互レビューを持たない。
-  const isDrink = round.eventType === 'drink';
   const dateLabel = round.dateType === 'range' ? round.dateRange : formatDate(round.date);
   const canChatGroup = isHost || isApproved;
 
@@ -233,6 +233,8 @@ export default function RoundDetailPage() {
       goProfileForJoin();
       return;
     }
+    // 飲み会は送迎（ピックアップ）の概念がないので、確認モーダルを挟まず即申込む。
+    if (isDrink) { submitJoin({}); return; }
     // 準備OK → ピックアップ回答モーダルへ（回答と一緒に申込む）。
     setPickupOpen(true);
   }
@@ -260,7 +262,7 @@ export default function RoundDetailPage() {
     // Direct public URL — opens & is viewable instantly, no LINE login required.
     // Login is only requested when the visitor takes an action (apply, etc.).
     const url = `https://app.goltomo.com/round/${round!.id}`;
-    const text = `⛳ ${round!.title}\n${dateLabel}${round!.startTime ? ' ' + round!.startTime : ''}`;
+    const text = `${round!.eventType === 'drink' ? '🍻' : '⛳'} ${round!.title}\n${dateLabel}${round!.startTime ? ' ' + round!.startTime : ''}`;
     track('share_round_click', { roundId: round!.id });
     const w = window as any;
     if (w.navigator?.share) {
@@ -530,15 +532,17 @@ export default function RoundDetailPage() {
         {/* 募集の性別内訳（ターゲット枠）は詳細画面では非表示。主催者の編集画面でのみ扱う
             （ぱっと見で「実際の参加内訳」と混同して分かりにくいため）。 */}
 
-        {/* 参加状況バーはコンペ以外の通常募集でも表示（何人中何人参加か） */}
+        {/* 参加状況。飲み会は定員なしなので人数だけ、ゴルフは「何人中何人」＋バー。 */}
         <div className="mb-4">
           <div className="flex justify-between items-baseline mb-1.5">
             <span className="text-xs font-semibold text-sub">参加状況</span>
-            <span className="text-sm font-black text-orange">{round.currentCount}/{round.maxSpots}人 参加中</span>
+            <span className="text-sm font-black text-orange">{isDrink ? `🍻 ${round.currentCount}人 参加中` : `${round.currentCount}/${round.maxSpots}人 参加中`}</span>
           </div>
-          <div className="w-full h-2 bg-bg rounded overflow-hidden">
-            <div className="h-full bg-orange rounded" style={{ width: `${Math.round((round.currentCount / Math.max(1, round.maxSpots)) * 100)}%` }} />
-          </div>
+          {!isDrink && (
+            <div className="w-full h-2 bg-bg rounded overflow-hidden">
+              <div className="h-full bg-orange rounded" style={{ width: `${Math.round((round.currentCount / Math.max(1, round.maxSpots)) * 100)}%` }} />
+            </div>
+          )}
         </div>
 
         {/* コミュニケーション導線（常時表示） */}
@@ -611,22 +615,28 @@ export default function RoundDetailPage() {
         ) : (
           <div className="mb-4">
             <button onClick={join} className="w-full py-4 bg-green text-white rounded-xl text-[15px] font-bold">
-              {!meId
-                ? `LINEログインして参加する（残り${remaining}枠）`
-                : joinReady
-                  ? (isInvited ? `招待を承認して参加する（残り${remaining}枠）` : `参加を申請する（残り${remaining}枠）`)
-                  : !profileReady
-                    ? `プロフィール登録して参加する（残り${remaining}枠）`
-                    : `お名前を登録して参加する（残り${remaining}枠）`}
+              {(() => {
+                // 飲み会は定員なしなので「残り◯枠」を出さない。
+                const slots = isDrink ? '' : `（残り${remaining}枠）`;
+                return !meId
+                  ? `LINEログインして参加する${slots}`
+                  : joinReady
+                    ? (isInvited ? `招待を承認して参加する${slots}` : `参加を申請する${slots}`)
+                    : !profileReady
+                      ? `プロフィール登録して参加する${slots}`
+                      : `お名前を登録して参加する${slots}`;
+              })()}
             </button>
             <div className="text-[11px] text-muted text-center mt-2">
               {!meId
                 ? 'まずは中身を自由に閲覧できます。参加する時だけログインが必要です'
                 : joinReady
-                  ? (isInvited ? '招待されています。承認するとすぐに参加確定になります（送迎の確認だけ挟みます）' : '参加申請の前に、送迎（ピックアップ）についてうかがいます')
+                  ? (isInvited
+                      ? '招待されています。承認するとすぐに参加確定になります'
+                      : isDrink ? '「参加を申請する」を押すと主催者に申請が届きます' : '参加申請の前に、送迎（ピックアップ）についてうかがいます')
                   : !profileReady
                     ? '次の画面でプロフィールを登録すると、戻ってきて参加できます'
-                    : 'ゴルフ場への届出用に、お名前（漢字フルネーム）の登録が必要です'}
+                    : isDrink ? 'お名前（漢字フルネーム）の登録が必要です' : 'ゴルフ場への届出用に、お名前（漢字フルネーム）の登録が必要です'}
             </div>
           </div>
         )}

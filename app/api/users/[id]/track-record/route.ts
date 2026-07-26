@@ -29,6 +29,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       seenRounds.add(doc.id);
       const r = doc.data() || {};
       if (r.status !== 'completed') return;
+      // 飲み会（eventType='drink'）はゴルフのラウンド実績に数えない。
+      if (r.eventType === 'drink') return;
       const members: string[] = [r.hostId, ...((r.applicantIds as string[]) || [])].filter(Boolean);
       if (!members.includes(id)) return;
       if (r.hostId === id) hostedCount++; else joinedCount++;

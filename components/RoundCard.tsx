@@ -12,8 +12,9 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
   const users = useStore((s) => s.users);
   const me = useStore(getMe);
   const hasUnread = unreadRoundIds.has(round.id);
-  const isComp = round.maxSpots >= 5;
   const isDrink = round.eventType === 'drink';
+  // 飲み会は定員なしで maxSpots が大きくなるが、コンペ扱い（色/バッジ）にはしない。
+  const isComp = !isDrink && round.maxSpots >= 5;
   const dateLabel = round.dateType === 'range' ? round.dateRange : formatDate(round.date);
   const placeLabel = isDrink
     ? `${round.venue || ''}${round.venue && round.area ? '（' + round.area + '）' : round.area || ''}`
@@ -36,7 +37,8 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
   }
 
   const pct = Math.round((round.currentCount / Math.max(1, round.maxSpots)) * 100);
-  const isFull = round.currentCount >= round.maxSpots;
+  // 飲み会は定員なし → 満員表示・進捗バーは出さず、参加人数だけ表示する。
+  const isFull = !isDrink && round.currentCount >= round.maxSpots;
 
   return (
     <Link
@@ -81,12 +83,18 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
         {priceLabel && <span className="text-orange whitespace-nowrap">参加費 {priceLabel}</span>}
         <span className="text-sub">👨 男性 {male} ・ 👩 女性 {female}</span>
       </div>
-      <div className="flex items-center gap-2 mt-1">
-        <div className="flex-1 h-2 bg-bg rounded overflow-hidden border border-hair">
-          <div className="h-full bg-orange rounded" style={{ width: `${pct}%` }} />
+      {isDrink ? (
+        <div className="flex items-center justify-end mt-1">
+          <span className="text-[12px] font-black text-orange whitespace-nowrap">🍻 {round.currentCount}人 参加</span>
         </div>
-        <span className="text-[12px] font-black text-orange whitespace-nowrap">{round.currentCount}/{round.maxSpots}人</span>
-      </div>
+      ) : (
+        <div className="flex items-center gap-2 mt-1">
+          <div className="flex-1 h-2 bg-bg rounded overflow-hidden border border-hair">
+            <div className="h-full bg-orange rounded" style={{ width: `${pct}%` }} />
+          </div>
+          <span className="text-[12px] font-black text-orange whitespace-nowrap">{round.currentCount}/{round.maxSpots}人</span>
+        </div>
+      )}
       </div>
       {isFull && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

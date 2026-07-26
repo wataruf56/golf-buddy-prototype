@@ -297,7 +297,7 @@ export default function HomePage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] font-bold truncate">{r.title}</div>
-                      <div className="text-[10px] text-muted truncate">{[r.courseName || r.area, r.status === 'closed' ? '締切' : null].filter(Boolean).join(' ・ ') || 'コース未定'}</div>
+                      <div className="text-[10px] text-muted truncate">{[r.eventType === 'drink' ? (r.venue || '🍻 飲み会') : (r.courseName || r.area), r.status === 'closed' ? '締切' : null].filter(Boolean).join(' ・ ') || (r.eventType === 'drink' ? '🍻 飲み会' : 'コース未定')}</div>
                     </div>
                     <span className={`text-[10px] font-black px-2 py-0.5 rounded-full flex-shrink-0 ${roleCls}`}>{role}</span>
                     <span className="text-muted flex-shrink-0">›</span>
