@@ -31,10 +31,21 @@ export async function GET(req: NextRequest) {
     // 赤バン（アカウント停止）ユーザーは招待候補・検索に一切出さない。
     const { getBannedIdSet } = await import('@/lib/banAccess');
     const bset = await getBannedIdSet();
+
+    // テストアカウントは一般ユーザーの検索・招待候補に出さない（bootstrap と同じ判定）。
+    // テストアカウント自身が閲覧している場合（検証中）は表示する。
+    const { getTestAccountConfig, isTestAccount } = await import('@/lib/testAccounts');
+    const tcfg = await getTestAccountConfig();
+    const isTestMe = await isTestAccount(meId);
+    const tset = new Set(tcfg.accounts.map((a) => a.id));
+    const isTestId = (id: string) => !!id && (id.startsWith('test_') || tset.has(id));
+    const hideTest = tcfg.hideFromGeneral && !isTestMe;
+
     const snap = await db.collection('users').limit(2000).get();
     const items = snap.docs
       .map((d: any) => ({ id: d.id, ...d.data() }))
       .filter((u: any) => u.id !== meId)
+      .filter((u: any) => !(hideTest && isTestId(u.id)))
       .filter((u: any) => typeof u.age === 'number' && u.age >= lo && u.age <= hi)
       .filter((u: any) => (gender ? u.gender === gender : true))
       .filter((u: any) => (q ? String(u.displayName || '').toLowerCase().includes(q) : true))

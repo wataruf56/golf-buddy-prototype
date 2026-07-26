@@ -40,6 +40,8 @@ export default function PollPage() {
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
   const [myAnswers, setMyAnswers] = useState<Record<string, ScheduleAnswer>>({});
   const [myComment, setMyComment] = useState('');
+  // オーナーが編集する「何の調整か」タイトル。
+  const [titleDraft, setTitleDraft] = useState('');
 
   const pollPath = `/poll/${params.id}`;
 
@@ -71,6 +73,9 @@ export default function PollPage() {
     setMyAnswers(mine?.answers || {});
     setMyComment(mine?.comment || '');
   }, [poll, meId]);
+
+  // タイトル欄の下書きはポール読み込み時に同期。
+  useEffect(() => { setTitleDraft(poll?.title || ''); }, [poll?.title]);
 
   const userMap = useMemo(() => {
     const m: Record<string, User> = {};
@@ -154,6 +159,13 @@ export default function PollPage() {
     await callApi({ action: 'remove-option', optionId });
   }
 
+  // オーナーが「何の調整か」タイトルを保存。
+  async function saveTitle() {
+    if (!ensureReady()) return;
+    const p = await callApi({ action: 'set-title', title: titleDraft.trim() });
+    if (p) toast('タイトルを保存しました');
+  }
+
   // 未ログインで回答しようとしたら、その場で登録（ログイン）画面へ。
   function onTapAnswer(optionId: string, a: ScheduleAnswer) {
     if (!ensureReady()) return;
@@ -213,8 +225,30 @@ export default function PollPage() {
         </button>
       </div>
 
-      <div className="text-2xl font-black tracking-tight mb-1">📅 日程調整</div>
-      <div className="text-[13px] text-sub mb-4">{poll.title || 'みんなで日程を決めましょう'}</div>
+      <div className="text-2xl font-black tracking-tight mb-1">📅 {poll.title ? poll.title : '日程調整'}</div>
+      {isOwner ? (
+        <div className="mb-4">
+          <div className="flex gap-2">
+            <input
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value.slice(0, 60))}
+              placeholder="何の調整か（例: 7月の週末ゴルフ / 送別会の日程）"
+              maxLength={60}
+              className="flex-1 min-w-0 px-3 py-2 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
+            />
+            <button
+              onClick={saveTitle}
+              disabled={busy || titleDraft.trim() === (poll.title || '')}
+              className="px-3 py-2 bg-green text-white rounded-[10px] text-xs font-black flex-shrink-0 disabled:opacity-40"
+            >
+              保存
+            </button>
+          </div>
+          <div className="text-[10px] text-muted mt-1">このタイトルは参加者みんなに表示されます（任意）</div>
+        </div>
+      ) : (
+        !poll.title && <div className="text-[13px] text-sub mb-4">みんなで日程を決めましょう</div>
+      )}
 
       {/* 使い方（オーナー向け） */}
       {isOwner && !poll.roundId && (
@@ -266,7 +300,7 @@ export default function PollPage() {
       <div className="bg-card rounded-card p-4 shadow-card mb-4">
         <div className="text-base font-black mb-3">みんなの回答（{responses.length}人）</div>
         {options.length === 0 ? (
-          <div className="text-center text-sub text-sm py-6">まだ候補日がありません。下から追加してください。</div>
+          <div className="text-center text-sub text-sm py-6">{isOwner ? 'まだ候補日がありません。下から追加してください。' : '主催者が候補日を追加すると回答できます。'}</div>
         ) : (
           <div className="overflow-x-auto -mx-1 px-1">
             <table className="border-collapse text-center">
@@ -377,19 +411,21 @@ export default function PollPage() {
         </button>
       </div>
 
-      {/* 候補日を追加（誰でも）— カレンダーでまとめて選択 → 一括追加 */}
-      <div className="bg-card rounded-card p-4 shadow-card mb-4">
-        <div className="text-base font-black mb-1">候補日を追加</div>
-        <div className="text-[11px] text-sub mb-3">カレンダーで日付を<b>タップして複数選べます</b>。まとめて一括で追加できます（誰でも追加OK）。<span className="text-green font-bold">緑で塗られた日は追加済み</span>です。</div>
-        <MultiDatePicker selected={selectedDates} onToggle={toggleDate} existing={new Set(options.map((o) => o.date))} />
-        <button
-          onClick={addSelectedDates}
-          disabled={busy || selectedDates.size === 0}
-          className="w-full py-2.5 mt-3 bg-green text-white rounded-xl text-sm font-black disabled:opacity-50"
-        >
-          ＋ 選択した{selectedDates.size > 0 ? `${selectedDates.size}日` : '日'}を候補に追加
-        </button>
-      </div>
+      {/* 候補日を追加（オーナーのみ）— カレンダーでまとめて選択 → 一括追加 */}
+      {isOwner && (
+        <div className="bg-card rounded-card p-4 shadow-card mb-4">
+          <div className="text-base font-black mb-1">候補日を追加</div>
+          <div className="text-[11px] text-sub mb-3">カレンダーで日付を<b>タップして複数選べます</b>。まとめて一括で追加できます。<span className="text-green font-bold">緑で塗られた日は追加済み</span>です。</div>
+          <MultiDatePicker selected={selectedDates} onToggle={toggleDate} existing={new Set(options.map((o) => o.date))} />
+          <button
+            onClick={addSelectedDates}
+            disabled={busy || selectedDates.size === 0}
+            className="w-full py-2.5 mt-3 bg-green text-white rounded-xl text-sm font-black disabled:opacity-50"
+          >
+            ＋ 選択した{selectedDates.size > 0 ? `${selectedDates.size}日` : '日'}を候補に追加
+          </button>
+        </div>
+      )}
 
       {/* オーナー：候補日ごとに「この日で募集をつくる」＋削除 */}
       {isOwner && options.length > 0 && !poll.roundId && (

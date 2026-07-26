@@ -7,7 +7,9 @@ import type { Round, SchedulePoll, ScheduleOption, ScheduleResponse, ScheduleAns
 //
 // GET  /api/polls/[id]              公開。{ poll, users }（回答者の名前・アバター用）
 // POST /api/polls/[id] { action }
-//   add-option    登録ユーザー誰でも。候補日を追加 { date, startTime? }
+//   set-title     オーナーのみ。「何の調整か」タイトルを設定 { title }
+//   add-option    オーナーのみ。候補日を追加 { date, startTime? }
+//   add-options   オーナーのみ。候補日を一括追加 { dates[], startTime? }
 //   remove-option 追加者本人 or オーナー。{ optionId }
 //   answer        登録ユーザー誰でも。自分の回答を保存 { answers, comment? }
 //   decide        オーナーのみ。候補日を決定 { optionId }
@@ -115,7 +117,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   };
 
   switch (action) {
+    case 'set-title': {
+      if (!isOwner) return NextResponse.json({ error: 'forbidden', message: '作成者のみタイトルを編集できます' }, { status: 403, headers: noStore });
+      poll.title = String(body.title || '').trim().slice(0, 60);
+      break;
+    }
+
     case 'add-option': {
+      if (!isOwner) return NextResponse.json({ error: 'forbidden', message: '候補日の追加は作成者のみできます' }, { status: 403, headers: noStore });
       const date = String(body.date || '').trim().slice(0, 40);
       if (!date) return NextResponse.json({ error: 'bad_date', message: '日付を入力してください' }, { status: 400, headers: noStore });
       if ((poll.options || []).length >= MAX_OPTIONS) {
@@ -128,6 +137,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     case 'add-options': {
+      if (!isOwner) return NextResponse.json({ error: 'forbidden', message: '候補日の追加は作成者のみできます' }, { status: 403, headers: noStore });
       // 複数の候補日を一括追加（カレンダーでまとめて選択 → 一気に追加）。
       const dates: unknown[] = Array.isArray(body.dates) ? body.dates : [];
       const startTime = body.startTime ? String(body.startTime).trim().slice(0, 20) : undefined;
@@ -209,6 +219,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   // decidedOptionId は null を保持したいので undefined を弾く clean は使わず、必要な場を明示。
   const patch: Partial<SchedulePoll> = clean({
+    title: poll.title,
     options: poll.options,
     responses: poll.responses,
     decidedOptionId: poll.decidedOptionId ?? null,

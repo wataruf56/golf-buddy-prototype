@@ -76,6 +76,19 @@ export async function POST(req: NextRequest) {
         lineId: userId,
       });
       isNewUser = true;
+    } else if (
+      picture &&
+      !existing.avatarUrl &&
+      !(existing as any).avatarMode
+    ) {
+      // 既存ユーザーの補完：まだアイコンを一切カスタムしていない人（写真URL無し＆
+      // avatarMode未設定＝初期の絵文字のまま）だけ、LINEのトップ画を初期アイコンに入れる。
+      // 自分でアップした写真・絵文字選択・診断アイコンを選んだ人は avatarMode が入るので対象外。
+      try {
+        await db.upsertUser({ id: userId, avatarUrl: picture } as any);
+      } catch (e) {
+        console.error('[liff auth] avatar backfill failed', e);
+      }
     }
   } catch (e) {
     console.error('[liff auth] upsert failed', e);
