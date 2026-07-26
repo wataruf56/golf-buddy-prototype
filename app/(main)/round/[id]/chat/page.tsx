@@ -119,7 +119,8 @@ export default function RoundChatPage() {
     if (!text) return null;
     if (!memberNames.length) return text;
     const esc = memberNames.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-    const re = new RegExp(`[@＠](?:${esc.join('|')})`, 'g');
+    // 「@全員」も青くハイライトする。
+    const re = new RegExp(`[@＠](?:全員|${esc.join('|')})`, 'g');
     const out: any[] = [];
     let last = 0; let k = 0; let m: RegExpExecArray | null;
     while ((m = re.exec(text)) !== null) {
@@ -149,6 +150,14 @@ export default function RoundChatPage() {
       if (prev.includes('@' + name)) return prev; // 二重挿入を防ぐ
       const sep = prev && !prev.endsWith(' ') ? ' ' : '';
       return `${prev}${sep}@${name} `;
+    });
+  }
+  // 「@全員」：1タップで全員をメンション（サーバー側で参加者全員に通知）。トグルで外せる。
+  function toggleMentionAll() {
+    setText((prev) => {
+      if (prev.includes('@全員')) return prev.replace(/[@＠]全員\s?/g, '');
+      const sep = prev && !prev.endsWith(' ') ? ' ' : '';
+      return `${prev}${sep}@全員 `;
     });
   }
 
@@ -338,6 +347,16 @@ export default function RoundChatPage() {
         <div className="px-4 pt-2 bg-card border-t border-border flex-shrink-0">
           <div className="text-[10px] font-bold text-muted mb-1.5">指名する人をタップ（複数OK）</div>
           <div className="flex gap-1.5 flex-wrap pb-2">
+            {(() => {
+              const on = text.includes('@全員');
+              return (
+                <button
+                  type="button"
+                  onClick={toggleMentionAll}
+                  className={'px-2.5 py-1 rounded-full text-[12px] font-black border-[1.5px] ' + (on ? 'bg-orange text-white border-orange' : 'bg-orange-light border-orange text-orange')}
+                >{on ? '✓ ' : ''}📣 @全員</button>
+              );
+            })()}
             {mentionMembers.map((m) => {
               const on = text.includes('@' + m.displayName);
               return (

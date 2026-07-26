@@ -60,11 +60,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const others = (await Promise.all(recipients.map((id) => db.getUser(id)))).filter(Boolean) as any[];
 
     // A recipient is "mentioned" if their display name appears after an @.
+    // 「@全員」（＠全員）が入っていれば、参加者全員をメンション扱いにする。
+    const mentionAll = trimmed.includes('@全員') || trimmed.includes('＠全員');
     const mentioned: any[] = [];
     const rest: any[] = [];
     for (const u of others) {
       const name = (u.displayName || '').trim();
-      const isMentioned = name && (trimmed.includes('@' + name) || trimmed.includes('＠' + name));
+      const isMentioned = mentionAll || (name && (trimmed.includes('@' + name) || trimmed.includes('＠' + name)));
       (isMentioned ? mentioned : rest).push(u);
     }
 
