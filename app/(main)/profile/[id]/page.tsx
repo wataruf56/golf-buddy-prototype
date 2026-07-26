@@ -27,7 +27,7 @@ export default function ProfilePage() {
 
   const [user, setUser] = useState<User | undefined>(cachedUser);
   const [notFound, setNotFound] = useState(false);
-  const [track, setTrack] = useState<{ roundedWith: number; againCount: number; hostedCount: number; joinedCount: number } | null>(null);
+  const [track, setTrack] = useState<{ roundedWith: number; againCount: number; neverCount: number; hostedCount: number; joinedCount: number } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
@@ -42,7 +42,7 @@ export default function ProfilePage() {
       .catch(() => setNotFound(true));
     fetch(`/api/users/${encodeURIComponent(params.id)}/track-record`, { cache: 'no-store' })
       .then((r) => r.json())
-      .then((d) => setTrack({ roundedWith: d.roundedWith || 0, againCount: d.againCount || 0, hostedCount: d.hostedCount || 0, joinedCount: d.joinedCount || 0 }))
+      .then((d) => setTrack({ roundedWith: d.roundedWith || 0, againCount: d.againCount || 0, neverCount: d.neverCount || 0, hostedCount: d.hostedCount || 0, joinedCount: d.joinedCount || 0 }))
       .catch(() => {});
   }, [params.id]);
 
@@ -149,7 +149,7 @@ export default function ProfilePage() {
           </div>
           <div className="mt-1.5 flex items-center gap-2.5 flex-wrap">
             {/* ★は「また回りたい率」を5段階に写像（旧★平均は廃止）。3/3 → ★5.0 */}
-            <GolfBallRating value={track && track.roundedWith > 0 ? Math.round((track.againCount / track.roundedWith) * 5 * 2) / 2 : 0} count={track?.roundedWith || 0} size={18} />
+            <GolfBallRating value={track && track.roundedWith > 0 ? Math.round((1 - (track.neverCount || 0) / track.roundedWith) * 5 * 2) / 2 : 0} count={track?.roundedWith || 0} size={18} />
             {track && track.roundedWith > 0 && (
               <span className="inline-flex items-center gap-1 text-[12px] font-black text-green bg-green-light border border-green rounded-full px-2.5 py-0.5">
                 🏌️ また回りたい {track.againCount}/{track.roundedWith}
