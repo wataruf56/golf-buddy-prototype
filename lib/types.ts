@@ -233,6 +233,11 @@ export type ScheduleResponse = {
   answers: Record<string, ScheduleAnswer>;
   comment?: string;
   updatedAt: number;
+  // 回答時点の回答者の表示情報を刻んでおく（スナップショット）。ユーザードキュメントが
+  // 後で消えても／取得に失敗しても、日程調整の表で「誰が答えたか」を必ず表示できる。
+  name?: string;
+  avatar?: string;
+  avatarUrl?: string;
 };
 
 export type SchedulePoll = {

@@ -184,7 +184,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         if (validIds.has(optId) && VALID_ANSWER.has(val as ScheduleAnswer)) answers[optId] = val as ScheduleAnswer;
       }
       const comment = body.comment ? String(body.comment).trim().slice(0, 200) : undefined;
-      const entry: ScheduleResponse = clean({ userId: meId, answers, comment, updatedAt: Date.now() });
+      // 回答者の表示情報（名前・アイコン）を回答時点でスナップショットして刻む。
+      // ユーザードキュメントが後で消えても表で「誰が答えたか」を必ず出せるようにする。
+      let name: string | undefined, avatar: string | undefined, avatarUrl: string | undefined;
+      try {
+        const meUser = await db.getUser(meId);
+        if (meUser) {
+          name = meUser.displayName || undefined;
+          avatar = meUser.avatar || undefined;
+          avatarUrl = meUser.avatarUrl || undefined;
+        }
+      } catch { /* 取得失敗時はスナップショットなしで続行 */ }
+      const entry: ScheduleResponse = clean({ userId: meId, answers, comment, updatedAt: Date.now(), name, avatar, avatarUrl });
       const others = (poll.responses || []).filter((r) => r.userId !== meId);
       poll.responses = (Object.keys(answers).length === 0 && !comment) ? others : [...others, entry];
       break;

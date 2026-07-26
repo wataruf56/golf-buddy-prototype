@@ -76,18 +76,27 @@ export async function POST(req: NextRequest) {
         lineId: userId,
       });
       isNewUser = true;
-    } else if (
-      picture &&
-      !existing.avatarUrl &&
-      !(existing as any).avatarMode
-    ) {
-      // 既存ユーザーの補完：まだアイコンを一切カスタムしていない人（写真URL無し＆
-      // avatarMode未設定＝初期の絵文字のまま）だけ、LINEのトップ画を初期アイコンに入れる。
-      // 自分でアップした写真・絵文字選択・診断アイコンを選んだ人は avatarMode が入るので対象外。
-      try {
-        await db.upsertUser({ id: userId, avatarUrl: picture } as any);
-      } catch (e) {
-        console.error('[liff auth] avatar backfill failed', e);
+    } else {
+      // 既存ユーザーの補完（初期値のときだけ。ユーザーが自分で設定した値は上書きしない）。
+      const patch: Record<string, unknown> = {};
+      // アイコン未カスタム（写真URL無し＆avatarMode未設定＝初期の絵文字のまま）なら
+      // LINEのトップ画を初期アイコンに入れる。写真アップ/絵文字選択/診断アイコンは avatarMode が入るので対象外。
+      if (picture && !existing.avatarUrl && !(existing as any).avatarMode) {
+        patch.avatarUrl = picture;
+      }
+      // 名前が初期値（未設定 or 自動生成の「ゴルファー」）のままなら、LINEの表示名で補完。
+      // これで、ユーザードキュメントが初期化などで作り直されて「ゴルファー」になった人も、
+      // 次回ログインで本来の名前に戻る（自分で変えた名前は上書きしない）。
+      const dn = (existing.displayName || '').trim();
+      if (displayName && displayName !== 'ゴルファー' && (!dn || dn === 'ゴルファー')) {
+        patch.displayName = displayName;
+      }
+      if (Object.keys(patch).length) {
+        try {
+          await db.upsertUser({ id: userId, ...patch } as any);
+        } catch (e) {
+          console.error('[liff auth] profile backfill failed', e);
+        }
       }
     }
   } catch (e) {

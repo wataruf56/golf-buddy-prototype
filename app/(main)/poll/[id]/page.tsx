@@ -83,6 +83,17 @@ export default function PollPage() {
     return m;
   }, [users]);
 
+  // 回答者の表示情報。ユーザードキュメントが取得できればそれを使い、無ければ
+  // 回答時に刻んだスナップショット（name/avatar/avatarUrl）で表示する。
+  function respUser(r: { userId: string; name?: string; avatar?: string; avatarUrl?: string }): User | null {
+    const live = userMap[r.userId];
+    if (live) return live;
+    if (r.name || r.avatarUrl || r.avatar) {
+      return { id: r.userId, displayName: r.name || 'ゴルファー', avatar: r.avatar || '⛳', avatarUrl: r.avatarUrl, color: '#2A8C82' } as User;
+    }
+    return null;
+  }
+
   const tallies = useMemo(() => {
     const t: Record<string, { ok: number; maybe: number; no: number }> = {};
     for (const o of poll?.options || []) t[o.id] = { ok: 0, maybe: 0, no: 0 };
@@ -309,7 +320,7 @@ export default function PollPage() {
                   <th className="sticky left-0 z-10 bg-card text-left text-[11px] font-bold text-sub px-2 py-1.5 min-w-[92px]">候補日</th>
                   <th className="text-[10px] font-bold text-sub px-2 py-1.5 whitespace-nowrap">集計</th>
                   {responses.map((r) => {
-                    const u = userMap[r.userId];
+                    const u = respUser(r);
                     return (
                       <th key={r.userId} className="px-1.5 py-1.5">
                         <div className="flex flex-col items-center gap-0.5 w-12">
@@ -361,7 +372,7 @@ export default function PollPage() {
           <div className="mt-3 pt-3 border-t border-border space-y-1.5">
             {responses.filter((r) => r.comment).map((r) => (
               <div key={r.userId} className="text-[11px] text-sub">
-                <span className="font-bold text-text">{userMap[r.userId]?.displayName || '?'}</span>：{r.comment}
+                <span className="font-bold text-text">{respUser(r)?.displayName || '?'}</span>：{r.comment}
               </div>
             ))}
           </div>
