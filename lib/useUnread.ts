@@ -34,10 +34,10 @@ export function useUnreadCounts() {
     };
   }, []);
 
-  // 1on1 chats: count chats that have unreadCount[meId] > 0
+  // 1on1 chats（DM）: 未読メッセージの「件数」を合計する（LINEのバッジと同じ考え方）。
   let buddiesUnread = 0;
   for (const c of chats) {
-    if ((c.unreadCount?.[meId] || 0) > 0) buddiesUnread += 1;
+    buddiesUnread += c.unreadCount?.[meId] || 0;
   }
 
   // Round group chats: my participating rounds with last activity > my lastSeen

@@ -112,8 +112,9 @@ function Inner() {
     seen.add(id); order.push(id);
   }
 
-  // 過去に同じコンペに参加した人（ブロック・自分を除外。取得順＝最近のコンペ順）。
-  const compList = compIds.filter((id) => !blocked.has(id) && id !== meId);
+  // 過去に同じコンペに参加した人。ブロック・自分に加えて、すでに友達リスト(order)に
+  // 載っている人（また回りたい/気になる/QR友達/一緒に回った）は重複するので除外する。
+  const compList = compIds.filter((id) => !blocked.has(id) && id !== meId && !seen.has(id));
 
   function userOf(id: string): MUser {
     return (users.find((x) => x.id === id) as any) || matchUsers[id] || pastUsers[id] || compUsers[id] || { displayName: 'ゴルファー' };
