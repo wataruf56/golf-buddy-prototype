@@ -4,9 +4,30 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#F4E8CE" />
-<title>ゴルフ性格診断 GOLMOTI（ゴルモチ）— 16タイプであなたのゴルフ人格がわかる</title>
-<meta property="og:title" content="ゴルフ性格診断 GOLMOTI — 16タイプ診断">
-<meta property="og:description" content="12の質問で、あなたのゴルフ人格を16タイプで診断。同じタイプの仲間とつながろう。">
+<title>ゴルトモ｜ゴルフ版MBTI・16タイプ性格診断 - あなたのゴルフ人格は？</title>
+<meta name="description" content="ゴルフ版MBTI。ゴルトモの16タイプ・ゴルフ性格診断で、あなたのゴルフ人格を無料チェック。12の質問に答えるだけ。同じタイプのゴル友と一緒にラウンドを回ろう。登録不要・LINEで完結。" />
+<meta name="keywords" content="ゴルトモ,ゴルフ MBTI,ゴルフ 診断,ゴルフ性格診断,16タイプ,ゴルフタイプ診断,ゴル友,ゴルフ マッチング" />
+<link rel="canonical" href="https://goltomo.com/golmoti.html" />
+<meta name="robots" content="index,follow" />
+<!-- Open Graph -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="ゴルトモ" />
+<meta property="og:url" content="https://goltomo.com/golmoti.html" />
+<meta property="og:title" content="ゴルトモ｜ゴルフ版MBTI・16タイプ性格診断" />
+<meta property="og:description" content="12の質問でわかる、ゴルフ版MBTI。あなたのゴルフ人格を16タイプで無料診断。同じタイプのゴル友とつながろう。" />
+<meta property="og:image" content="https://goltomo.com/ogp-golmoti.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:locale" content="ja_JP" />
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="ゴルトモ｜ゴルフ版MBTI・16タイプ性格診断" />
+<meta name="twitter:description" content="12の質問でわかる、ゴルフ版MBTI。あなたのゴルフ人格を16タイプで無料診断。" />
+<meta name="twitter:image" content="https://goltomo.com/ogp-golmoti.png" />
+<!-- Structured data -->
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebApplication","name":"ゴルトモ ゴルフ性格診断（ゴルフ版MBTI）","alternateName":["ゴルトモ","ゴルフMBTI","ゴルフ性格診断"],"url":"https://goltomo.com/golmoti.html","applicationCategory":"LifestyleApplication","operatingSystem":"Web","description":"12の質問でわかる、ゴルフ版MBTIの16タイプ性格診断。同じタイプのゴル友とマッチングできるLINEアプリ「ゴルトモ」の無料診断。","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"},"publisher":{"@type":"Organization","name":"合同会社シクミヤ","url":"https://goltomo.com/"}}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
@@ -225,9 +246,9 @@
 
   <!-- HERO (diagnosis as a destination) -->
   <header class="hero">
-    <div class="kicker">⛳ ゴルフ性格診断</div>
-    <div class="brand">GOLMOTI</div>
-    <div class="brandsub">ゴルモチ — ゴルフ版16タイプ診断</div>
+    <div class="kicker">⛳ ゴルフ版MBTI・性格診断</div>
+    <div class="brand">GOLTOMO</div>
+    <h1 class="brandsub">ゴルトモの16タイプ ゴルフ性格診断<br><span style="font-size:12px;color:#8a7256">〜ゴルフ版MBTIで、あなたのゴルフ人格がわかる〜</span></h1>
     <div class="meta16"><span class="chip">⏱ 30秒〜</span><span class="chip" id="qcount">全12問</span><span class="chip">16タイプ</span></div>
     <div class="sd">診断スタート<span class="ar">↓</span></div>
   </header>
@@ -722,7 +743,7 @@
 
     // 結果のリンクは型コード付き。受け取った側はアプリ未利用・未ログインでも結果を見られる（?type=XXXX）
     const shareUrl=location.origin+location.pathname+'?type='+code;
-    const shareText=`私のゴルフタイプは【${nk.e}${nk.n}（${code}）】！あなたは？ #ゴルトモ #GOLMOTI`;
+    const shareText=`私のゴルフタイプは【${nk.e}${nk.n}（${code}）】！あなたは？ #ゴルトモ #ゴルフMBTI #ゴルフ診断`;
     document.getElementById('shareBtn').addEventListener('click',async()=>{
       track('share',{resultType:code, where:'sheet'});
       // iPhone等のネイティブ共有シート（LINE/AirDrop等）を起動。非対応はコピーにフォールバック。

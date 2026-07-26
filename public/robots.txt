@@ -1,0 +1,12 @@
+# ゴルトモ (goltomo.com)
+User-agent: *
+Allow: /
+# アプリ内部・管理・APIはクロール対象外
+Disallow: /api/
+Disallow: /admin
+Disallow: /login
+Disallow: /liff
+Disallow: /mypage
+Disallow: /chat
+
+Sitemap: https://goltomo.com/sitemap.xml

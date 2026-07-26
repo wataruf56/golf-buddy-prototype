@@ -2,9 +2,27 @@
 // No LIFF required. Standalone. Hosted on GCP (Cloud Run + Firebase Hosting).
 
 export const metadata = {
-  title: 'ゴルトモ - ゴル友マッチング × AIスイング解析',
+  title: 'ゴルトモ｜ゴル友マッチング × AIスイング解析（ゴルフ版MBTI診断つき）',
   description:
-    '20〜30代のゴルファーと一緒にラウンドを回ろう。スイング動画はAIコーチが解析し、スコアの推移と課題の改善まで可視化。LINEで完結、ダウンロード不要。',
+    '20〜30代のゴルファーと一緒にラウンドを回ろう。ゴルフ版MBTIの16タイプ性格診断で気の合うゴル友とマッチング、スイング動画はAIコーチが解析。スコアの推移と課題の改善まで可視化。LINEで完結、ダウンロード不要。',
+  keywords: ['ゴルトモ', 'ゴルフ マッチング', 'ゴル友', 'ゴルフ MBTI', 'ゴルフ 診断', 'ゴルフ性格診断', 'AIスイング解析'],
+  alternates: { canonical: 'https://goltomo.com/' },
+  openGraph: {
+    type: 'website',
+    siteName: 'ゴルトモ',
+    url: 'https://goltomo.com/',
+    title: 'ゴルトモ｜ゴル友マッチング × AIスイング解析',
+    description:
+      '同年代のゴルファーと出会って一緒にラウンド。ゴルフ版MBTIの16タイプ診断で気の合う仲間とマッチング、スイングはAIコーチが解析。LINEで完結。',
+    locale: 'ja_JP',
+    images: [{ url: 'https://goltomo.com/ogp-golmoti.png', width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'ゴルトモ｜ゴル友マッチング × AIスイング解析',
+    description: '同年代のゴルファーと一緒にラウンド。ゴルフ版MBTI診断で気の合う仲間とマッチング。',
+    images: ['https://goltomo.com/ogp-golmoti.png'],
+  },
 };
 
 // Branded launch URL — /app is handled in middleware.ts and redirects to LIFF.
@@ -156,6 +174,40 @@ export default function LandingPage() {
           </ol>
         </div>
       </section>
+
+      {/* ゴルフ版MBTI 診断への導線（相互リンク + 集客ファネル） */}
+      <section className="max-w-3xl mx-auto px-6 py-12">
+        <div className="bg-card rounded-card p-7 shadow-card text-center">
+          <div className="text-[11px] font-bold tracking-[0.2em] text-green mb-2">GOLF MBTI</div>
+          <h2 className="text-2xl font-black mb-2">まずは「ゴルフ版MBTI」で自分のタイプ診断</h2>
+          <p className="text-[13px] text-sub leading-relaxed mb-6 max-w-md mx-auto">
+            12の質問に答えるだけ。ゴルトモの<b className="text-green">16タイプ・ゴルフ性格診断</b>で、あなたのゴルフ人格がわかります。同じタイプのゴル友ともつながれます。
+          </p>
+          <a
+            href="/golmoti.html"
+            className="inline-block px-6 py-3.5 bg-green text-white rounded-2xl font-black text-sm shadow-lg"
+          >
+            無料でゴルフMBTI診断をする →
+          </a>
+        </div>
+      </section>
+
+      {/* 構造化データ (JSON-LD) */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'WebSite',
+            name: 'ゴルトモ',
+            alternateName: ['GOLTOMO', 'ゴルフMBTI診断'],
+            url: 'https://goltomo.com/',
+            description:
+              'ゴル友マッチング × AIスイング解析のLINEアプリ。ゴルフ版MBTIの16タイプ性格診断で気の合うゴルファーとつながれる。',
+            publisher: { '@type': 'Organization', name: '合同会社シクミヤ', url: 'https://goltomo.com/' },
+          }),
+        }}
+      />
 
       {/* Bottom CTA */}
       <section className="bg-gradient-to-br from-green to-emerald-700 text-white py-14">

@@ -13,10 +13,18 @@ import { Providers } from './providers';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://goltomo.com'),
   title: 'ゴルトモ - ゴル友マッチング × AIスイング解析',
-  description: 'ゴル友マッチングとAIスイング解析が一つになったLINEアプリ。同年代のゴルファーと一緒にラウンドを回ろう。',
+  description: 'ゴル友マッチングとAIスイング解析が一つになったLINEアプリ。ゴルフ版MBTIの16タイプ性格診断で同年代のゴルファーと一緒にラウンドを回ろう。',
   manifest: '/manifest.json',
   appleWebApp: { capable: true, statusBarStyle: 'default', title: 'ゴルトモ' },
+  openGraph: {
+    type: 'website',
+    siteName: 'ゴルトモ',
+    locale: 'ja_JP',
+    images: [{ url: '/ogp-golmoti.png', width: 1200, height: 630 }],
+  },
+  twitter: { card: 'summary_large_image' },
 };
 
 export const viewport: Viewport = {
