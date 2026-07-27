@@ -10,6 +10,7 @@ import { GolfBallRating } from '@/components/GolfBallRating';
 import { toast } from '@/components/Toast';
 import { confirmDialog } from '@/components/ConfirmDialog';
 import type { User } from '@/lib/types';
+import { drinkLabel, smokeLabel } from '@/lib/lifestyle';
 import { chatIdFor, carLabel, instagramUrl } from '@/lib/utils';
 
 export default function ProfilePage() {
@@ -201,7 +202,38 @@ export default function ProfilePage() {
           {user.scoreRange && <Tag>🎯 {user.scoreRange}</Tag>}
           {user.car && <Tag>{user.car === 'have' ? '🚗 車あり' : '🚶 車なし'}</Tag>}
           {user.area && <Tag>📍 {user.area}</Tag>}
+          {(user as any).job && <Tag>💼 {(user as any).job}</Tag>}
+          {drinkLabel((user as any).drinkStatus) && <Tag>🍶 お酒：{drinkLabel((user as any).drinkStatus)}</Tag>}
+          {smokeLabel((user as any).smokeStatus) && <Tag>🚬 タバコ：{smokeLabel((user as any).smokeStatus)}</Tag>}
         </div>
+
+        {/* 趣味タグ（自分と共通のものはハイライト）＋共通点サマリー */}
+        {(() => {
+          const theirs: string[] = Array.isArray((user as any).hobbies) ? (user as any).hobbies : [];
+          if (theirs.length === 0) return null;
+          const mine = new Set<string>(!isMe && Array.isArray((me as any)?.hobbies) ? (me as any).hobbies : []);
+          const common = theirs.filter((h) => mine.has(h));
+          return (
+            <div className="mt-3 bg-card rounded-card p-4 shadow-card">
+              <div className="text-[13px] font-black mb-2">🎯 趣味</div>
+              {!isMe && common.length > 0 && (
+                <div className="mb-2.5 text-[12px] font-bold text-green bg-green-light border border-green rounded-lg px-3 py-2">
+                  共通の趣味 {common.length}個：{common.join('・')}
+                </div>
+              )}
+              <div className="flex flex-wrap gap-1.5">
+                {theirs.map((h) => {
+                  const isCommon = mine.has(h);
+                  return (
+                    <span key={h} className={'px-3 py-1.5 text-[12px] font-bold rounded-full border-[1.5px] ' + (isCommon ? 'bg-green text-white border-green' : 'bg-bg border-border text-sub')}>
+                      {isCommon ? '✓ ' : ''}{h}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Instagram */}
         {instagramUrl(user.instagram) && (

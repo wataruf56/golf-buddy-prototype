@@ -9,6 +9,7 @@ import { track } from '@/lib/telemetry';
 import { allAreas } from '@/lib/mockData';
 import { GOLMOTI_TYPES, getGolmotiType, golmotiImg } from '@/lib/golmoti';
 import type { Gender, CarStatus, ScoreEntry } from '@/lib/types';
+import { DRINK_OPTIONS, SMOKE_OPTIONS, JOB_OPTIONS } from '@/lib/lifestyle';
 
 const frequencies = [
   '月1回未満', '月1回', '月2回', '月3回', '月4回以上', '週1回以上', 'ほぼ毎日',
@@ -73,6 +74,13 @@ export default function ProfileEditPage() {
   const [recentScores, setRecentScores] = useState<ScoreEntry[]>([]);
   const [golfHistory, setGolfHistory] = useState('');
   const [availableDays, setAvailableDays] = useState('');
+  // ライフスタイル＋趣味タグ。
+  const [drinkStatus, setDrinkStatus] = useState<'' | 'yes' | 'sometimes' | 'no'>('');
+  const [smokeStatus, setSmokeStatus] = useState<'' | 'no' | 'yes' | 'sometimes'>('');
+  const [job, setJob] = useState('');
+  const [hobbies, setHobbies] = useState<string[]>([]);
+  const [allTags, setAllTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState('');
   const [avatar, setAvatar] = useState('👨');
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
   const [avatarMode, setAvatarMode] = useState<'photo' | 'emoji' | 'golmoti'>('emoji');
@@ -98,6 +106,10 @@ export default function ProfileEditPage() {
     setRecentScores(Array.isArray(me.recentScores) ? me.recentScores : []);
     setGolfHistory(me.golfHistory || '');
     setAvailableDays(me.availableDays || '');
+    setDrinkStatus((me.drinkStatus as any) || '');
+    setSmokeStatus((me.smokeStatus as any) || '');
+    setJob(me.job || '');
+    setHobbies(Array.isArray(me.hobbies) ? me.hobbies : []);
     setAvatar(me.avatar || (me.gender === 'female' ? '👩' : '👨'));
     setAvatarUrl(me.avatarUrl || undefined);
     setAvatarMode((me.avatarMode as any) || (me.avatarUrl ? 'photo' : 'emoji'));
@@ -108,6 +120,27 @@ export default function ProfileEditPage() {
       hasAvatarUrl: !!me.avatarUrl,
     });
   }, [meLoaded, initialized, me.id, me.displayName, me.age, me.area, me.scoreRange, me.frequency, me.avatar, me.avatarUrl]);
+
+  // 趣味タグの共有リスト（人気順）をサジェスト用に読み込む。
+  useEffect(() => {
+    fetch('/api/hobby-tags', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (Array.isArray(d?.tags)) setAllTags(d.tags.map((t: any) => t.name).filter(Boolean)); })
+      .catch(() => {});
+  }, []);
+
+  function toggleHobby(tag: string) {
+    const nm = tag.trim().replace(/\s+/g, ' ').slice(0, 24);
+    if (!nm) return;
+    setHobbies((prev) => prev.includes(nm) ? prev.filter((h) => h !== nm) : (prev.length >= 20 ? prev : [...prev, nm]));
+  }
+  function addNewTag() {
+    const nm = newTag.trim().replace(/\s+/g, ' ').slice(0, 24);
+    if (!nm) return;
+    if (!hobbies.includes(nm) && hobbies.length < 20) setHobbies((p) => [...p, nm]);
+    if (!allTags.includes(nm)) setAllTags((p) => [nm, ...p]);
+    setNewTag('');
+  }
 
   async function handleFile(file: File) {
     track('photo_pick', { name: file.name, size: file.size, type: file.type });
@@ -182,6 +215,10 @@ export default function ProfileEditPage() {
         recentScores: cleanedScores,
         golfHistory,
         availableDays,
+        drinkStatus: (drinkStatus || undefined) as any,
+        smokeStatus: (smokeStatus || undefined) as any,
+        job,
+        hobbies,
       });
       track('profile_save_success', { displayName });
       toast('保存しました');
@@ -376,6 +413,66 @@ export default function ProfileEditPage() {
             <option value="">未設定</option>
             {availableDaysOptions.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
+        </Field>
+
+        {/* ── ライフスタイル・趣味（任意・お互い閲覧可） ── */}
+        <div className="mt-1 mb-2 text-[13px] font-black text-sub">🍶 ライフスタイル・趣味<span className="text-[11px] text-muted font-normal">（任意・共通点づくり用）</span></div>
+
+        <Field label="お酒" hint="（任意）">
+          <div className="flex gap-1.5 flex-wrap">
+            {DRINK_OPTIONS.map((o) => (
+              <button key={o.value} type="button" onClick={() => setDrinkStatus(drinkStatus === o.value ? '' : o.value)}
+                className={`px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px] ${drinkStatus === o.value ? 'bg-orange border-orange text-white' : 'bg-bg border-border text-sub'}`}>{o.label}</button>
+            ))}
+          </div>
+        </Field>
+
+        <Field label="タバコ" hint="（任意）">
+          <div className="flex gap-1.5 flex-wrap">
+            {SMOKE_OPTIONS.map((o) => (
+              <button key={o.value} type="button" onClick={() => setSmokeStatus(smokeStatus === o.value ? '' : o.value)}
+                className={`px-3.5 py-2 text-xs font-bold rounded-full border-[1.5px] ${smokeStatus === o.value ? 'bg-orange border-orange text-white' : 'bg-bg border-border text-sub'}`}>{o.label}</button>
+            ))}
+          </div>
+        </Field>
+
+        <Field label="仕事" hint="（任意）">
+          <select value={job} onChange={(e) => setJob(e.target.value)} className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none">
+            <option value="">未設定</option>
+            {JOB_OPTIONS.map((j) => <option key={j} value={j}>{j}</option>)}
+          </select>
+        </Field>
+
+        <Field label="趣味（ゴルフ以外）" hint="（任意・最大20個）">
+          {/* 選択中のタグ */}
+          {hobbies.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {hobbies.map((h) => (
+                <span key={h} className="inline-flex items-center gap-1 bg-green text-white rounded-full pl-2.5 pr-1 py-1 text-[12px] font-bold">
+                  {h}
+                  <button type="button" onClick={() => toggleHobby(h)} className="w-4 h-4 rounded-full bg-white/30 text-white text-[11px] leading-none flex items-center justify-center">×</button>
+                </span>
+              ))}
+            </div>
+          )}
+          {/* 新規追加 */}
+          <div className="flex gap-1.5 mb-2">
+            <input value={newTag} onChange={(e) => setNewTag(e.target.value.slice(0, 24))} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addNewTag(); } }}
+              placeholder="例: 楽器 / キャンプ / サウナ" className="flex-1 min-w-0 p-2.5 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+            <button type="button" onClick={addNewTag} disabled={!newTag.trim()} className="px-3 py-2 bg-green text-white rounded-[10px] text-xs font-bold disabled:opacity-50">＋ 追加</button>
+          </div>
+          {/* 既存タグから選択（人気順・未選択のみ） */}
+          {allTags.filter((t) => !hobbies.includes(t)).length > 0 && (
+            <>
+              <div className="text-[11px] text-muted mb-1.5">みんなが使っているタグから選ぶ：</div>
+              <div className="flex flex-wrap gap-1.5">
+                {allTags.filter((t) => !hobbies.includes(t)).slice(0, 40).map((t) => (
+                  <button key={t} type="button" onClick={() => toggleHobby(t)}
+                    className="px-3 py-1.5 text-[12px] font-bold rounded-full border-[1.5px] bg-bg border-border text-sub">{t}</button>
+                ))}
+              </div>
+            </>
+          )}
         </Field>
 
         <Field label="ゴルフ診断タイプ（GOLMOTI）" hint="（任意）">
