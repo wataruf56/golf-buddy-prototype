@@ -34,6 +34,8 @@ export default function ProfilePage() {
   // 通報の種別（カテゴリ）。ドタキャン申告もここに含める。
   const [reportCat, setReportCat] = useState<'' | 'inappropriate' | 'noshow' | 'no_contact' | 'other'>('');
   const [reportBusy, setReportBusy] = useState(false);
+  // 共通の友達（自分とこの人が、両方とも同じ組で回ったことがある人）。
+  const [mutuals, setMutuals] = useState<Array<{ id: string; displayName: string; avatar: string; avatarUrl?: string }>>([]);
 
   useEffect(() => {
     if (!params.id) return;
@@ -41,7 +43,7 @@ export default function ProfilePage() {
     // notFound を立てる。これが無いと「読み込み中」のまま固まる（DMと同種の不具合）。
     fetch(`/api/users/${encodeURIComponent(params.id)}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d?.user) setUser(d.user); else setNotFound(true); })
+      .then((d) => { if (d?.user) { setUser(d.user); setMutuals(Array.isArray(d.mutualFriends) ? d.mutualFriends : []); } else setNotFound(true); })
       .catch(() => setNotFound(true));
     fetch(`/api/users/${encodeURIComponent(params.id)}/track-record`, { cache: 'no-store' })
       .then((r) => r.json())
@@ -211,6 +213,22 @@ export default function ProfilePage() {
           >
             <span className="text-lg">📷</span> Instagram を開く
           </a>
+        )}
+
+        {/* 共通の友達（自分とこの人が、両方とも同じ組で回ったことがある人） */}
+        {!isMe && mutuals.length > 0 && (
+          <div className="mt-3 bg-card rounded-card p-4 shadow-card">
+            <div className="text-[13px] font-black mb-2.5">🤝 共通の友達 <span className="text-muted font-bold">{mutuals.length}人</span></div>
+            <div className="flex flex-wrap gap-2.5">
+              {mutuals.map((m) => (
+                <Link key={m.id} href={`/profile/${m.id}`} className="flex flex-col items-center gap-1 w-[60px]">
+                  <Avatar user={{ id: m.id, displayName: m.displayName, avatar: m.avatar, avatarUrl: m.avatarUrl, color: '#2A8C82' } as any} size={44} />
+                  <span className="text-[10px] text-sub text-center leading-tight truncate w-full">{m.displayName}</span>
+                </Link>
+              ))}
+            </div>
+            <div className="text-[10px] text-muted mt-2">※ 過去に同じ組で一緒に回ったことがある人どうしの重なりです。</div>
+          </div>
         )}
 
         {/* 下部アクション／状態 */}

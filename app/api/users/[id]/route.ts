@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getMeId } from '@/lib/session';
 
 // Bucket a numeric age into the display label used on reviewer chips.
 // Anonymity-friendly bucketing — 5-year windows up to 40, 40+ collapsed.
@@ -94,5 +95,26 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     reviewer: byId[r.reviewerId] || { ageBucket: '', gender: undefined },
   }));
 
-  return NextResponse.json({ user: publicUser, reviews: enriched });
+  // 共通の友達：閲覧者(A)とこのプロフィール(B)が、それぞれ「過去に同じ組で回った人」の
+  // 積集合。A自身・B自身・システムアカウント・赤バンは除外。自分のプロフィールでは出さない。
+  let mutualFriends: Array<{ id: string; displayName: string; avatar: string; avatarUrl?: string }> = [];
+  try {
+    const viewerId = await getMeId();
+    if (viewerId && viewerId !== params.id) {
+      const { sameGroupPartnerIds } = await import('@/lib/pastPartners');
+      const [aSet, bSet] = await Promise.all([sameGroupPartnerIds(viewerId), sameGroupPartnerIds(params.id)]);
+      const mutualIds = Array.from(aSet).filter((id) => bSet.has(id) && id !== viewerId && id !== params.id).slice(0, 30);
+      if (mutualIds.length) {
+        let bset = new Set<string>();
+        try { const { getBannedIdSet } = await import('@/lib/banAccess'); bset = await getBannedIdSet(); } catch {}
+        const mUsers = await db.listUsers(mutualIds);
+        mutualFriends = mUsers
+          .filter((u) => !(u as any).isSystem && !bset.has(u.id))
+          .map((u) => ({ id: u.id, displayName: u.displayName || 'メンバー', avatar: u.avatar || '⛳', avatarUrl: (u as any).avatarUrl || undefined }))
+          .slice(0, 24);
+      }
+    }
+  } catch { /* best-effort：共通の友達が出せなくてもプロフィールは表示する */ }
+
+  return NextResponse.json({ user: publicUser, reviews: enriched, mutualFriends });
 }
