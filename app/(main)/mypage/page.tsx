@@ -12,6 +12,7 @@ import { NotifySettings } from '@/components/NotifySettings';
 import { AppUpdateButton } from '@/components/AppUpdateButton';
 import { track } from '@/lib/telemetry';
 import { formatDate, instagramUrl } from '@/lib/utils';
+import { drinkLabel, smokeLabel } from '@/lib/lifestyle';
 
 const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 const BOT_BASIC_ID = process.env.NEXT_PUBLIC_LINE_BOT_BASIC_ID || '';
@@ -181,14 +182,6 @@ export default function MyPage() {
               <div className="mt-3 bg-bg rounded-xl p-3 text-[13px] leading-relaxed whitespace-pre-wrap">{me.bio}</div>
             )}
 
-            {/* タグ */}
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {me.frequency && <span className="px-3 py-1.5 bg-bg text-sub text-[11px] font-bold rounded-full">📅 {me.frequency}</span>}
-              {me.availableDays && <span className="px-3 py-1.5 bg-bg text-sub text-[11px] font-bold rounded-full">🗓️ {me.availableDays}</span>}
-              {me.golfHistory && <span className="px-3 py-1.5 bg-bg text-sub text-[11px] font-bold rounded-full">⛳ ゴルフ歴 {me.golfHistory}</span>}
-              {me.car && <span className="px-3 py-1.5 bg-bg text-sub text-[11px] font-bold rounded-full">{me.car === 'have' ? '🚗 車あり' : '🚶 車なし'}</span>}
-            </div>
-
             {/* QRコードで友達 ＋ Instagram */}
             <div className="flex gap-2 mt-3">
               <Link href="/qr" className="flex-1 bg-bg rounded-xl p-3 flex items-center gap-2 justify-center text-sm font-black text-green">
@@ -204,6 +197,38 @@ export default function MyPage() {
                   <span className="text-lg">📷</span> Instagram
                 </a>
               )}
+            </div>
+
+            {/* プロフィール詳細（マッチングアプリ風・QR/Instagramの下にまとめて表示） */}
+            <div className="mt-3 bg-bg rounded-xl p-3.5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[12px] font-black text-sub">プロフィール</span>
+                <Link href="/mypage/edit" className="text-[11px] font-bold text-blue">編集 ›</Link>
+              </div>
+              <div className="flex flex-col divide-y divide-border">
+                <InfoRow label="🗓️ いける曜日" value={me.availableDays} />
+                <InfoRow label="🎯 スコア帯" value={me.scoreRange} />
+                <InfoRow label="📍 エリア" value={me.area} />
+                <InfoRow label="⛳ ゴルフ歴" value={me.golfHistory} />
+                <InfoRow label="📅 頻度" value={me.frequency} />
+                <InfoRow label="🚗 車" value={me.car ? (me.car === 'have' ? 'あり' : 'なし') : ''} />
+                <InfoRow label="🍶 お酒" value={drinkLabel(me.drinkStatus)} />
+                <InfoRow label="🚬 タバコ" value={smokeLabel(me.smokeStatus)} />
+                <InfoRow label="💼 仕事" value={me.job} />
+              </div>
+              {/* 趣味タグ */}
+              <div className="mt-2.5 pt-2.5 border-t border-border">
+                <div className="text-[12px] font-black text-sub mb-1.5">🎯 趣味</div>
+                {Array.isArray(me.hobbies) && me.hobbies.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {me.hobbies.map((h) => (
+                      <span key={h} className="px-3 py-1.5 bg-card border border-border text-sub text-[12px] font-bold rounded-full">{h}</span>
+                    ))}
+                  </div>
+                ) : (
+                  <Link href="/mypage/edit" className="text-[12px] text-blue font-bold">＋ 趣味を追加する</Link>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -341,6 +366,17 @@ function AddBotModal({ botBasicId, onConfirmed, onLater }: { botBasicId: string;
           あとで
         </button>
       </div>
+    </div>
+  );
+}
+
+// プロフィール詳細の1行（値がある時だけ表示）。マッチングアプリ風の label:value 行。
+function InfoRow({ label, value }: { label: string; value?: string }) {
+  if (!value) return null;
+  return (
+    <div className="flex items-center justify-between py-2 gap-3">
+      <span className="text-[12px] text-muted font-bold flex-shrink-0">{label}</span>
+      <span className="text-[13px] font-bold text-text text-right truncate">{value}</span>
     </div>
   );
 }
