@@ -48,6 +48,17 @@ const EVENT_LABEL: Record<string, string> = {
   share_round_click: '［ボタン］募集をシェア',
   share_round_clipboard_ok: 'シェア（リンクをコピー）',
   share_round_native_ok: 'シェア（共有メニュー）',
+  share_round_text: '募集をテキストでシェア',
+  accept_invite_success: '招待を承認して参加',
+  friend_add_ok: 'QRで友達追加',
+  qr_scan_ok: 'QRコードを読み取り',
+  qr_scan_error: 'QR読み取りエラー',
+  review_bulk_submit: 'レビューをまとめて送信',
+  poll_create: '日程調整を作成',
+  poll_add_options: '日程調整に候補日を追加',
+  poll_answer: '日程調整に回答',
+  poll_decide_create: '日程調整から募集を作成',
+  poll_share: '日程調整をシェア',
 };
 function eventJa(ev: string): string {
   if (EVENT_LABEL[ev]) return EVENT_LABEL[ev];
@@ -144,7 +155,7 @@ function Inner() {
               <div key={u.userId} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                 <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-bold truncate">{u.name}</div>
-                  <div className="text-[10px] text-muted truncate">{u.lastPage || '—'} ・ {u.lastEvent || '—'}</div>
+                  <div className="text-[10px] text-muted truncate">{u.lastPage || '—'} ・ {u.lastEvent ? eventJa(u.lastEvent) : '—'}</div>
                 </div>
                 <div className="text-right flex-shrink-0 ml-2">
                   <div className="text-[11px] font-bold text-green">{ago(u.lastTs)}</div>

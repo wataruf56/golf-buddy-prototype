@@ -40,10 +40,13 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Recent raw actions (most useful events first — keep clicks/opens visible)
-    const recentActions = logs.slice(0, 80).map((l: any) => ({
-      userId: l.userId, event: l.event, page: l.page, ts: l.ts,
-    }));
+    // Recent raw actions（直近の操作ログ）。「アプリを開いた／アプリ起動」系は
+    // ノイズなので除外して、実際の操作だけを見やすく並べる。
+    const HIDDEN_EVENTS = new Set(['app_open', 'hydrate_success', 'hydrate_error']);
+    const recentActions = logs
+      .filter((l: any) => l.event && !HIDDEN_EVENTS.has(l.event))
+      .slice(0, 80)
+      .map((l: any) => ({ userId: l.userId, event: l.event, page: l.page, ts: l.ts }));
 
     // --- 3+4) Swing analysis usage ---
     let swings: any[] = [];
