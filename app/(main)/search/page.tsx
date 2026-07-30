@@ -41,6 +41,11 @@ function parseDate(d?: string): number | null {
   return isNaN(t) ? null : t;
 }
 
+// 満員判定（飲み会は定員なしなので満員にならない）。「探す」では満員を一番下へ回す。
+function isFullRound(r: Round): boolean {
+  return r.eventType !== 'drink' && (r.currentCount || 0) >= (r.maxSpots || 0);
+}
+
 export default function SearchPage() {
   const rounds = useStore((s) => s.rounds);
   const users = useStore((s) => s.users);
@@ -146,6 +151,9 @@ export default function SearchPage() {
     const list = rounds.filter((r) => matches(r) && r.date);
     if (sortBy === 'date') {
       list.sort((a, b) => {
+        // 満員は日付ソートを保ったまま一番下へ。
+        const af = isFullRound(a), bf = isFullRound(b);
+        if (af !== bf) return af ? 1 : -1;
         const am = parseDate(a.date) || 0;
         const bm = parseDate(b.date) || 0;
         // future first ascending, past after descending
@@ -155,7 +163,11 @@ export default function SearchPage() {
         return bm - am;
       });
     } else {
-      list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      list.sort((a, b) => {
+        const af = isFullRound(a), bf = isFullRound(b);
+        if (af !== bf) return af ? 1 : -1;
+        return (b.createdAt || 0) - (a.createdAt || 0);
+      });
     }
     return list;
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -166,7 +178,11 @@ export default function SearchPage() {
     // ラウンド（例：完了したが日付情報が欠けたコンペ）も条件に合えば表示する。
     if (filterPeriod === 'thisWeek' || filterPeriod === 'thisMonth') return [];
     return rounds.filter((r) => matches(r) && !r.date)
-      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      .sort((a, b) => {
+        const af = isFullRound(a), bf = isFullRound(b);
+        if (af !== bf) return af ? 1 : -1;
+        return (b.createdAt || 0) - (a.createdAt || 0);
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rounds, filterCategory, filterCourse, filterCompOnly, filterGender, filterBeginnerOnly, filterArea, filterPeriod, filterStatus, filterHasSpots, filterPriceMax, keyword, me?.gender]);
 
