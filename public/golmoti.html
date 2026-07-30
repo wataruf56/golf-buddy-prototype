@@ -161,6 +161,21 @@
   /* inline type detail (LP内に展開・モーダルではない) */
   .tdetail{margin:16px 16px 0;background:var(--cream);border:2.5px solid var(--ink);border-radius:18px;box-shadow:5px 5px 0 var(--ink);padding:24px 18px 20px;position:relative;scroll-margin-top:12px}
   .tdclose{position:absolute;top:10px;right:12px;background:var(--paper);border:2px solid var(--ink);border-radius:999px;font-weight:900;font-size:11px;padding:5px 11px;cursor:pointer;font-family:inherit}
+  /* 全16タイプの静的解説（アコーディオン。中身はHTMLに直書き＝検索エンジンが読める） */
+  .tguide{margin:26px 16px 0}
+  .tg-h{font-size:17px;font-weight:900;text-align:center;margin:0 0 8px}
+  .tg-lead{font-size:12.5px;color:#6b5a44;margin:0 0 14px}
+  details.tg{background:var(--cream);border:2.5px solid var(--ink);border-radius:14px;box-shadow:3px 3px 0 var(--ink);margin:0 0 10px}
+  details.tg>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:11px 13px}
+  details.tg>summary::-webkit-details-marker{display:none}
+  details.tg>summary::after{content:"＋";margin-left:auto;font-size:15px;font-weight:900;opacity:.55}
+  details.tg[open]>summary::after{content:"−"}
+  .tg-e{font-size:18px;line-height:1}
+  .tg-c{font-family:'Baloo 2',cursive;font-size:11.5px;font-weight:800;background:var(--mustard);border:2px solid var(--ink);border-radius:999px;padding:1px 8px}
+  .tg-n{font-size:14px;font-weight:900;margin:0}
+  .tg-b{padding:2px 14px 14px;font-size:13px}
+  .tg-b p{margin:0 0 8px}
+  .tg-ax{color:#8a7256;font-size:12px;font-weight:700}
   /* feature 3 */
   .feat{display:flex;gap:14px;padding:18px;background:var(--cream);border:2.5px solid var(--ink);border-radius:16px;box-shadow:5px 5px 0 var(--ink);margin:0 22px 14px}
   .feat .ico{flex-shrink:0;width:52px;height:52px;border-radius:14px;display:grid;place-items:center;font-size:26px;border:2.5px solid var(--ink)}
@@ -282,10 +297,207 @@
     <div class="grid16" id="grid16"></div>
     <!-- タップで切り替わるインライン詳細（モーダルではなくLP内に表示） -->
     <div id="typeDetail" class="tdetail hidden"></div>
+    <!-- SEO: 全16タイプの解説（静的テキスト＝クローラブル。上のタップ式カードと同じ内容） -->
+    <div class="tguide">
+      <h2 class="tg-h">ゴルフ版MBTI 全16タイプの解説一覧</h2>
+      <p class="tg-lead">「ゴルトモの16タイプ ゴルフ性格診断（ゴルフ版MBTI）」でわかる16タイプを、それぞれの特徴・強み・弱み・あるある・おすすめの回り方まで解説します。タイプ名をタップすると解説が開きます。気になるタイプが見つかったら、同じタイプのゴル友とマッチングしてラウンドに出かけましょう。</p>
+      <details class="tg">
+        <summary><span class="tg-e">🐯</span><span class="tg-c">GWPT</span><h3 class="tg-n">ぶっ飛ばしエース派</h3></summary>
+        <div class="tg-b">
+          <p class="tg-ax">ガチ・ワイワイ・飛距離・探求（GWPT）／トラタイプ</p>
+          <p>結果にこだわる本気派で、豪快な飛距離で攻めるパワー型。仲間とワイワイ盛り上がるのが大好きで、自然とその場の主役になります。「もっと上手くなりたい」という向上心も人一倍で、練習も本番も全力で楽しむタイプ。あなたが一打を放てば、その日のラウンドは一気に盛り上がります。</p>
+          <p><b>強み</b>：誰よりも飛ぶドライバーと、場を一気に盛り上げるムードメーカー力。チームを引っ張る存在感で、初対面でもすぐ打ち解けられます。</p>
+          <p><b>弱み</b>：熱くなって攻めすぎ、ここ一番で大叩きしてしまうことも。力みと「もう一発」の欲はほどほどに。</p>
+          <p><b>あるある</b>：「ナイショ！」の声が一番大きい。ドライバーの飛距離はつい盛りがち。</p>
+          <p><b>おすすめの回り方</b>：コンペやチーム戦で主役に。飛ばし屋同士で競い合うと、燃えて一番輝きます。</p>
+          <p><b>上達のヒント</b>：飛距離は最大の武器。ここぞで刻む勇気を持てると、スコアも一気に安定します。</p>
+        </div>
+      </details>
+      <details class="tg">
+        <summary><span class="tg-e">🦁</span><span class="tg-c">GWPI</span><h3 class="tg-n">一発ロマン砲派</h3></summary>
+        <div class="tg-b">
+          <p class="tg-ax">ガチ・ワイワイ・飛距離・今満喫（GWPI）／ライオンタイプ</p>
+          <p>当たれば爆発する飛距離と、その場のノリを全力で楽しむロマン砲タイプ。スコアより「最高の一打」と盛り上がりを優先し、一緒にいると場がパッと明るくなります。安定感より一発の夢を追う、愛されムードメーカーです。</p>
+          <p><b>強み</b>：当たれば誰も真似できない特大ショットと、宴を盛り上げる番長気質。ノリの良さは天下一品。</p>
+          <p><b>弱み</b>：ムラっ気が大きく、安定感は二の次。良い時と悪い時の差が激しめ。</p>
+          <p><b>あるある</b>：ドラコン（ドラコン賞）だけは何があっても獲りにいく。</p>
+          <p><b>おすすめの回り方</b>：ワイワイ系イベントやエンジョイコンペで、飛ばし自慢を披露するのが一番楽しい。</p>
+          <p><b>上達のヒント</b>：一発のロマンはそのままに、刻むホールを1〜2個決めておくと大崩れを防げます。</p>
+        </div>
+      </details>
+      <details class="tg">
+        <summary><span class="tg-e">🐶</span><span class="tg-c">GWKT</span><h3 class="tg-n">みんなで堅実・上達派</h3></summary>
+        <div class="tg-b">
+          <p class="tg-ax">ガチ・ワイワイ・技巧・探求（GWKT）／イヌタイプ</p>
+          <p>仲間と楽しみながらも、技と安定で着実にスコアをまとめる頼れる相棒タイプ。面倒見がよく気配り上手で、グループの潤滑油的な存在。コツコツ努力を続けて、しっかり上達していく堅実派です。</p>
+          <p><b>強み</b>：大崩れしない安定感と、抜群の面倒見の良さ。チーム全体のスコアもまとめあげます。</p>
+          <p><b>弱み</b>：周りに気を配りすぎて、自分のプレーが後回しになりがち。</p>
+          <p><b>あるある</b>：気づけば幹事を任されている。みんなの飲み物まで把握している。</p>
+          <p><b>おすすめの回り方</b>：気の合う仲間との定期グループラウンドで、安定の実力を発揮できます。</p>
+          <p><b>上達のヒント</b>：たまには自分のスコアにも本気を。あなたが攻めると周りももっと盛り上がります。</p>
+        </div>
+      </details>
+      <details class="tg">
+        <summary><span class="tg-e">🦊</span><span class="tg-c">GWKI</span><h3 class="tg-n">賢く立ち回り派</h3></summary>
+        <div class="tg-b">
+          <p class="tg-ax">ガチ・ワイワイ・技巧・今満喫（GWKI）／キツネタイプ</p>
+          <p>コースマネジメントと機転で、無理せず結果を拾う知恵袋タイプ。場の空気を読むのが得意で、仲間と楽しみつつスマートに好スコアを出します。派手さより賢さで魅せる立ち回り上手です。</p>
+          <p><b>強み</b>：状況判断とコースマネジメント力。小技と機転で、危ない場面もそつなく切り抜けます。</p>
+          <p><b>弱み</b>：そつがない分、内に秘めた熱量が周りに伝わりにくいことも。</p>
+          <p><b>あるある</b>：大叩きせず、気づけばいつの間にか好スコア。</p>
+          <p><b>おすすめの回り方</b>：仲間との気楽なコンペで、堅実な実力を発揮するのが向いています。</p>
+          <p><b>上達のヒント</b>：たまに思い切って攻めると、新しい引き出しと飛距離が見つかります。</p>
+        </div>
+      </details>
+      <details class="tg">
+        <summary><span class="tg-e">🦅</span><span class="tg-c">GMPT</span><h3 class="tg-n">孤高の飛ばし屋派</h3></summary>
+        <div class="tg-b">
+          <p class="tg-ax">ガチ・マイペース・飛距離・探求（GMPT）／ワシタイプ</p>
+          <p>飛距離への探究心が強く、黙々と高みを目指す求道者タイプ。一人の時間で技術を磨き、記録更新に喜びを感じます。群れずに自分と向き合う、ストイックな飛ばし屋です。</p>
+          <p><b>強み</b>：飛距離への飽くなき探究心と高い集中力。一人で淡々と上達を積み重ねられます。</p>
+          <p><b>弱み</b>：自分の世界に入り込みやすく、周りが見えなくなることも。</p>
+          <p><b>あるある</b>：練習場で延々とドライバーを打ち込んでいる。</p>
+          <p><b>おすすめの回り方</b>：少人数で記録更新を狙う、落ち着いたラウンドが性に合います。</p>
+          <p><b>上達のヒント</b>：たまに気の合う仲間と回ると、研究の成果を試せて刺激になります。</p>
+        </div>
+      </details>
+      <details class="tg">
+        <summary><span class="tg-e">🐆</span><span class="tg-c">GMPI</span><h3 class="tg-n">一撃必殺ハンター派</h3></summary>
+        <div class="tg-b">
+          <p class="tg-ax">ガチ・マイペース・飛距離・今満喫（GMPI）／ヒョウタイプ</p>
+          <p>静かに狙い、ハマれば爆発する勝負師タイプ。決め所での一発の飛距離は格別で、自分のペースを崩さず攻めます。寡黙ながら一打にロマンを込める一匹狼です。</p>
+          <p><b>強み</b>：瞬発力と、ここぞでの一発の飛距離。決まった時の爆発力は誰にも負けません。</p>
+          <p><b>弱み</b>：気分の波が大きく、調子にムラが出やすい。</p>
+          <p><b>あるある</b>：会心の一打を一日中語っていられる。</p>
+          <p><b>おすすめの回り方</b>：自分のペースで攻められる、縛りの少ないラウンドで本領発揮。</p>
+          <p><b>上達のヒント</b>：波を小さくする「いつもの一本」を決めておくと、安定感が増します。</p>
+        </div>
+      </details>
+      <details class="tg">
+        <summary><span class="tg-e">🐢</span><span class="tg-c">GMKT</span><h3 class="tg-n">コツコツ精密派</h3></summary>
+        <div class="tg-b">
+          <p class="tg-ax">ガチ・マイペース・技巧・探求（GMKT）／カメタイプ</p>
+          <p>ブレずに刻んで積み上げる、堅実な努力家タイプ。派手さはないけれど大崩れせず、地道な継続でしっかり上達します。一人でも黙々と練習を重ねる、コツコツ精密派です。</p>
+          <p><b>強み</b>：大崩れしない安定感と、地道に続ける継続力。スコアメイクが手堅い。</p>
+          <p><b>弱み</b>：慎重すぎて、攻めるべき場面を逃してしまうことも。</p>
+          <p><b>あるある</b>：パター練習が何より好き。スコアは細かく記録している。</p>
+          <p><b>おすすめの回り方</b>：スコア管理をしながら、一人または少人数で回るのが向いています。</p>
+          <p><b>上達のヒント</b>：リスクを取る練習も少しだけ。攻めの引き出しが増えると伸びしろ大。</p>
+        </div>
+      </details>
+      <details class="tg">
+        <summary><span class="tg-e">🦉</span><span class="tg-c">GMKI</span><h3 class="tg-n">黙々マイゴルフ派</h3></summary>
+        <div class="tg-b">
+          <p class="tg-ax">ガチ・マイペース・技巧・今満喫（GMKI）／フクロウタイプ</p>
+          <p>自分の型を静かに貫く寡黙な職人タイプ。周りに流されず、淡々と良いスコアを出します。マイペースに自分のゴルフを味わう、落ち着いた一匹狼です。</p>
+          <p><b>強み</b>：自分のリズムを崩さない、ブレない安定感。一人でも淡々と good score。</p>
+          <p><b>弱み</b>：マイペースすぎて、周りと温度差が生まれることも。</p>
+          <p><b>あるある</b>：無言で淡々と、気づけば好スコアを出している。</p>
+          <p><b>おすすめの回り方</b>：静かに集中して回れる、落ち着いた少人数ラウンドで。</p>
+          <p><b>上達のヒント</b>：同じく静かに楽しむ仲間を見つけると、心地よい距離感で長く続けられます。</p>
+        </div>
+      </details>
+      <details class="tg">
+        <summary><span class="tg-e">🐬</span><span class="tg-c">EWPT</span><h3 class="tg-n">楽しく伸びる飛ばし派</h3></summary>
+        <div class="tg-b">
+          <p class="tg-ax">エンジョイ・ワイワイ・飛距離・探求（EWPT）／イルカタイプ</p>
+          <p>明るさと成長意欲を両立する伸び盛りタイプ。「楽しい！」を原動力に、仲間とワイワイ回りながらぐんぐん上達します。前向きなエネルギーで、周りまで元気にする存在です。</p>
+          <p><b>強み</b>：明るさと成長意欲の両立。楽しみながら自然と上達していく伸びしろの塊。</p>
+          <p><b>弱み</b>：楽しさ優先で、ここ一番の詰めが甘くなることも。</p>
+          <p><b>あるある</b>：上達もスコアも、最後は「楽しかった！」で片付く。</p>
+          <p><b>おすすめの回り方</b>：ワイワイ仲間とのラウンド＆練習で、楽しく伸びていけます。</p>
+          <p><b>上達のヒント</b>：楽しさはそのままに、たまに1ホールだけ本気で集中すると一気に伸びます。</p>
+        </div>
+      </details>
+      <details class="tg">
+        <summary><span class="tg-e">🐵</span><span class="tg-c">EWPI</span><h3 class="tg-n">ノリ全開ドカン派</h3></summary>
+        <div class="tg-b">
+          <p class="tg-ax">エンジョイ・ワイワイ・飛距離・今満喫（EWPI）／サルタイプ</p>
+          <p>ノリと勢いで振り回す、陽気なムードメーカータイプ。スコアより楽しさ最優先で、失敗すらネタにして笑いに変えます。一緒にいるだけで場が明るくなる、みんなの太陽です。</p>
+          <p><b>強み</b>：場を明るくする天性の力と、思い切りの良いスイング。</p>
+          <p><b>弱み</b>：大叩きしても気にしない（良くも悪くも）。安定感は二の次。</p>
+          <p><b>あるある</b>：池ポチャもOBも、全部ネタにして大笑い。</p>
+          <p><b>おすすめの回り方</b>：気楽なエンジョイコンペで、盛り上げ役として輝きます。</p>
+          <p><b>上達のヒント</b>：勢いはあなたの魅力。狙いどころだけ少し丁寧にすると、スコアもついてきます。</p>
+        </div>
+      </details>
+      <details class="tg">
+        <summary><span class="tg-e">🦫</span><span class="tg-c">EWKT</span><h3 class="tg-n">みんなでコツコツ派</h3></summary>
+        <div class="tg-b">
+          <p class="tg-ax">エンジョイ・ワイワイ・技巧・探求（EWKT）／ビーバータイプ</p>
+          <p>仲間と和気あいあい、着実に上手くなる働き者タイプ。協調性が高く、コツコツ続ける継続力が持ち味。みんなで楽しみながら成長していく、和やかな相棒です。</p>
+          <p><b>強み</b>：コツコツ続ける継続力と、抜群の協調性。場の雰囲気を和ませます。</p>
+          <p><b>弱み</b>：のんびりしていて、ここ一番の決定力に欠けることも。</p>
+          <p><b>あるある</b>：みんなのボール探しを、率先して手伝っている。</p>
+          <p><b>おすすめの回り方</b>：初心者歓迎の和やかなラウンドで、楽しく着実に上達できます。</p>
+          <p><b>上達のヒント</b>：たまに自分の挑戦目標を決めると、続けてきた努力が一気に花開きます。</p>
+        </div>
+      </details>
+      <details class="tg">
+        <summary><span class="tg-e">🐻</span><span class="tg-c">EWKI</span><h3 class="tg-n">スコアより笑顔派</h3></summary>
+        <div class="tg-b">
+          <p class="tg-ax">エンジョイ・ワイワイ・技巧・今満喫（EWKI）／クマタイプ</p>
+          <p>スコアより笑顔、みんなで楽しむことを大切にする宴会部長タイプ。包容力抜群で、場づくりの天才。勝ち負けより「みんなが楽しめたか」を一番に考える、愛されキャラです。</p>
+          <p><b>強み</b>：楽しい場づくりの才能と、誰でも受け入れる包容力。</p>
+          <p><b>弱み</b>：上達への本気度はやや控えめ。スコアにはこだわらない。</p>
+          <p><b>あるある</b>：打ち上げの仕切りは任せろ。お店選びもプロ級。</p>
+          <p><b>おすすめの回り方</b>：イベントやコンペの幹事役で、いちばん輝くタイプです。</p>
+          <p><b>上達のヒント</b>：たまに「今日はスコアも狙う日」を作ると、新鮮な達成感が味わえます。</p>
+        </div>
+      </details>
+      <details class="tg">
+        <summary><span class="tg-e">🐺</span><span class="tg-c">EMPT</span><h3 class="tg-n">自由きまま飛ばし派</h3></summary>
+        <div class="tg-b">
+          <p class="tg-ax">エンジョイ・マイペース・飛距離・探求（EMPT）／オオカミタイプ</p>
+          <p>群れずに気ままに飛ばし、こっそり上達するマイペース探究タイプ。自分の時間を大切にしながら、飛距離と技術を静かに磨きます。自由を愛する、伸びしろのある一匹狼です。</p>
+          <p><b>強み</b>：マイペースな探究心と、伸びていく飛距離。自分のペースで着実に成長。</p>
+          <p><b>弱み</b>：群れるのが苦手で、誘いに乗りにくいことも。</p>
+          <p><b>あるある</b>：一人予約で、ふらっと回りに行くのが好き。</p>
+          <p><b>おすすめの回り方</b>：少人数の気楽なラウンドで、のびのび攻められます。</p>
+          <p><b>上達のヒント</b>：たまに気の合う相手と回ると、ひとりでは気づけない発見があります。</p>
+        </div>
+      </details>
+      <details class="tg">
+        <summary><span class="tg-e">🐱</span><span class="tg-c">EMPI</span><h3 class="tg-n">気分で大胆ショット派</h3></summary>
+        <div class="tg-b">
+          <p class="tg-ax">エンジョイ・マイペース・飛距離・今満喫（EMPI）／ネコタイプ</p>
+          <p>気分屋だけど一打は大胆な自由人タイプ。乗った日は爽快なショットを連発し、自分の気分を何より大切にします。型にはまらず、その日のノリでゴルフを楽しむマイペース派です。</p>
+          <p><b>強み</b>：ハマった時の大胆さと、爽快な一打。気分が乗ると手がつけられません。</p>
+          <p><b>弱み</b>：気分次第でムラが大きい。調子の波がそのままスコアに出る。</p>
+          <p><b>あるある</b>：乗らない日は、さっさと切り上げる潔さ。</p>
+          <p><b>おすすめの回り方</b>：縛りのない自由なラウンドで、気分よく回るのが一番。</p>
+          <p><b>上達のヒント</b>：気分を上げる「ルーティン」を持つと、調子の悪い日も底上げできます。</p>
+        </div>
+      </details>
+      <details class="tg">
+        <summary><span class="tg-e">🐹</span><span class="tg-c">EMKT</span><h3 class="tg-n">コツコツ自分磨き派</h3></summary>
+        <div class="tg-b">
+          <p class="tg-ax">エンジョイ・マイペース・技巧・探求（EMKT）／ハムスタータイプ</p>
+          <p>マイペースに、安全に腕を磨くがんばり屋タイプ。控えめだけど努力家で、実はこっそり一番練習しているタイプ。自分のリズムで着実に積み上げる、堅実な努力家です。</p>
+          <p><b>強み</b>：地道な努力と、崩れない安定感。気づけば確実に上達しています。</p>
+          <p><b>弱み</b>：控えめで、自分からはなかなか誘いにくい。</p>
+          <p><b>あるある</b>：実は練習量がこっそり一番多い。努力は人に見せない。</p>
+          <p><b>おすすめの回り方</b>：お互いのマイペースを尊重し合える仲間と、長く続けられます。</p>
+          <p><b>上達のヒント</b>：勇気を出して一度誘ってみると、気の合う仲間がきっと見つかります。</p>
+        </div>
+      </details>
+      <details class="tg">
+        <summary><span class="tg-e">🦥</span><span class="tg-c">EMKI</span><h3 class="tg-n">のんびりフェアウェイ散歩派</h3></summary>
+        <div class="tg-b">
+          <p class="tg-ax">エンジョイ・マイペース・技巧・今満喫（EMKI）／ナマケモノタイプ</p>
+          <p>自然体でゴルフそのものを味わう癒し系タイプ。スコアや上達より、景色や空気、ゆったりした時間を楽しみます。動じない穏やかさで、一緒にいる人をふっと和ませる存在です。</p>
+          <p><b>強み</b>：動じない穏やかさで、その場の空気をやわらげる癒し力。</p>
+          <p><b>弱み</b>：向上心は薄めで、現状維持になりがち。</p>
+          <p><b>あるある</b>：景色とお弁当（昼食）が、ラウンドの一番の楽しみ。</p>
+          <p><b>おすすめの回り方</b>：のんびり回れる、ゆるめの募集がぴったりです。</p>
+          <p><b>上達のヒント</b>：たまに小さな目標を一つ持つと、いつものラウンドがもっと楽しくなります。</p>
+        </div>
+      </details>
+    </div>
   </section>
 
   <footer>
-    <div class="fl">⛳ ゴルフ性格診断 GOLMOTI</div>© 2026 Goltomo
+    <div class="fl">⛳ ゴルトモ ゴルフ性格診断</div>© 2026 Goltomo
   </footer>
 </div>
 
@@ -748,7 +960,7 @@
       track('share',{resultType:code, where:'sheet'});
       // iPhone等のネイティブ共有シート（LINE/AirDrop等）を起動。非対応はコピーにフォールバック。
       if(navigator.share){
-        try{ await navigator.share({title:'ゴルフ性格診断 GOLMOTI', text:shareText, url:shareUrl}); return; }
+        try{ await navigator.share({title:'ゴルトモ ゴルフ性格診断（ゴルフ版MBTI）', text:shareText, url:shareUrl}); return; }
         catch(e){ if(e&&e.name==='AbortError') return; }
       }
       try{ await navigator.clipboard.writeText(shareUrl); alert('結果のリンクをコピーしました！'); }
