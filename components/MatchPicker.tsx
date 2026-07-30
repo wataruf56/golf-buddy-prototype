@@ -72,10 +72,10 @@ export function MatchPicker({ roundId }: { roundId: string }) {
   return (
     <div>
       {/* 注意書き（メモ欄） */}
-      <div className="mb-3 px-3 py-2.5 bg-green-light rounded-lg text-[11px] text-green leading-relaxed">
-        💡 <b>マッチした時だけ</b>、お互いに「マッチングしました」と通知されます。<br />
-        <b>片方がマッチングを希望しなかった場合、相手に知られることはありません。</b><br />
-        🔒 同じ組で回った人のレビューは<b>確定済みで変更できません</b>。別の組の「回ってみたい」だけ後から変更できます。
+      <div className="mb-3 px-3 py-2.5 bg-green-light rounded-lg text-[11px] text-green leading-relaxed space-y-1.5">
+        <div>🎁 <b>マッチすると</b>、次回のゴルトモ<b>公式コンペ等で“同じ組”になるよう配慮</b>されます。気の合った人とまた回れるチャンス！</div>
+        <div>🔒 <b>押すだけでは相手に伝わりません。</b>お互いが選び合って<b>マッチした時だけ</b>双方に通知されます。片方だけなら相手に知られることはありません。</div>
+        <div>※ 同じ組で回った人のレビューは<b>確定済みで変更できません</b>。別の組の「回ってみたい」だけ後から変更できます。</div>
       </div>
 
       <div className="flex flex-col gap-2.5">

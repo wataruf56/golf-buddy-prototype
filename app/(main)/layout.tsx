@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { track } from '@/lib/telemetry';
 import { PhoneFrame } from '@/components/PhoneFrame';
 import { TabBar } from '@/components/TabBar';
 import { ReviewOverlay } from '@/components/ReviewOverlay';
@@ -65,6 +66,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }
   useEffect(() => {
     refreshData();
+    // 画面遷移ごとに「どの画面を開いたか」を記録（人気の画面の分析用）。
+    if (pathname) track('page_view');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
   useEffect(() => {

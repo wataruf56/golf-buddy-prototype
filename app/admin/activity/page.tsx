@@ -8,6 +8,7 @@ type Report = {
   generatedAt: number;
   summary: { active24h: number; active7d: number; totalUsersSeen: number; totalSwingUsers: number; totalSwings: number; logsScanned: number };
   activeUsers: { userId: string; name: string; count: number; lastTs: number; lastEvent: string; lastPage: string }[];
+  popularPages?: { page: string; views: number; users: number; lastTs: number }[];
   recentActions: { userId: string; name: string; event: string; page: string; ts: number }[];
   swingUsers: { userId: string; name: string; total: number; done: number; lastAt: number }[];
   recentSwings: { userId: string; name: string; mode: string; status: string; createdAt: number }[];
@@ -16,6 +17,30 @@ type Report = {
 const MODE_LABEL: Record<string, string> = {
   self: '自分解析', compare: 'プロ比較', past: '過去比較', range_vs_round: '練習場vs本番', question: '質問',
 };
+
+// 画面パス → 分かりやすい日本語名（人気の画面の表示用）。
+const PAGE_LABEL: Record<string, string> = {
+  '/home': '🏠 ホーム',
+  '/search': '🔍 さがす',
+  '/create': '➕ ラウンド募集の作成',
+  '/swing': '🏌️ スイング解析',
+  '/swing/new': '🏌️ スイング解析（新規）',
+  '/swing/[id]': '🏌️ スイング解析（結果）',
+  '/buddies': '👥 ゴル友',
+  '/mypage': '👤 マイページ',
+  '/mypage/edit': '✏️ プロフィール編集',
+  '/guide': '📖 使い方',
+  '/round/[id]': '⛳ ラウンド詳細',
+  '/round/[id]/chat': '💬 ラウンドチャット',
+  '/round/[id]/edit': '✏️ ラウンド編集',
+  '/profile/[id]': '👤 他の人のプロフィール',
+  '/chat/[id]': '💬 DM（チャット）',
+  '/poll/[id]': '📅 日程調整',
+  '/rematch/[id]': '🔁 再会エンジン',
+  '/qr': '🤝 QRコード',
+  '/liff': '🔑 ログイン',
+};
+const pageLabel = (p: string) => PAGE_LABEL[p] || p;
 
 // 英語のイベント名 → 日本語の分かりやすい説明
 const EVENT_LABEL: Record<string, string> = {
@@ -129,7 +154,7 @@ function Inner() {
     <div className="min-h-screen bg-bg p-4 max-w-md mx-auto">
       <div className="flex items-center gap-2 mb-3">
         <Link href={`/admin?token=${token}`} className="text-blue text-sm font-bold">← 管理</Link>
-        <div className="flex-1 text-center text-base font-black">📈 利用状況レポート</div>
+        <div className="flex-1 text-center text-base font-black">📊 利用レポート</div>
         <button onClick={load} className="text-blue text-sm font-bold">🔄</button>
       </div>
 
@@ -148,6 +173,38 @@ function Inner() {
           <div className="text-[10px] text-muted text-center mb-3">
             {jst(data.generatedAt)} 時点 ・ ログ{data.summary.logsScanned}件を集計
           </div>
+
+          {/* ★ 人気の画面（直近7日でよく開かれている画面） */}
+          <Section title="🔥 よく開かれている画面" sub="直近7日・開いた回数の多い順" count={(data.popularPages || []).length}>
+            {(!data.popularPages || data.popularPages.length === 0) ? (
+              <div className="text-center text-[11px] text-muted py-4 leading-relaxed">
+                まだ十分なデータがありません。<br />画面の閲覧記録がたまると、ここに「よく見られている画面」が並びます。
+              </div>
+            ) : (() => {
+              const max = Math.max(...data.popularPages.map((p) => p.views)) || 1;
+              return data.popularPages.map((p, i) => (
+                <div key={p.page} className="py-2 border-b border-border last:border-0">
+                  <div className="flex items-baseline justify-between mb-1 gap-2">
+                    <span className="text-[13px] font-bold truncate">{i + 1}. {pageLabel(p.page)}</span>
+                    <span className="text-[12px] font-black text-green flex-shrink-0">{p.views}回<span className="text-[10px] text-muted font-normal ml-1">/ {p.users}人</span></span>
+                  </div>
+                  <div className="h-2 bg-bg rounded overflow-hidden">
+                    <div className="h-full bg-green rounded" style={{ width: `${Math.round((p.views / max) * 100)}%` }} />
+                  </div>
+                </div>
+              ));
+            })()}
+          </Section>
+
+          {/* 登録推移・時間帯別・カレンダーの詳細へ */}
+          <Link href={`/admin/analytics?token=${token}`} className="flex items-center gap-3 p-3.5 bg-card rounded-xl shadow-card mb-3">
+            <span className="text-xl">📅</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-bold">登録者数の推移・時間帯別・カレンダー</div>
+              <div className="text-[10px] text-sub mt-0.5">日付×時間帯のアクセス詳細はこちら</div>
+            </div>
+            <span className="text-muted">›</span>
+          </Link>
 
           {/* 1. Active users */}
           <Section title="① いま使っているユーザー" sub="最近アプリを開いた順" count={data.activeUsers.length}>

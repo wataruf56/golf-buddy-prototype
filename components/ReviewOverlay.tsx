@@ -168,9 +168,15 @@ export function ReviewOverlay() {
         <div className="px-5 pt-5 pb-3 border-b border-border flex-shrink-0">
           <h3 className="text-lg font-black">ラウンドレビュー</h3>
           <div className="text-[12px] text-sub mt-0.5">同じ組で回った{pending.length}人に「また回りたいか」を選んでください（{ratedCount}/{pending.length}）</div>
-          <div className="mt-2.5 px-3 py-2.5 bg-green-light rounded-xl text-[12px] text-green font-bold leading-relaxed">
-            🔒 「また回りたい」「異性として気になる」は<u>お互いがマッチした時だけ</u>通知されます。<br />
-            相手が選ばなかった場合、あなたの選択が相手に知られることは一切ありません。
+          <div className="mt-2.5 px-3 py-2.5 bg-green-light rounded-xl text-[12px] text-green leading-relaxed space-y-1.5">
+            <div>
+              🎁 <b>マッチすると何が起きる？</b><br />
+              「また回りたい」「異性として気になる」で<b>お互いが選び合ってマッチ</b>すると、次回のゴルトモ<b>公式コンペ等で“同じ組”になるよう配慮</b>されます。気の合った人とまた回れるチャンスです。
+            </div>
+            <div className="pt-1.5 border-t border-green/30">
+              🔒 <b>押すだけでは相手に伝わりません。</b><br />
+              あなたが選んだだけでは相手に通知されません。<u>お互いが選んで初めて「マッチ」</u>として双方に伝わります。相手が選ばなければ、あなたの選択が知られることは一切ありません。
+            </div>
           </div>
         </div>
 

@@ -11,6 +11,22 @@ function checkToken(req: NextRequest): boolean {
 
 const DAY = 24 * 60 * 60 * 1000;
 
+// 動的セグメント（ID）をまとめて、画面種別ごとに集計できるよう正規化する。
+function normPage(raw: string): string {
+  let p = String(raw || '').split('?')[0];
+  if (!p) return '(不明)';
+  p = p
+    .replace(/^\/round\/[^/]+\/chat$/, '/round/[id]/chat')
+    .replace(/^\/round\/[^/]+\/edit$/, '/round/[id]/edit')
+    .replace(/^\/round\/[^/]+$/, '/round/[id]')
+    .replace(/^\/profile\/[^/]+$/, '/profile/[id]')
+    .replace(/^\/chat\/[^/]+$/, '/chat/[id]')
+    .replace(/^\/poll\/[^/]+$/, '/poll/[id]')
+    .replace(/^\/rematch\/[^/]+$/, '/rematch/[id]')
+    .replace(/^\/swing\/[^/]+$/, '/swing/[id]');
+  return p || '/';
+}
+
 // GET /api/admin/activity?token=XXX
 // Activity report for the admin: who's opening the app, who's tapping around,
 // and who's using swing analysis (and how many times). Aggregated from the
@@ -23,7 +39,7 @@ export async function GET(req: NextRequest) {
   const now = Date.now();
   try {
     // --- 1+2) Activity from client telemetry ---
-    const logSnap = await db.collection('_logs').orderBy('ts', 'desc').limit(1000).get();
+    const logSnap = await db.collection('_logs').orderBy('ts', 'desc').limit(2000).get();
     const logs = logSnap.docs.map((d: any) => d.data());
 
     // Per-user rollup
@@ -40,13 +56,30 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Recent raw actions（直近の操作ログ）。「アプリを開いた／アプリ起動」系は
+    // Recent raw actions（直近の操作ログ）。「アプリを開いた／アプリ起動／画面表示」系は
     // ノイズなので除外して、実際の操作だけを見やすく並べる。
-    const HIDDEN_EVENTS = new Set(['app_open', 'hydrate_success', 'hydrate_error']);
+    const HIDDEN_EVENTS = new Set(['app_open', 'hydrate_success', 'hydrate_error', 'page_view', 'mypage_render']);
     const recentActions = logs
       .filter((l: any) => l.event && !HIDDEN_EVENTS.has(l.event))
       .slice(0, 80)
       .map((l: any) => ({ userId: l.userId, event: l.event, page: l.page, ts: l.ts }));
+
+    // 人気の画面：直近でユーザーがよく開いている画面（page_view を集計）。
+    // ID付きの動的画面はまとめる。直近7日ぶんに絞る。
+    const pageAgg: Record<string, { views: number; users: Set<string>; lastTs: number }> = {};
+    for (const l of logs) {
+      if (l.event !== 'page_view' || !l.page) continue;
+      if (now - (l.ts || 0) > 7 * DAY) continue;
+      const p = normPage(l.page);
+      if (!pageAgg[p]) pageAgg[p] = { views: 0, users: new Set(), lastTs: 0 };
+      pageAgg[p].views++;
+      if (l.userId) pageAgg[p].users.add(l.userId);
+      if ((l.ts || 0) > pageAgg[p].lastTs) pageAgg[p].lastTs = l.ts || 0;
+    }
+    const popularPages = Object.entries(pageAgg)
+      .map(([page, v]) => ({ page, views: v.views, users: v.users.size, lastTs: v.lastTs }))
+      .sort((a, b) => b.views - a.views || b.users - a.users)
+      .slice(0, 30);
 
     // --- 3+4) Swing analysis usage ---
     let swings: any[] = [];
@@ -105,6 +138,7 @@ export async function GET(req: NextRequest) {
         logsScanned: logs.length,
       },
       activeUsers: activeUsers.slice(0, 100),
+      popularPages,
       recentActions: recentActions.map((a: any) => ({ ...a, name: nameOf(a.userId) })),
       swingUsers,
       recentSwings,
