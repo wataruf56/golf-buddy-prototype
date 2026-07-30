@@ -52,7 +52,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
     const targetIds = users.filter((u) => isNotifyEnabled(u as any, 'reviewReminder')).map((u) => u.id);
     if (targetIds.length) {
       const { pushToMany, liffUrl } = await import('@/lib/linePush');
-      await pushToMany(targetIds, n.line, liffUrl(link)).catch(() => {});
+      await pushToMany(targetIds, n.line, liffUrl(link), 'reviewReminder').catch(() => {});
       const { webPushToMany } = await import('@/lib/webPush');
       await webPushToMany(targetIds, n.webTitle, n.webBody, link, `review-${updatedRound.id}`).catch(() => {});
     }

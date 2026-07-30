@@ -41,7 +41,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const { addNotification } = await import('@/lib/notifications');
     if (n.inApp) addNotification(existing.hostId, 'interestReceived', n.inApp, link).catch(() => {});
     if (isNotifyEnabled(host as any, 'interestReceived')) {
-      pushTo(existing.hostId, n.line, liffUrl(link)).catch(() => {});
+      pushTo(existing.hostId, n.line, liffUrl(link), 'interest').catch(() => {});
       webPushText(existing.hostId, n.webTitle, n.webBody, link, `interest-${params.id}`).catch(() => {});
     }
   }

@@ -83,7 +83,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       if (nm.inApp) addNotificationMany(mentioned.map((u) => u.id), 'mention', nm.inApp, chatPath).catch(() => {});
       const mentionTargets = mentioned.filter((u) => isNotifyEnabled(u, 'mention')).map((u) => u.id);
       if (mentionTargets.length) {
-        pushToMany(mentionTargets, nm.line, liffUrl(chatPath)).catch(() => {});
+        pushToMany(mentionTargets, nm.line, liffUrl(chatPath), 'mention').catch(() => {});
         webPushToMany(mentionTargets, nm.webTitle, nm.webBody, chatPath, `mention-${params.id}`).catch(() => {});
       }
     }
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const chatTargets = rest.filter((u) => isNotifyEnabled(u, 'roundChat')).map((u) => u.id);
     if (chatTargets.length) {
       const nc = await renderNotif('roundChat', { '募集タイトル': round.title, '発言者名': senderName, '本文': preview });
-      pushToMany(chatTargets, nc.line, liffUrl(chatPath)).catch(() => {});
+      pushToMany(chatTargets, nc.line, liffUrl(chatPath), 'chat').catch(() => {});
       webPushToMany(chatTargets, nc.webTitle, nc.webBody, chatPath, `roundchat-${params.id}`).catch(() => {});
     }
   }

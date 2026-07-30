@@ -72,7 +72,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const { addNotification } = await import('@/lib/notifications');
     if (n.inApp) addNotification(userId, 'invited', n.inApp, link).catch(() => {});
     if (isNotifyEnabled(invitee as any, 'invited')) {
-      pushTo(userId, n.line, liffUrl(link)).catch(() => {});
+      pushTo(userId, n.line, liffUrl(link), 'invited').catch(() => {});
       webPushText(userId, n.webTitle, n.webBody, link, `invite-${params.id}`).catch(() => {});
     }
   }

@@ -33,7 +33,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   try {
     const host = await db.getUser(round.hostId);
     if (isNotifyEnabled(host as any, 'groupChange')) {
-      pushTo(round.hostId, text, liffUrl(link)).catch(() => {});
+      pushTo(round.hostId, text, liffUrl(link), 'chat').catch(() => {});
     }
   } catch { /* best-effort */ }
 

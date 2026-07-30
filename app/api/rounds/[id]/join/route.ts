@@ -103,7 +103,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
   // Notify host of new application — gated on their "applyReceived" pref.
   if (isNotifyEnabled(host as any, 'applyReceived')) {
-    pushTo(existing.hostId, n.line, liffUrl(link)).catch(() => {});
+    pushTo(existing.hostId, n.line, liffUrl(link), 'joined').catch(() => {});
     webPushText(existing.hostId, n.webTitle, n.webBody, link, `round-${params.id}`).catch(() => {});
   }
   return NextResponse.json({ round });

@@ -36,7 +36,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const { addNotification } = await import('@/lib/notifications');
     if (n.inApp) addNotification(userId, 'applyApproved', n.inApp, link).catch(() => {});
     if (isNotifyEnabled(applicant as any, 'applyApproved')) {
-      pushTo(userId, n.line, liffUrl(link)).catch(() => {});
+      pushTo(userId, n.line, liffUrl(link), 'approved').catch(() => {});
       webPushText(userId, n.webTitle, n.webBody, link, `approve-${params.id}`).catch(() => {});
     }
   } catch { /* non-fatal */ }

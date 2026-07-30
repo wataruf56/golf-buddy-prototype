@@ -109,7 +109,7 @@ export async function notifyRematch(
   if (n.inApp) addNotification(recipientId, 'rematch', n.inApp, link).catch(() => {});
   const u = await db.getUser(recipientId);
   if (isNotifyEnabled(u as any, 'rematch')) {
-    pushTo(recipientId, n.line, liffUrl(link)).catch(() => {});
+    pushTo(recipientId, n.line, liffUrl(link), 'rematch').catch(() => {});
     webPushText(recipientId, n.webTitle, n.webBody, link, `rematch-${link}`).catch(() => {});
   }
 }

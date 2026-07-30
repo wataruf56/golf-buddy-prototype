@@ -75,7 +75,7 @@ async function autoAddRespondentsToRound(roundId: string, poll: SchedulePoll, ho
     const notify = async (uid: string, text: string) => {
       addNotification(uid, 'invited', text, link).catch(() => {});
       const u = await db.getUser(uid);
-      if (isNotifyEnabled(u as any, 'invited')) pushTo(uid, text, liffUrl(link)).catch(() => {});
+      if (isNotifyEnabled(u as any, 'invited')) pushTo(uid, text, liffUrl(link), 'invited').catch(() => {});
     };
     for (const uid of toAdd) {
       await notify(uid, `「${round.title}」のラウンドに参加が確定しました（${hostName}さんが日程調整から作成）`);

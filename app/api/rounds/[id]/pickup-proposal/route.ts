@@ -54,7 +54,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       if (target && isNotifyEnabled(target, 'pickup')) {
         const { pushTo, liffUrl } = await import('@/lib/linePush');
         const { webPushTo } = await import('@/lib/webPush');
-        pushTo(userId, n.line, liffUrl(path)).catch(() => {});
+        pushTo(userId, n.line, liffUrl(path), 'pickup').catch(() => {});
         webPushTo(userId, { title: n.webTitle, body: n.webBody, url: path, tag: `pickup-${params.id}` }).catch(() => {});
       }
     } catch { /* 通知失敗は無視 */ }
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       if (host && isNotifyEnabled(host, 'mention')) {
         const { pushTo, liffUrl } = await import('@/lib/linePush');
         const { webPushTo } = await import('@/lib/webPush');
-        pushTo(round.hostId, n.line, liffUrl(chatPath)).catch(() => {});
+        pushTo(round.hostId, n.line, liffUrl(chatPath), 'pickup').catch(() => {});
         webPushTo(round.hostId, { title: n.webTitle, body: n.webBody, url: chatPath, tag: `mention-${params.id}` }).catch(() => {});
       }
     } catch { /* 通知失敗は無視 */ }

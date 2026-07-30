@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
         adminIds,
         `🚨 通報が届きました\n対象: ${target?.displayName || userId.slice(0, 10)}\n種別: ${reasonJa(reason)}${detail ? '\n内容: ' + detail.slice(0, 80) : ''}`,
         liffUrl('/admin/reports'),
+        'report',
       ).catch(() => {});
     } catch { /* noop */ }
   }

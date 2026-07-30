@@ -137,7 +137,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         const n = await renderNotif(tplKey, { '相手の名前': partnerName });
         if (n.inApp) await addNotification(rid, 'match', n.inApp, link);
         if (isNotifyEnabled(ruser, 'match')) {
-          pushTo(rid, n.line, liffUrl(link)).catch(() => {});
+          pushTo(rid, n.line, liffUrl(link), 'match').catch(() => {});
           webPushText(rid, n.webTitle, n.webBody, link, `match-${params.id}-${rid}`).catch(() => {});
         }
       };

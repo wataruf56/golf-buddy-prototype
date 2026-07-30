@@ -48,7 +48,7 @@ export async function notifyMatchingSignals(round: Round): Promise<void> {
         // 退会・存在しないユーザーはスキップ。アプリ内通知は記録、LINE/Webは設定ON時のみ。
         if (n.inApp) addNotification(uid, 'surveyMatch', n.inApp, link).catch(() => {});
         if (isNotifyEnabled(user as any, 'surveyMatch')) {
-          pushTo(uid, n.line, liffUrl(link)).catch(() => {});
+          pushTo(uid, n.line, liffUrl(link), 'survey').catch(() => {});
           webPushText(uid, n.webTitle, n.webBody, link, `surveymatch-${round.id}`).catch(() => {});
         }
       } catch { /* 個別失敗は無視 */ }

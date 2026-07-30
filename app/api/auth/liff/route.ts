@@ -123,6 +123,7 @@ export async function POST(req: NextRequest) {
           adminIds,
           `🆕 新規ユーザー登録\n${pretty}\nuserId: ${userId.slice(0, 12)}...`,
           liffUrl(`/admin/users`),
+          'signup',
         ).catch(() => {});
       } catch { /* noop */ }
     }

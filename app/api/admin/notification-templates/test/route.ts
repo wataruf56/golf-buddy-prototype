@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     try {
       if (n.inApp) await addNotification(id, def.key as any, `【テスト】${n.inApp}`, link).catch(() => {});
       // テスト到達確認のため設定に関わらず必ず送る。
-      await pushTo(id, `🔔【テスト送信】${def.label}\n${n.line}`, liffUrl(link)).catch(() => {});
+      await pushTo(id, `🔔【テスト送信】${def.label}\n${n.line}`, liffUrl(link), 'adminTest').catch(() => {});
       await webPushText(id, `【テスト】${n.webTitle}`, n.webBody, link, `notiftest-${key}`).catch(() => {});
     } catch { /* 個別失敗は無視 */ }
   }));

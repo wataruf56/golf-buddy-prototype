@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
         .map((u) => u.id);
       if (targetIds.length) {
         try {
-          await pushToMany(targetIds, n.line, liffUrl(link));
+          await pushToMany(targetIds, n.line, liffUrl(link), 'interest');
           const { webPushToMany } = await import('@/lib/webPush');
           await webPushToMany(targetIds, n.webTitle, n.webBody, link, `interest-deadline-${round.id}`).catch(() => {});
           sent++;

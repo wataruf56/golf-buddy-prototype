@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       const { isNotifyEnabled } = await import('@/lib/notifyPrefs');
       if (isNotifyEnabled(other as any, 'invited')) {
         const { pushTo, liffUrl } = await import('@/lib/linePush');
-        pushTo(otherId, text, liffUrl(link)).catch(() => {});
+        pushTo(otherId, text, liffUrl(link), 'friend').catch(() => {});
       }
     } catch { /* 通知失敗は無視 */ }
   }

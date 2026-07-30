@@ -197,7 +197,7 @@ async function processOne(swing: SwingDoc): Promise<{ status: string }> {
     const { addNotification } = await import('@/lib/notifications');
     if (n.inApp) addNotification(userId, 'swing', n.inApp, link).catch(() => {});
     if (isNotifyEnabled(u as any, 'swing')) {
-      await pushTo(userId, n.line, liffUrl(link));
+      await pushTo(userId, n.line, liffUrl(link), 'swing');
       const { webPushText } = await import('@/lib/webPush');
       await webPushText(userId, n.webTitle, n.webBody, link, `swing-${swingId}`).catch(() => {});
     }

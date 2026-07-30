@@ -85,7 +85,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   // （参加申請が届いた）に関係なく必ずLINE/Web pushを送る。ただし全通知OFF(notifyOff)の
   // 人にだけは送らない（＝完全にLINE通知を切っている人の明示的な意思は尊重）。
   if (!(host as any)?.notifyOff) {
-    pushTo(existing.hostId, inApp, liffUrl(link)).catch(() => {});
+    pushTo(existing.hostId, inApp, liffUrl(link), 'joined').catch(() => {});
     webPushText(existing.hostId, '招待から参加', `${name}さんが参加しました`, link, `round-${params.id}`).catch(() => {});
   }
 

@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
     const targetIds = users.filter((u) => isNotifyEnabled(u as any, 'roundUpcoming')).map((u) => u.id);
     if (targetIds.length) {
       try {
-        await pushToMany(targetIds, n.line, liffUrl(link));
+        await pushToMany(targetIds, n.line, liffUrl(link), 'upcomingReminder');
         const { webPushToMany } = await import('@/lib/webPush');
         await webPushToMany(targetIds, n.webTitle, n.webBody || 'タップで詳細', link, `upcoming-${round.id}-${key}`).catch(() => {});
         sent++;

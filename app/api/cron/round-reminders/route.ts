@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
     } catch { /* noop */ }
     if (isNotifyEnabled(host as any, 'reviewReminder')) {
       try {
-        await pushTo(round.hostId, lineText, liffUrl(link));
+        await pushTo(round.hostId, lineText, liffUrl(link), 'roundReminder');
         await webPushText(round.hostId, 'ラウンドは完了しましたか？', `「${roundName}」の完了確認`, link, `complete-prompt-${round.id}`).catch(() => {});
         sent++;
       } catch (e) {

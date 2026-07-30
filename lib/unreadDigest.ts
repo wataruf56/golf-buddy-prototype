@@ -47,7 +47,7 @@ export async function runUnreadDigest(): Promise<{ ok: boolean; ran: boolean; sl
     // 全体OFF /「未読メッセージのお知らせ」OFF の人には送らない。
     if (!isNotifyEnabled(u as any, 'unread')) continue;
     try {
-      await pushTo(uid, '📩 未読のメッセージがあります。', liffUrl(link));
+      await pushTo(uid, '📩 未読のメッセージがあります。', liffUrl(link), 'unread');
       sent++;
     } catch { /* best-effort */ }
   }

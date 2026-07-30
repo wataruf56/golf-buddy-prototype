@@ -52,7 +52,7 @@ export async function runReviewFollowup(
     const targetIds = users.filter((u) => isNotifyEnabled(u as any, 'reviewReminder')).map((u) => u.id);
     if (targetIds.length) {
       try {
-        await pushToMany(targetIds, n.line, liffUrl(link));
+        await pushToMany(targetIds, n.line, liffUrl(link), 'reviewReminder');
         await webPushToMany(targetIds, n.webTitle, n.webBody, link, `review-followup-${round.id}`).catch(() => {});
         sent++;
       } catch (e) {
@@ -112,7 +112,7 @@ export async function runReviewBlast(): Promise<{ ok: boolean; reviewers: number
     const u = await db.getUser(reviewerId);
     if (isNotifyEnabled(u as any, 'reviewReminder')) {
       try {
-        await pushTo(reviewerId, n.line, liffUrl(link));
+        await pushTo(reviewerId, n.line, liffUrl(link), 'reviewReminder');
         await webPushText(reviewerId, n.webTitle, n.webBody, link, `review-blast-${reviewerId}`).catch(() => {});
       } catch (e) {
         console.warn('[review-blast] push failed', reviewerId, (e as Error).message);

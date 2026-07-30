@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
       lines.push('');
       lines.push('管理画面で詳細確認:');
       try {
-        await pushToMany(adminIds, lines.join('\n'), liffUrl('/admin/swing'));
+        await pushToMany(adminIds, lines.join('\n'), liffUrl('/admin/swing'), 'adminOps');
         notified = true;
         // Mark all targets so we don't re-alert next tick.
         await Promise.all(alertTargets.map((t) =>

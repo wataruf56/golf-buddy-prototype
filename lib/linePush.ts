@@ -39,23 +39,34 @@ async function callLine(endpoint: string, body: unknown): Promise<{ ok: boolean;
   }
 }
 
-export async function pushTo(userId: string, text: string, link?: string): Promise<void> {
+// LINE送信の集計ログ（best-effort）。kind=種別（lib/lineStats の LINE_KIND_LABEL）。
+async function logSend(kind: string | undefined, recipients: number): Promise<void> {
+  if (recipients <= 0) return;
+  try { const { logLineSend } = await import('./lineStats'); await logLineSend(kind || 'other', recipients); } catch { /* noop */ }
+}
+
+// 最後の引数 kind は送信種別（管理画面の集計用）。未指定は 'other'。
+export async function pushTo(userId: string, text: string, link?: string, kind?: string): Promise<void> {
   if (!userId || !text) return;
   const body = link ? `${text}\n${link}` : text;
   const messages: LineMessage[] = [{ type: 'text', text: body.slice(0, 4900) }];
   const r = await callLine(PUSH_ENDPOINT, { to: userId, messages });
-  if (!r.ok) console.warn('[linePush] push failed', { userId, status: r.status, detail: r.detail?.slice(0, 200) });
+  if (!r.ok) { console.warn('[linePush] push failed', { userId, status: r.status, detail: r.detail?.slice(0, 200) }); return; }
+  await logSend(kind, 1);
 }
 
-export async function pushToMany(userIds: string[], text: string, link?: string): Promise<void> {
+export async function pushToMany(userIds: string[], text: string, link?: string, kind?: string): Promise<void> {
   const ids = userIds.filter(Boolean);
   if (!ids.length || !text) return;
   const body = link ? `${text}\n${link}` : text;
   const messages: LineMessage[] = [{ type: 'text', text: body.slice(0, 4900) }];
+  let sent = 0;
   // Multicast supports up to 500 ids per call.
   for (let i = 0; i < ids.length; i += 500) {
     const slice = ids.slice(i, i + 500);
     const r = await callLine(MULTICAST_ENDPOINT, { to: slice, messages });
     if (!r.ok) console.warn('[linePush] multicast failed', { count: slice.length, status: r.status, detail: r.detail?.slice(0, 200) });
+    else sent += slice.length;
   }
+  await logSend(kind, sent);
 }

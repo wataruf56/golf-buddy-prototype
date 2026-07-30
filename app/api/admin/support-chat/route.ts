@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
     } catch {}
     try {
       const { pushTo, liffUrl } = await import('@/lib/linePush');
-      await pushTo(userId, `🛡️ 管理人からメッセージが届きました。`, liffUrl(link)).catch(() => {});
+      await pushTo(userId, `🛡️ 管理人からメッセージが届きました。`, liffUrl(link), 'dm').catch(() => {});
     } catch {}
     try {
       const { webPushText } = await import('@/lib/webPush');
