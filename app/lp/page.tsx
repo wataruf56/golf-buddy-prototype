@@ -1,5 +1,7 @@
 // Public landing page served at https://goltomo.com (and https://www.goltomo.com).
 // No LIFF required. Standalone. Hosted on GCP (Cloud Run + Firebase Hosting).
+import { RefCapture } from '@/components/RefCapture';
+import { StartButton } from '@/components/StartButton';
 
 export const metadata = {
   title: 'ゴルトモ｜ゴル友マッチング × AIスイング解析（ゴルフ版MBTI診断つき）',
@@ -25,12 +27,11 @@ export const metadata = {
   },
 };
 
-// Branded launch URL — /app is handled in middleware.ts and redirects to LIFF.
-const LIFF_URL = '/app';
-
 export default function LandingPage() {
   return (
     <main className="min-h-screen bg-bg">
+      {/* 流入経路キャプチャ（?ref=instagram 等を初回のみ記憶） */}
+      <RefCapture />
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-br from-green to-emerald-700 text-white">
         <div className="max-w-3xl mx-auto px-6 pt-14 pb-16 text-center">
@@ -44,12 +45,11 @@ export default function LandingPage() {
             スイング動画はAIコーチが解析し、<b className="font-black">スコアの伸びと課題の改善まで可視化</b>。
             すべてLINEで完結、ダウンロード不要。
           </p>
-          <a
-            href={LIFF_URL}
+          <StartButton
             className="inline-block w-full max-w-xs px-6 py-4 bg-white text-green rounded-2xl font-black text-base shadow-xl"
           >
             LINEで始める
-          </a>
+          </StartButton>
           <div className="text-[10px] opacity-80 mt-3">無料 ・ LINEログインのみ ・ アプリDL不要</div>
         </div>
       </section>
@@ -189,6 +189,11 @@ export default function LandingPage() {
           >
             無料でゴルフMBTI診断をする →
           </a>
+          <p className="mt-4 text-[13px] font-bold">
+            <a href="/type" className="text-green underline">
+              ゴルフ版MBTI 16タイプの一覧・解説を見る →
+            </a>
+          </p>
         </div>
       </section>
 
@@ -214,9 +219,9 @@ export default function LandingPage() {
         <div className="max-w-md mx-auto px-6 text-center">
           <div className="text-2xl font-black mb-2">いますぐ始める</div>
           <div className="text-sm opacity-90 mb-6">完全無料 ・ LINEログインのみ</div>
-          <a href={LIFF_URL} className="inline-block w-full px-6 py-4 bg-white text-green rounded-2xl font-black text-base shadow-xl">
+          <StartButton className="inline-block w-full px-6 py-4 bg-white text-green rounded-2xl font-black text-base shadow-xl">
             LINEで始める →
-          </a>
+          </StartButton>
         </div>
       </section>
 

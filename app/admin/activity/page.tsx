@@ -9,6 +9,7 @@ type Report = {
   summary: { active24h: number; active7d: number; totalUsersSeen: number; totalSwingUsers: number; totalSwings: number; logsScanned: number };
   activeUsers: { userId: string; name: string; count: number; lastTs: number; lastEvent: string; lastPage: string }[];
   popularPages?: { page: string; views: number; users: number; lastTs: number }[];
+  acquisition?: { total: number; tagged: number; bySource: { source: string; count: number }[] };
   recentActions: { userId: string; name: string; event: string; page: string; ts: number }[];
   swingUsers: { userId: string; name: string; total: number; done: number; lastAt: number }[];
   recentSwings: { userId: string; name: string; mode: string; status: string; createdAt: number }[];
@@ -41,6 +42,23 @@ const PAGE_LABEL: Record<string, string> = {
   '/liff': '🔑 ログイン',
 };
 const pageLabel = (p: string) => PAGE_LABEL[p] || p;
+
+// 流入経路ソースの日本語ラベル（?ref= の値 → 表示名）。未知の値はそのまま表示。
+const SOURCE_LABEL: Record<string, string> = {
+  instagram: '📷 Instagram',
+  ig: '📷 Instagram',
+  x: '𝕏 X (Twitter)',
+  twitter: '𝕏 X (Twitter)',
+  tiktok: '🎵 TikTok',
+  youtube: '▶️ YouTube',
+  line: '💬 LINE',
+  flyer: '📄 チラシ・QR',
+  friend: '🤝 友達紹介',
+  google: '🔍 Google',
+  web: '🌐 Web',
+  unknown: '❓ 不明（直接・LINE検索など）',
+};
+const sourceLabel = (s: string) => SOURCE_LABEL[s] || `🔗 ${s}`;
 
 // 英語のイベント名 → 日本語の分かりやすい説明
 const EVENT_LABEL: Record<string, string> = {
@@ -205,6 +223,31 @@ function Inner() {
             </div>
             <span className="text-muted">›</span>
           </Link>
+
+          {/* 流入経路（登録ユーザーの経路内訳） */}
+          <Section title="📥 流入経路（登録の経路）" sub={data.acquisition ? `登録${data.acquisition.total}人・経路タグあり${data.acquisition.tagged}人` : ''} count={(data.acquisition?.bySource || []).length}>
+            {(!data.acquisition || data.acquisition.bySource.length === 0) ? (
+              <div className="text-center text-[11px] text-muted py-4 leading-relaxed">
+                まだデータがありません。<br />各SNSに <b>?ref=instagram</b> のようなタグ付きリンクを貼ると、ここに経路別の登録数が並びます。
+              </div>
+            ) : (() => {
+              const max = Math.max(...data.acquisition.bySource.map((s) => s.count)) || 1;
+              return data.acquisition.bySource.map((s) => (
+                <div key={s.source} className="py-2 border-b border-border last:border-0">
+                  <div className="flex items-baseline justify-between mb-1 gap-2">
+                    <span className="text-[13px] font-bold truncate">{sourceLabel(s.source)}</span>
+                    <span className="text-[12px] font-black text-green flex-shrink-0">{s.count}人</span>
+                  </div>
+                  <div className="h-2 bg-bg rounded overflow-hidden">
+                    <div className="h-full bg-blue rounded" style={{ width: `${Math.round((s.count / max) * 100)}%` }} />
+                  </div>
+                </div>
+              ));
+            })()}
+            <div className="text-[10px] text-muted mt-2 leading-relaxed">
+              ※ 各リンクの末尾に <b>?ref=◯◯</b>（例: instagram / x / flyer）を付けて配ると自動で集計されます。今日以降の新規登録から記録されます。
+            </div>
+          </Section>
 
           {/* 1. Active users */}
           <Section title="① いま使っているユーザー" sub="最近アプリを開いた順" count={data.activeUsers.length}>

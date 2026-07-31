@@ -59,7 +59,9 @@ export default async function middleware(req: NextRequest) {
     if (/\.(png|jpe?g|webp|svg|gif|ico|css|js|mjs|map|woff2?|ttf|otf|json|txt|xml|mp4|webm)$/i.test(path)) {
       return NextResponse.next();
     }
-    if (path.startsWith('/legal') || path === '/lp' || path.startsWith('/lp/') || path.startsWith('/icons/') || path.startsWith('/golmoti-chars/') || path === '/manifest.json' || path === '/favicon.ico' || path === '/golmoti' || path === '/golmoti.html' || path === '/golmoti-lp' || path === '/golmoti-lp.html') {
+    // /type と /type/[code] は SEO用の公開ページ（ゴルフ版MBTI 16タイプ）。
+    // ここで通さないと、下の「それ以外は /lp に rewrite」に飲まれて LP が出てしまう。
+    if (path.startsWith('/legal') || path === '/lp' || path.startsWith('/lp/') || path.startsWith('/icons/') || path.startsWith('/golmoti-chars/') || path === '/manifest.json' || path === '/favicon.ico' || path === '/golmoti' || path === '/golmoti.html' || path === '/golmoti-lp' || path === '/golmoti-lp.html' || path === '/type' || path.startsWith('/type/')) {
       return NextResponse.next();
     }
     // Branded launch URL: goltomo.com/app → LIFF entry. Lets us share a
@@ -71,7 +73,15 @@ export default async function middleware(req: NextRequest) {
     if (path === '/app' || path.startsWith('/app/')) {
       const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '2009973733-P5UdNex9';
       const to = url.searchParams.get('to');
-      const target = `https://liff.line.me/${liffId}${to ? `?to=${encodeURIComponent(to)}` : ''}`;
+      // 流入経路タグ（?ref= / ?utm_source=）をLIFF URLへ引き継ぐ。localStorageは
+      // goltomo.com→app.goltomo.com のオリジンをまたげないため、URLで運ぶのが確実。
+      const ref = (url.searchParams.get('ref') || url.searchParams.get('utm_source') || url.searchParams.get('source') || '')
+        .toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 40);
+      const qs = new URLSearchParams();
+      if (to) qs.set('to', to);
+      if (ref) qs.set('ref', ref);
+      const q = qs.toString();
+      const target = `https://liff.line.me/${liffId}${q ? `?${q}` : ''}`;
       return NextResponse.redirect(target);
     }
     // App or admin paths accidentally hit on LP host → bounce to the right host.

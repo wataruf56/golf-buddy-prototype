@@ -68,10 +68,24 @@ function LiffEntryInner() {
           if (fs && typeof fs.friendFlag === 'boolean') friendFlag = fs.friendFlag;
         } catch { /* getFriendship 非対応環境では無視 */ }
 
+        // 流入経路：着地時に記憶した ?ref= と referrer を登録時に渡す（新規のみ保存される）。
+        // このLIFF URLに直接 ?ref= が付いていた場合もここで拾って初回タッチとして記録する。
+        let ref = '', referrer = '';
+        try {
+          const urlRef = (search?.get('ref') || search?.get('utm_source') || search?.get('source') || '')
+            .trim().toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 40);
+          if (urlRef && !localStorage.getItem('gb_ref')) {
+            localStorage.setItem('gb_ref', urlRef);
+            localStorage.setItem('gb_ref_at', String(Date.now()));
+          }
+          ref = localStorage.getItem('gb_ref') || '';
+          referrer = localStorage.getItem('gb_referrer') || (document.referrer || '').slice(0, 200);
+        } catch {}
+
         const res = await fetch('/api/auth/liff', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ idToken, friendFlag }),
+          body: JSON.stringify({ idToken, friendFlag, ref, referrer }),
           cache: 'no-store',
           credentials: 'include',
         });

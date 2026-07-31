@@ -76,6 +76,11 @@ export type User = {
   // システムアカウント（例：「管理人」）。検索・招待・マッチング等の一般ユーザー一覧からは
   // 除外し、DM（サポート窓口）としてのみ振る舞う。
   isSystem?: boolean;
+  // 流入経路（登録時のみ記録）。着地URLの ?ref= / ?utm_source= から取得（例: 'instagram'）。
+  // タグ無しで来た人は未設定（＝unknown）。referrer は補助情報。
+  acquisitionSource?: string;
+  acquisitionReferrer?: string;
+  acquisitionAt?: number;
 };
 
 export type ScoreEntry = { score: number; date: string };

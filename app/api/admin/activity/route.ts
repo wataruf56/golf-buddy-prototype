@@ -128,6 +128,27 @@ export async function GET(req: NextRequest) {
       userId: s.userId, name: nameOf(s.userId), mode: s.mode, status: s.status, createdAt: s.createdAt,
     }));
 
+    // --- 流入経路（登録ユーザーを acquisitionSource で集計）---
+    let acquisition: { total: number; tagged: number; bySource: Array<{ source: string; count: number }> } = { total: 0, tagged: 0, bySource: [] };
+    try {
+      const uSnap = await db.collection('users').limit(3000).get();
+      const bySrc: Record<string, number> = {};
+      let total = 0, tagged = 0;
+      uSnap.docs.forEach((d: any) => {
+        const u = d.data() || {};
+        if (u.isSystem) return; // 管理人などは除外
+        total++;
+        const src = String(u.acquisitionSource || 'unknown');
+        bySrc[src] = (bySrc[src] || 0) + 1;
+        if (src && src !== 'unknown') tagged++;
+      });
+      acquisition = {
+        total,
+        tagged,
+        bySource: Object.entries(bySrc).map(([source, count]) => ({ source, count })).sort((a, b) => b.count - a.count),
+      };
+    } catch { /* best-effort */ }
+
     return NextResponse.json({
       generatedAt: now,
       summary: {
@@ -139,6 +160,7 @@ export async function GET(req: NextRequest) {
       },
       activeUsers: activeUsers.slice(0, 100),
       popularPages,
+      acquisition,
       recentActions: recentActions.map((a: any) => ({ ...a, name: nameOf(a.userId) })),
       swingUsers,
       recentSwings,

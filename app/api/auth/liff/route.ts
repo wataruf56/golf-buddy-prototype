@@ -16,6 +16,9 @@ export async function POST(req: NextRequest) {
   // LIFF の liff.getFriendship() で取得した「公式LINE友だち追加済みか」。
   // 取得できなかった環境では undefined（保存しない）。
   const friendFlag: boolean | undefined = typeof body?.friendFlag === 'boolean' ? body.friendFlag : undefined;
+  // 流入経路（新規登録時のみ保存）。?ref= 等をクライアントが正規化して渡す。
+  const acqRef = String(body?.ref || '').trim().toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 40);
+  const acqReferrer = String(body?.referrer || '').slice(0, 200);
 
   // Verify with LINE
   const params = new URLSearchParams();
@@ -74,7 +77,11 @@ export async function POST(req: NextRequest) {
         roundCount: 0,
         buddyCount: 0,
         lineId: userId,
-      });
+        // 流入経路（登録時のみ）。タグ無しは 'unknown' として記録。
+        acquisitionSource: acqRef || 'unknown',
+        acquisitionReferrer: acqReferrer || undefined,
+        acquisitionAt: Date.now(),
+      } as any);
       isNewUser = true;
     } else {
       // 既存ユーザーの補完（初期値のときだけ。ユーザーが自分で設定した値は上書きしない）。
