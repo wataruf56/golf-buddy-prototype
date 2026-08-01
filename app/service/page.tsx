@@ -5,7 +5,8 @@
 // また回りたい／異性として気になる」というサービスの中身を見せることに振っている。
 //
 // 掲載しているのは実装済みの機能のみ（lib/meetOptions.ts, app/(main)/guide/page.tsx を参照）。
-// 画面キャプチャは public/guide-shots/*.png（アプリの実画面）。
+// 実画面のキャプチャ（public/guide-shots/*.png）は一度載せたが、縦長すぎて
+// 横スワイプの並びが間延びするため取りやめた。載せ直すなら縦横比の扱いから設計し直すこと。
 //
 // 注意：LPホスト(goltomo.com)は middleware が既定で /lp に rewrite するので、
 // /service を許可リストに入れてある。
@@ -83,13 +84,11 @@ html body{background:#F4E8CE}
 .sv .card p{font-size:13.5px;margin:0;font-weight:500}
 .sv .card p + p{margin-top:10px}
 
-/* 実画面のキャプチャ */
-.sv .shots{display:flex;gap:14px;overflow-x:auto;padding:4px 18px 18px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
-.sv .shot{flex:none;width:210px;scroll-snap-align:center}
-.sv .shot img{width:100%;display:block;border:2.5px solid var(--ink);border-radius:16px;box-shadow:5px 5px 0 var(--ink);background:#fff}
-.sv .shot .cap{font-size:12px;font-weight:900;text-align:center;margin-top:9px}
-.sv .shot .cap small{display:block;font-weight:700;color:#6b5a44;font-size:11px;margin-top:2px}
-.sv .swipe{text-align:center;font-size:11.5px;font-weight:800;color:#8a7256;margin:-8px 0 0}
+/* 前提バッジ（DL不要・LINE完結・年代） */
+.sv .badges{display:grid;gap:9px;padding:0 18px;margin-top:4px}
+.sv .bd{display:flex;align-items:baseline;gap:10px;background:var(--cream);border:2.5px solid var(--ink);
+  border-radius:14px;box-shadow:3px 3px 0 var(--ink);padding:11px 15px;font-size:12.5px;font-weight:700;color:#6b5a44}
+.sv .bd b{font-size:13.5px;font-weight:900;color:var(--ink);white-space:nowrap}
 
 /* 両想いの説明図 */
 .sv .duo{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin:4px 0 14px}
@@ -131,14 +130,6 @@ html body{background:#F4E8CE}
 .sv footer .fl{font-weight:900;color:var(--orange);margin-bottom:4px}
 `;
 
-const SHOTS = [
-  { key: 'home', cap: 'ホーム', sub: '募集中のラウンドが並ぶ' },
-  { key: 'create', cap: 'ラウンドを募集', sub: 'コース予約済み／未定を選ぶ' },
-  { key: 'search', cap: 'さがす', sub: 'エリア・日程・費用で絞り込み' },
-  { key: 'buddies', cap: 'ゴル友・マッチ', sub: '気になる／また回りたい' },
-  { key: 'swing', cap: 'AIスイング解析', sub: '動画を送るとAIが解説' },
-];
-
 export default function ServiceLP() {
   return (
     <div className="sv">
@@ -161,25 +152,12 @@ export default function ServiceLP() {
           </p>
         </header>
 
-        {/* 実際の画面 */}
-        <div className="chap">
-          <div className="no">📱</div>
-          <div>
-            <div className="lb">SCREENS</div>
-            <div className="tt">実際の画面</div>
-          </div>
+        {/* 前提バッジ（アプリDL不要・LINE完結） */}
+        <div className="badges">
+          <span className="bd"><b>📥 DL不要</b>アプリ入れずに使える</span>
+          <span className="bd"><b>💬 LINEで完結</b>ログインも通知もLINE</span>
+          <span className="bd"><b>⛳ 20〜30代</b>年代が近い人だけ</span>
         </div>
-        <p className="lead">アプリのダウンロードは不要。ぜんぶLINEの中で動きます。</p>
-        <div className="shots">
-          {SHOTS.map((s) => (
-            <div className="shot" key={s.key}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`/guide-shots/${s.key}.png`} alt={`ゴルトモの${s.cap}画面`} width={780} height={1688} />
-              <div className="cap">{s.cap}<small>{s.sub}</small></div>
-            </div>
-          ))}
-        </div>
-        <p className="swipe">← 横にスワイプ →</p>
 
         {/* ラウンド投稿 */}
         <div className="chap">
