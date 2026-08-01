@@ -42,23 +42,34 @@ export async function GET(req: NextRequest) {
     const logSnap = await db.collection('_logs').orderBy('ts', 'desc').limit(2000).get();
     const logs = logSnap.docs.map((d: any) => d.data());
 
-    // Per-user rollup
-    const perUser: Record<string, { count: number; lastTs: number; lastEvent: string; lastPage: string }> = {};
+    // 「操作」に数えないノイズ系イベント（アプリ起動・画面表示など）。
+    // ①いま使っているユーザー・②直近の操作ログの両方で同じ定義を使い、表示を一致させる。
+    const HIDDEN_EVENTS = new Set(['app_open', 'hydrate_success', 'hydrate_error', 'page_view', 'mypage_render']);
+
+    // Per-user rollup。lastTs=最後の活動(閲覧含む)、lastActionTs=最後の“操作”(②に出るもの)。
+    const perUser: Record<string, {
+      count: number; lastTs: number; lastPage: string;
+      lastActionTs: number; lastActionEvent: string; lastActionPage: string;
+    }> = {};
     for (const l of logs) {
       const uid = l.userId;
       if (!uid) continue;
-      if (!perUser[uid]) perUser[uid] = { count: 0, lastTs: 0, lastEvent: '', lastPage: '' };
+      if (!perUser[uid]) perUser[uid] = { count: 0, lastTs: 0, lastPage: '', lastActionTs: 0, lastActionEvent: '', lastActionPage: '' };
       perUser[uid].count++;
       if ((l.ts || 0) > perUser[uid].lastTs) {
         perUser[uid].lastTs = l.ts || 0;
-        perUser[uid].lastEvent = l.event || '';
         perUser[uid].lastPage = l.page || '';
+      }
+      // 最後の「操作」（②直近の操作ログに出るのと同じ種類）を別途保持。
+      if (l.event && !HIDDEN_EVENTS.has(l.event) && (l.ts || 0) > perUser[uid].lastActionTs) {
+        perUser[uid].lastActionTs = l.ts || 0;
+        perUser[uid].lastActionEvent = l.event;
+        perUser[uid].lastActionPage = l.page || '';
       }
     }
 
     // Recent raw actions（直近の操作ログ）。「アプリを開いた／アプリ起動／画面表示」系は
     // ノイズなので除外して、実際の操作だけを見やすく並べる。
-    const HIDDEN_EVENTS = new Set(['app_open', 'hydrate_success', 'hydrate_error', 'page_view', 'mypage_render']);
     const recentActions = logs
       .filter((l: any) => l.event && !HIDDEN_EVENTS.has(l.event))
       .slice(0, 80)

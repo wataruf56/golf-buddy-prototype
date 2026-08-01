@@ -7,7 +7,7 @@ import { useSearchParams } from 'next/navigation';
 type Report = {
   generatedAt: number;
   summary: { active24h: number; active7d: number; totalUsersSeen: number; totalSwingUsers: number; totalSwings: number; logsScanned: number };
-  activeUsers: { userId: string; name: string; count: number; lastTs: number; lastEvent: string; lastPage: string }[];
+  activeUsers: { userId: string; name: string; count: number; lastTs: number; lastPage: string; lastActionTs: number; lastActionEvent: string; lastActionPage: string }[];
   popularPages?: { page: string; views: number; users: number; lastTs: number }[];
   acquisition?: { total: number; tagged: number; bySource: { source: string; count: number }[] };
   recentActions: { userId: string; name: string; event: string; page: string; ts: number }[];
@@ -250,19 +250,24 @@ function Inner() {
           </Section>
 
           {/* 1. Active users */}
-          <Section title="① いま使っているユーザー" sub="最近アプリを開いた順" count={data.activeUsers.length}>
-            {data.activeUsers.length === 0 ? <Empty /> : data.activeUsers.map((u) => (
+          <Section title="① いま使っているユーザー" sub="最近の操作／閲覧が新しい順" count={data.activeUsers.length}>
+            {data.activeUsers.length === 0 ? <Empty /> : data.activeUsers.map((u) => {
+              // 「何をした」は②直近の操作ログと同じ“操作”を表示（閲覧のみの人は「閲覧中」）。
+              const hasAction = !!u.lastActionEvent;
+              const whenTs = hasAction ? u.lastActionTs : u.lastTs;
+              const what = hasAction ? eventJa(u.lastActionEvent) : '👀 閲覧中';
+              return (
               <div key={u.userId} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                 <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-bold truncate">{u.name}</div>
-                  <div className="text-[10px] text-muted truncate">{u.lastPage || '—'} ・ {u.lastEvent ? eventJa(u.lastEvent) : '—'}</div>
+                  <div className="text-[10px] text-muted truncate">{what}{(hasAction ? u.lastActionPage : u.lastPage) ? ` ・ ${hasAction ? u.lastActionPage : u.lastPage}` : ''}</div>
                 </div>
                 <div className="text-right flex-shrink-0 ml-2">
-                  <div className="text-[11px] font-bold text-green">{ago(u.lastTs)}</div>
-                  <div className="text-[9px] text-muted">{u.count}操作</div>
+                  <div className="text-[11px] font-bold text-green">{ago(whenTs)}</div>
                 </div>
               </div>
-            ))}
+            );
+            })}
           </Section>
 
           {/* 2. Recent actions */}
