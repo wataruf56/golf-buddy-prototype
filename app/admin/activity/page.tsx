@@ -102,6 +102,15 @@ const EVENT_LABEL: Record<string, string> = {
   poll_answer: '日程調整に回答',
   poll_decide_create: '日程調整から募集を作成',
   poll_share: '日程調整をシェア',
+  dm_open: '💬 DMを開いた',
+  dm_send: '💬 DMを送信',
+  round_chat_send: '💬 ラウンドチャット送信',
+  interest_toggle: '❤️ 気になるを操作',
+  match_select: '💘 マッチ選択（また回りたい/気になる）',
+  invite_send: '💌 招待した',
+  approve_applicant: '✅ 参加を承認',
+  block_user: '🚫 ブロック',
+  report_user: '🚩 通報した',
 };
 function eventJa(ev: string): string {
   if (EVENT_LABEL[ev]) return EVENT_LABEL[ev];

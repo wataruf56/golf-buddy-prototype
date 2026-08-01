@@ -346,7 +346,7 @@ export default function RoundDetailPage() {
     catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }
   async function approve(userId: string) {
-    try { await store.approveApplicant(round!.id, userId); toast('承認しました'); }
+    try { await store.approveApplicant(round!.id, userId); track('approve_applicant', { roundId: round!.id }); toast('承認しました'); }
     catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }
   async function reject(userId: string) {
@@ -363,6 +363,7 @@ export default function RoundDetailPage() {
     if (requireLogin()) return;
     if (restrictions.noInterest) { toast(RESTRICTION_MSG.noInterest, 'error'); return; }
     const next = !(round!.interestedIds || []).includes(meId);
+    track('interest_toggle', { roundId: round!.id, on: next });
     if (storeRound) {
       try { await store.toggleInterest(round!.id, next); }
       catch (e) { toast((e as Error).message, 'error'); }
@@ -384,6 +385,7 @@ export default function RoundDetailPage() {
     try {
       const updated = await store.inviteToRound(round!.id, userId, (message || '').trim() || undefined);
       if (!storeRound && updated) setFetchedRound((prev) => (prev ? { ...prev, ...updated } : prev));
+      track('invite_send', { roundId: round!.id });
       toast(`${name}さんを招待しました`);
     } catch (e) { toast((e as Error).message, 'error'); }
   }

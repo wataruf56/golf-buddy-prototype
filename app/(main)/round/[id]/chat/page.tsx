@@ -6,6 +6,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { toast } from '@/components/Toast';
+import { track } from '@/lib/telemetry';
 import { markRoundChatSeen } from '@/lib/useUnread';
 import type { Message, Round, RoundThread } from '@/lib/types';
 
@@ -177,6 +178,7 @@ export default function RoundChatPage() {
       });
       if (!res.ok) { const { readApiError } = await import('@/lib/apiError'); toast(await readApiError(res, '送信に失敗しました'), 'error'); return; }
       const d = await res.json();
+      track('round_chat_send');
       setMessages((prev) => [...prev, d.message]);
     } catch (e) {
       toast('送信に失敗しました', 'error');

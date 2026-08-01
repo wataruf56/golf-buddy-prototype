@@ -10,6 +10,7 @@ import { GolfBallRating } from '@/components/GolfBallRating';
 import { toast } from '@/components/Toast';
 import { confirmDialog } from '@/components/ConfirmDialog';
 import type { User } from '@/lib/types';
+import { track as logEvent } from '@/lib/telemetry';
 import { ProfileDetails } from '@/components/ProfileDetails';
 import { chatIdFor, carLabel, instagramUrl } from '@/lib/utils';
 
@@ -63,6 +64,7 @@ export default function ProfilePage() {
         body: JSON.stringify({ userId: params.id, action }),
       });
       if (!res.ok) throw new Error(`${res.status}`);
+      logEvent('block_user', { targetId: params.id, on: action === 'block' });
       toast(action === 'block' ? 'ブロックしました' : 'ブロック解除しました');
       const { store } = await import('@/lib/store');
       await store.refreshMe();
@@ -85,6 +87,7 @@ export default function ProfilePage() {
         body: JSON.stringify({ userId: params.id, reason: reportCat, detail: reportReason.trim() }),
       });
       if (!res.ok) throw new Error(`${res.status}`);
+      logEvent('report_user', { targetId: params.id, reason: reportCat });
       toast('通報を受け付けました。運営が確認します。');
       setReportOpen(false);
       setReportReason('');

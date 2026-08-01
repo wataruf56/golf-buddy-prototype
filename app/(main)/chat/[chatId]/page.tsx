@@ -8,6 +8,7 @@ import { Avatar } from '@/components/Avatar';
 import { toast } from '@/components/Toast';
 import { ratingLabel } from '@/lib/utils';
 import { resizeImage } from '@/lib/resizeImage';
+import { track } from '@/lib/telemetry';
 
 export default function ChatPage() {
   const params = useParams<{ chatId: string }>();
@@ -45,6 +46,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!params.chatId) return;
+    track('dm_open'); // DMを開いた（操作ログ用・チャットを開くたび1回）
     store.loadChat(params.chatId);
     const interval = setInterval(() => store.loadChat(params.chatId), 3000);
     return () => clearInterval(interval);
@@ -100,7 +102,7 @@ export default function ChatPage() {
     if ((!t && !imageUrl) || !other || sending) return;
     setSending(true);
     if (!imageUrl) setText('');
-    try { await store.sendMessage(params.chatId, other.id, imageUrl ? '' : t, imageUrl); }
+    try { await store.sendMessage(params.chatId, other.id, imageUrl ? '' : t, imageUrl); track('dm_send'); }
     catch (e) {
       toast('送信失敗: ' + (e as Error).message, 'error');
     } finally { setSending(false); }

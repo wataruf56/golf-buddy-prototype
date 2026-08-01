@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from '@/components/Toast';
 import { useStore, getMe } from '@/lib/store';
+import { track } from '@/lib/telemetry';
 
 // ラウンドに参加した人を一覧表示し、「また回りたい」「異性として気になる」を
 // それぞれ選べるマッチングUI。マッチ（相互に選択）した時だけ双方に通知が
@@ -44,6 +45,7 @@ export function MatchPicker({ roundId }: { roundId: string }) {
     setBusy(`${toUserId}:${kind}`);
     const cur = state[toUserId] || { again: false, romantic: false, matchedAgain: false, matchedRomantic: false };
     const on = !(kind === 'again' ? cur.again : cur.romantic);
+    track('match_select', { roundId, kind, on });
     setState((s) => ({ ...s, [toUserId]: { ...cur, [kind]: on, ...(on ? {} : kind === 'again' ? { matchedAgain: false } : { matchedRomantic: false }) } }));
     try {
       const res = await fetch(`/api/rounds/${roundId}/match`, {
