@@ -56,46 +56,38 @@ export async function GET(req: NextRequest) {
   const targetName = target?.displayName || userId.slice(0, 10);
   const myChats = chats.filter((c) => (c.participants || []).includes(userId) && (((c as any).unreadCount || {})[userId] || 0) > 0);
 
+  // メッセージ本文は取得しない（＝運営に中身は見せない）。チャット単位で
+  // 「機能・誰から本人へ・未読件数・最終受信時刻」だけを出す。
   const detail = await Promise.all(myChats.map(async (c) => {
     const otherId = (c.participants || []).find((p) => p !== userId) || '';
     const otherName = await nameOfId(otherId);
-    const unread = ((c as any).unreadCount || {})[userId] || 0;
-    const full = await db.getChat(c.id);
-    const msgs = (full?.messages || []).slice().sort((a, b) => a.createdAt - b.createdAt);
-    const recent = msgs.slice(-Math.max(unread, 8)); // 未読分＋前後の文脈
+    const isAdmin = otherId === ADMIN_MANAGER_ID;
     return {
-      chatId: c.id, otherId, otherName, unread,
+      chatId: c.id,
+      feature: isAdmin ? '管理人チャット' : 'DM',
+      fromId: otherId, fromName: otherName,
+      unread: ((c as any).unreadCount || {})[userId] || 0,
       lastAt: (c as any).lastMessageAt || 0,
-      messages: recent.map((m) => ({
-        senderId: m.senderId,
-        senderLabel: m.senderId === userId ? '本人' : m.senderId === ADMIN_MANAGER_ID ? ADMIN_MANAGER_NAME : otherName,
-        fromOther: m.senderId !== userId,
-        text: m.text || (m.imageUrl ? '📷 画像' : ''),
-        createdAt: m.createdAt,
-      })),
     };
   }));
   detail.sort((a, b) => b.lastAt - a.lastAt);
   const total = detail.reduce((s, d) => s + d.unread, 0);
 
-  // Markdown 生成。
+  // Markdown 生成（本文なし）。
   const lines: string[] = [];
-  lines.push(`# 📩 ${targetName} の未読メッセージ`);
+  lines.push(`# 📩 ${targetName} の未読`);
   lines.push('');
   lines.push(`- ユーザーID: \`${userId}\``);
-  lines.push(`- 未読合計: **${total}件**（${detail.length}つのチャット）`);
-  const prof = [target?.age ? `${target.age}歳` : '', target?.gender === 'male' ? '男性' : target?.gender === 'female' ? '女性' : '', target?.area, target?.scoreRange].filter(Boolean).join(' ・ ');
-  if (prof) lines.push(`- プロフィール: ${prof}`);
+  lines.push(`- 未読合計: **${total}件**（${detail.length}件のやり取り）`);
+  lines.push('');
+  lines.push('※ 中身（本文）は表示しません。「何の機能で・誰から本人へ・何件・いつ」だけ。');
   lines.push('');
   for (const d of detail) {
     lines.push('---');
-    lines.push(`## 💬 ${d.otherName}（未読 ${d.unread}件）`);
-    lines.push(`最終メッセージ: ${jst(d.lastAt)}`);
-    lines.push('');
-    for (const m of d.messages) {
-      const marker = m.fromOther ? '🔵' : '⚪️';
-      lines.push(`- ${marker} **${m.senderLabel}**: ${m.text.replace(/\n/g, ' ')} _(${jst(m.createdAt)})_`);
-    }
+    lines.push(`## ${d.feature === 'DM' ? '💬 DM' : '🛡️ 管理人チャット'}`);
+    lines.push(`- ${d.fromName} → **${targetName}**`);
+    lines.push(`- 未読: **${d.unread}件**`);
+    lines.push(`- 最終受信: ${jst(d.lastAt)}`);
     lines.push('');
   }
   const markdown = lines.join('\n');
