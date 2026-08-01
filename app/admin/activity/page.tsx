@@ -7,7 +7,7 @@ import { useSearchParams } from 'next/navigation';
 type Report = {
   generatedAt: number;
   summary: { active24h: number; active7d: number; totalUsersSeen: number; totalSwingUsers: number; totalSwings: number; logsScanned: number };
-  activeUsers: { userId: string; name: string; count: number; lastTs: number; lastPage: string; lastActionTs: number; lastActionEvent: string; lastActionPage: string }[];
+  activeUsers: { userId: string; name: string; count: number; lastTs: number; lastPage: string; lastPageNorm?: string; lastActionTs: number; lastActionEvent: string; lastActionPage: string }[];
   popularPages?: { page: string; views: number; users: number; lastTs: number }[];
   acquisition?: { total: number; tagged: number; bySource: { source: string; count: number }[] };
   menuEntries?: { menu: string; count: number }[];
@@ -120,6 +120,33 @@ function eventJa(ev: string): string {
   if (/success$/.test(ev)) return ev.replace(/_success$/, '') + ' 完了';
   if (/error$/.test(ev)) return ev.replace(/_error$/, '') + ' エラー';
   return ev;
+}
+
+// 画面パス（正規化済み）→ 日本語ラベル。①で「いま何の画面を見ているか」を表示する用。
+const SCREEN_LABEL: Record<string, string> = {
+  '/home': '🏠 ホーム',
+  '/search': '🔍 さがす',
+  '/create': '✏️ 募集する',
+  '/swing': '📊 スイング',
+  '/buddies': '🤝 ゴル友',
+  '/mypage': '👤 マイページ',
+  '/mypage/edit': '👤 プロフィール編集',
+  '/qr': '📱 QRコード',
+  '/rounds/upcoming': '📅 参加予定',
+  '/rounds/past': '🏁 過去ラウンド',
+  '/chat/[id]': '💬 DM画面',
+  '/round/[id]': '⛳ ラウンド詳細',
+  '/round/[id]/chat': '💬 ラウンドチャット',
+  '/round/[id]/edit': '✏️ ラウンド編集',
+  '/profile/[id]': '👤 他の人のプロフィール',
+  '/poll/[id]': '📅 日程調整',
+  '/rematch/[id]': '💘 再会',
+  '/swing/[id]': '📊 スイング詳細',
+  '/guide': '📖 ガイド',
+};
+function screenJa(pageNorm?: string): string {
+  if (!pageNorm) return '👀 閲覧中';
+  return SCREEN_LABEL[pageNorm] || `👀 ${pageNorm}`;
 }
 
 function ago(ts: number): string {
@@ -283,17 +310,19 @@ function Inner() {
           </Section>
 
           {/* 1. Active users */}
-          <Section title="① いま使っているユーザー" sub="最近の操作／閲覧が新しい順" count={data.activeUsers.length}>
+          <Section title="① いま使っているユーザー" sub="最新の活動が新しい順（画面閲覧も含む）" count={data.activeUsers.length}>
             {data.activeUsers.length === 0 ? <Empty /> : data.activeUsers.map((u) => {
-              // 「何をした」は②直近の操作ログと同じ“操作”を表示（閲覧のみの人は「閲覧中」）。
-              const hasAction = !!u.lastActionEvent;
-              const whenTs = hasAction ? u.lastActionTs : u.lastTs;
-              const what = hasAction ? eventJa(u.lastActionEvent) : '👀 閲覧中';
+              // 「最新の状態」を表示する。直近イベントが操作なら操作ラベル、閲覧なら画面ラベル。
+              // lastTs は page_view を含む真の最新。lastActionTs は“操作”の最新（lastActionTs ≤ lastTs）。
+              // 直近が操作（lastActionTs が lastTs と同じ）→ 操作を出す。そうでなければ今見ている画面を出す。
+              const whenTs = u.lastTs || u.lastActionTs;
+              const showAction = !!u.lastActionEvent && u.lastActionTs >= u.lastTs;
+              const what = showAction ? eventJa(u.lastActionEvent) : screenJa(u.lastPageNorm);
               return (
               <div key={u.userId} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                 <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-bold truncate">{u.name}</div>
-                  <div className="text-[10px] text-muted truncate">{what}{(hasAction ? u.lastActionPage : u.lastPage) ? ` ・ ${hasAction ? u.lastActionPage : u.lastPage}` : ''}</div>
+                  <div className="text-[10px] text-muted truncate">{what}</div>
                 </div>
                 <div className="text-right flex-shrink-0 ml-2">
                   <div className="text-[11px] font-bold text-green">{ago(whenTs)}</div>

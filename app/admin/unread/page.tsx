@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
 type UnreadUser = { userId: string; name: string; unread: number; chats: number; lastAt: number };
+type UnreadConfig = { enabled: boolean; delayMinutes: number; messageText: string; updatedAt?: number };
 
 // ごく簡易な Markdown レンダラ（#, ##, ---, - リスト, **太字**, `code`, _斜体_）。
 function renderInline(text: string, keyBase: string) {
@@ -55,6 +56,11 @@ function Inner() {
   const [md, setMd] = useState('');
   const [detailLoading, setDetailLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  // 未読通知の設定（送信タイミング＝経過時間・ON/OFF・通知文）。
+  const [cfg, setCfg] = useState<UnreadConfig | null>(null);
+  const [cfgSaving, setCfgSaving] = useState(false);
+  const [cfgMsg, setCfgMsg] = useState('');
+  const [running, setRunning] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -81,6 +87,45 @@ function Inner() {
   }
   useEffect(() => { if (token) loadList(token); /* eslint-disable-next-line */ }, [token]);
 
+  async function loadConfig(t = token) {
+    if (!t) return;
+    try {
+      const r = await fetch(`/api/admin/unread-config?token=${encodeURIComponent(t)}`, { cache: 'no-store' });
+      const j = await r.json();
+      if (r.ok && j.config) setCfg(j.config);
+    } catch { /* ignore */ }
+  }
+  useEffect(() => { if (token) loadConfig(token); /* eslint-disable-next-line */ }, [token]);
+
+  async function saveConfig() {
+    if (!cfg) return;
+    setCfgSaving(true); setCfgMsg('');
+    try {
+      const r = await fetch(`/api/admin/unread-config?token=${encodeURIComponent(token)}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: cfg.enabled, delayMinutes: cfg.delayMinutes, messageText: cfg.messageText }),
+      });
+      const j = await r.json();
+      if (r.ok && j.config) { setCfg(j.config); setCfgMsg('✓ 保存しました'); }
+      else setCfgMsg('保存に失敗しました');
+    } catch { setCfgMsg('保存に失敗しました'); }
+    finally { setCfgSaving(false); setTimeout(() => setCfgMsg(''), 2500); }
+  }
+
+  async function runNow() {
+    setRunning(true); setCfgMsg('');
+    try {
+      const r = await fetch(`/api/admin/unread-config?token=${encodeURIComponent(token)}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'run' }),
+      });
+      const j = await r.json();
+      if (r.ok) { setCfgMsg(`📨 ${j.result?.sent ?? 0}件送信しました`); loadList(); }
+      else setCfgMsg('送信に失敗しました');
+    } catch { setCfgMsg('送信に失敗しました'); }
+    finally { setRunning(false); setTimeout(() => setCfgMsg(''), 3500); }
+  }
+
   async function openUser(userId: string) {
     setActive(userId); setMd(''); setDetailLoading(true); setCopied(false);
     try {
@@ -104,6 +149,55 @@ function Inner() {
           <Link href={`/admin?token=${token}`} className="text-muted text-sm">‹ 管理</Link>
           <div className="text-2xl font-black mb-1 mt-1">📩 未読ユーザー</div>
           <div className="text-[12px] text-muted mb-3">DMに未読があるユーザー。タップすると「何が未読か」をMarkdownで確認できます。</div>
+
+          {/* ⚙️ 未読通知の設定（送信タイミング＝経過時間・ON/OFF・通知文・今すぐ送信） */}
+          <div className="bg-card rounded-xl shadow-card p-4 mb-4">
+            <div className="text-sm font-black mb-1">⚙️ 未読通知の設定</div>
+            <div className="text-[11px] text-muted mb-3 leading-relaxed">
+              メッセージが来て<b className="text-text">一定時間以上</b>未読の人へ、LINEで1通だけ通知します。
+              一度通知した未読は再通知しません（追いメッセージ／別の人からの新規が来たときだけ再通知）。
+            </div>
+            {!cfg ? (
+              <div className="text-xs text-muted py-2">設定を読み込み中...</div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <label className="flex items-center justify-between">
+                  <span className="text-[13px] font-bold">通知を有効にする</span>
+                  <input type="checkbox" checked={cfg.enabled} onChange={(e) => setCfg({ ...cfg, enabled: e.target.checked })} className="w-5 h-5" />
+                </label>
+                <label className="flex items-center justify-between gap-3">
+                  <span className="text-[13px] font-bold flex-1">送信までの経過時間</span>
+                  <span className="flex items-center gap-1.5">
+                    <input
+                      type="number" min={0} max={1440} value={cfg.delayMinutes}
+                      onChange={(e) => setCfg({ ...cfg, delayMinutes: Math.max(0, Math.min(1440, parseInt(e.target.value || '0', 10) || 0)) })}
+                      className="w-20 px-2 py-1.5 bg-bg border border-border rounded-lg text-sm text-right"
+                    />
+                    <span className="text-[12px] text-muted">分</span>
+                  </span>
+                </label>
+                <div className="text-[10px] text-muted -mt-1">例: 15分 = メッセージ受信から15分以上未読なら次の巡回(15分毎)で送信。0分＝ほぼ即時。</div>
+                <div>
+                  <div className="text-[13px] font-bold mb-1">通知の文面</div>
+                  <textarea
+                    value={cfg.messageText} maxLength={200} rows={2}
+                    onChange={(e) => setCfg({ ...cfg, messageText: e.target.value })}
+                    className="w-full px-3 py-2 bg-bg border border-border rounded-lg text-sm resize-none"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={saveConfig} disabled={cfgSaving} className="px-4 py-2 bg-green text-white rounded-lg text-sm font-bold disabled:opacity-50">
+                    {cfgSaving ? '保存中...' : '保存'}
+                  </button>
+                  <button onClick={runNow} disabled={running} className="px-4 py-2 bg-card border border-border rounded-lg text-sm font-bold disabled:opacity-50">
+                    {running ? '送信中...' : '📨 今すぐ送信'}
+                  </button>
+                  {cfgMsg && <span className="text-[12px] text-green font-bold">{cfgMsg}</span>}
+                </div>
+              </div>
+            )}
+          </div>
+
           <button onClick={() => loadList()} className="px-3 py-1.5 bg-card border border-border rounded-lg text-xs font-bold mb-3">🔄 更新</button>
           {loading ? (
             <div className="text-center text-sm text-muted py-10">読み込み中...</div>

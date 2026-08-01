@@ -143,7 +143,7 @@ export async function GET(req: NextRequest) {
 
     // --- Assemble ---
     const activeUsers = Object.entries(perUser)
-      .map(([id, v]) => ({ userId: id, name: nameOf(id), ...v }))
+      .map(([id, v]) => ({ userId: id, name: nameOf(id), ...v, lastPageNorm: normPage(v.lastPage || '') }))
       .sort((a, b) => b.lastTs - a.lastTs);
     const active24h = activeUsers.filter((u) => now - u.lastTs <= DAY).length;
     const active7d = activeUsers.filter((u) => now - u.lastTs <= 7 * DAY).length;

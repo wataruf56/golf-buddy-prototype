@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runUnreadDigest } from '@/lib/unreadDigest';
 
-// 未読メッセージのまとめ通知（実処理は lib/unreadDigest）。housekeeping から毎tick呼ばれ、
-// JST 9/15/21時の最初の1回だけ、未読があるユーザーへ「未読のメッセージがあります。」を送る。
+// 未読メッセージのまとめ通知（実処理は lib/unreadDigest）。housekeeping から毎tick(15分毎)呼ばれ、
+// 「新しい未読があり、かつ delayMinutes 分以上未読の人」へ1通だけ送る（重複防止＝一度通知した
+// 未読は再通知しない。追いメッセージ／別の人からの新規で再通知）。設定は管理画面 /admin/unread。
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 
 function authorizeCron(req: NextRequest): boolean {
