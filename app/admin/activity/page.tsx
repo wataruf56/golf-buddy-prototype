@@ -9,7 +9,12 @@ type Report = {
   summary: { active24h: number; active7d: number; totalUsersSeen: number; totalSwingUsers: number; totalSwings: number; logsScanned: number };
   activeUsers: { userId: string; name: string; count: number; lastTs: number; lastPage: string; lastPageNorm?: string; lastActionTs: number; lastActionEvent: string; lastActionPage: string }[];
   popularPages?: { page: string; views: number; users: number; lastTs: number }[];
-  acquisition?: { total: number; tagged: number; bySource: { source: string; count: number }[] };
+  acquisition?: {
+    total: number; tagged: number;
+    bySource: { source: string; count: number }[];
+    // チャネル（Instagram等）でまとめたもの。投稿別タグは tags に入る。
+    byChannel?: { channel: string; count: number; tags: { source: string; count: number }[] }[];
+  };
   menuEntries?: { menu: string; count: number }[];
   recentActions: { userId: string; name: string; event: string; page: string; pageNorm?: string; ts: number }[];
   swingUsers: { userId: string; name: string; total: number; done: number; lastAt: number }[];
@@ -60,6 +65,21 @@ const SOURCE_LABEL: Record<string, string> = {
   unknown: '❓ 不明（直接・LINE検索など）',
 };
 const sourceLabel = (s: string) => SOURCE_LABEL[s] || `🔗 ${s}`;
+
+// 生タグの中でよく使う接尾辞を日本語に（ig_story → ストーリーズ）。
+// 内訳行はチャネル名が親に出ているので、ここでは「どの投稿か」だけを見せる。
+const TAG_SUFFIX_LABEL: Record<string, string> = {
+  story: 'ストーリーズ', stories: 'ストーリーズ',
+  bio: 'プロフィールのリンク', profile: 'プロフィールのリンク', link: 'プロフィールのリンク',
+  post: '通常投稿', feed: '通常投稿', reel: 'リール', reels: 'リール',
+  bosyu: 'ラウンド募集の投稿', dm: 'DM', ad: '広告', highlight: 'ハイライト',
+};
+const tagDetailLabel = (src: string) => {
+  const i = src.indexOf('_');
+  if (i < 0) return '（タグ指定なし）';
+  const suffix = src.slice(i + 1);
+  return TAG_SUFFIX_LABEL[suffix] || suffix;
+};
 
 // 英語のイベント名 → 日本語の分かりやすい説明
 const EVENT_LABEL: Record<string, string> = {
@@ -268,21 +288,48 @@ function Inner() {
                 まだデータがありません。<br />各SNSに <b>?ref=instagram</b> のようなタグ付きリンクを貼ると、ここに経路別の登録数が並びます。
               </div>
             ) : (() => {
-              const max = Math.max(...data.acquisition.bySource.map((s) => s.count)) || 1;
-              return data.acquisition.bySource.map((s) => (
-                <div key={s.source} className="py-2 border-b border-border last:border-0">
+              // チャネル単位（Instagram等）で束ねて表示し、投稿ごとのタグは内訳として下にぶら下げる。
+              // 旧APIのレスポンス（byChannel 無し）でも壊れないよう bySource から作り直す。
+              const channels = (data.acquisition.byChannel && data.acquisition.byChannel.length > 0)
+                ? data.acquisition.byChannel
+                : data.acquisition.bySource.map((s) => ({ channel: s.source, count: s.count, tags: [s] }));
+              const total = data.acquisition.total || 1;
+              const max = Math.max(...channels.map((c) => c.count)) || 1;
+              return channels.map((c) => (
+                <div key={c.channel} className="py-2.5 border-b border-border last:border-0">
                   <div className="flex items-baseline justify-between mb-1 gap-2">
-                    <span className="text-[13px] font-bold truncate">{sourceLabel(s.source)}</span>
-                    <span className="text-[12px] font-black text-green flex-shrink-0">{s.count}人</span>
+                    <span className="text-[13px] font-bold truncate">{sourceLabel(c.channel)}</span>
+                    <span className="text-[12px] font-black text-green flex-shrink-0">
+                      {c.count}人
+                      <span className="text-[10px] font-bold text-sub ml-1">
+                        {Math.round((c.count / total) * 100)}%
+                      </span>
+                    </span>
                   </div>
                   <div className="h-2 bg-bg rounded overflow-hidden">
-                    <div className="h-full bg-blue rounded" style={{ width: `${Math.round((s.count / max) * 100)}%` }} />
+                    <div className="h-full bg-blue rounded" style={{ width: `${Math.round((c.count / max) * 100)}%` }} />
                   </div>
+                  {/* 投稿別タグの内訳（ig_story / ig_bosyu 等）。1種類しかない場合は出さない。 */}
+                  {c.tags.length > 1 && (
+                    <div className="mt-1.5 pl-2 border-l-2 border-hair">
+                      {c.tags.map((t) => (
+                        <div key={t.source} className="flex items-baseline justify-between gap-2 py-0.5">
+                          <span className="text-[11px] text-sub truncate">
+                            {tagDetailLabel(t.source)}
+                            <span className="text-[10px] text-muted ml-1">{t.source}</span>
+                          </span>
+                          <span className="text-[11px] font-bold flex-shrink-0">{t.count}人</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ));
             })()}
             <div className="text-[10px] text-muted mt-2 leading-relaxed">
-              ※ 各リンクの末尾に <b>?ref=◯◯</b>（例: instagram / x / flyer）を付けて配ると自動で集計されます。今日以降の新規登録から記録されます。
+              ※ 各リンクの末尾に <b>?ref=◯◯</b> を付けて配ると自動で集計されます（例: <b>?ref=instagram</b>）。<br />
+              ※ 投稿ごとに <b>ig_story</b> / <b>ig_bosyu</b> のように分けると、Instagram全体の人数はまとめたまま、どの投稿が効いたかも見られます。<br />
+              ※ 記録されるのは<b>新規登録した人だけ</b>で、既存ユーザーの経路は上書きされません。
             </div>
           </Section>
 

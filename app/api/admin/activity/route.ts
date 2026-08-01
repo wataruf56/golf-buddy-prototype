@@ -157,7 +157,14 @@ export async function GET(req: NextRequest) {
     }));
 
     // --- 流入経路（登録ユーザーを acquisitionSource で集計）---
-    let acquisition: { total: number; tagged: number; bySource: Array<{ source: string; count: number }> } = { total: 0, tagged: 0, bySource: [] };
+    // 投稿ごとにタグを変える運用（ig_bosyu / ig_story 等）をすると生タグのままでは
+    // 行が散らばって「Instagram全体で何人か」が読めなくなる。そこで接頭辞で
+    // チャネルにまとめ、チャネル合計と内訳タグの両方を返す。
+    let acquisition: {
+      total: number; tagged: number;
+      bySource: Array<{ source: string; count: number }>;
+      byChannel: Array<{ channel: string; count: number; tags: Array<{ source: string; count: number }> }>;
+    } = { total: 0, tagged: 0, bySource: [], byChannel: [] };
     try {
       const uSnap = await db.collection('users').limit(3000).get();
       const bySrc: Record<string, number> = {};
@@ -170,10 +177,45 @@ export async function GET(req: NextRequest) {
         bySrc[src] = (bySrc[src] || 0) + 1;
         if (src && src !== 'unknown') tagged++;
       });
+
+      // 生タグ → チャネル。ig_bosyu / ig_story / instagram はすべて instagram に寄せる。
+      const channelOf = (src: string): string => {
+        const s = src.toLowerCase();
+        const rules: Array<[string, RegExp]> = [
+          ['instagram', /^(instagram|insta|ig)(_|$)/],
+          ['x',         /^(x|twitter|tw)(_|$)/],
+          ['tiktok',    /^(tiktok|tt)(_|$)/],
+          ['youtube',   /^(youtube|yt)(_|$)/],
+          ['line',      /^line(_|$)/],
+          ['flyer',     /^(flyer|qr|chirashi)(_|$)/],
+          ['friend',    /^(friend|shokai)(_|$)/],
+          ['google',    /^(google|g)(_|$)/],
+          ['web',       /^(web|hp|site)(_|$)/],
+        ];
+        for (const [ch, re] of rules) if (re.test(s)) return ch;
+        return s === 'unknown' ? 'unknown' : s;
+      };
+
+      const chMap: Record<string, { count: number; tags: Record<string, number> }> = {};
+      Object.entries(bySrc).forEach(([source, count]) => {
+        const ch = channelOf(source);
+        if (!chMap[ch]) chMap[ch] = { count: 0, tags: {} };
+        chMap[ch].count += count;
+        chMap[ch].tags[source] = (chMap[ch].tags[source] || 0) + count;
+      });
+
       acquisition = {
         total,
         tagged,
         bySource: Object.entries(bySrc).map(([source, count]) => ({ source, count })).sort((a, b) => b.count - a.count),
+        byChannel: Object.entries(chMap)
+          .map(([channel, v]) => ({
+            channel,
+            count: v.count,
+            tags: Object.entries(v.tags).map(([source, count]) => ({ source, count })).sort((a, b) => b.count - a.count),
+          }))
+          // 「不明」は情報量が薄いので、件数が多くても最後に置く。
+          .sort((a, b) => (a.channel === 'unknown' ? 1 : b.channel === 'unknown' ? -1 : b.count - a.count)),
       };
     } catch { /* best-effort */ }
 
