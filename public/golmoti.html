@@ -579,13 +579,30 @@
   let RETURNING=false;
   let VISITOR=localStorage.getItem('golmotiVisitor');
   if(VISITOR){ RETURNING=true; } else { VISITOR=uid(); try{localStorage.setItem('golmotiVisitor',VISITOR);}catch(e){} }
+  // 流入経路タグ（?ref= / ?utm_source= / ?source=）。Instagram等の投稿に
+  // goltomo.com/golmoti.html?ref=instagram のようなタグ付きURLを貼ると、
+  // 見た目は一切変えずに「どこから来た人か」だけを裏で識別できる。
+  // 保存先はトップLPの RefCapture と同じ localStorage キー gb_ref（同一オリジンの回遊用）。
+  // localStorage は app.goltomo.com とはオリジンが違って共有できないので、
+  // LINE へ渡すぶんは gotoLineSignal で LIFF URL のクエリに載せて運ぶ。
+  function normRef(s){ return String(s||'').trim().toLowerCase().replace(/[^a-z0-9_\-]/g,'').slice(0,40); }
+  let REF='';
+  try{
+    const sp=new URLSearchParams(location.search);
+    const urlRef=normRef(sp.get('ref')||sp.get('utm_source')||sp.get('source'));
+    // 初回タッチ優先（既に記録済みなら上書きしない）。
+    if(urlRef && !localStorage.getItem('gb_ref')){ localStorage.setItem('gb_ref',urlRef); localStorage.setItem('gb_ref_at',String(Date.now())); }
+    REF=urlRef||localStorage.getItem('gb_ref')||'';
+    if(document.referrer && !localStorage.getItem('gb_referrer')){ localStorage.setItem('gb_referrer',document.referrer.slice(0,200)); }
+  }catch(e){}
   // 流入・デバイス等のコンテキスト（visit / leave に付与して属性分析に使う）。
   function ctx(){
     let u; try{ u=new URLSearchParams(location.search); }catch(e){ u=new URLSearchParams(''); }
     const g=(k)=>(u.get(k)||'');
     let tz=''; try{ tz=Intl.DateTimeFormat().resolvedOptions().timeZone||''; }catch(e){}
     return {
-      utmSource:g('utm_source')||g('src')||g('ref_src'), utmMedium:g('utm_medium'),
+      // ?ref= も流入元として拾う（Instagram等に貼るタグ付きURLはこの形式）。
+      utmSource:g('utm_source')||g('src')||g('ref_src')||g('ref')||g('source'), utmMedium:g('utm_medium'),
       utmCampaign:g('utm_campaign')||g('camp'), utmContent:g('utm_content'), utmTerm:g('utm_term'),
       landing:location.pathname+location.search.slice(0,200),
       screenSize:((screen&&screen.width)||0)+'x'+((screen&&screen.height)||0),
@@ -620,7 +637,10 @@
       const to='/lp-link?v='+encodeURIComponent(VISITOR)+'&type='+encodeURIComponent(code||'')
         +'&areas='+encodeURIComponent(areas.join(','))+'&days='+encodeURIComponent(days.join(','))
         +'&pickup='+encodeURIComponent(pickup||'')+'&places='+encodeURIComponent(places.join(','));
-      window.location.href='https://liff.line.me/'+LIFF_ID+'?to='+encodeURIComponent(to);
+      // 流入経路タグをLIFF URLに載せて別オリジン(app.goltomo.com/liff)へ運ぶ。
+      // /liff が登録時に受け取り、新規ユーザーの acquisitionSource として保存する
+      // （管理画面の「📥 流入経路」に出る）。localStorage はオリジンをまたげない。
+      window.location.href='https://liff.line.me/'+LIFF_ID+'?to='+encodeURIComponent(to)+(REF?'&ref='+encodeURIComponent(REF):'');
       return true;
     }catch(err){ return false; }
   }
