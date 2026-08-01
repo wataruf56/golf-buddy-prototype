@@ -8,7 +8,7 @@ import { toast } from '@/components/Toast';
 import { confirmDialog } from '@/components/ConfirmDialog';
 import { Avatar } from '@/components/Avatar';
 import { track } from '@/lib/telemetry';
-import { chatIdFor, formatDate, ratingLabel, carLabel, priceLabelForGender, isSplitPrice, timeAgo } from '@/lib/utils';
+import { chatIdFor, formatDate, revisitRatingLabel, carLabel, priceLabelForGender, isSplitPrice, timeAgo } from '@/lib/utils';
 import { levelConditionLabel } from '@/lib/roundEligibility';
 import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
 import { GroupAssignment } from '@/components/GroupAssignment';
@@ -152,6 +152,42 @@ export default function RoundDetailPage() {
     (storeRound || fetchedRound)?.applicantIds?.length,
     (storeRound || fetchedRound)?.invitedIds?.length,
   ]);
+
+  // 主催者・参加者・気になる・招待中などの評価を「また回りたい率」でリアルタイム表示する
+  // （user.reviewAvg は非正規化で古くなるため使わない）。表示ユーザーぶんを一括取得。
+  const [ratings, setRatings] = useState<Record<string, { roundedWith: number; againCount: number; neverCount: number }>>({});
+  useEffect(() => {
+    const r = storeRound || fetchedRound;
+    if (!r) return;
+    const ids = Array.from(new Set([
+      r.hostId,
+      ...(r.applicantIds || []),
+      ...(r.pendingApplicantIds || []),
+      ...(r.interestedIds || []),
+      ...(r.invitedIds || []),
+    ].filter(Boolean)));
+    if (ids.length === 0) return;
+    let cancelled = false;
+    fetch('/api/users/ratings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }), cache: 'no-store',
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((d) => { if (!cancelled && d?.ratings) setRatings(d.ratings); })
+      .catch(() => { /* noop */ });
+    return () => { cancelled = true; };
+  }, [
+    (storeRound || fetchedRound)?.id,
+    (storeRound || fetchedRound)?.applicantIds?.length,
+    (storeRound || fetchedRound)?.pendingApplicantIds?.length,
+    (storeRound || fetchedRound)?.interestedIds?.length,
+    (storeRound || fetchedRound)?.invitedIds?.length,
+  ]);
+  // 評価ラベル（取得できるまでは何も出さない＝古い値をチラ見せしない）。
+  const ratingText = (id: string, count = false): string => {
+    const r = ratings[id];
+    return r ? revisitRatingLabel(r, { count }) : '';
+  };
 
   const round = storeRound || fetchedRound;
 
@@ -736,7 +772,7 @@ export default function RoundDetailPage() {
                 <Avatar user={host} size={44} />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-bold truncate">{host.displayName}</div>
-                  <div className="text-[11px] text-sub truncate">{describeUser(host)} ・ {ratingLabel(host, { count: true })}{host.scoreRange ? ' ・ ' + host.scoreRange : ''}</div>
+                  <div className="text-[11px] text-sub truncate">{describeUser(host)}{ratingText(host.id, true) ? ' ・ ' + ratingText(host.id, true) : ''}{host.scoreRange ? ' ・ ' + host.scoreRange : ''}</div>
                 </div>
               </Link>
               {!isHost && (
@@ -813,7 +849,7 @@ export default function RoundDetailPage() {
                     {participantNames[u.id] && (
                       <div className="text-[10px] text-green font-bold">📋 {participantNames[u.id]}</div>
                     )}
-                    <div className="text-[10px] text-sub">{describeUser(u)} ・ {ratingLabel(u, { count: true })}</div>
+                    <div className="text-[10px] text-sub">{describeUser(u)}{ratingText(u.id, true) ? ' ・ ' + ratingText(u.id, true) : ''}</div>
                   </div>
                 </Link>
                 <Link href={`/chat/${chatIdFor(meId, u.id)}?other=${u.id}`} className="px-2.5 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
@@ -834,7 +870,7 @@ export default function RoundDetailPage() {
                   <Avatar user={u} size={36} />
                   <div className="flex-1 min-w-0">
                     <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
-                    <div className="text-[10px] text-sub">{describeUser(u)} ・ {ratingLabel(u)}</div>
+                    <div className="text-[10px] text-sub">{describeUser(u)}{ratingText(u.id) ? ' ・ ' + ratingText(u.id) : ''}</div>
                   </div>
                 </Link>
                 {isHost ? (
@@ -968,7 +1004,7 @@ export default function RoundDetailPage() {
                     <Avatar user={u} size={36} />
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
-                      <div className="text-[10px] text-sub">{describeUser(u)} ・ {ratingLabel(u)}</div>
+                      <div className="text-[10px] text-sub">{describeUser(u)}{ratingText(u.id) ? ' ・ ' + ratingText(u.id) : ''}</div>
                     </div>
                   </Link>
                   {/* Host can invite interested people straight from this list. */}

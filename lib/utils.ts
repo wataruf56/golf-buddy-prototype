@@ -22,6 +22,19 @@ export function revisitStar(roundedWith?: number, neverCount?: number): number {
   return Math.round((1 - (neverCount || 0) / rw) * 5 * 2) / 2;
 }
 
+// 「また回りたい率」ベースのリアルタイム評価ラベル。track-record（roundedWith=レビューを
+// くれた人数、neverCount=ごめんなさい数）から算出。旧 ratingLabel(reviewAvg) の置き換え。
+// レビューがまだ無ければ「🆕 初参加」。
+export function revisitRatingLabel(
+  r: { roundedWith?: number; neverCount?: number } | null | undefined,
+  opts: { count?: boolean } = {},
+): string {
+  const rw = r?.roundedWith || 0;
+  if (rw <= 0) return '🆕 初参加';
+  const star = revisitStar(rw, r?.neverCount).toFixed(1);
+  return opts.count ? `★${star}（${rw}）` : `★${star}`;
+}
+
 // ms タイムスタンプを「たった今 / ◯分前 / ◯時間前 / ◯日前 / M/D」の相対表記にする。
 // 「見に来た人」の閲覧時刻などの表示用。7日以上前は日付（M/D）にフォールバック。
 export function timeAgo(ms?: number): string {
