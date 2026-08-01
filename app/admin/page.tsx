@@ -83,6 +83,7 @@ function Inner() {
   const items = [
     { href: `/admin/activity?token=${token}`, emoji: '📊', title: '利用レポート', desc: 'よく開かれている画面 / アクティブユーザー / 操作ログ / 登録推移・カレンダー / スイング' },
     { href: `/admin/line-stats?token=${token}`, emoji: '📨', title: 'LINE送信レポート', desc: '種別ごとの送信通数・月別推移（LINE有料化の通数把握）' },
+    { href: `/admin/unread?token=${token}`, emoji: '📩', title: '未読ユーザー', desc: 'DMに未読があるユーザー / 何が未読か（ユーザーごとにMarkdown）' },
     { href: `/admin/lp?token=${token}`, emoji: '📊', title: 'LP診断レポート', desc: '来訪 / 診断ファネル / 結果タイプ / 興味シグナル需要プール' },
     { href: `/admin/users?token=${token}`, emoji: '👥', title: 'ユーザー管理', desc: 'LINE登録ユーザー一覧 / Swing許可リスト編集' },
     { href: `/admin/rounds?token=${token}`, emoji: '🏆', title: 'ラウンド募集', desc: '全募集の一覧・削除' },
