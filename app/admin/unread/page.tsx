@@ -169,8 +169,15 @@ function Inner() {
                   <span className="text-[13px] font-bold flex-1">送信までの経過時間</span>
                   <span className="flex items-center gap-1.5">
                     <input
-                      type="number" min={0} max={1440} value={cfg.delayMinutes}
-                      onChange={(e) => setCfg({ ...cfg, delayMinutes: Math.max(0, Math.min(1440, parseInt(e.target.value || '0', 10) || 0)) })}
+                      type="text" inputMode="numeric" pattern="[0-9]*"
+                      value={String(cfg.delayMinutes)}
+                      onFocus={(e) => e.currentTarget.select()}
+                      onChange={(e) => {
+                        // 数字だけ拾い、先頭ゼロを除去（"015" → "15"）。0〜1440 に丸める。
+                        const digits = e.target.value.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '');
+                        const n = Math.max(0, Math.min(1440, parseInt(digits || '0', 10) || 0));
+                        setCfg({ ...cfg, delayMinutes: n });
+                      }}
                       className="w-20 px-2 py-1.5 bg-bg border border-border rounded-lg text-sm text-right"
                     />
                     <span className="text-[12px] text-muted">分</span>
