@@ -19,6 +19,14 @@ export async function GET() {
     });
   }
 
+  // 最終ログイン/利用時刻を記録（ゴル友のログイン順・ホームの直近1時間ログイン人数に使う）。
+  // アプリを開くたびに bootstrap が走るため、書き込み過多を避けて5分以上古い時だけ更新する。
+  const nowTs = Date.now();
+  if (!me.lastActiveAt || nowTs - me.lastActiveAt > 5 * 60 * 1000) {
+    db.updateUser(meId, { lastActiveAt: nowTs } as any).catch(() => {});
+    me = { ...me, lastActiveAt: nowTs };
+  }
+
   const [roundsRes, pendingReviewsRes, chatsRes, byMeRes, ofMeRes] = await Promise.allSettled([
     db.listRounds(),
     db.listPendingReviews(meId),

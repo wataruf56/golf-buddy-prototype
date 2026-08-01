@@ -113,13 +113,13 @@ function Inner() {
       .filter((id): id is string => !!id && id !== ADMIN_MANAGER_ID && !blocked.has(id) && id !== meId)
   );
 
-  // 表示順：また回りたい → 気になる → QR友達 → 一緒に回った → メッセージ相手（重複は先勝ちで1回だけ）。
-  const order: string[] = [];
-  const seen = new Set<string>();
-  for (const id of [...againSet, ...romanticSet, ...friendSet, ...pastSet, ...dmSet]) {
-    if (seen.has(id)) continue;
-    seen.add(id); order.push(id);
-  }
+  // 表示対象（また回りたい／気になる／QR友達／一緒に回った／メッセージ相手）を重複なしで集約し、
+  // 「ログインが新しい順」（lastActiveAt 降順）で並べる。最終ログイン不明の人は末尾。
+  const memberSet = new Set<string>();
+  for (const id of [...againSet, ...romanticSet, ...friendSet, ...pastSet, ...dmSet]) memberSet.add(id);
+  const lastActiveOf = (id: string): number => (users.find((x) => x.id === id) as any)?.lastActiveAt || 0;
+  const order = Array.from(memberSet).sort((a, b) => lastActiveOf(b) - lastActiveOf(a));
+  const seen = memberSet; // comp タブの重複除外に流用（従来どおり）。
 
   // 過去に同じコンペに参加した人。ブロック・自分に加えて、すでに友達リスト(order)に
   // 載っている人（また回りたい/気になる/QR友達/一緒に回った）は重複するので除外する。
@@ -133,7 +133,7 @@ function Inner() {
     <div className="h-full overflow-y-auto">
       <div className="px-5 pt-2 pb-1 text-2xl font-black tracking-tight">友達</div>
       <div className="px-5 pb-3 text-[13px] text-sub">
-        QRでつながった友達／また回りたい・気になる・一緒に回った人／メッセージした相手が集まります。タップでプロフィール、💬でメッセージ。
+        QRでつながった友達／また回りたい・気になる・一緒に回った人／メッセージした相手が集まります。<b className="text-text">ログインが新しい順</b>に表示。タップでプロフィール、💬でメッセージ。
       </div>
 
       {/* タブ切替：友達リスト / 過去に同じコンペに参加した人 */}

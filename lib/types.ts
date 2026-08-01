@@ -11,6 +11,9 @@ export type PickupStatus = 'can' | 'cannot' | 'want' | 'no_need';
 export type User = {
   id: string;
   displayName: string;
+  // 最終ログイン/利用時刻(ms)。アプリを開くたびに bootstrap で更新（5分throttle）。
+  // ゴル友一覧のログイン順ソート・ホームの「直近1時間のログイン人数」に使う。
+  lastActiveAt?: number;
   age: number;
   gender?: Gender;
   car?: CarStatus;

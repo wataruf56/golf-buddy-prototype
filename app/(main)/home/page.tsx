@@ -37,6 +37,16 @@ export default function HomePage() {
   const [showAddBot, setShowAddBot] = useState(false);
   // マッチ成立のポップアップ（ホームで大きく表示）。一度見たら再表示しない。
   const [matchPopup, setMatchPopup] = useState<{ text: string; tab: string } | null>(null);
+  // 直近1時間にログイン（アプリを開いた）人数。ホーム上部に「いま何人来ているか」を出す。
+  const [activeNow, setActiveNow] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/stats/active-now', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled && d && typeof d.count === 'number') setActiveNow(d.count); })
+      .catch(() => { /* noop */ });
+    return () => { cancelled = true; };
+  }, []);
   // Mark the お知らせ inbox read shortly after viewing the home screen.
   useEffect(() => {
     if (!notifications.length) return;
@@ -180,6 +190,19 @@ export default function HomePage() {
           )}
         </button>
       </div>
+
+      {/* いま何人が来ているか（直近1時間にアプリを開いた人数）。にぎわいを可視化。 */}
+      {activeNow != null && activeNow > 0 && (
+        <div className="px-5 pb-3">
+          <div className="inline-flex items-center gap-2 bg-green-light border border-green rounded-full px-3.5 py-1.5">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green" />
+            </span>
+            <span className="text-[12px] font-black text-green">直近1時間に {activeNow}人 がログイン</span>
+          </div>
+        </div>
+      )}
 
       {/* 公式LINE未登録の人向け：最上部に「LINEで通知を受け取る」ボタン（押すと友だち追加へ） */}
       {showAddBot && (
