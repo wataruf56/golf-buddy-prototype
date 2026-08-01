@@ -105,11 +105,18 @@ function Inner() {
   const friendSet = new Set((me.friendIds || []).filter((id) => !blocked.has(id) && id !== meId));
   const againSet = new Set(Object.keys(matches).filter((id) => matches[id]?.again && !blocked.has(id) && id !== meId));
   const romanticSet = new Set(Object.keys(matches).filter((id) => matches[id]?.romantic && !blocked.has(id) && id !== meId));
+  // DMでやり取りした相手（招待→DMなど、まだ一緒に回っていない相手も含む）。1対1チャットの
+  // 相手を友達リストに含める。管理人チャットは別枠なので除外。
+  const dmSet = new Set(
+    chats
+      .map((c) => (c.participants || []).find((p) => p !== meId))
+      .filter((id): id is string => !!id && id !== ADMIN_MANAGER_ID && !blocked.has(id) && id !== meId)
+  );
 
-  // 表示順：また回りたい → 気になる → QR友達 → 一緒に回った（重複は先勝ちで1回だけ）。
+  // 表示順：また回りたい → 気になる → QR友達 → 一緒に回った → メッセージ相手（重複は先勝ちで1回だけ）。
   const order: string[] = [];
   const seen = new Set<string>();
-  for (const id of [...againSet, ...romanticSet, ...friendSet, ...pastSet]) {
+  for (const id of [...againSet, ...romanticSet, ...friendSet, ...pastSet, ...dmSet]) {
     if (seen.has(id)) continue;
     seen.add(id); order.push(id);
   }
@@ -126,7 +133,7 @@ function Inner() {
     <div className="h-full overflow-y-auto">
       <div className="px-5 pt-2 pb-1 text-2xl font-black tracking-tight">友達</div>
       <div className="px-5 pb-3 text-[13px] text-sub">
-        QRでつながった友達／また回りたい・気になる・一緒に回った人が集まります。タップでプロフィール、💬でメッセージ。
+        QRでつながった友達／また回りたい・気になる・一緒に回った人／メッセージした相手が集まります。タップでプロフィール、💬でメッセージ。
       </div>
 
       {/* タブ切替：友達リスト / 過去に同じコンペに参加した人 */}
@@ -252,6 +259,7 @@ function Inner() {
                       {romanticSet.has(id) && <Badge className="text-pink-600 bg-pink-100 border-pink-600">💘 気になる</Badge>}
                       {friendSet.has(id) && <Badge className="text-blue bg-blue-light border-blue">🤝 QR友達</Badge>}
                       {pastSet.has(id) && !againSet.has(id) && !romanticSet.has(id) && <Badge className="text-sub bg-bg border-border">⛳ 一緒に回った</Badge>}
+                      {dmSet.has(id) && !againSet.has(id) && !romanticSet.has(id) && !friendSet.has(id) && !pastSet.has(id) && <Badge className="text-purple-600 bg-purple-100 border-purple-600">💬 メッセージ</Badge>}
                     </div>
                   </div>
                 </Link>
