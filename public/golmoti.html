@@ -1125,7 +1125,9 @@
 
   /* ===== init（出題スタイルは固定：常に12問） ===== */
   // 紹介LP：未ログイン/新規が共有結果から「自分も診断する」を押した時の遷移先
-  const LP_URL='/golmoti-lp';
+  // （旧「GOLMOTI／ゴルモチ」表記の紹介LP `/golmoti-lp` はブランド統一のため廃止。
+  //   どこからも参照されていない変数だったので削除した。/golmoti-lp は
+  //   next.config.js で /golmoti.html へ恒久リダイレクトしている。）
   // 共有リンク（?type=XXXX または #XXXX）があれば、その結果を直接表示（アプリ未利用・未ログインでも閲覧可）
   function getSharedCode(){
     try{

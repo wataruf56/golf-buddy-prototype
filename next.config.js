@@ -12,8 +12,18 @@ const nextConfig = {
   async rewrites() {
     return [
       { source: '/golmoti', destination: '/golmoti.html' },
-      // 診断の紹介専用LP（共有結果の「あなたも診断する」遷移先）
-      { source: '/golmoti-lp', destination: '/golmoti-lp.html' },
+    ];
+  },
+  // 旧「GOLMOTI／ゴルモチ」表記の紹介LP（試作）は廃止した。ブランドは「ゴルトモ」に
+  // 統一する方針で、旧称のページが検索に出たり共有リンクから開かれたりするのを避ける。
+  // どこからもリンクされていないが、過去に共有されたURLが生きている可能性があるので
+  // 消すのではなく現行の診断LPへ恒久リダイレクトする。
+  // 注意：middleware の許可リストから /golmoti-lp を外すと、ここに来る前に /lp へ
+  // rewrite されてこのリダイレクトが効かなくなる。
+  async redirects() {
+    return [
+      { source: '/golmoti-lp', destination: '/golmoti.html', permanent: true },
+      { source: '/golmoti-lp.html', destination: '/golmoti.html', permanent: true },
     ];
   },
 };
