@@ -13,6 +13,23 @@ export function formatDate(d?: string) {
   return `${dt.getMonth() + 1}/${dt.getDate()}（${days[dt.getDay()]}）`;
 }
 
+// ms タイムスタンプを「たった今 / ◯分前 / ◯時間前 / ◯日前 / M/D」の相対表記にする。
+// 「見に来た人」の閲覧時刻などの表示用。7日以上前は日付（M/D）にフォールバック。
+export function timeAgo(ms?: number): string {
+  if (!ms) return '';
+  const diff = Date.now() - ms;
+  if (diff < 0) return 'たった今';
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return 'たった今';
+  if (min < 60) return `${min}分前`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}時間前`;
+  const day = Math.floor(hr / 24);
+  if (day < 7) return `${day}日前`;
+  const dt = new Date(ms);
+  return `${dt.getMonth() + 1}/${dt.getDate()}`;
+}
+
 export function chatIdFor(a: string, b: string) {
   return [a, b].sort().join('_');
 }

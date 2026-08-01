@@ -174,6 +174,10 @@ export type Round = {
   // Users the host has invited to this round (ゴル友 or 気になる people).
   // Invited users get a LINE notification and see the round highlighted.
   invitedIds?: string[];
+  // この募集を開いて見に来た人の記録。キー = viewerId → { at: 最終閲覧時刻(ms), count: 閲覧回数 }。
+  // 主催者だけが閲覧できる（配信時に必ず strip し、主催者限定の /viewers 経由でのみ返す）。
+  // 主催者本人の閲覧は記録しない。主催者はこれを見て気になる人を招待できる。
+  viewedBy?: Record<string, { at: number; count: number }>;
   // 招待時に主催者が添えた一言メッセージ。キー: 招待された userId → メッセージ。
   // 通知だけでなく、招待された本人がラウンドを開いたときに画面内でも表示する。
   inviteMessages?: Record<string, string>;

@@ -8,7 +8,7 @@ import { toast } from '@/components/Toast';
 import { confirmDialog } from '@/components/ConfirmDialog';
 import { Avatar } from '@/components/Avatar';
 import { track } from '@/lib/telemetry';
-import { chatIdFor, formatDate, ratingLabel, carLabel, priceLabelForGender, isSplitPrice } from '@/lib/utils';
+import { chatIdFor, formatDate, ratingLabel, carLabel, priceLabelForGender, isSplitPrice, timeAgo } from '@/lib/utils';
 import { levelConditionLabel } from '@/lib/roundEligibility';
 import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
 import { GroupAssignment } from '@/components/GroupAssignment';
@@ -60,6 +60,9 @@ export default function RoundDetailPage() {
   const [inviteMsg, setInviteMsg] = useState('');
   const [inviteBusy, setInviteBusy] = useState(false);
   const [interestedOpen, setInterestedOpen] = useState(false);
+  // 主催者限定：この募集を「見に来た人」一覧（誰がいつ見たか）。招待の起点にできる。
+  const [viewers, setViewers] = useState<{ user: User; at: number; count: number }[] | null>(null);
+  const [viewersOpen, setViewersOpen] = useState(false);
   // 主催者向け「ラウンドは完了しましたか？」プロンプトを「まだ」で閉じたか（この画面表示中のみ）。
   const [completionDismissed, setCompletionDismissed] = useState(false);
   // 詳細のセクション切り替えタブ（参加してる人／ピックアップ／組み分け）。
@@ -119,6 +122,35 @@ export default function RoundDetailPage() {
     params.id, meId, storeRound, fetchedRound,
     (storeRound || fetchedRound)?.applicantIds?.length,
     (storeRound || fetchedRound)?.pendingApplicantIds?.length,
+  ]);
+
+  // 「見に来た人」記録：ログイン済みで主催者でない人がこの募集を開いたら、静かに記録する
+  // （通知はしない）。募集ごと・ログインユーザーごとに1回だけ送る。
+  useEffect(() => {
+    const r = storeRound || fetchedRound;
+    if (!r || !meId || r.hostId === meId) return;
+    fetch(`/api/rounds/${encodeURIComponent(r.id)}/view`, { method: 'POST', cache: 'no-store', keepalive: true }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [(storeRound || fetchedRound)?.id, meId]);
+
+  // 主催者限定：この募集を見に来た人の一覧を取得（他ユーザーには 403 で返らない）。
+  useEffect(() => {
+    const r = storeRound || fetchedRound;
+    if (!params.id || !r || r.hostId !== meId) { setViewers(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/rounds/${encodeURIComponent(params.id)}/viewers`, { cache: 'no-store' });
+        if (!res.ok || cancelled) return;
+        const j = await res.json();
+        if (!cancelled) setViewers(Array.isArray(j.viewers) ? j.viewers : []);
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [
+    params.id, meId, storeRound, fetchedRound,
+    (storeRound || fetchedRound)?.applicantIds?.length,
+    (storeRound || fetchedRound)?.invitedIds?.length,
   ]);
 
   const round = storeRound || fetchedRound;
@@ -828,6 +860,16 @@ export default function RoundDetailPage() {
             <span>❤️</span> 気になる {interestedUsers.length}人 <span className="text-muted">›</span>
           </button>
         )}
+
+        {/* 主催者限定：この募集を見に来た人（誰がいつ見たか）。ここから招待できる。 */}
+        {isHost && viewers && viewers.length > 0 && (
+          <button
+            onClick={() => setViewersOpen(true)}
+            className="w-full py-2.5 bg-bg rounded-xl mb-4 text-sm font-bold flex items-center justify-center gap-2 text-sub"
+          >
+            <span>👀</span> 見に来た人 {viewers.length}人 <span className="text-muted">›</span>
+          </button>
+        )}
           </>
         )}
 
@@ -938,6 +980,40 @@ export default function RoundDetailPage() {
                     ) : (
                       <button onClick={() => { setInviteMsg(''); setInviteTarget({ id: u.id, name: u.displayName }); }} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold flex-shrink-0">招待</button>
                     )
+                  )}
+                </div>
+              );
+            })
+          )}
+        </PickerModal>
+      )}
+
+      {/* 主催者限定：見に来た人の一覧（誰がいつ何回見たか）。ここから招待できる。 */}
+      {viewersOpen && isHost && (
+        <PickerModal title={`👀 見に来た人（${viewers?.length || 0}名）`} onClose={() => setViewersOpen(false)}>
+          <div className="mb-3 text-[12px] text-sub bg-bg rounded-xl p-3 leading-relaxed">
+            この募集を開いて見に来た人です（<b className="text-text">あなただけ</b>が見られます）。気になる人がいたら「招待」で声をかけられます。
+          </div>
+          {(!viewers || viewers.length === 0) ? (
+            <div className="text-center text-sub text-sm py-10">まだ誰も見に来ていません。</div>
+          ) : (
+            viewers.map(({ user: u, at, count }) => {
+              const st = inviteState(u.id);
+              return (
+                <div key={u.id} className="flex items-center gap-2 p-2.5 bg-bg rounded-[10px] mb-1.5">
+                  <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
+                    <Avatar user={u} size={36} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
+                      <div className="text-[10px] text-sub">{timeAgo(at)}に閲覧{count > 1 ? ` ・ ${count}回` : ''}</div>
+                    </div>
+                  </Link>
+                  {st === 'joined' ? (
+                    <span className="px-3 py-1.5 bg-bg text-muted border border-border rounded-lg text-xs font-bold flex-shrink-0">参加済み</span>
+                  ) : st === 'invited' ? (
+                    <button onClick={() => uninvite(u.id, u.displayName)} className="px-3 py-1.5 bg-card text-red border border-red rounded-lg text-xs font-bold flex-shrink-0">招待済み（取消）</button>
+                  ) : (
+                    <button onClick={() => { setInviteMsg(''); setInviteTarget({ id: u.id, name: u.displayName }); }} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold flex-shrink-0">招待</button>
                   )}
                 </div>
               );

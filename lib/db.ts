@@ -34,6 +34,9 @@ export interface DB {
   setInterest(id: string, userId: string, interested: boolean): Promise<{ round: Round; added: boolean }>;
   // Host invites a user. Returns the updated round and whether newly invited.
   inviteToRound(id: string, userId: string): Promise<{ round: Round; added: boolean }>;
+  // 「見に来た人」を記録する。viewedBy[viewerId] の最終閲覧時刻を now に、count を +1。
+  // 主催者本人の記録は呼び出し側で弾く（ここでは弾かない）。冪等ではない（開くたび count++）。
+  recordRoundView(id: string, viewerId: string, at: number): Promise<void>;
   // 招待された本人が承認して即参加（承認待ちを経由せず applicantIds に入る）。
   acceptInvite(id: string, userId: string): Promise<Round>;
   // 主催者が送った招待を取り消す（invitedIds から外す）。
@@ -267,6 +270,14 @@ class MemoryDB implements DB {
     cur.add(userId);
     r.invitedIds = Array.from(cur);
     return { round: r, added: !had };
+  }
+  async recordRoundView(id: string, viewerId: string, at: number) {
+    const r = this.rounds.find((x) => x.id === id);
+    if (!r) return;
+    const views = { ...(r.viewedBy || {}) };
+    const prev = views[viewerId];
+    views[viewerId] = { at, count: (prev?.count || 0) + 1 };
+    r.viewedBy = views;
   }
 
   async listReviewsForUser(revieweeId: string) {
@@ -769,6 +780,18 @@ class FirestoreDB implements DB {
       const invitedIds = Array.from(cur);
       tx.set(ref, { invitedIds }, { merge: true });
       return { round: { ...data, id: snap.id, invitedIds } as Round, added: !had };
+    });
+  }
+  async recordRoundView(id: string, viewerId: string, at: number) {
+    const ref = this.fs.collection('rounds').doc(id);
+    await this.fs.runTransaction(async (tx: any) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) return;
+      const data = snap.data() as Omit<Round, 'id'>;
+      const prev = (data.viewedBy || {})[viewerId];
+      const entry = { at, count: (prev?.count || 0) + 1 };
+      // ネストしたマップの当該キーだけを merge 更新（他の閲覧者の記録は保持）。
+      tx.set(ref, { viewedBy: { [viewerId]: entry } }, { merge: true });
     });
   }
 
