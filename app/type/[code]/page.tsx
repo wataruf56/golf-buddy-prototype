@@ -15,6 +15,7 @@ import {
   getGolmotiType,
   getGolmotiDetail,
   golmotiImg,
+  typeOgpImage,
   polesOf,
   axisLabels,
   matchGood,
@@ -28,6 +29,25 @@ const LINE_URL = 'https://line.me/R/ti/p/@711xiyrs';
 
 function normalize(raw: string): string {
   return decodeURIComponent(raw || '').toUpperCase().trim();
+}
+
+// 文字数で切ると SNS のプレビューで文が途中で切れる（「…一緒に」等）ので、
+// 上限内の最後の句点で切る。句点が早すぎる位置にしか無いときだけ「…」を付ける。
+function clampToSentence(s: string, max: number): string {
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max);
+  const i = cut.lastIndexOf('。');
+  return i >= max * 0.5 ? cut.slice(0, i + 1) : `${cut.replace(/[、。]$/, '')}…`;
+}
+
+// OGP/Twitter 用の説明文は desc だけを使う。
+// tagline は desc の書き出しとほぼ同じ内容のタイプが多く（例 EMKI は
+// 「自然体でゴルフそのものを味わう癒し系」と「自然体でゴルフそのものを味わう癒し系タイプ。」）、
+// 連結すると同じことを2回言う。読点や語句の差し込みで前方一致だけでは検出しきれない
+// （EMKT「マイペースに」vs「マイペースに、」等）ので、そもそも連結しない。
+// tagline は本文・meta description・OGP画像の方に出るので情報は失われない。
+function shareDescription(desc: string): string {
+  return clampToSentence(desc, 100);
 }
 
 export function generateMetadata({ params }: { params: { code: string } }): Metadata {
@@ -53,15 +73,17 @@ export function generateMetadata({ params }: { params: { code: string } }): Meta
       siteName: 'ゴルトモ',
       url: `${SITE}/type/${code}`,
       title: `${t.emoji} ${t.name}（${code}）｜ゴルフ版MBTI 16タイプ`,
-      description: `${d.tagline}。${d.desc.slice(0, 80)}`,
+      description: shareDescription(d.desc),
       locale: 'ja_JP',
-      images: [{ url: `${SITE}/ogp-golmoti.png`, width: 1200, height: 630 }],
+      // タイプ別のOGP画像（scripts/make-type-ogp.js で生成）。共通画像にすると
+      // どのタイプをシェアしても同じ絵が出て「自分はこのタイプだった」が伝わらない。
+      images: [{ url: `${SITE}${typeOgpImage(code)}`, width: 1200, height: 630 }],
     },
     twitter: {
       card: 'summary_large_image',
       title: `${t.emoji} ${t.name}（${code}）｜ゴルフ版MBTI`,
       description: `${d.tagline}。無料のゴルフ性格診断であなたのタイプをチェック。`,
-      images: [`${SITE}/ogp-golmoti.png`],
+      images: [`${SITE}${typeOgpImage(code)}`],
     },
   };
 }

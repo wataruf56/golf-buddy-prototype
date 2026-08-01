@@ -43,6 +43,13 @@ export function golmotiImg(code: string): string {
   return `/golmoti-chars/${code}.png`;
 }
 
+// 各タイプのOGP画像URL（1200×630）。`node scripts/make-type-ogp.js` で生成する。
+// タイプ名・コード・キャラを焼き込んであるので、SNSでシェアされたときに
+// どのタイプの話なのかがサムネイルだけで伝わる。
+export function typeOgpImage(code: string): string {
+  return `/ogp-type/${code}.png`;
+}
+
 // 診断ページ（共有結果／自分の結果）の URL。コード指定で結果を直接開ける。
 export function golmotiUrl(code?: string): string {
   return code ? `/golmoti?type=${encodeURIComponent(code)}` : '/golmoti';
