@@ -164,17 +164,17 @@ function Inner() {
             </div>
             <Field label="通知までの日数（前回完了から / サイクル間隔）" hint="テストは 0（=即時）">
               <input type="text" inputMode="numeric" pattern="[0-9]*" value={draft.intervalDays}
-                onChange={(e) => setDraft({ ...draft, intervalDays: e.target.value.replace(/\D/g, '').slice(0, 3) })}
+                onChange={(e) => setDraft({ ...draft, intervalDays: e.target.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 3) })}
                 className="w-full p-2.5 border-[1.5px] border-border rounded-lg text-sm bg-bg outline-none" />
             </Field>
             <Field label="同一ペアへの通知の最大回数" hint="1〜10">
               <input type="text" inputMode="numeric" pattern="[0-9]*" value={draft.maxCycles}
-                onChange={(e) => setDraft({ ...draft, maxCycles: e.target.value.replace(/\D/g, '').slice(0, 2) })}
+                onChange={(e) => setDraft({ ...draft, maxCycles: e.target.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 2) })}
                 className="w-full p-2.5 border-[1.5px] border-border rounded-lg text-sm bg-bg outline-none" />
             </Field>
             <Field label="候補日カレンダーの範囲（今後◯日）" hint="7〜180">
               <input type="text" inputMode="numeric" pattern="[0-9]*" value={draft.candidateWindowDays}
-                onChange={(e) => setDraft({ ...draft, candidateWindowDays: e.target.value.replace(/\D/g, '').slice(0, 3) })}
+                onChange={(e) => setDraft({ ...draft, candidateWindowDays: e.target.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 3) })}
                 className="w-full p-2.5 border-[1.5px] border-border rounded-lg text-sm bg-bg outline-none" />
             </Field>
             <button onClick={save} disabled={saving} className="w-full py-3 bg-green text-white rounded-xl text-sm font-bold disabled:opacity-50">

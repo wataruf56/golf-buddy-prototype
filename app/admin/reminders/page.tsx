@@ -133,8 +133,8 @@ function Inner() {
           <div className="text-[12px] font-bold text-sub mb-1.5">その他の日数を追加</div>
           <div className="flex gap-1.5 mb-2">
             <input
-              type="number" min={0} max={120} value={custom}
-              onChange={(e) => setCustom(e.target.value)}
+              type="text" inputMode="numeric" pattern="[0-9]*" value={custom}
+              onChange={(e) => setCustom(e.target.value.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, ''))}
               placeholder="例: 10"
               className="flex-1 min-w-0 text-sm border-[1.5px] border-border rounded-lg px-3 py-2 bg-bg outline-none"
             />

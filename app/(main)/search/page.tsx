@@ -325,7 +325,7 @@ export default function SearchPage() {
               <input
                 inputMode="numeric"
                 value={draft.priceMax}
-                onChange={(e) => patch('priceMax', e.target.value.replace(/[^0-9]/g, ''))}
+                onChange={(e) => patch('priceMax', e.target.value.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, ''))}
                 placeholder="例: 10000（円）"
                 className="w-full p-2.5 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
               />

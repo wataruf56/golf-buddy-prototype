@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { allAreas } from '@/lib/mockData';
 import { PickupStationPicker } from '@/components/PickupStationPicker';
+import { NumberInput } from '@/components/NumberInput';
 import { PriceField } from '@/components/PriceField';
 import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
@@ -674,11 +675,12 @@ export default function CreatePage() {
                   <>
                     <div className="mt-2.5 flex items-center gap-2">
                       <span className="text-xs font-bold text-sub">自分含め乗れる人数</span>
-                      <input
-                        type="number" min={1} max={8} inputMode="numeric"
-                        value={pickupCapacity || ''}
-                        onChange={(e) => setPickupCapacity(Math.max(0, Math.min(8, Number(e.target.value) || 0)))}
+                      <NumberInput
+                        min={1} max={8}
+                        value={pickupCapacity || null}
+                        onChange={(v) => setPickupCapacity(v ?? 0)}
                         placeholder="例: 4"
+                        ariaLabel="自分含め乗れる人数"
                         className="w-16 px-2 py-1.5 border-[1.5px] border-border rounded-[8px] text-sm bg-bg outline-none text-center"
                       />
                       <span className="text-xs text-sub">名</span>

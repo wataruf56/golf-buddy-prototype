@@ -16,6 +16,7 @@ import { GroupPrefs } from '@/components/GroupPrefs';
 import { HostNote } from '@/components/HostNote';
 import { CarDispatch } from '@/components/CarDispatch';
 import { PickupStationPicker } from '@/components/PickupStationPicker';
+import { NumberInput } from '@/components/NumberInput';
 import { RESTRICTION_MSG } from '@/lib/restrictions';
 import { readApiError } from '@/lib/apiError';
 import { MatchPicker } from '@/components/MatchPicker';
@@ -1193,7 +1194,7 @@ function ScoreEntryCard({ round, host, applicants }: {
               placeholder="—"
               value={drafts[p.id] ?? ''}
               onChange={(e) => {
-                const digits = e.target.value.replace(/[^0-9]/g, '').slice(0, 3);
+                const digits = e.target.value.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '').slice(0, 3);
                 setDrafts((d) => ({ ...d, [p.id]: digits }));
               }}
               className="w-20 p-2 border-[1.5px] border-border rounded-lg text-center text-sm font-bold bg-card outline-none"
@@ -1261,9 +1262,9 @@ function InviteSearch({ inviteState, onInvite, onUninvite }: { inviteState: (id:
         {chip('👩 女性', gender === 'female', () => setGender('female'))}
       </div>
       <div className="flex gap-1.5 mb-2 items-center">
-        <input value={minAge} onChange={(e) => setMinAge(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder="最小" className="w-16 px-2 py-1.5 border-[1.5px] border-border rounded-[8px] text-sm bg-bg outline-none text-center" />
+        <input value={minAge} onChange={(e) => setMinAge(e.target.value.replace(/\D/g, '').replace(/^0+(?=\d)/, ''))} inputMode="numeric" placeholder="最小" className="w-16 px-2 py-1.5 border-[1.5px] border-border rounded-[8px] text-sm bg-bg outline-none text-center" />
         <span className="text-xs text-sub">〜</span>
-        <input value={maxAge} onChange={(e) => setMaxAge(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder="最大" className="w-16 px-2 py-1.5 border-[1.5px] border-border rounded-[8px] text-sm bg-bg outline-none text-center" />
+        <input value={maxAge} onChange={(e) => setMaxAge(e.target.value.replace(/\D/g, '').replace(/^0+(?=\d)/, ''))} inputMode="numeric" placeholder="最大" className="w-16 px-2 py-1.5 border-[1.5px] border-border rounded-[8px] text-sm bg-bg outline-none text-center" />
         <span className="text-xs text-sub">歳</span>
       </div>
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 名前で検索" className="w-full px-3 py-2 mb-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
@@ -1563,11 +1564,12 @@ function PickupJoinModal({ me, onClose, onSubmit }: {
             {status === 'can' && stations.length > 0 && (
               <div className="mt-2 flex items-center gap-2">
                 <span className="text-[11px] font-bold text-sub">自分含め乗れる人数</span>
-                <input
-                  type="number" min={1} max={8} inputMode="numeric"
-                  value={capacity || ''}
-                  onChange={(e) => setCapacity(Math.max(0, Math.min(8, Number(e.target.value) || 0)))}
+                <NumberInput
+                  min={1} max={8}
+                  value={capacity || null}
+                  onChange={(v) => setCapacity(v ?? 0)}
                   placeholder="例: 4"
+                  ariaLabel="自分含め乗れる人数"
                   className="w-14 px-2 py-1 border-[1.5px] border-border rounded-[8px] text-sm bg-card outline-none text-center"
                 />
                 <span className="text-[11px] text-sub">名</span>

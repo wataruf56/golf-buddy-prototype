@@ -350,13 +350,12 @@ export default function ProfileEditPage() {
 
         <Field label="年齢" required>
           <input
-            type="number"
+            type="text"
             inputMode="numeric"
-            min={18}
-            max={99}
+            pattern="[0-9]*"
             placeholder="例: 32"
             value={age}
-            onChange={(e) => setAge(e.target.value)}
+            onChange={(e) => setAge(e.target.value.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '').slice(0, 3))}
             className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
           />
         </Field>
