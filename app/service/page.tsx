@@ -19,9 +19,10 @@ const LINE_URL = 'https://line.me/R/ti/p/@711xiyrs';
 const DIAGNOSIS_URL = '/golmoti.html';
 
 export const metadata: Metadata = {
-  title: 'ゴルトモ｜20〜30代のゴルフ仲間が見つかるLINEアプリ',
+  title: 'ゴルトモ｜ゴルフ友達を探す・作るなら。20〜30代のゴル友マッチング',
   description:
-    'ラウンドを募集して、一緒に回って、また会いたい人とつながる。20〜30代限定のゴルフコミュニティ「ゴルトモ」。ラウンド後の相互レビューで「また一緒に回りたい」「異性として気になる」がお互い一致したときだけマッチ。LINEで完結、ダウンロード不要。',
+    '一緒に回るゴルフ友達が見つかる。誘える人がいなくても、一人で参加して気の合う「ゴル友」を作れます。20〜30代限定・ラウンド後の相互レビューで安心。「また一緒に回りたい」がお互い一致したらゴル友成立。LINEで完結、アプリのダウンロード不要。',
+  keywords: ['ゴルトモ', 'ゴルフ 友達', 'ゴルフ友達 作り方', 'ゴル友', 'ゴルフ 仲間', 'ゴルフ マッチング', 'ゴルフ 一人参加'],
   alternates: { canonical: `${SITE}/service` },
   // 下書き段階のため検索には出さない（公開OKになったら外して sitemap に追加する）。
   robots: { index: false, follow: true },
@@ -29,9 +30,9 @@ export const metadata: Metadata = {
     type: 'website',
     siteName: 'ゴルトモ',
     url: `${SITE}/service`,
-    title: 'ゴルトモ｜20〜30代のゴルフ仲間が見つかるLINEアプリ',
+    title: 'ゴルトモ｜一緒に回るゴルフ友達が見つかる',
     description:
-      'ラウンドを募集して、一緒に回って、また会いたい人とつながる。20〜30代限定のゴルフコミュニティ。',
+      '誘える人がいなくても大丈夫。一人で参加して、気の合う「ゴル友」を作れます。20〜30代限定。',
     locale: 'ja_JP',
     images: [{ url: `${SITE}/ogp-golmoti.png`, width: 1200, height: 630 }],
   },
@@ -144,11 +145,11 @@ export default function ServiceLP() {
         {/* ヒーロー */}
         <header className="hero">
           <div className="sun" aria-hidden="true" />
-          <span className="lb">⛳ ゴルフ仲間マッチング</span>
-          <h1>一緒に回って、<br /><span className="hl">また会いたい人</span>と<br />つながる。</h1>
+          <span className="lb">⛳ ゴルフ友達さがし</span>
+          <h1>一緒に回る<br /><span className="hl">ゴルフ友達</span>が<br />見つかる。</h1>
           <p>
-            ラウンドを募集する。気の合う人と回る。<br />
-            「また回りたい」がお互い一致したら、そこからが本番。
+            誘える人がいなくても大丈夫。<br />
+            一人で参加して、気の合う人と「ゴル友」になれます。
           </p>
         </header>
 
@@ -164,10 +165,10 @@ export default function ServiceLP() {
           <div className="no">📝</div>
           <div>
             <div className="lb">POST</div>
-            <div className="tt">ラウンドを募集する</div>
+            <div className="tt">まずは一緒に回る人を探す</div>
           </div>
         </div>
-        <p className="lead">「行きたいけど、メンバーが集まらない」を無くす。</p>
+        <p className="lead">「行きたいけど、誘える人がいない」を無くす。募集を出すのも、参加するのも無料です。</p>
         <div className="card">
           <h3>⛳ コース予約済み</h3>
           <p>すでに押さえたコースの空き枠に、一緒に回る仲間を募集できます。日程・費用・男女枠を決めて投稿するだけ。</p>
@@ -186,13 +187,17 @@ export default function ServiceLP() {
           <div className="no">⭐</div>
           <div>
             <div className="lb">REVIEW</div>
-            <div className="tt">ラウンド後の相互レビュー</div>
+            <div className="tt">初対面でも安心して回れる</div>
           </div>
         </div>
-        <p className="lead">回って終わりにしない。ここがゴルトモの中心です。</p>
+        <p className="lead">知らない人と回るのが不安、を無くすための仕組みです。</p>
         <div className="card">
-          <h3>🤝 同じ組だった人を評価</h3>
-          <p>ラウンドが終わると、一緒に回った人をレビューできます。マナーの良い人が可視化されるので、初対面でも安心して参加できます。</p>
+          <h3>🤝 ラウンド後にお互いを評価</h3>
+          <p>回り終わると、同じ組だった人をレビューできます。マナーの良い人が可視化されるので、はじめての参加でも安心です。</p>
+        </div>
+        <div className="card">
+          <h3>⛳ 20〜30代だけのコミュニティ</h3>
+          <p>年代が近い人しかいないので、はじめましてでもフラットに話せます。「気を使って疲れた」で終わりません。</p>
         </div>
 
         {/* また回りたい */}
@@ -200,10 +205,10 @@ export default function ServiceLP() {
           <div className="no">🏌️</div>
           <div>
             <div className="lb">MATCH</div>
-            <div className="tt">「また一緒に回りたい」</div>
+            <div className="tt">「また一緒に回りたい」で<br />ゴル友になる</div>
           </div>
         </div>
-        <p className="lead">お互いが選んだときだけ、マッチが成立します。</p>
+        <p className="lead">ここがゴルトモの中心。1回きりで終わらせず、次も誘い合える関係になります。</p>
         <div className="card">
           <div className="duo">
             <div className="who">
@@ -218,7 +223,7 @@ export default function ServiceLP() {
               <span className="sel">また回りたい</span>
             </div>
           </div>
-          <div className="match">🎉 マッチ成立 → メッセージでつながる</div>
+          <div className="match">🎉 ゴル友成立 → メッセージでつながる</div>
           <div className="secret">
             <span>🔒</span>
             <span><b>片思いの間は、あなたの選択が相手に知られることは一切ありません。</b>両想いになったときだけ、お互いに通知されます。</span>
@@ -233,7 +238,7 @@ export default function ServiceLP() {
             <div className="tt">「異性として気になる」</div>
           </div>
         </div>
-        <p className="lead">ゴルフだけで終わらせたくない人にも、同じ両想い方式で。</p>
+        <p className="lead">ゴル友から先に進みたい人にも、同じ両想い方式が用意されています。</p>
         <div className="card">
           <h3>💘 こちらも両想いのときだけ</h3>
           <p>「また回りたい」と同じく、<b>お互いが選んだときだけ</b>マッチします。選んだことが相手に伝わることはありません。</p>
@@ -268,8 +273,8 @@ export default function ServiceLP() {
 
         {/* CTA */}
         <div className="cta">
-          <h2>まずはLINEで<br />友だち追加から</h2>
-          <p>登録は無料。アプリのダウンロードは要りません。</p>
+          <h2>ゴルフ友達を<br />見つけにいく</h2>
+          <p>登録は無料。アプリのダウンロードは要りません。<br />まずはLINEで友だち追加から。</p>
           <a className="btn" href={LINE_URL}>LINEで始める →</a>
           <span className="sub">無料 ・ LINEログインのみ ・ 20〜30代限定</span>
         </div>
