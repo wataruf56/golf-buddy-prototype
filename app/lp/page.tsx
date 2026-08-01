@@ -1,237 +1,312 @@
-// Public landing page served at https://goltomo.com (and https://www.goltomo.com).
-// No LIFF required. Standalone. Hosted on GCP (Cloud Run + Firebase Hosting).
+// トップLP。https://goltomo.com/（middleware が LPホストの / をここへ rewrite する）
+//
+// 2026-08-01に全面差し替え。旧LP（緑グラデ／AIスイング解析推し）はやめ、
+// 「ゴルフ友達を探す・作る」に振った内容にした。配色・書体は診断LP
+// public/golmoti.html に合わせている（レトロ・ポップ／太枠＋ハードシャドウ）。
+//
+// 掲載しているのは実装済みの機能のみ（lib/meetOptions.ts, app/(main)/guide/page.tsx を参照）。
+// 実画面のキャプチャ（public/guide-shots/*.png）は一度載せたが、縦長すぎて
+// 横スワイプの並びが間延びするため取りやめた。載せ直すなら縦横比の扱いから設計し直すこと。
+//
+// CTAは StartButton（/app?ref=◯◯ → LIFF）。生のLINE友だち追加URLに変えると
+// 流入経路タグ(?ref=)が運べなくなり、管理画面の「📥 流入経路」に出なくなるので注意。
+
+import type { Metadata } from 'next';
+import { MEET_OPTIONS } from '@/lib/meetOptions';
 import { RefCapture } from '@/components/RefCapture';
 import { StartButton } from '@/components/StartButton';
 
-export const metadata = {
-  title: 'ゴルトモ｜ゴル友マッチング × AIスイング解析（ゴルフ版MBTI診断つき）',
+const SITE = 'https://goltomo.com';
+const DIAGNOSIS_URL = '/golmoti.html';
+
+export const metadata: Metadata = {
+  title: 'ゴルトモ｜ゴルフ友達を探す・作るなら。20〜30代のゴル友マッチング',
   description:
-    '20〜30代のゴルファーと一緒にラウンドを回ろう。ゴルフ版MBTIの16タイプ性格診断で気の合うゴル友とマッチング、スイング動画はAIコーチが解析。スコアの推移と課題の改善まで可視化。LINEで完結、ダウンロード不要。',
-  keywords: ['ゴルトモ', 'ゴルフ マッチング', 'ゴル友', 'ゴルフ MBTI', 'ゴルフ 診断', 'ゴルフ性格診断', 'AIスイング解析'],
-  alternates: { canonical: 'https://goltomo.com/' },
+    '一緒に回るゴルフ友達が見つかる。誘える人がいなくても、一人で参加して気の合う「ゴル友」を作れます。20〜30代限定・ラウンド後の相互レビューで安心。「また一緒に回りたい」がお互い一致したらゴル友成立。LINEで完結、アプリのダウンロード不要。',
+  keywords: ['ゴルトモ', 'ゴルフ 友達', 'ゴルフ友達 作り方', 'ゴル友', 'ゴルフ 仲間', 'ゴルフ マッチング', 'ゴルフ 一人参加'],
+  alternates: { canonical: `${SITE}/` },
   openGraph: {
     type: 'website',
     siteName: 'ゴルトモ',
-    url: 'https://goltomo.com/',
-    title: 'ゴルトモ｜ゴル友マッチング × AIスイング解析',
+    url: `${SITE}/`,
+    title: 'ゴルトモ｜一緒に回るゴルフ友達が見つかる',
     description:
-      '同年代のゴルファーと出会って一緒にラウンド。ゴルフ版MBTIの16タイプ診断で気の合う仲間とマッチング、スイングはAIコーチが解析。LINEで完結。',
+      '誘える人がいなくても大丈夫。一人で参加して、気の合う「ゴル友」を作れます。20〜30代限定。',
     locale: 'ja_JP',
-    images: [{ url: 'https://goltomo.com/ogp-golmoti.png', width: 1200, height: 630 }],
+    images: [{ url: `${SITE}/ogp-golmoti.png`, width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'ゴルトモ｜ゴル友マッチング × AIスイング解析',
-    description: '同年代のゴルファーと一緒にラウンド。ゴルフ版MBTI診断で気の合う仲間とマッチング。',
-    images: ['https://goltomo.com/ogp-golmoti.png'],
+    title: 'ゴルトモ｜一緒に回るゴルフ友達が見つかる',
+    description: '誘える人がいなくても大丈夫。一人で参加して、気の合う「ゴル友」を作れます。',
+    images: [`${SITE}/ogp-golmoti.png`],
   },
+};
+
+const CSS = `
+/* globals.css は body を #a9c7bb（500px以下は #E7F2EC）にしている。このLPは
+   紙色ベースなので、iOSのオーバースクロールで下からミントが覗かないよう上書きする。
+   html を付けて詳細度を上げ、globals.css のメディアクエリにも勝たせる。 */
+html body{background:#F4E8CE}
+.sv{min-height:100vh;--paper:#F4E8CE;--orange:#E8643C;--teal:#2A8C82;--mustard:#E8A93C;--ink:#33271B;--cream:#FBF3E0;--pink:#D9557E;
+  font-family:'Zen Maru Gothic',sans-serif;background:var(--paper);color:var(--ink);line-height:1.75;font-weight:500;
+  overflow-x:hidden;position:relative}
+.sv *{box-sizing:border-box}
+.sv .wrap{max-width:480px;margin:0 auto;position:relative}
+/* 診断LPと同じドットの地紋。
+   golmoti.html は inset:0 と left:50% を併用しているが、inset の right:0 が残るため
+   幅が「50%〜右端」に潰れて画面の一部しか覆えない。ここでは width:100% を明示して直す。 */
+.sv::before{content:"";position:fixed;top:0;bottom:0;left:50%;width:100%;max-width:480px;
+  transform:translateX(-50%);z-index:60;
+  pointer-events:none;opacity:.45;mix-blend-mode:multiply;
+  background-image:radial-gradient(circle,rgba(51,39,27,.16) 1px,transparent 1.4px);background-size:7px 7px}
+
+.sv .top{display:flex;align-items:center;justify-content:space-between;padding:16px 20px}
+.sv .logo{display:flex;align-items:center;gap:8px;font-weight:900;font-size:19px}
+.sv .logo .m{width:34px;height:34px;background:var(--orange);color:var(--cream);border-radius:50%;
+  display:grid;place-items:center;font-size:17px;border:2.5px solid var(--ink)}
+.sv .free{background:var(--mustard);font-weight:900;font-size:12px;padding:7px 13px;border-radius:999px;border:2.5px solid var(--ink)}
+
+.sv .hero{padding:14px 22px 34px;text-align:center;position:relative}
+.sv .sun{position:absolute;top:-10px;right:-60px;width:190px;height:190px;border-radius:50%;
+  background:repeating-conic-gradient(var(--mustard) 0 12deg,transparent 12deg 24deg);opacity:.36;z-index:0}
+.sv .hero .lb{position:relative;z-index:1;display:inline-block;background:var(--teal);color:var(--cream);
+  font-weight:900;font-size:12.5px;padding:7px 16px;border-radius:999px;border:2.5px solid var(--ink)}
+.sv h1{position:relative;z-index:1;font-size:33px;font-weight:900;line-height:1.3;margin:16px 0 0;letter-spacing:-.01em}
+.sv h1 .hl{background:linear-gradient(transparent 62%,var(--mustard) 62%)}
+.sv .hero p{position:relative;z-index:1;font-size:14px;font-weight:700;margin:16px 0 0;color:#6b5a44}
+
+/* 前提バッジ（DL不要・LINE完結・年代） */
+.sv .badges{display:grid;gap:9px;padding:0 18px;margin-top:4px}
+.sv .bd{display:flex;align-items:baseline;gap:10px;background:var(--cream);border:2.5px solid var(--ink);
+  border-radius:14px;box-shadow:3px 3px 0 var(--ink);padding:11px 15px;font-size:12.5px;font-weight:700;color:#6b5a44}
+.sv .bd b{font-size:13.5px;font-weight:900;color:var(--ink);white-space:nowrap}
+
+.sv .chap{display:flex;align-items:center;gap:12px;padding:0 22px;margin:52px 0 14px}
+.sv .chap .no{width:44px;height:44px;flex:none;background:var(--cream);border:2.5px solid var(--ink);border-radius:50%;
+  display:grid;place-items:center;font-size:20px;box-shadow:3px 3px 0 var(--ink)}
+.sv .chap .lb{font-size:11px;font-weight:900;color:var(--teal);letter-spacing:.14em}
+.sv .chap .tt{font-size:20px;font-weight:900;line-height:1.3}
+.sv .lead{padding:0 22px;font-size:13.5px;font-weight:700;color:#6b5a44;margin:0 0 18px}
+
+.sv .card{background:var(--cream);border:2.5px solid var(--ink);border-radius:18px;box-shadow:5px 5px 0 var(--ink);
+  margin:0 18px 16px;padding:20px 18px}
+.sv .card h3{font-size:16.5px;font-weight:900;margin:0 0 8px;display:flex;align-items:center;gap:8px}
+.sv .card p{font-size:13.5px;margin:0;font-weight:500}
+.sv .card p + p{margin-top:10px}
+
+/* 両想いの説明図 */
+.sv .duo{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin:4px 0 14px}
+.sv .duo .who{background:var(--paper);border:2.5px solid var(--ink);border-radius:14px;padding:12px 8px;text-align:center}
+.sv .duo .who .e{font-size:26px;line-height:1}
+.sv .duo .who .n{font-size:11.5px;font-weight:900;margin-top:4px}
+.sv .duo .who .sel{display:inline-block;margin-top:7px;background:var(--pink);color:#fff;border:2px solid var(--ink);
+  border-radius:999px;font-size:10.5px;font-weight:900;padding:3px 9px}
+.sv .duo .mid{font-size:22px;font-weight:900;color:var(--orange)}
+.sv .match{background:var(--teal);color:var(--cream);border:2.5px solid var(--ink);border-radius:14px;
+  padding:12px;text-align:center;font-weight:900;font-size:14px;box-shadow:3px 3px 0 var(--ink)}
+.sv .secret{display:flex;gap:9px;align-items:flex-start;background:var(--paper);border:2.5px dashed var(--ink);
+  border-radius:14px;padding:12px 13px;margin-top:14px;font-size:12.5px;font-weight:700}
+
+/* 会い方チップ */
+.sv .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.sv .chip{background:var(--paper);border:2.5px solid var(--ink);border-radius:999px;padding:6px 13px;
+  font-size:12.5px;font-weight:900;box-shadow:2px 2px 0 var(--ink)}
+
+/* 実績 */
+.sv .stat{display:flex;gap:12px;align-items:center;background:var(--paper);border:2.5px solid var(--ink);
+  border-radius:14px;padding:14px;margin-top:12px}
+.sv .stat .big{font-family:'Baloo 2',cursive;font-size:34px;font-weight:800;color:var(--teal);line-height:1}
+.sv .stat .tx{font-size:12.5px;font-weight:800}
+
+/* CTA */
+.sv .cta{margin:44px 18px 0;background:var(--orange);border:3px solid var(--ink);border-radius:22px;
+  box-shadow:6px 6px 0 var(--ink);padding:28px 20px;text-align:center;color:var(--cream)}
+.sv .cta h2{font-size:22px;font-weight:900;margin:0 0 10px;line-height:1.35}
+.sv .cta p{font-size:13px;font-weight:700;margin:0 0 18px;opacity:.95}
+.sv .btn{display:inline-block;background:var(--cream);color:var(--ink);border:3px solid var(--ink);border-radius:999px;
+  font-size:16px;font-weight:900;padding:15px 34px;box-shadow:4px 4px 0 var(--ink);text-decoration:none}
+.sv .sub{display:block;font-size:11.5px;font-weight:800;margin-top:14px;opacity:.95}
+.sv .quiz{margin:22px 18px 0;background:var(--cream);border:2.5px solid var(--ink);border-radius:18px;
+  box-shadow:5px 5px 0 var(--ink);padding:18px;text-align:center}
+.sv .quiz .t{font-size:14.5px;font-weight:900}
+.sv .quiz a{display:inline-block;margin-top:10px;font-size:13px;font-weight:900;color:var(--teal);text-decoration:underline}
+.sv footer{text-align:center;padding:38px 20px 46px;font-size:11.5px;font-weight:700;color:#6b5a44}
+.sv footer .fl{font-weight:900;color:var(--orange);margin-bottom:4px}
+`;
+
+const JSON_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'ゴルトモ',
+  alternateName: ['GOLTOMO', 'ゴルフMBTI診断'],
+  url: `${SITE}/`,
+  description:
+    '一緒に回るゴルフ友達が見つかるLINEアプリ。20〜30代限定。ラウンド募集と相互レビューで、気の合う「ゴル友」とつながれる。',
+  publisher: { '@type': 'Organization', name: '合同会社シクミヤ', url: `${SITE}/` },
 };
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-bg">
+    <div className="sv">
+      <style dangerouslySetInnerHTML={{ __html: CSS }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
       {/* 流入経路キャプチャ（?ref=instagram 等を初回のみ記憶） */}
       <RefCapture />
-      {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-green to-emerald-700 text-white">
-        <div className="max-w-3xl mx-auto px-6 pt-14 pb-16 text-center">
-          <div className="text-[11px] font-bold tracking-[0.35em] opacity-90 mb-3">GOLTOMO</div>
-          <h1 className="text-4xl sm:text-5xl font-black leading-tight mb-3">⛳ ゴルトモ</h1>
-          <div className="text-lg sm:text-xl font-black opacity-95 mb-5 leading-relaxed">
-            ゴル友マッチング × AIスイング解析
-          </div>
-          <p className="text-[13px] sm:text-sm opacity-90 mb-8 leading-relaxed max-w-md mx-auto">
-            同年代のゴルファーと出会って一緒にラウンド。
-            スイング動画はAIコーチが解析し、<b className="font-black">スコアの伸びと課題の改善まで可視化</b>。
-            すべてLINEで完結、ダウンロード不要。
+
+      <div className="wrap">
+        <div className="top">
+          <div className="logo"><span className="m">⛳</span>ゴルトモ</div>
+          <span className="free">20〜30代限定</span>
+        </div>
+
+        {/* ヒーロー */}
+        <header className="hero">
+          <div className="sun" aria-hidden="true" />
+          <span className="lb">⛳ ゴルフ友達さがし</span>
+          <h1>一緒に回る<br /><span className="hl">ゴルフ友達</span>が<br />見つかる。</h1>
+          <p>
+            誘える人がいなくても大丈夫。<br />
+            一人で参加して、気の合う人と「ゴル友」になれます。
           </p>
-          <StartButton
-            className="inline-block w-full max-w-xs px-6 py-4 bg-white text-green rounded-2xl font-black text-base shadow-xl"
-          >
-            LINEで始める
-          </StartButton>
-          <div className="text-[10px] opacity-80 mt-3">無料 ・ LINEログインのみ ・ アプリDL不要</div>
-        </div>
-      </section>
+        </header>
 
-      {/* 3 features */}
-      <section className="max-w-3xl mx-auto px-6 py-12">
-        <h2 className="text-center text-2xl font-black mb-2">ゴルトモでできること</h2>
-        <p className="text-center text-[12px] text-sub mb-8">仲間が増えて、上達して、また回りたくなる</p>
-        <div className="grid sm:grid-cols-3 gap-4">
-          <div className="bg-card rounded-card p-6 shadow-card">
-            <div className="text-4xl mb-3">🤝</div>
-            <div className="text-base font-black mb-2">ゴル友マッチング</div>
-            <div className="text-[13px] text-sub leading-relaxed">
-              同年代とラウンドを募集・参加。ラウンド後の<b className="text-green">相互レビュー</b>で「ゴル友」になり、メッセージでつながれます。
-            </div>
-          </div>
-          <div className="bg-card rounded-card p-6 shadow-card">
-            <div className="text-4xl mb-3">📊</div>
-            <div className="text-base font-black mb-2">AIスイング解析</div>
-            <div className="text-[13px] text-sub leading-relaxed">
-              動画を送るだけでAIコーチが各フェーズを解説。さらに<b className="text-green">スコアの推移</b>と<b className="text-green">課題の改善</b>を時系列で見える化。
-            </div>
-          </div>
-          <div className="bg-card rounded-card p-6 shadow-card">
-            <div className="text-4xl mb-3">💌</div>
-            <div className="text-base font-black mb-2">誘う・気になる</div>
-            <div className="text-[13px] text-sub leading-relaxed">
-              気になる募集は<b className="text-green">♡で保存</b>。募集者はゴル友や気になった人を<b className="text-green">招待</b>でき、声をかけ合えます。
-            </div>
+        {/* 前提バッジ（アプリDL不要・LINE完結） */}
+        <div className="badges">
+          <span className="bd"><b>📥 DL不要</b>アプリ入れずに使える</span>
+          <span className="bd"><b>💬 LINEで完結</b>ログインも通知もLINE</span>
+          <span className="bd"><b>⛳ 20〜30代</b>年代が近い人だけ</span>
+        </div>
+
+        {/* ラウンド投稿 */}
+        <div className="chap">
+          <div className="no">📝</div>
+          <div>
+            <div className="lb">POST</div>
+            <div className="tt">まずは一緒に回る人を探す</div>
           </div>
         </div>
-      </section>
+        <p className="lead">「行きたいけど、誘える人がいない」を無くす。募集を出すのも、参加するのも無料です。</p>
+        <div className="card">
+          <h3>⛳ コース予約済み</h3>
+          <p>すでに押さえたコースの空き枠に、一緒に回る仲間を募集できます。日程・費用・男女枠を決めて投稿するだけ。</p>
+        </div>
+        <div className="card">
+          <h3>🗺 コース未定（これから決める）</h3>
+          <p>「この辺で、この日あたり」だけでも募集できます。エリアと日程の希望を出して、集まった人とコースを決める形。</p>
+        </div>
+        <div className="card">
+          <h3>🏆 5人以上ならコンペ</h3>
+          <p>5〜50人の募集はコンペ・イベント扱いになり、専用のデザインで表示されます。</p>
+        </div>
 
-      {/* Highlight: progress visualization */}
-      <section className="bg-card py-12">
-        <div className="max-w-3xl mx-auto px-6">
-          <h2 className="text-center text-2xl font-black mb-2">上達が「数字」で見える</h2>
-          <p className="text-center text-[12px] text-sub mb-8">解析するたびに記録され、伸びと課題の改善がひと目で分かる</p>
-          <div className="max-w-md mx-auto bg-bg rounded-card p-5">
-            <div className="flex items-center justify-between mb-1">
-              <div className="text-[13px] font-bold">📊 スイングスコアの推移</div>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-green leading-none">78</span>
-                <span className="text-[11px] font-bold text-green">+12 ↑</span>
-              </div>
-            </div>
-            <svg viewBox="0 0 320 110" width="100%" height="110" className="mt-1">
-              <defs>
-                <linearGradient id="lpgrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stopColor="#34A85A" stopOpacity="0.22" />
-                  <stop offset="1" stopColor="#34A85A" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <line x1="10" y1="28" x2="310" y2="28" stroke="#e7ece9" />
-              <line x1="10" y1="62" x2="310" y2="62" stroke="#e7ece9" />
-              <polygon points="10,90 70,82 130,70 190,56 250,46 310,34 310,100 10,100" fill="url(#lpgrad)" />
-              <polyline points="10,90 70,82 130,70 190,56 250,46 310,34" fill="none" stroke="#2A8C82" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx="310" cy="34" r="5" fill="#2A8C82" />
-            </svg>
-            <div className="mt-3 flex flex-col gap-2">
-              {[
-                { l: '体重移動', v: 72, c: '#34A85A', s: '良好' },
-                { l: '手打ちの抑制', v: 54, c: '#3AA0C9', s: '改善中' },
-                { l: '頭の位置', v: 38, c: '#E8943A', s: '要練習' },
-              ].map((a) => (
-                <div key={a.l} className="flex items-center gap-2">
-                  <span className="text-[11px] w-20 flex-shrink-0">{a.l}</span>
-                  <div className="flex-1 h-2 bg-card rounded-full overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${a.v}%`, background: a.c }} />
-                  </div>
-                  <span className="text-[10px] font-bold w-12 text-right" style={{ color: a.c }}>{a.s}</span>
-                </div>
-              ))}
-            </div>
-            <div className="text-[10px] text-muted text-center mt-3">※ イメージ。解析を重ねるほど推移が伸びていきます</div>
+        {/* 相互レビュー */}
+        <div className="chap">
+          <div className="no">⭐</div>
+          <div>
+            <div className="lb">REVIEW</div>
+            <div className="tt">初対面でも安心して回れる</div>
           </div>
         </div>
-      </section>
+        <p className="lead">知らない人と回るのが不安、を無くすための仕組みです。</p>
+        <div className="card">
+          <h3>🤝 ラウンド後にお互いを評価</h3>
+          <p>回り終わると、同じ組だった人をレビューできます。マナーの良い人が可視化されるので、はじめての参加でも安心です。</p>
+        </div>
+        <div className="card">
+          <h3>⛳ 20〜30代だけのコミュニティ</h3>
+          <p>年代が近い人しかいないので、はじめましてでもフラットに話せます。「気を使って疲れた」で終わりません。</p>
+        </div>
 
-      {/* Trust / safety */}
-      <section className="max-w-3xl mx-auto px-6 py-12">
-        <h2 className="text-center text-2xl font-black mb-8">安心して使えるポイント</h2>
-        <div className="grid sm:grid-cols-3 gap-4">
-          <div className="bg-card rounded-card p-5 shadow-card text-center">
-            <div className="text-3xl mb-2">🎯</div>
-            <div className="text-sm font-black mb-1">20〜30代コミュニティ</div>
-            <div className="text-[12px] text-sub leading-relaxed">年代が近い人だけが集まるので、フラットに楽しめます。</div>
-          </div>
-          <div className="bg-card rounded-card p-5 shadow-card text-center">
-            <div className="text-3xl mb-2">⭐</div>
-            <div className="text-sm font-black mb-1">相互レビュー</div>
-            <div className="text-[12px] text-sub leading-relaxed">ラウンド後の評価で安心。マナーの良い仲間とつながれます。</div>
-          </div>
-          <div className="bg-card rounded-card p-5 shadow-card text-center">
-            <div className="text-3xl mb-2">💬</div>
-            <div className="text-sm font-black mb-1">LINEで完結</div>
-            <div className="text-[12px] text-sub leading-relaxed">通知もログインもLINE。アプリのダウンロードは不要です。</div>
+        {/* また回りたい */}
+        <div className="chap">
+          <div className="no">🏌️</div>
+          <div>
+            <div className="lb">MATCH</div>
+            <div className="tt">「また一緒に回りたい」で<br />ゴル友になる</div>
           </div>
         </div>
-      </section>
+        <p className="lead">ここがゴルトモの中心。1回きりで終わらせず、次も誘い合える関係になります。</p>
+        <div className="card">
+          <div className="duo">
+            <div className="who">
+              <div className="e">🙋</div>
+              <div className="n">あなた</div>
+              <span className="sel">また回りたい</span>
+            </div>
+            <div className="mid">＋</div>
+            <div className="who">
+              <div className="e">🙆</div>
+              <div className="n">相手</div>
+              <span className="sel">また回りたい</span>
+            </div>
+          </div>
+          <div className="match">🎉 ゴル友成立 → メッセージでつながる</div>
+          <div className="secret">
+            <span>🔒</span>
+            <span><b>片思いの間は、あなたの選択が相手に知られることは一切ありません。</b>両想いになったときだけ、お互いに通知されます。</span>
+          </div>
+        </div>
 
-      {/* How it works */}
-      <section className="bg-card py-12">
-        <div className="max-w-3xl mx-auto px-6">
-          <h2 className="text-center text-2xl font-black mb-8">使い方</h2>
-          <ol className="space-y-4 max-w-md mx-auto">
-            {[
-              { n: 1, t: 'LINEでログイン', d: '下のボタンからLINEで1秒ログイン。アプリDL不要。' },
-              { n: 2, t: 'プロフィール登録', d: '年齢・性別・エリア・スコア帯を1分で登録。' },
-              { n: 3, t: 'ラウンドを募集 or 参加', d: '募集を作る／気になる募集に申し込む／ゴル友を招待する。' },
-              { n: 4, t: 'スイングをAIに見てもらう', d: '動画を送ると解析。スコアの推移と課題の改善が記録されます。' },
-              { n: 5, t: '相互レビューでゴル友に', d: 'ラウンド後に評価し合うとゴル友になり、メッセージでつながれます。' },
-            ].map((s) => (
-              <li key={s.n} className="flex gap-4 items-start">
-                <div className="w-9 h-9 rounded-full bg-green text-white flex items-center justify-center font-black text-sm flex-shrink-0">{s.n}</div>
-                <div>
-                  <div className="font-bold text-sm mb-0.5">{s.t}</div>
-                  <div className="text-[12px] text-sub leading-relaxed">{s.d}</div>
-                </div>
-              </li>
+        {/* 異性として気になる */}
+        <div className="chap">
+          <div className="no">💘</div>
+          <div>
+            <div className="lb">ROMANTIC</div>
+            <div className="tt">「異性として気になる」</div>
+          </div>
+        </div>
+        <p className="lead">ゴル友から先に進みたい人にも、同じ両想い方式が用意されています。</p>
+        <div className="card">
+          <h3>💘 こちらも両想いのときだけ</h3>
+          <p>「また回りたい」と同じく、<b>お互いが選んだときだけ</b>マッチします。選んだことが相手に伝わることはありません。</p>
+          <p>「異性として気になる」を選ぶと、「また回りたい」も自動的に含まれます。</p>
+        </div>
+        <div className="card">
+          <h3>☕ 会い方は、軽いものから選べる</h3>
+          <p>マッチしたら「OKな会い方」をお互いに選び、<b>重なったものだけ</b>が“お互いOK”になります。いきなり二人で会うのが不安でも大丈夫。</p>
+          <div className="chips">
+            {MEET_OPTIONS.map((o) => (
+              <span className="chip" key={o.key}>{o.emoji} {o.label}</span>
             ))}
-          </ol>
+          </div>
         </div>
-      </section>
 
-      {/* ゴルフ版MBTI 診断への導線（相互リンク + 集客ファネル） */}
-      <section className="max-w-3xl mx-auto px-6 py-12">
-        <div className="bg-card rounded-card p-7 shadow-card text-center">
-          <div className="text-[11px] font-bold tracking-[0.2em] text-green mb-2">GOLF MBTI</div>
-          <h2 className="text-2xl font-black mb-2">まずは「ゴルフ版MBTI」で自分のタイプ診断</h2>
-          <p className="text-[13px] text-sub leading-relaxed mb-6 max-w-md mx-auto">
-            12の質問に答えるだけ。ゴルトモの<b className="text-green">16タイプ・ゴルフ性格診断</b>で、あなたのゴルフ人格がわかります。同じタイプのゴル友ともつながれます。
-          </p>
-          <a
-            href="/golmoti.html"
-            className="inline-block px-6 py-3.5 bg-green text-white rounded-2xl font-black text-sm shadow-lg"
-          >
-            無料でゴルフMBTI診断をする →
-          </a>
-          <p className="mt-4 text-[13px] font-bold">
-            <a href="/type" className="text-green underline">
-              ゴルフ版MBTI 16タイプの一覧・解説を見る →
-            </a>
-          </p>
+        {/* 実績 */}
+        <div className="chap">
+          <div className="no">📊</div>
+          <div>
+            <div className="lb">PROFILE</div>
+            <div className="tt">「また回りたい」率が実績になる</div>
+          </div>
         </div>
-      </section>
-
-      {/* 構造化データ (JSON-LD) */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'WebSite',
-            name: 'ゴルトモ',
-            alternateName: ['GOLTOMO', 'ゴルフMBTI診断'],
-            url: 'https://goltomo.com/',
-            description:
-              'ゴル友マッチング × AIスイング解析のLINEアプリ。ゴルフ版MBTIの16タイプ性格診断で気の合うゴルファーとつながれる。',
-            publisher: { '@type': 'Organization', name: '合同会社シクミヤ', url: 'https://goltomo.com/' },
-          }),
-        }}
-      />
-
-      {/* Bottom CTA */}
-      <section className="bg-gradient-to-br from-green to-emerald-700 text-white py-14">
-        <div className="max-w-md mx-auto px-6 text-center">
-          <div className="text-2xl font-black mb-2">いますぐ始める</div>
-          <div className="text-sm opacity-90 mb-6">完全無料 ・ LINEログインのみ</div>
-          <StartButton className="inline-block w-full px-6 py-4 bg-white text-green rounded-2xl font-black text-base shadow-xl">
-            LINEで始める →
-          </StartButton>
+        <div className="card">
+          <p>プロフィールには、<b>これまで何人とラウンドして、そのうち何人が「また回りたい」と答えたか</b>が表示されます。いい人と回るほど、次に誘われやすくなる仕組みです。</p>
+          <div className="stat">
+            <div className="big">12<span style={{ fontSize: 18 }}>/14</span></div>
+            <div className="tx">14人と回って、12人が<br />「また回りたい」と回答</div>
+          </div>
+          <p style={{ fontSize: 11.5, color: '#8a7256', marginTop: 10 }}>※ 表示イメージです</p>
         </div>
-      </section>
 
-      <footer className="px-6 py-8 text-center text-[11px] text-muted">
-        <div className="space-x-3 mb-2">
-          <a href="/legal/terms" className="underline">利用規約</a>
-          <a href="/legal/privacy" className="underline">プライバシーポリシー</a>
+        {/* CTA */}
+        <div className="cta">
+          <h2>ゴルフ友達を<br />見つけにいく</h2>
+          <p>登録は無料。アプリのダウンロードは要りません。<br />まずはLINEログインだけ。</p>
+          <StartButton className="btn">LINEで始める →</StartButton>
+          <span className="sub">無料 ・ LINEログインのみ ・ 20〜30代限定</span>
         </div>
-        <div>© 2026 ゴルトモ (合同会社シクミヤ)</div>
-      </footer>
-    </main>
+
+        <div className="quiz">
+          <div className="t">⛳ どんなゴルファーか、先に知りたい人は</div>
+          <a href={DIAGNOSIS_URL}>ゴルフ版MBTI・16タイプ診断をしてみる →</a>
+        </div>
+
+        <footer>
+          <div className="fl">⛳ ゴルトモ</div>
+          © 2026 Goltomo（合同会社シクミヤ）
+        </footer>
+      </div>
+    </div>
   );
 }
