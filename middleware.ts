@@ -61,7 +61,7 @@ export default async function middleware(req: NextRequest) {
     }
     // /type と /type/[code] は SEO用の公開ページ（ゴルフ版MBTI 16タイプ）。
     // ここで通さないと、下の「それ以外は /lp に rewrite」に飲まれて LP が出てしまう。
-    if (path.startsWith('/legal') || path === '/lp' || path.startsWith('/lp/') || path.startsWith('/icons/') || path.startsWith('/golmoti-chars/') || path === '/manifest.json' || path === '/favicon.ico' || path === '/golmoti' || path === '/golmoti.html' || path === '/golmoti-lp' || path === '/golmoti-lp.html' || path === '/type' || path.startsWith('/type/')) {
+    if (path.startsWith('/legal') || path === '/lp' || path.startsWith('/lp/') || path.startsWith('/icons/') || path.startsWith('/golmoti-chars/') || path === '/manifest.json' || path === '/favicon.ico' || path === '/golmoti' || path === '/golmoti.html' || path === '/golmoti-lp' || path === '/golmoti-lp.html' || path === '/type' || path.startsWith('/type/') || path === '/service') {
       return NextResponse.next();
     }
     // Branded launch URL: goltomo.com/app → LIFF entry. Lets us share a
