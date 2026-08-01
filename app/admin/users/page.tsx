@@ -126,6 +126,36 @@ function Inner() {
     }
   }
 
+  // ユーザー完全削除（テストアカウントの後始末用）。誤削除防止に2段階確認＋名前一致。
+  async function deleteUser(u: Row) {
+    if (!token) return;
+    const nm = u.displayName || '';
+    if (!(await confirmDialog({
+      message: `⚠️ 「${nm}」を完全削除します。\nID: ${u.id}\n\nこのユーザーのDM・レビュー・マッチ・通知・参加ラウンドなどを含めて全て削除し、元に戻せません。\n（主催したラウンドも削除されます）\n\n本当に実行しますか？`,
+      danger: true, confirmText: '削除する',
+    }))) return;
+    if (!(await confirmDialog({
+      message: `最終確認：「${nm}」（ID: ${u.id.slice(0, 16)}…）を削除します。\nこの操作は取り消せません。`,
+      danger: true, confirmText: 'はい、完全に削除',
+    }))) return;
+    setBusyId(u.id);
+    try {
+      const r = await fetch(`/api/admin/delete-user?token=${encodeURIComponent(token)}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: u.id, confirmName: nm }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.message || j?.error || `${r.status}`);
+      setUsers((prev) => prev?.filter((x) => x.id !== u.id) || null);
+      const s = j.summary || {};
+      alertDialog(`✅「${nm}」を削除しました。\nDM ${s.chats_deleted || 0}件 / 主催ラウンド ${s.rounds_hosted_deleted || 0}件 / 参加解除 ${s.rounds_left || 0}件 / レビュー ${s.reviews_deleted || 0}件 / マッチ ${s.matchLikes_deleted || 0}件`);
+    } catch (e) {
+      alertDialog(`失敗: ${(e as Error).message}`);
+    } finally {
+      setBusyId('');
+    }
+  }
+
   // 部分制限のローカル編集（保存ボタンで永続化）。
   function editRestriction(id: string, patch: Partial<NonNullable<Row['restriction']>>) {
     setUsers((prev) => prev?.map((x) => x.id === id ? { ...x, restriction: { ...(x.restriction || {}), ...patch } } : x) || null);
@@ -237,6 +267,14 @@ function Inner() {
               } ${busyId === u.id ? 'opacity-50' : ''}`}
             >
               {busyId === u.id ? '...' : u.banned ? '🚫 赤バン中（タップで解除）' : '🚫 赤バン（ログイン不可・完全非表示）'}
+            </button>
+
+            <button
+              onClick={() => deleteUser(u)}
+              disabled={busyId === u.id}
+              className={`w-full mt-1.5 py-2.5 rounded-lg text-xs font-bold bg-red-50 text-red-700 border-[1.5px] border-red-300 ${busyId === u.id ? 'opacity-50' : ''}`}
+            >
+              {busyId === u.id ? '...' : '🗑 完全削除（取り消し不可・全データ削除）'}
             </button>
 
             {/* 部分制限（通報対応で機能を一部だけ止める） */}
