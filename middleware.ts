@@ -77,9 +77,12 @@ export default async function middleware(req: NextRequest) {
       // goltomo.com→app.goltomo.com のオリジンをまたげないため、URLで運ぶのが確実。
       const ref = (url.searchParams.get('ref') || url.searchParams.get('utm_source') || url.searchParams.get('source') || '')
         .toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 40);
+      // リッチメニューの入口タグ（?e=）も引き継ぐ（どのボタンから入ったか計測用）。
+      const e = (url.searchParams.get('e') || '').toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 40);
       const qs = new URLSearchParams();
       if (to) qs.set('to', to);
       if (ref) qs.set('ref', ref);
+      if (e) qs.set('e', e);
       const q = qs.toString();
       const target = `https://liff.line.me/${liffId}${q ? `?${q}` : ''}`;
       return NextResponse.redirect(target);

@@ -10,7 +10,8 @@ type Report = {
   activeUsers: { userId: string; name: string; count: number; lastTs: number; lastPage: string; lastActionTs: number; lastActionEvent: string; lastActionPage: string }[];
   popularPages?: { page: string; views: number; users: number; lastTs: number }[];
   acquisition?: { total: number; tagged: number; bySource: { source: string; count: number }[] };
-  recentActions: { userId: string; name: string; event: string; page: string; ts: number }[];
+  menuEntries?: { menu: string; count: number }[];
+  recentActions: { userId: string; name: string; event: string; page: string; pageNorm?: string; ts: number }[];
   swingUsers: { userId: string; name: string; total: number; done: number; lastAt: number }[];
   recentSwings: { userId: string; name: string; mode: string; status: string; createdAt: number }[];
 };
@@ -258,6 +259,29 @@ function Inner() {
             </div>
           </Section>
 
+          {/* リッチメニューからの入口 */}
+          <Section title="🔀 リッチメニューからの入口" sub="どのボタンからサービスに入ったか" count={(data.menuEntries || []).length}>
+            {(!data.menuEntries || data.menuEntries.length === 0) ? (
+              <div className="text-center text-[11px] text-muted py-4 leading-relaxed">
+                まだデータがありません。<br />リッチメニュー各ボタンのリンクを <b>?e=home</b> のようにタグ付けすると、ここに「どのボタンから入ったか」が並びます。
+              </div>
+            ) : (() => {
+              const max = Math.max(...data.menuEntries.map((m) => m.count)) || 1;
+              return data.menuEntries.map((m) => (
+                <div key={m.menu} className="py-2 border-b border-border last:border-0">
+                  <div className="flex items-baseline justify-between mb-1 gap-2">
+                    <span className="text-[13px] font-bold truncate">🔘 {m.menu}</span>
+                    <span className="text-[12px] font-black text-green flex-shrink-0">{m.count}回</span>
+                  </div>
+                  <div className="h-2 bg-bg rounded overflow-hidden"><div className="h-full bg-orange rounded" style={{ width: `${Math.round((m.count / max) * 100)}%` }} /></div>
+                </div>
+              ));
+            })()}
+            <div className="text-[10px] text-muted mt-2 leading-relaxed">
+              ※ リッチメニューの各ボタンのURLを <b>https://goltomo.com/app?to=/swing&amp;e=swing</b> のように <b>?e=◯◯</b> を付けて設定すると集計されます（<b>to</b>=開く画面 / <b>e</b>=ボタン名）。今日以降の入室から記録。
+            </div>
+          </Section>
+
           {/* 1. Active users */}
           <Section title="① いま使っているユーザー" sub="最近の操作／閲覧が新しい順" count={data.activeUsers.length}>
             {data.activeUsers.length === 0 ? <Empty /> : data.activeUsers.map((u) => {
@@ -284,7 +308,7 @@ function Inner() {
             {data.recentActions.length === 0 ? <Empty /> : data.recentActions.map((a, i) => (
               <div key={i} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
                 <div className="min-w-0 flex-1">
-                  <div className="text-[12px] font-semibold truncate">{a.name} <span className="text-muted font-normal">/ {eventJa(a.event)}</span></div>
+                  <div className="text-[12px] font-semibold truncate">{a.name} <span className="text-muted font-normal">/ {a.event === 'page_view' ? `📱 ${pageLabel(a.pageNorm || a.page)}を開いた` : eventJa(a.event)}</span></div>
                   <div className="text-[9px] text-muted truncate">{a.page}</div>
                 </div>
                 <div className="text-[10px] text-muted flex-shrink-0 ml-2">{ago(a.ts)}</div>

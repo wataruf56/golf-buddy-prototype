@@ -44,9 +44,10 @@ export async function GET(req: NextRequest) {
     const logSnap = await db.collection('_logs').orderBy('ts', 'desc').limit(4000).get();
     const logs = logSnap.docs.map((d: any) => d.data());
 
-    // 「操作」に数えないノイズ系イベント（アプリ起動・画面表示など）。
-    // ①いま使っているユーザー・②直近の操作ログの両方で同じ定義を使い、表示を一致させる。
-    const HIDDEN_EVENTS = new Set(['app_open', 'hydrate_success', 'hydrate_error', 'page_view', 'mypage_render']);
+    // ①いま使っているユーザーの「最後の操作」は実操作のみ（画面表示は除く）。
+    const ACTION_HIDDEN = new Set(['app_open', 'hydrate_success', 'hydrate_error', 'page_view', 'mypage_render', 'menu_entry']);
+    // ②直近の操作ログは「画面（タブ）を開いた」も残す（アプリ起動系だけ除外）。
+    const LOG_HIDDEN = new Set(['app_open', 'hydrate_success', 'hydrate_error', 'mypage_render', 'menu_entry']);
 
     // Per-user rollup。lastTs=最後の活動(閲覧含む)、lastActionTs=最後の“操作”(②に出るもの)。
     const perUser: Record<string, {
@@ -63,7 +64,7 @@ export async function GET(req: NextRequest) {
         perUser[uid].lastPage = l.page || '';
       }
       // 最後の「操作」（②直近の操作ログに出るのと同じ種類）を別途保持。
-      if (l.event && !HIDDEN_EVENTS.has(l.event) && (l.ts || 0) > perUser[uid].lastActionTs) {
+      if (l.event && !ACTION_HIDDEN.has(l.event) && (l.ts || 0) > perUser[uid].lastActionTs) {
         perUser[uid].lastActionTs = l.ts || 0;
         perUser[uid].lastActionEvent = l.event;
         perUser[uid].lastActionPage = l.page || '';
@@ -75,9 +76,21 @@ export async function GET(req: NextRequest) {
     // ①いま使っているユーザーが参照する“最後の操作”を確実に含めるため、取得した窓内の
     // 操作は基本すべて出す（上限は表示保護として大きめ）。これで①と②が食い違わない。
     const recentActions = logs
-      .filter((l: any) => l.event && !HIDDEN_EVENTS.has(l.event))
+      .filter((l: any) => l.event && !LOG_HIDDEN.has(l.event))
       .slice(0, 500)
-      .map((l: any) => ({ userId: l.userId, event: l.event, page: l.page, ts: l.ts }));
+      .map((l: any) => ({ userId: l.userId, event: l.event, page: l.page, pageNorm: normPage(l.page || ''), ts: l.ts }));
+
+    // リッチメニューからの入口（?e= を付けたリンク経由の menu_entry を集計）。
+    let menuEntries: Array<{ menu: string; count: number }> = [];
+    try {
+      const meSnap = await db.collection('_logs').where('event', '==', 'menu_entry').limit(3000).get();
+      const byMenu: Record<string, number> = {};
+      meSnap.docs.forEach((d: any) => {
+        const menu = String(d.data()?.data?.menu || 'unknown').slice(0, 40);
+        byMenu[menu] = (byMenu[menu] || 0) + 1;
+      });
+      menuEntries = Object.entries(byMenu).map(([menu, count]) => ({ menu, count })).sort((a, b) => b.count - a.count);
+    } catch { /* index無し等でも致命的でない */ }
 
     // 人気の画面：直近でユーザーがよく開いている画面（page_view を集計）。
     // ID付きの動的画面はまとめる。直近7日ぶんに絞る。
@@ -176,6 +189,7 @@ export async function GET(req: NextRequest) {
       activeUsers: activeUsers.slice(0, 100),
       popularPages,
       acquisition,
+      menuEntries,
       recentActions: recentActions.map((a: any) => ({ ...a, name: nameOf(a.userId) })),
       swingUsers,
       recentSwings,

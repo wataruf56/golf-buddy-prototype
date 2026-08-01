@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { track } from '@/lib/telemetry';
 
 // LIFF entry: initialize SDK → ensure logged in → exchange idToken for our cookie → redirect.
 // Default redirect target is /home, override with ?to=/round/xxx etc.
@@ -106,6 +107,12 @@ function LiffEntryInner() {
           }
           throw new Error(`auth failed: ${res.status} ${text.slice(0, 200)}`);
         }
+
+        // リッチメニューからの入口（?e=）を記録。ログイン確立後に送る（userIdが付く）。
+        try {
+          const e = (search?.get('e') || '').toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 40);
+          if (e) track('menu_entry', { menu: e });
+        } catch {}
 
         setStatus('完了。ホームへ移動します...');
         router.replace(to);
