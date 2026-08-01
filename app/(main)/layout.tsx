@@ -22,7 +22,7 @@ import { isMatchingAllowedByAge } from '@/lib/ageGate';
 // round page itself enforces the profile gate.
 // /poll (日程調整) works the same way: the shared poll must be viewable without
 // login/profile, and the answer buttons enforce the profile gate themselves.
-const ALWAYS_ALLOWED = ['/guide', '/swing', '/mypage', '/profile', '/admin', '/legal', '/round', '/poll', '/qr', '/add-friend'];
+const ALWAYS_ALLOWED = ['/guide', '/swing', '/mypage', '/profile', '/admin', '/legal', '/round', '/rounds', '/poll', '/qr', '/add-friend'];
 
 function needsMatchingAccess(pathname: string): boolean {
   if (!pathname) return false;
