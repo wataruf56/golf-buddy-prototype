@@ -39,7 +39,9 @@ export async function GET(req: NextRequest) {
   const now = Date.now();
   try {
     // --- 1+2) Activity from client telemetry ---
-    const logSnap = await db.collection('_logs').orderBy('ts', 'desc').limit(2000).get();
+    // page_view が大量に混ざるため広めに取得。①が参照する操作が②に必ず含まれるよう、
+    // ②の表示件数も十分に増やして（下記 slice）窓を揃える。
+    const logSnap = await db.collection('_logs').orderBy('ts', 'desc').limit(4000).get();
     const logs = logSnap.docs.map((d: any) => d.data());
 
     // 「操作」に数えないノイズ系イベント（アプリ起動・画面表示など）。
@@ -70,9 +72,11 @@ export async function GET(req: NextRequest) {
 
     // Recent raw actions（直近の操作ログ）。「アプリを開いた／アプリ起動／画面表示」系は
     // ノイズなので除外して、実際の操作だけを見やすく並べる。
+    // ①いま使っているユーザーが参照する“最後の操作”を確実に含めるため、取得した窓内の
+    // 操作は基本すべて出す（上限は表示保護として大きめ）。これで①と②が食い違わない。
     const recentActions = logs
       .filter((l: any) => l.event && !HIDDEN_EVENTS.has(l.event))
-      .slice(0, 80)
+      .slice(0, 500)
       .map((l: any) => ({ userId: l.userId, event: l.event, page: l.page, ts: l.ts }));
 
     // 人気の画面：直近でユーザーがよく開いている画面（page_view を集計）。
