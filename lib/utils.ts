@@ -13,6 +13,15 @@ export function formatDate(d?: string) {
   return `${dt.getMonth() + 1}/${dt.getDate()}（${days[dt.getDay()]}）`;
 }
 
+// 「また回りたい率」を5段階(0〜5・0.5刻み)の星に写像する。プロフィール上部の★と
+// チャットヘッダーの★で同じ実装を使い、リアルタイム(track-record)で一致させる。
+// roundedWith=レビューをくれた人数、neverCount=「ごめんなさい」を付けた人数。
+export function revisitStar(roundedWith?: number, neverCount?: number): number {
+  const rw = roundedWith || 0;
+  if (rw <= 0) return 0;
+  return Math.round((1 - (neverCount || 0) / rw) * 5 * 2) / 2;
+}
+
 // ms タイムスタンプを「たった今 / ◯分前 / ◯時間前 / ◯日前 / M/D」の相対表記にする。
 // 「見に来た人」の閲覧時刻などの表示用。7日以上前は日付（M/D）にフォールバック。
 export function timeAgo(ms?: number): string {

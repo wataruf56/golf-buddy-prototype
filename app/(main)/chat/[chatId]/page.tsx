@@ -1,14 +1,26 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { store, useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { toast } from '@/components/Toast';
-import { ratingLabel } from '@/lib/utils';
+import { revisitStar } from '@/lib/utils';
 import { resizeImage } from '@/lib/resizeImage';
 import { track } from '@/lib/telemetry';
+
+const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
+// メッセージの日付区切り用。年月日＋曜日を必ず出す（何年のメッセージか一目で分かるように）。
+function fullDateLabel(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日(${WEEKDAYS[d.getDay()]})`;
+}
+// 同じ日かどうかの判定キー（ローカル時刻ベース）。
+function dayKey(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
 
 export default function ChatPage() {
   const params = useParams<{ chatId: string }>();
@@ -43,6 +55,23 @@ export default function ChatPage() {
     return () => { cancelled = true; };
   }, [otherId, !!storeOther]);
   const other = storeOther || fetchedOther;
+
+  // 相手の評価は「また回りたい率」をリアルタイムに算出して表示する（user.reviewAvg は
+  // 非正規化で古くなるため使わない。プロフィール上部と同じ track-record を使い一致させる）。
+  const [otherTrack, setOtherTrack] = useState<{ roundedWith: number; neverCount: number } | null>(null);
+  useEffect(() => {
+    setOtherTrack(null);
+    if (!otherId) return;
+    let cancelled = false;
+    fetch(`/api/users/${encodeURIComponent(otherId)}/track-record`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled && d) setOtherTrack({ roundedWith: d.roundedWith || 0, neverCount: d.neverCount || 0 }); })
+      .catch(() => { /* noop */ });
+    return () => { cancelled = true; };
+  }, [otherId]);
+  const ratingText = otherTrack && otherTrack.roundedWith > 0
+    ? `★${revisitStar(otherTrack.roundedWith, otherTrack.neverCount).toFixed(1)}（${otherTrack.roundedWith}）`
+    : '🆕 初参加';
 
   useEffect(() => {
     if (!params.chatId) return;
@@ -125,7 +154,7 @@ export default function ChatPage() {
           <Avatar user={other} size={36} />
           <div className="flex-1 min-w-0">
             <div className="text-[15px] font-bold truncate">{other.displayName}</div>
-            <div className="text-[11px] text-sub truncate">タップでプロフィール ・ {ratingLabel(other)}{other.scoreRange ? ' ・ ' + other.scoreRange : ''}</div>
+            <div className="text-[11px] text-sub truncate">タップでプロフィール ・ {ratingText}{other.scoreRange ? ' ・ ' + other.scoreRange : ''}</div>
           </div>
           <span className="text-muted text-sm">›</span>
         </Link>
@@ -135,25 +164,34 @@ export default function ChatPage() {
         {messages.length === 0 && (
           <div className="text-center my-10 text-sub text-sm">最初のメッセージを送ってみましょう 💬</div>
         )}
-        {messages.map((m) => {
+        {messages.map((m, i) => {
           const mine = m.senderId === meId;
+          // 日付が変わる先頭で「YYYY年M月D日(曜)」の区切りを出す（何年何月何日か明確に）。
+          const showDivider = i === 0 || dayKey(m.createdAt) !== dayKey(messages[i - 1].createdAt);
           return (
-            <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className={`max-w-[75%] px-3.5 py-2.5 text-sm leading-relaxed ${mine ? 'bg-green text-white' : 'bg-card text-text shadow-card'}`}
-                style={{ borderRadius: mine ? '14px 14px 4px 14px' : '14px 14px 14px 4px' }}
-              >
-                {(m as any).imageUrl && (
-                  <a href={(m as any).imageUrl} target="_blank" rel="noopener noreferrer" className="block mb-1">
-                    <img src={(m as any).imageUrl} alt="画像" className="rounded-lg max-w-full max-h-60 object-cover" />
-                  </a>
-                )}
-                {m.text && <div className="whitespace-pre-wrap">{m.text}</div>}
-                <div className={`text-[10px] mt-1 text-right ${mine ? 'text-white/60' : 'text-muted'}`}>
-                  {new Date(m.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+            <Fragment key={m.id}>
+              {showDivider && (
+                <div className="flex justify-center my-1.5">
+                  <span className="text-[10px] font-bold text-sub bg-bg px-3 py-1 rounded-full">{fullDateLabel(m.createdAt)}</span>
+                </div>
+              )}
+              <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                <div
+                  className={`max-w-[75%] px-3.5 py-2.5 text-sm leading-relaxed ${mine ? 'bg-green text-white' : 'bg-card text-text shadow-card'}`}
+                  style={{ borderRadius: mine ? '14px 14px 4px 14px' : '14px 14px 14px 4px' }}
+                >
+                  {(m as any).imageUrl && (
+                    <a href={(m as any).imageUrl} target="_blank" rel="noopener noreferrer" className="block mb-1">
+                      <img src={(m as any).imageUrl} alt="画像" className="rounded-lg max-w-full max-h-60 object-cover" />
+                    </a>
+                  )}
+                  {m.text && <div className="whitespace-pre-wrap">{m.text}</div>}
+                  <div className={`text-[10px] mt-1 text-right ${mine ? 'text-white/60' : 'text-muted'}`}>
+                    {new Date(m.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                  </div>
                 </div>
               </div>
-            </div>
+            </Fragment>
           );
         })}
       </div>
