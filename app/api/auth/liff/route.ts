@@ -84,12 +84,19 @@ export async function POST(req: NextRequest) {
       } as any);
       isNewUser = true;
     } else {
-      // 既存ユーザーの補完（初期値のときだけ。ユーザーが自分で設定した値は上書きしない）。
+      // 既存ユーザーの補完。
       const patch: Record<string, unknown> = {};
-      // アイコン未カスタム（写真URL無し＆avatarMode未設定＝初期の絵文字のまま）なら
-      // LINEのトップ画を初期アイコンに入れる。写真アップ/絵文字選択/診断アイコンは avatarMode が入るので対象外。
-      if (picture && !existing.avatarUrl && !(existing as any).avatarMode) {
+      // アイコンをLINE画像へ寄せる：自分で「写真をアップロードした人」だけ保護し、それ以外
+      // （絵文字／診断アイコン／初期設定）は最新のLINEトップ画に切り替え、以後ログインのたびに同期する。
+      // 自前アップ写真の判定＝avatarUrlがLINE由来(line-scdn)でない写真。診断/絵文字を選んだ人は
+      // その avatarUrl(あれば)がLINE由来でなくても“写真アップ”ではないので対象（LINE画像へ）。
+      const curUrl = String(existing.avatarUrl || '');
+      const isLineUrl = /line-scdn\.net/i.test(curUrl);
+      const curMode = (existing as any).avatarMode;
+      const ownUploadedPhoto = !!curUrl && !isLineUrl && curMode !== 'emoji' && curMode !== 'golmoti';
+      if (picture && !ownUploadedPhoto) {
         patch.avatarUrl = picture;
+        patch.avatarMode = 'photo'; // 絵文字/診断モードでも写真表示にする（LINE画像を出すため）
       }
       // 名前が初期値（未設定 or 自動生成の「ゴルファー」）のままなら、LINEの表示名で補完。
       // これで、ユーザードキュメントが初期化などで作り直されて「ゴルファー」になった人も、
