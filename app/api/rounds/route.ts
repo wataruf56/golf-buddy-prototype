@@ -7,7 +7,10 @@ import { levelConditionLabel } from '@/lib/roundEligibility';
 import type { Round } from '@/lib/types';
 
 export async function GET() {
-  const rounds = await db.listRounds({ status: 'open' });
+  const raw = await db.listRounds({ status: 'open' });
+  // 「見に来た人」(viewedBy) と組み分け希望(groupPrefs) は主催者限定。汎用一覧では必ず落とす。
+  const { stripViews, stripGroupPrefsForViewer } = await import('@/lib/roundView');
+  const rounds = raw.map((r) => stripViews(stripGroupPrefsForViewer(r, null)));
   return NextResponse.json({ rounds });
 }
 
