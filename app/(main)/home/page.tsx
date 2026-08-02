@@ -25,6 +25,9 @@ function relTime(ts: number): string {
 const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 const BOT_BASIC_ID = process.env.NEXT_PUBLIC_LINE_BOT_BASIC_ID || '';
 
+// 「直近1時間にログインした人数」表示のON/OFF。一旦非表示（再表示は true に戻す）。
+const SHOW_ACTIVE_NOW = false;
+
 export default function HomePage() {
   const router = useRouter();
   const me = useStore(getMe);
@@ -40,6 +43,7 @@ export default function HomePage() {
   // 直近1時間にログイン（アプリを開いた）人数。ホーム上部に「いま何人来ているか」を出す。
   const [activeNow, setActiveNow] = useState<number | null>(null);
   useEffect(() => {
+    if (!SHOW_ACTIVE_NOW) return; // 非表示中はAPIも叩かない
     let cancelled = false;
     fetch('/api/stats/active-now', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
@@ -191,8 +195,8 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* いま何人が来ているか（直近1時間にアプリを開いた人数）。にぎわいを可視化。 */}
-      {activeNow != null && activeNow > 0 && (
+      {/* いま何人が来ているか（直近1時間にアプリを開いた人数）。にぎわいを可視化。※一旦非表示中。 */}
+      {SHOW_ACTIVE_NOW && activeNow != null && activeNow > 0 && (
         <div className="px-5 pb-3">
           <div className="inline-flex items-center gap-2 bg-green-light border border-green rounded-full px-3.5 py-1.5">
             <span className="relative flex h-2 w-2">
