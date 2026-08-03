@@ -210,6 +210,15 @@ export default function TypePage({ params }: { params: { code: string } }) {
         </dl>
       </section>
 
+      {/* ラウンド当日の様子。16ページが定型文ばかりだと薄い/重複ページ扱いになるので、
+          タイプ固有の読み物をここで足している（データは lib/golmoti.ts）。 */}
+      <section className="max-w-2xl mx-auto px-5 py-2">
+        <h2 className="text-lg font-black mb-2">{t.name}のラウンド当日</h2>
+        <div className="bg-card border-2 border-border rounded-card shadow-card p-5">
+          <p className="text-[14.5px] leading-relaxed">{d.scene}</p>
+        </div>
+      </section>
+
       {/* 相性 */}
       <section className="max-w-2xl mx-auto px-5 py-4">
         <h2 className="text-lg font-black mb-2">{t.name}と相性のいいゴルフタイプ</h2>
@@ -241,6 +250,22 @@ export default function TypePage({ params }: { params: { code: string } }) {
               </Link>
             ) : null
           )}
+        </div>
+      </section>
+
+      {/* 同伴者目線のコツ／向いている募集。マッチングという商品に直結する情報で、
+          「このタイプの人とどう回るか」の検索意図も拾える。 */}
+      <section className="max-w-2xl mx-auto px-5 py-2">
+        <h2 className="text-lg font-black mb-2">{t.name}と一緒に回るときのコツ</h2>
+        <div className="bg-card border-2 border-border rounded-card shadow-card p-5">
+          <p className="text-[14.5px] leading-relaxed">{d.partner}</p>
+        </div>
+      </section>
+
+      <section className="max-w-2xl mx-auto px-5 py-2">
+        <h2 className="text-lg font-black mb-2">{t.name}に向いているコース・募集</h2>
+        <div className="bg-card border-2 border-border rounded-card shadow-card p-5">
+          <p className="text-[14.5px] leading-relaxed">{d.course}</p>
         </div>
       </section>
 
