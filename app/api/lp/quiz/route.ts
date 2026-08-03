@@ -266,21 +266,73 @@ export async function GET(req: NextRequest) {
       ua: String(x.ua || '').slice(0, 60),
     }));
 
-    // LINEアカウントと紐付いた通知希望（_lpSignal）。③で保存される個人単位データ。
+    // LINEアカウントと紐付いた興味登録（_lpSignal）＝「回答してLINEログインした個人」。
+    // 誰が・どのタイプで・どのエリア×曜日を待っているかを個人単位で吸い上げる。
     let linkedSignals = 0;
     const linkedUsers = new Set<string>();
+    let linkedList: any[] = [];
     try {
-      const sigSnap = await db.collection('_lpSignal').limit(5000).get();
-      sigSnap.docs.forEach((d: any) => {
-        const x = d.data();
-        linkedSignals++;
-        if (x.lineUserId) linkedUsers.add(x.lineUserId);
-      });
+      const sigSnap = await db.collection('_lpSignal').orderBy('ts', 'desc').limit(5000).get()
+        .catch(async () => db.collection('_lpSignal').limit(5000).get()); // ts索引が無い環境向けフォールバック
+      const sigDocs = sigSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+      linkedSignals = sigDocs.length;
+      for (const x of sigDocs) if (x.lineUserId) linkedUsers.add(x.lineUserId);
+
+      // 氏名・登録状況は最新の users を join して補完（保存時の値が古くても最新に）。
+      const ids = Array.from(new Set(sigDocs.map((x: any) => x.lineUserId).filter(Boolean)));
+      const userById: Record<string, any> = {};
+      for (let i = 0; i < ids.length; i += 30) {
+        const chunk = ids.slice(i, i + 30);
+        if (!chunk.length) continue;
+        try {
+          const us = await db.collection('users').where('__name__', 'in', chunk).get();
+          us.docs.forEach((u: any) => { userById[u.id] = u.data(); });
+        } catch { /* 続行 */ }
+      }
+      linkedList = sigDocs
+        .sort((a: any, b: any) => (b.ts || 0) - (a.ts || 0))
+        .slice(0, 2000)
+        .map((x: any) => {
+          const u = userById[x.lineUserId] || {};
+          const age = typeof u.age === 'number' ? u.age : (typeof x.age === 'number' ? x.age : null);
+          return {
+            lineUserId: x.lineUserId || '',
+            displayName: u.displayName || x.displayName || '(名前なし)',
+            avatarUrl: u.avatarUrl || x.avatarUrl || '',
+            registered: typeof age === 'number' && age > 0,
+            age,
+            gender: u.gender || x.gender || '',
+            userArea: u.area || x.userArea || '',
+            botFollowed: u.botFollowed === true,
+            resultType: x.resultType || '',
+            areas: Array.isArray(x.areas) ? x.areas : [],
+            days: Array.isArray(x.days) ? x.days : [],
+            pickup: x.pickup || '',
+            pickupPlaces: Array.isArray(x.pickupPlaces) ? x.pickupPlaces : [],
+            ts: x.ts || 0,
+          };
+        });
     } catch { /* コレクション未作成等は無視 */ }
+
+    // LINE連携者のCSV書き出し（個人単位で吸い上げる用）。
+    if (format === 'linked') {
+      const cols = ['ts', 'datetimeJST', 'displayName', 'lineUserId', 'registered', 'age', 'gender', 'userArea', 'botFollowed', 'resultType', 'areas', 'days', 'pickup', 'pickupPlaces'];
+      const esc = (v: any) => {
+        if (v == null) return '';
+        const str = Array.isArray(v) ? v.join('|') : String(v);
+        return /[",\n]/.test(str) ? '"' + str.replace(/"/g, '""') + '"' : str;
+      };
+      const jst = (ts: any) => { try { return new Date((Number(ts) || 0) + 9 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 19); } catch { return ''; } };
+      const lines = [cols.join(',')];
+      for (const d of linkedList) lines.push(cols.map((c) => esc(c === 'datetimeJST' ? jst(d.ts) : (d as any)[c])).join(','));
+      const csv = '﻿' + lines.join('\n');
+      return new NextResponse(csv, { headers: { ...cors, 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="lp-line-registrants.csv"` } });
+    }
 
     return NextResponse.json({
       linkedSignals,
       linkedUsers: linkedUsers.size,
+      linkedList,
       scanned: docs.length,
       uniqueSessions: sessions.size,
       uniqueVisitors: visitors.size,

@@ -10,6 +10,13 @@ import { getGolmotiType } from '@/lib/golmoti';
 // 管理画面：LP診断レポート。/api/lp/quiz の集計（ADMIN_LOG_TOKEN 保護）を
 // 取得して、来訪〜診断〜興味シグナルのファネル・需要プール・離脱を可視化する。
 
+// LINE連携した興味登録者（回答してLINEログインした個人）。
+type LinkedRegistrant = {
+  lineUserId: string; displayName: string; avatarUrl?: string;
+  registered?: boolean; age?: number | null; gender?: string; userArea?: string; botFollowed?: boolean;
+  resultType?: string; areas?: string[]; days?: string[]; pickup?: string; pickupPlaces?: string[]; ts?: number;
+};
+
 type Report = {
   scanned: number;
   uniqueSessions: number;
@@ -27,6 +34,7 @@ type Report = {
   uniqueSignalVisitors: number;
   linkedSignals: number;
   linkedUsers: number;
+  linkedList?: LinkedRegistrant[];
   byResult: Record<string, number>;
   byPattern: Record<string, number>;
   byOption: Record<string, Record<string, number>>;
@@ -189,6 +197,7 @@ function Inner() {
             <>
               <StatGrid data={data} />
               <Funnel data={data} />
+              <LinkedRegistrants list={data.linkedList || []} token={token} />
               <Engagement data={data} />
               <UniqueBreakdown data={data} />
               <Daily daily={data.daily} />
@@ -276,6 +285,53 @@ function Funnel({ data }: { data: Report }) {
           <span className="text-muted">（{data.linkedSignals ?? 0} 件）</span>
         </div>
       </div>
+    </Card>
+  );
+}
+
+// LINE連携した興味登録者（個人）の一覧。誰が・どのタイプで・どのエリア×曜日を待っているか。
+function LinkedRegistrants({ list, token }: { list: LinkedRegistrant[]; token: string }) {
+  const jst = (ts?: number) => { try { return new Date((Number(ts) || 0) + 9 * 3600 * 1000).toISOString().replace('T', ' ').slice(5, 16); } catch { return ''; } };
+  return (
+    <Card
+      title="LINE連携した興味登録者（個人）"
+      sub={`回答してLINEログインした ${list.length} 人。氏名・希望エリア/曜日・送迎まで吸い上げ`}
+    >
+      <div className="flex justify-end mb-2">
+        <a href={`/api/lp/quiz?token=${encodeURIComponent(token)}&format=linked`} className="text-[12px] px-3 py-1.5 rounded-lg bg-blue text-white font-bold">⬇ この一覧をCSV</a>
+      </div>
+      {list.length === 0 ? (
+        <div className="text-[12px] text-muted">まだLINE連携した興味登録者がいません。</div>
+      ) : (
+        <div className="flex flex-col gap-1.5 max-h-[420px] overflow-y-auto">
+          {list.map((u, i) => (
+            <div key={u.lineUserId + i} className="flex items-start gap-2.5 p-2.5 bg-bg rounded-[10px]">
+              {u.avatarUrl
+                ? <img src={u.avatarUrl} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                : <div className="w-9 h-9 rounded-full bg-green-light flex items-center justify-center text-sm flex-shrink-0">⛳</div>}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[13px] font-bold truncate">{u.displayName}</span>
+                  {u.resultType && <span className="text-[10px] font-black px-1.5 py-px rounded-full bg-green-light text-green">{u.resultType}</span>}
+                  {u.registered
+                    ? <span className="text-[10px] font-black px-1.5 py-px rounded-full bg-blue-light text-blue">登録済み</span>
+                    : <span className="text-[10px] font-black px-1.5 py-px rounded-full bg-bg border border-border text-sub">診断のみ</span>}
+                  {u.botFollowed && <span className="text-[10px] font-bold text-green">✓友だち</span>}
+                </div>
+                <div className="text-[11px] text-sub mt-0.5">
+                  {(u.areas || []).length > 0 && <>📍 {(u.areas || []).join('・')} </>}
+                  {(u.days || []).length > 0 && <>／ {(u.days || []).join('・')} </>}
+                  {u.pickup && <>／ 🚗 {u.pickup}</>}
+                </div>
+                {(u.pickupPlaces || []).length > 0 && (
+                  <div className="text-[10px] text-muted mt-0.5">送迎駅: {(u.pickupPlaces || []).join('・')}</div>
+                )}
+              </div>
+              <div className="text-[10px] text-muted flex-shrink-0 whitespace-nowrap">{jst(u.ts)}</div>
+            </div>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }
