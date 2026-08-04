@@ -191,20 +191,10 @@ html body{background:#F4E8CE}
 .sv .wrap{padding-bottom:88px}
 `;
 
-const WD = ['日', '月', '火', '水', '木', '金', '土'];
-function fmtDate(d?: string) {
-  if (!d) return '';
-  const dt = new Date(d);
-  if (isNaN(dt.getTime())) return d;
-  return `${dt.getMonth() + 1}/${dt.getDate()}(${WD[dt.getDay()]})`;
-}
-
-type LpCard = { id: string; title: string; drink: boolean; official: boolean; date: string; start: string; place: string; remaining: number; host: string };
-
-// トップLPの「社会的証明」と「今募集中」を実データから作る。失敗しても LP 本体は必ず描画する。
-async function getLpData(): Promise<{ cards: LpCard[]; openCount: number; activeNow: number }> {
+// トップLPの「社会的証明」（募集中件数・直近1hログイン数）を実データから作る。
+// 失敗しても LP 本体は必ず描画する（各表示は呼び出し側で少数時に非表示）。
+async function getLpData(): Promise<{ openCount: number; activeNow: number }> {
   const now = Date.now();
-  let cards: LpCard[] = [];
   let openCount = 0;
   let activeNow = 0;
   try {
@@ -219,29 +209,7 @@ async function getLpData(): Promise<{ cards: LpCard[]; openCount: number; active
       seen.add(r.id);
       return r.status === 'open' && !String(r.hostId || '').startsWith('test_');
     });
-    rounds.sort((a, b) => {
-      const am = a.date ? new Date(a.date).getTime() : Infinity;
-      const bm = b.date ? new Date(b.date).getTime() : Infinity;
-      return am - bm;
-    });
     openCount = rounds.length;
-    const top = rounds.slice(0, 3);
-    let names: Record<string, string> = {};
-    try {
-      const us = await db.listUsers(Array.from(new Set(top.map((r) => r.hostId).filter(Boolean))));
-      names = Object.fromEntries(us.map((u) => [u.id, u.displayName || '']));
-    } catch { /* noop */ }
-    cards = top.map((r) => ({
-      id: r.id,
-      title: r.title,
-      drink: r.eventType === 'drink',
-      official: !!r.isOfficial,
-      date: r.dateType === 'range' ? (r.dateRange || '日程調整中') : (r.date ? fmtDate(r.date) : '日程未定'),
-      start: r.startTime || '',
-      place: r.eventType === 'drink' ? (r.venue || r.area || '場所未定') : (r.courseName || r.area || 'エリア未定'),
-      remaining: Math.max(0, r.maxSpots - r.currentCount),
-      host: r.isOfficial ? '' : (names[r.hostId] || ''),
-    }));
   } catch { /* DBが不調でもLPは出す */ }
   try {
     const { getAdminDb } = await import('@/lib/firebase');
@@ -251,7 +219,7 @@ async function getLpData(): Promise<{ cards: LpCard[]; openCount: number; active
       activeNow = agg.data().count || 0;
     }
   } catch { /* noop */ }
-  return { cards, openCount, activeNow };
+  return { openCount, activeNow };
 }
 
 const JSON_LD = {
@@ -266,7 +234,7 @@ const JSON_LD = {
 };
 
 export default async function LandingPage() {
-  const { cards, openCount, activeNow } = await getLpData();
+  const { openCount, activeNow } = await getLpData();
   // 数字は少ないと逆効果なので、十分あるときだけ出す（実データ・虚偽なし）。
   const showOpen = openCount >= 3;
   const showActive = activeNow >= 3;
@@ -325,7 +293,7 @@ export default async function LandingPage() {
         {/* 上部CTA（ファーストビューで登録に進めるように） */}
         <div className="cta2">
           <StartButton className="p">💬 LINEで無料ではじめる</StartButton>
-          <a className="s" href="#rounds">⛳ 募集中のラウンドを見る</a>
+          <a className="s" href={`${APP}/links/rounds`}>⛳ 募集中のラウンドを見る</a>
           <div className="mc">LINEログインのみ ・ 約30秒で完了 ・ アプリDL不要</div>
         </div>
 
@@ -337,31 +305,6 @@ export default async function LandingPage() {
           </div>
         )}
 
-        {/* 今募集中のラウンド（実データ・あるときだけ） */}
-        {cards.length > 0 && (
-          <>
-            <div className="chap" id="rounds">
-              <div className="no">⛳</div>
-              <div>
-                <div className="lb">ROUNDS</div>
-                <div className="tt">今こんな募集が動いてます</div>
-              </div>
-            </div>
-            {cards.map((c) => (
-              <a className="rc" key={c.id} href={`${APP}/round/${c.id}`}>
-                <span className="e">{c.drink ? '🍻' : c.official ? '🏆' : '⛳'}</span>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div className="ttl">{c.title}</div>
-                  <div className="meta">📅 {c.date}{c.start ? ` ${c.start}` : ''} ・ 📍 {c.place}{c.host ? ` ・ 主催: ${c.host}` : ''}</div>
-                </div>
-                {c.drink
-                  ? <span className="tag o">定員なし</span>
-                  : c.remaining > 0 ? <span className="tag g">残り{c.remaining}枠</span> : <span className="tag o">満員</span>}
-                <span className="chev">›</span>
-              </a>
-            ))}
-          </>
-        )}
 
         {/* 公式コンペの男女比配慮（女性が孤立しないよう組み分け） */}
         <div className="comp">
