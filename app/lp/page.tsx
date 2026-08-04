@@ -85,11 +85,15 @@ html body{background:#F4E8CE}
 .sv .bd{display:flex;align-items:baseline;gap:10px;background:var(--cream);border:2.5px solid var(--ink);
   border-radius:14px;box-shadow:3px 3px 0 var(--ink);padding:11px 15px;font-size:12.5px;font-weight:700;color:#6b5a44}
 .sv .bd b{font-size:13.5px;font-weight:900;color:var(--ink);white-space:nowrap}
-/* メリット（ヒーロー直下・大きめ2×2で一目で伝える） */
-.sv .merit{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px 18px 0}
-.sv .merit .m{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;background:var(--cream);border:2.5px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--ink);padding:16px 8px}
-.sv .merit .m .i{font-size:30px;line-height:1}
-.sv .merit .m .t{font-size:15px;font-weight:900;color:var(--ink);line-height:1.3}
+/* 3大メリット（ヒーロー直下・大きく・一目で） */
+.sv .big3{display:flex;flex-direction:column;gap:11px;padding:16px 18px 0}
+.sv .big3 .b{display:flex;gap:13px;align-items:flex-start;background:var(--cream);border:2.5px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--ink);padding:15px}
+.sv .big3 .b .ic{font-size:30px;line-height:1;flex:none}
+.sv .big3 .b .tt{font-size:16px;font-weight:900;line-height:1.35}
+.sv .big3 .b .ds{font-size:12.5px;font-weight:700;color:#6b5a44;margin-top:4px;line-height:1.65}
+.sv .big3 .b .rev{display:inline-flex;align-items:center;gap:8px;margin-top:8px;background:var(--paper);border:2px solid var(--ink);border-radius:10px;padding:5px 9px}
+.sv .big3 .b .rev .st{color:var(--mustard);font-size:14px;letter-spacing:1px;-webkit-text-stroke:.5px var(--ink)}
+.sv .big3 .b .rev .lbl{font-size:11px;font-weight:900;color:var(--ink)}
 
 .sv .chap{display:flex;align-items:center;gap:12px;padding:0 22px;margin:52px 0 14px}
 .sv .chap .no{width:44px;height:44px;flex:none;background:var(--cream);border:2.5px solid var(--ink);border-radius:50%;
@@ -260,7 +264,7 @@ export default async function LandingPage() {
       <div className="wrap">
         <div className="top">
           <div className="logo"><span className="m">⛳</span>ゴルトモ</div>
-          <span className="free">20〜30代限定</span>
+          <span className="free">無料</span>
         </div>
 
         {/* ヒーロー */}
@@ -274,12 +278,30 @@ export default async function LandingPage() {
           </p>
         </header>
 
-        {/* メリット（4つを大きく・一目で） */}
-        <div className="merit">
-          <div className="m"><div className="i">💬</div><div className="t">LINEで完結</div></div>
-          <div className="m"><div className="i">⛳</div><div className="t">20〜30代限定</div></div>
-          <div className="m"><div className="i">🔰</div><div className="t">初心者OK</div></div>
-          <div className="m"><div className="i">🚗</div><div className="t">車がなくても行ける</div></div>
+        {/* 3大メリット（一目で伝える） */}
+        <div className="big3">
+          <div className="b">
+            <div className="ic">🛡️</div>
+            <div>
+              <div className="tt">初めましてでも、安心。</div>
+              <div className="ds">ラウンド後の相互レビューで、その人が“変な人”じゃないかが★で見えます。マナーの良い人が可視化されるので、知らない人と回るのが不安でも大丈夫。</div>
+              <div className="rev"><span className="st">★★★★☆</span><span className="lbl">また回りたい 12/14</span></div>
+            </div>
+          </div>
+          <div className="b">
+            <div className="ic">⛳</div>
+            <div>
+              <div className="tt">募集も参加も、気軽に。</div>
+              <div className="ds">コースが決まっていなくてもOK。一人参加でも、1タップで申し込めます。「行きたいけど誘える人がいない」を無くすアプリ。</div>
+            </div>
+          </div>
+          <div className="b">
+            <div className="ic">🚗</div>
+            <div>
+              <div className="tt">車がなくても、行ける。</div>
+              <div className="ds">送迎（ピックアップ）の調整がアプリの中で完結。拾える駅を登録、参加者は申込時に希望を答えるだけ。LINEで何往復もしません。</div>
+            </div>
+          </div>
         </div>
 
         {/* 上部CTA（ファーストビューで登録に進めるように） */}
@@ -322,33 +344,12 @@ export default async function LandingPage() {
           </>
         )}
 
-        {/* はじめてでも安心の理由（要点だけに凝縮。詳しい説明は使い方/アプリ内に集約） */}
-        <div className="chap">
-          <div className="no">🔰</div>
-          <div>
-            <div className="lb">WHY</div>
-            <div className="tt">はじめてでも安心の理由</div>
-          </div>
-        </div>
-        <div className="card">
-          <h3>🔰 初心者でも気にしない</h3>
-          <p>スコア帯は「ラウンド未経験」から選べて、最初に共有。当日「実は初めてで…」と切り出す必要がありません。「初心者歓迎」の募集だけを絞り込むこともできます。</p>
-        </div>
-        <div className="card">
-          <h3>🚗 車がなくても行ける</h3>
-          <p>送迎の調整がアプリの中で完結。拾える駅・乗れる人数を登録し、参加者は申込時に希望を答えるだけ。LINEで何往復もやり取りしません。</p>
-        </div>
-        <div className="card">
-          <h3>🤝 20〜30代だけ・回った後にレビュー</h3>
-          <p>年代が近く、ラウンド後の相互レビューでマナーが可視化されるので、初対面でもフラットに回れます。「また回りたい」がお互い一致すると“ゴル友”に。</p>
-        </div>
-
         {/* CTA */}
         <div className="cta">
           <h2>ゴルフ友達を<br />見つけにいく</h2>
           <p>登録は無料。アプリのダウンロードは要りません。<br />まずはLINEログインだけ。</p>
           <StartButton className="btn">LINEで始める →</StartButton>
-          <span className="sub">無料 ・ LINEログインのみ ・ 20〜30代限定</span>
+          <span className="sub">無料 ・ LINEログインのみ ・ アプリDL不要</span>
         </div>
 
         <div className="quiz">
@@ -358,6 +359,7 @@ export default async function LandingPage() {
 
         <footer>
           <div className="fl">⛳ ゴルトモ</div>
+          <div style={{ fontSize: 11, color: '#8a7256', marginBottom: 6 }}>※ 20〜30代限定のサービスです</div>
           © 2026 Goltomo（合同会社シクミヤ）
         </footer>
 
