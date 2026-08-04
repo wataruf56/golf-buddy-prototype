@@ -12,7 +12,6 @@
 // 流入経路タグ(?ref=)が運べなくなり、管理画面の「📥 流入経路」に出なくなるので注意。
 
 import type { Metadata } from 'next';
-import { MEET_OPTIONS } from '@/lib/meetOptions';
 import { RefCapture } from '@/components/RefCapture';
 import { StartButton } from '@/components/StartButton';
 
@@ -319,139 +318,25 @@ export default async function LandingPage() {
           <span className="bd"><b>🚗 送迎あり</b>車がなくても行ける</span>
         </div>
 
-        {/* ラウンド投稿 */}
-        <div className="chap">
-          <div className="no">📝</div>
-          <div>
-            <div className="lb">POST</div>
-            <div className="tt">まずは一緒に回る人を探す</div>
-          </div>
-        </div>
-        <p className="lead">「行きたいけど、誘える人がいない」を無くす。募集を出すのも、参加するのも無料です。</p>
-        <div className="card">
-          <h3>⛳ コース予約済み</h3>
-          <p>すでに押さえたコースの空き枠に、一緒に回る仲間を募集できます。日程・費用・男女枠を決めて投稿するだけ。</p>
-        </div>
-        <div className="card">
-          <h3>🗺 コース未定（これから決める）</h3>
-          <p>「この辺で、この日あたり」だけでも募集できます。エリアと日程の希望を出して、集まった人とコースを決める形。</p>
-        </div>
-        <div className="card">
-          <h3>🏆 5人以上ならコンペ</h3>
-          <p>5〜50人の募集はコンペ・イベント扱いになり、専用のデザインで表示されます。</p>
-        </div>
-
-        {/* 初心者・ラウンドデビュー（「ゴルフ 初心者 ラウンド」等の検索意図に応える） */}
+        {/* はじめてでも安心の理由（要点だけに凝縮。詳しい説明は使い方/アプリ内に集約） */}
         <div className="chap">
           <div className="no">🔰</div>
           <div>
-            <div className="lb">BEGINNER</div>
-            <div className="tt">初心者もOK。<br />車がなくても行ける。</div>
-          </div>
-        </div>
-        <p className="lead">ゴルフを始めにくい理由って、だいたいこの2つです。</p>
-        <div className="card">
-          <h3>🔰 初心者でも気にしなくていい</h3>
-          <p>スコア帯は<b>「ラウンド未経験」「ラウンド数回」</b>から選べます。最初から相手に伝わるので、当日になって「実は初めてで…」と切り出す必要がありません。<b>「初心者歓迎」の募集</b>だけを絞り込んで探すこともできます。</p>
-        </div>
-        <div className="card">
-          <h3>🚗 送迎の調整が、アプリの中で終わる</h3>
-          <p>ゴルフ場は駅から遠い。でも<b>車がなくても大丈夫</b>です。</p>
-          <p>募集する人は「送迎できる／しない」を選び、できる場合は<b>拾える駅と乗れる人数</b>を登録。参加する人は<b>申し込みのときに送迎の希望をその場で答える</b>だけです。</p>
-          <p>あとは主催者から「<b>この駅で拾います</b>」と届きます。誰がどこから乗るかは専用の画面にまとまるので、<b>LINEで何往復もやり取りする必要がありません</b>。</p>
-        </div>
-        <div className="card">
-          <h3>👩 女性も参加しやすい設計</h3>
-          <p>募集ごとに<b>男女の枠</b>を決められて、探すときも性別の条件で絞り込めます。ラウンド後の相互レビューと20〜30代限定とあわせて、はじめてでも参加しやすくしています。</p>
-        </div>
-
-        {/* 相互レビュー */}
-        <div className="chap">
-          <div className="no">⭐</div>
-          <div>
-            <div className="lb">REVIEW</div>
-            <div className="tt">初対面でも安心して回れる</div>
-          </div>
-        </div>
-        <p className="lead">知らない人と回るのが不安、を無くすための仕組みです。</p>
-        <div className="card">
-          <h3>🤝 ラウンド後にお互いを評価</h3>
-          <p>回り終わると、同じ組だった人をレビューできます。マナーの良い人が可視化されるので、はじめての参加でも安心です。</p>
-        </div>
-        <div className="card">
-          <h3>⛳ 20〜30代だけのコミュニティ</h3>
-          <p>年代が近い人しかいないので、はじめましてでもフラットに話せます。「気を使って疲れた」で終わりません。</p>
-        </div>
-
-        {/* また回りたい */}
-        <div className="chap">
-          <div className="no">🏌️</div>
-          <div>
-            <div className="lb">MATCH</div>
-            <div className="tt">「また一緒に回りたい」で<br />ゴル友になる</div>
-          </div>
-        </div>
-        <p className="lead">ここがゴルトモの中心。1回きりで終わらせず、次も誘い合える関係になります。</p>
-        <div className="card">
-          <div className="duo">
-            <div className="who">
-              <div className="e">🙋</div>
-              <div className="n">あなた</div>
-              <span className="sel">また回りたい</span>
-            </div>
-            <div className="mid">＋</div>
-            <div className="who">
-              <div className="e">🙆</div>
-              <div className="n">相手</div>
-              <span className="sel">また回りたい</span>
-            </div>
-          </div>
-          <div className="match">🎉 ゴル友成立 → メッセージでつながる</div>
-          <div className="secret">
-            <span>🔒</span>
-            <span><b>片思いの間は、あなたの選択が相手に知られることは一切ありません。</b>両想いになったときだけ、お互いに通知されます。</span>
-          </div>
-        </div>
-
-        {/* 異性として気になる */}
-        <div className="chap">
-          <div className="no">💘</div>
-          <div>
-            <div className="lb">ROMANTIC</div>
-            <div className="tt">「異性として気になる」</div>
-          </div>
-        </div>
-        <p className="lead">ゴル友から先に進みたい人にも、同じ両想い方式が用意されています。</p>
-        <div className="card">
-          <h3>💘 こちらも両想いのときだけ</h3>
-          <p>「また回りたい」と同じく、<b>お互いが選んだときだけ</b>マッチします。選んだことが相手に伝わることはありません。</p>
-          <p>「異性として気になる」を選ぶと、「また回りたい」も自動的に含まれます。</p>
-        </div>
-        <div className="card">
-          <h3>☕ 会い方は、軽いものから選べる</h3>
-          <p>マッチしたら「OKな会い方」をお互いに選び、<b>重なったものだけ</b>が“お互いOK”になります。いきなり二人で会うのが不安でも大丈夫。</p>
-          <div className="chips">
-            {MEET_OPTIONS.map((o) => (
-              <span className="chip" key={o.key}>{o.emoji} {o.label}</span>
-            ))}
-          </div>
-        </div>
-
-        {/* 実績 */}
-        <div className="chap">
-          <div className="no">📊</div>
-          <div>
-            <div className="lb">PROFILE</div>
-            <div className="tt">「また回りたい」率が実績になる</div>
+            <div className="lb">WHY</div>
+            <div className="tt">はじめてでも安心の理由</div>
           </div>
         </div>
         <div className="card">
-          <p>プロフィールには、<b>これまで何人とラウンドして、そのうち何人が「また回りたい」と答えたか</b>が表示されます。いい人と回るほど、次に誘われやすくなる仕組みです。</p>
-          <div className="stat">
-            <div className="big">12<span style={{ fontSize: 18 }}>/14</span></div>
-            <div className="tx">14人と回って、12人が<br />「また回りたい」と回答</div>
-          </div>
-          <p style={{ fontSize: 11.5, color: '#8a7256', marginTop: 10 }}>※ 表示イメージです</p>
+          <h3>🔰 初心者でも気にしない</h3>
+          <p>スコア帯は「ラウンド未経験」から選べて、最初に共有。当日「実は初めてで…」と切り出す必要がありません。「初心者歓迎」の募集だけを絞り込むこともできます。</p>
+        </div>
+        <div className="card">
+          <h3>🚗 車がなくても行ける</h3>
+          <p>送迎の調整がアプリの中で完結。拾える駅・乗れる人数を登録し、参加者は申込時に希望を答えるだけ。LINEで何往復もやり取りしません。</p>
+        </div>
+        <div className="card">
+          <h3>🤝 20〜30代だけ・回った後にレビュー</h3>
+          <p>年代が近く、ラウンド後の相互レビューでマナーが可視化されるので、初対面でもフラットに回れます。「また回りたい」がお互い一致すると“ゴル友”に。</p>
         </div>
 
         {/* CTA */}
