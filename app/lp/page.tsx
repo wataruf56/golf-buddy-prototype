@@ -87,7 +87,7 @@ html body{background:#F4E8CE}
 .sv .bd b{font-size:13.5px;font-weight:900;color:var(--ink);white-space:nowrap}
 /* 3大メリット（ヒーロー直下・大きく・一目で） */
 .sv .big3{display:flex;flex-direction:column;gap:11px;padding:16px 18px 0}
-.sv .big3 .b{display:flex;gap:13px;align-items:flex-start;background:var(--cream);border:2.5px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--ink);padding:15px}
+.sv .big3 .b{display:flex;gap:13px;align-items:flex-start;background:var(--cream);border:2px solid #d8c3a0;border-radius:16px;padding:15px}
 .sv .big3 .b .ic{font-size:30px;line-height:1;flex:none}
 .sv .big3 .b .tt{font-size:16px;font-weight:900;line-height:1.35}
 .sv .big3 .b .ds{font-size:12.5px;font-weight:700;color:#6b5a44;margin-top:4px;line-height:1.65}
@@ -95,7 +95,7 @@ html body{background:#F4E8CE}
 .sv .big3 .b .rev .st{color:var(--mustard);font-size:14px;letter-spacing:1px;-webkit-text-stroke:.5px var(--ink)}
 .sv .big3 .b .rev .lbl{font-size:11px;font-weight:900;color:var(--ink)}
 /* 公式コンペ 男女比の配慮（女性も安心） */
-.sv .comp{background:var(--cream);border:3px solid var(--ink);border-radius:20px;box-shadow:6px 6px 0 var(--ink);margin:16px 18px 0;padding:20px 18px}
+.sv .comp{background:var(--cream);border:2px solid #d8c3a0;border-radius:20px;margin:16px 18px 0;padding:20px 18px}
 .sv .comp .pill{display:inline-block;background:var(--pink);color:#fff;border:2.5px solid var(--ink);border-radius:999px;font-weight:900;font-size:12px;padding:5px 13px;box-shadow:2px 2px 0 var(--ink)}
 .sv .comp h3{font-size:18px;font-weight:900;margin:12px 0 6px;line-height:1.4}
 .sv .comp p{font-size:13px;font-weight:700;color:#4a3a2c;line-height:1.7}
@@ -154,8 +154,8 @@ html body{background:#F4E8CE}
 .sv .btn{display:inline-block;background:var(--cream);color:var(--ink);border:3px solid var(--ink);border-radius:999px;
   font-size:16px;font-weight:900;padding:15px 34px;box-shadow:4px 4px 0 var(--ink);text-decoration:none}
 .sv .sub{display:block;font-size:11.5px;font-weight:800;margin-top:14px;opacity:.95}
-.sv .quiz{margin:22px 18px 0;background:var(--cream);border:2.5px solid var(--ink);border-radius:18px;
-  box-shadow:5px 5px 0 var(--ink);padding:18px;text-align:center}
+.sv .quiz{margin:22px 18px 0;background:var(--cream);border:2px solid #d8c3a0;border-radius:18px;
+  padding:18px;text-align:center}
 .sv .quiz .t{font-size:14.5px;font-weight:900}
 .sv .quiz a{display:inline-block;margin-top:10px;font-size:13px;font-weight:900;color:var(--teal);text-decoration:underline}
 .sv footer{text-align:center;padding:38px 20px 46px;font-size:11.5px;font-weight:700;color:#6b5a44}
@@ -165,17 +165,21 @@ html body{background:#F4E8CE}
 .sv .cta2 a{display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;font-weight:900}
 .sv .cta2 .p{background:var(--orange);color:var(--cream);font-size:17px;padding:16px;border:3px solid var(--ink);border-radius:16px;box-shadow:5px 5px 0 var(--ink);margin-top:14px}
 .sv .cta2 .p:active{transform:translate(2px,2px);box-shadow:3px 3px 0 var(--ink)}
-.sv .cta2 .s{background:var(--cream);color:var(--ink);font-size:15px;padding:13px;border:2.5px solid var(--ink);border-radius:16px;box-shadow:3px 3px 0 var(--ink);margin-top:11px}
+.sv .cta2 .s{background:var(--cream);color:var(--ink);font-size:15px;padding:13px;border:2.5px solid var(--ink);border-radius:16px;box-shadow:3px 3px 0 var(--ink);margin-top:11px;cursor:pointer}
+.sv .cta2 .s:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.sv a{cursor:pointer}
 .sv .cta2 .mc{text-align:center;font-size:11.5px;font-weight:800;color:#8a7256;margin-top:11px}
 /* 社会的証明 */
 .sv .proof{display:flex;gap:9px;justify-content:center;padding:18px 18px 2px}
-.sv .pchip{background:var(--cream);border:2.5px solid var(--ink);border-radius:14px;box-shadow:3px 3px 0 var(--ink);padding:9px 13px;font-weight:900;font-size:12px;display:flex;align-items:center;gap:6px}
+.sv .pchip{background:var(--cream);border:2px solid #d8c3a0;border-radius:14px;padding:9px 13px;font-weight:900;font-size:12px;display:flex;align-items:center;gap:6px}
 .sv .pchip b{font-family:'Baloo 2';font-size:18px}
 .sv .pchip.t b{color:var(--teal)}.sv .pchip.o b{color:var(--orange)}
 .sv .live{width:8px;height:8px;border-radius:50%;background:var(--orange);display:inline-block;animation:pulse 1.5s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 /* 今募集中カード */
-.sv .rc{background:var(--cream);border:2.5px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--ink);margin:0 18px 11px;padding:13px;display:flex;gap:11px;align-items:flex-start;text-decoration:none;color:inherit}
+.sv .rc{background:var(--cream);border:2.5px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--ink);margin:0 18px 11px;padding:13px;display:flex;gap:11px;align-items:flex-start;text-decoration:none;color:inherit;cursor:pointer}
+.sv .rc:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
+.sv .rc .chev{font-size:20px;font-weight:900;color:var(--orange);flex:none;align-self:center;margin-left:2px}
 .sv .rc .e{font-size:23px;margin-top:1px}
 .sv .rc .ttl{font-size:13.5px;font-weight:900}
 .sv .rc .meta{font-size:11.5px;font-weight:700;color:#6b5440;margin-top:3px}
@@ -353,6 +357,7 @@ export default async function LandingPage() {
                 {c.drink
                   ? <span className="tag o">定員なし</span>
                   : c.remaining > 0 ? <span className="tag g">残り{c.remaining}枠</span> : <span className="tag o">満員</span>}
+                <span className="chev">›</span>
               </a>
             ))}
           </>
