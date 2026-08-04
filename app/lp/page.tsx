@@ -138,7 +138,95 @@ html body{background:#F4E8CE}
 .sv .quiz a{display:inline-block;margin-top:10px;font-size:13px;font-weight:900;color:var(--teal);text-decoration:underline}
 .sv footer{text-align:center;padding:38px 20px 46px;font-size:11.5px;font-weight:700;color:#6b5a44}
 .sv footer .fl{font-weight:900;color:var(--orange);margin-bottom:4px}
+/* 上部CTA（ヒーロー直下・診断LPと同じ太枠＋ハードシャドウ） */
+.sv .cta2{padding:2px 20px 0}
+.sv .cta2 a{display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;font-weight:900}
+.sv .cta2 .p{background:var(--orange);color:var(--cream);font-size:17px;padding:16px;border:3px solid var(--ink);border-radius:16px;box-shadow:5px 5px 0 var(--ink);margin-top:14px}
+.sv .cta2 .p:active{transform:translate(2px,2px);box-shadow:3px 3px 0 var(--ink)}
+.sv .cta2 .s{background:var(--cream);color:var(--ink);font-size:15px;padding:13px;border:2.5px solid var(--ink);border-radius:16px;box-shadow:3px 3px 0 var(--ink);margin-top:11px}
+.sv .cta2 .mc{text-align:center;font-size:11.5px;font-weight:800;color:#8a7256;margin-top:11px}
+/* 社会的証明 */
+.sv .proof{display:flex;gap:9px;justify-content:center;padding:18px 18px 2px}
+.sv .pchip{background:var(--cream);border:2.5px solid var(--ink);border-radius:14px;box-shadow:3px 3px 0 var(--ink);padding:9px 13px;font-weight:900;font-size:12px;display:flex;align-items:center;gap:6px}
+.sv .pchip b{font-family:'Baloo 2';font-size:18px}
+.sv .pchip.t b{color:var(--teal)}.sv .pchip.o b{color:var(--orange)}
+.sv .live{width:8px;height:8px;border-radius:50%;background:var(--orange);display:inline-block;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+/* 今募集中カード */
+.sv .rc{background:var(--cream);border:2.5px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--ink);margin:0 18px 11px;padding:13px;display:flex;gap:11px;align-items:flex-start;text-decoration:none;color:inherit}
+.sv .rc .e{font-size:23px;margin-top:1px}
+.sv .rc .ttl{font-size:13.5px;font-weight:900}
+.sv .rc .meta{font-size:11.5px;font-weight:700;color:#6b5440;margin-top:3px}
+.sv .rc .tag{font-size:10.5px;font-weight:900;padding:3px 9px;border-radius:999px;border:2px solid var(--ink);white-space:nowrap;align-self:center;flex:none}
+.sv .rc .tag.g{background:var(--teal);color:var(--cream)}.sv .rc .tag.o{background:var(--mustard)}
+/* 追従バー（fixedで中央480px幅・.sv::before と同じ方式。コンテンツは wrap の下余白で逃がす） */
+.sv .bar{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;z-index:70;padding:11px 16px calc(11px + env(safe-area-inset-bottom));background:rgba(244,232,206,.96);backdrop-filter:blur(5px);border-top:2.5px solid var(--ink)}
+.sv .bar .b2{display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;background:var(--orange);color:var(--cream);font-weight:900;font-size:16px;padding:15px;border:3px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--ink)}
+.sv .wrap{padding-bottom:88px}
 `;
+
+const WD = ['日', '月', '火', '水', '木', '金', '土'];
+function fmtDate(d?: string) {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return d;
+  return `${dt.getMonth() + 1}/${dt.getDate()}(${WD[dt.getDay()]})`;
+}
+
+type LpCard = { id: string; title: string; drink: boolean; official: boolean; date: string; start: string; place: string; remaining: number; host: string };
+
+// トップLPの「社会的証明」と「今募集中」を実データから作る。失敗しても LP 本体は必ず描画する。
+async function getLpData(): Promise<{ cards: LpCard[]; openCount: number; activeNow: number }> {
+  const now = Date.now();
+  let cards: LpCard[] = [];
+  let openCount = 0;
+  let activeNow = 0;
+  try {
+    const { db } = await import('@/lib/db');
+    const [open, official] = await Promise.all([
+      db.listRounds({ status: 'open' }),
+      db.listOfficialRounds().catch(() => []),
+    ]);
+    const seen = new Set<string>();
+    const rounds = [...open, ...official].filter((r) => {
+      if (!r || seen.has(r.id)) return false;
+      seen.add(r.id);
+      return r.status === 'open' && !String(r.hostId || '').startsWith('test_');
+    });
+    rounds.sort((a, b) => {
+      const am = a.date ? new Date(a.date).getTime() : Infinity;
+      const bm = b.date ? new Date(b.date).getTime() : Infinity;
+      return am - bm;
+    });
+    openCount = rounds.length;
+    const top = rounds.slice(0, 3);
+    let names: Record<string, string> = {};
+    try {
+      const us = await db.listUsers(Array.from(new Set(top.map((r) => r.hostId).filter(Boolean))));
+      names = Object.fromEntries(us.map((u) => [u.id, u.displayName || '']));
+    } catch { /* noop */ }
+    cards = top.map((r) => ({
+      id: r.id,
+      title: r.title,
+      drink: r.eventType === 'drink',
+      official: !!r.isOfficial,
+      date: r.dateType === 'range' ? (r.dateRange || '日程調整中') : (r.date ? fmtDate(r.date) : '日程未定'),
+      start: r.startTime || '',
+      place: r.eventType === 'drink' ? (r.venue || r.area || '場所未定') : (r.courseName || r.area || 'エリア未定'),
+      remaining: Math.max(0, r.maxSpots - r.currentCount),
+      host: r.isOfficial ? '' : (names[r.hostId] || ''),
+    }));
+  } catch { /* DBが不調でもLPは出す */ }
+  try {
+    const { getAdminDb } = await import('@/lib/firebase');
+    const adb = getAdminDb() as any;
+    if (adb) {
+      const agg = await adb.collection('users').where('lastActiveAt', '>=', now - 3600000).count().get();
+      activeNow = agg.data().count || 0;
+    }
+  } catch { /* noop */ }
+  return { cards, openCount, activeNow };
+}
 
 const JSON_LD = {
   '@context': 'https://schema.org',
@@ -151,7 +239,13 @@ const JSON_LD = {
   publisher: { '@type': 'Organization', name: '合同会社シクミヤ', url: `${SITE}/` },
 };
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const { cards, openCount, activeNow } = await getLpData();
+  // 数字は少ないと逆効果なので、十分あるときだけ出す（実データ・虚偽なし）。
+  const showOpen = openCount >= 3;
+  const showActive = activeNow >= 3;
+  const showProof = showOpen || showActive;
+  const APP = 'https://app.goltomo.com';
   return (
     <div className="sv">
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
@@ -175,6 +269,46 @@ export default function LandingPage() {
             一人で参加して、気の合う人と「ゴル友」になれます。
           </p>
         </header>
+
+        {/* 上部CTA（ファーストビューで登録に進めるように） */}
+        <div className="cta2">
+          <StartButton className="p">💬 LINEで無料ではじめる</StartButton>
+          <a className="s" href="#rounds">⛳ 募集中のラウンドを見る</a>
+          <div className="mc">LINEログインのみ ・ 約30秒で完了 ・ アプリDL不要</div>
+        </div>
+
+        {/* 社会的証明（実データ・十分あるときだけ表示） */}
+        {showProof && (
+          <div className="proof">
+            {showOpen && <span className="pchip t">⛳ いま募集中 <b>{openCount}</b>件</span>}
+            {showActive && <span className="pchip o"><span className="live" /> 直近1時間 <b>{activeNow}</b>人</span>}
+          </div>
+        )}
+
+        {/* 今募集中のラウンド（実データ・あるときだけ） */}
+        {cards.length > 0 && (
+          <>
+            <div className="chap" id="rounds">
+              <div className="no">⛳</div>
+              <div>
+                <div className="lb">ROUNDS</div>
+                <div className="tt">今こんな募集が動いてます</div>
+              </div>
+            </div>
+            {cards.map((c) => (
+              <a className="rc" key={c.id} href={`${APP}/round/${c.id}`}>
+                <span className="e">{c.drink ? '🍻' : c.official ? '🏆' : '⛳'}</span>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div className="ttl">{c.title}</div>
+                  <div className="meta">📅 {c.date}{c.start ? ` ${c.start}` : ''} ・ 📍 {c.place}{c.host ? ` ・ 主催: ${c.host}` : ''}</div>
+                </div>
+                {c.drink
+                  ? <span className="tag o">定員なし</span>
+                  : c.remaining > 0 ? <span className="tag g">残り{c.remaining}枠</span> : <span className="tag o">満員</span>}
+              </a>
+            ))}
+          </>
+        )}
 
         {/* 前提バッジ（アプリDL不要・LINE完結） */}
         <div className="badges">
@@ -337,6 +471,11 @@ export default function LandingPage() {
           <div className="fl">⛳ ゴルトモ</div>
           © 2026 Goltomo（合同会社シクミヤ）
         </footer>
+
+        {/* 追従CTAバー（スクロール中も常に登録に進める） */}
+        <div className="bar">
+          <StartButton className="b2">💬 LINEで無料ではじめる</StartButton>
+        </div>
       </div>
     </div>
   );
