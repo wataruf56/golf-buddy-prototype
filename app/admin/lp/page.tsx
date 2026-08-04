@@ -100,6 +100,8 @@ function Inner() {
   const [tab, setTab] = useState<'overview' | 'analysis' | 'demand' | 'data'>('overview');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  // インスタ link-in-bio ハブ（/links）の計測。
+  const [hub, setHub] = useState<{ opened: number; clickMbti: number; clickRounds: number; ctr: number } | null>(null);
 
   // 他の管理画面と同じトークン取得パターン（/api/admin/init を正とする）
   useEffect(() => {
@@ -137,6 +139,13 @@ function Inner() {
   }
 
   useEffect(() => { if (token) load(token); }, [token]);
+  useEffect(() => {
+    if (!token) return;
+    fetch(`/api/lp/hit?token=${encodeURIComponent(token)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (j && typeof j.opened === 'number') setHub(j); })
+      .catch(() => {});
+  }, [token]);
 
   if (!token) {
     return (
@@ -196,6 +205,7 @@ function Inner() {
           {tab === 'overview' && (
             <>
               <StatGrid data={data} />
+              <InstaHub hub={hub} />
               <Funnel data={data} />
               <LinkedRegistrants list={data.linkedList || []} token={token} />
               <Engagement data={data} />
@@ -248,6 +258,36 @@ function Card({ title, sub, children }: { title: string; sub?: string; children:
       {!sub && <div className="mb-3" />}
       {children}
     </div>
+  );
+}
+
+function InstaHub({ hub }: { hub: { opened: number; clickMbti: number; clickRounds: number; ctr: number } | null }) {
+  return (
+    <Card title="📸 インスタ リンクハブ（/links）" sub="プロフのリンクが開かれた数と、どちらのボタンが押されたか（累計）">
+      {!hub ? (
+        <div className="text-[12px] text-muted py-2">読み込み中...</div>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <div className="bg-bg rounded-lg p-2.5 text-center">
+              <div className="text-[18px] font-black">{hub.opened}</div>
+              <div className="text-[10px] text-muted mt-0.5">開かれた</div>
+            </div>
+            <div className="bg-bg rounded-lg p-2.5 text-center">
+              <div className="text-[18px] font-black text-green">{hub.clickMbti}</div>
+              <div className="text-[10px] text-muted mt-0.5">✨ 診断</div>
+            </div>
+            <div className="bg-bg rounded-lg p-2.5 text-center">
+              <div className="text-[18px] font-black text-orange">{hub.clickRounds}</div>
+              <div className="text-[10px] text-muted mt-0.5">⛳ 募集一覧</div>
+            </div>
+          </div>
+          <Bar label="✨ ゴルフMBTI 診断" value={hub.clickMbti} max={Math.max(hub.opened, 1)} hint={`${pct(hub.clickMbti, hub.opened)}%`} />
+          <Bar label="⛳ ラウンド募集" value={hub.clickRounds} max={Math.max(hub.opened, 1)} hint={`${pct(hub.clickRounds, hub.opened)}%`} color="bg-orange" />
+          <div className="text-[10px] text-muted mt-2">クリック率（開封のうち何かを押した割合）: <b className="text-text">{hub.ctr}%</b></div>
+        </>
+      )}
+    </Card>
   );
 }
 

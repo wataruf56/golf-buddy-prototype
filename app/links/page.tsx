@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import { HubLinks } from '@/components/HubLinks';
 
 // Instagram の link-in-bio 用ハブ。プロフィールに貼れるリンクは1つだけなので、
 // ここから「ゴルフMBTI（診断）」と「ラウンド募集一覧」の2つへ振り分ける。
@@ -10,8 +10,6 @@ export const metadata: Metadata = {
 };
 
 const CREAM = '#FBF7EC';
-const TEAL = '#2A8C82';
-const CORAL = '#E8643C';
 const INK = '#1E3A30';
 
 export default function LinksHubPage() {
@@ -44,40 +42,8 @@ export default function LinksHubPage() {
           ゴルフ版の性格診断で、あなたに合うゴルフ仲間を見つけよう。<br />気になるコンテンツを選んでね👇
         </p>
 
-        {/* 2つのコンテンツ */}
-        <div className="w-full mt-8 flex flex-col gap-4">
-          {/* 1. ゴルフMBTI（診断・外部リンク） */}
-          <a
-            href="https://goltomo.com/golmoti.html?ref=ig_bio"
-            className="block rounded-[26px] p-5 active:scale-[0.99] transition-transform"
-            style={{ background: TEAL, boxShadow: '7px 8px 0 ' + INK }}
-          >
-            <div className="flex items-center gap-4">
-              <div className="text-[44px] leading-none">✨</div>
-              <div className="min-w-0 flex-1">
-                <div className="text-[22px] font-black" style={{ color: CREAM }}>ゴルフMBTI 診断</div>
-                <div className="text-[13px] font-bold mt-0.5" style={{ color: '#EAF3EF' }}>無料・16タイプ／あなたのゴルフタイプは？</div>
-              </div>
-              <div className="text-[22px]" style={{ color: CREAM }}>›</div>
-            </div>
-          </a>
-
-          {/* 2. ラウンド募集一覧（内部リンク） */}
-          <Link
-            href="/links/rounds"
-            className="block rounded-[26px] p-5 active:scale-[0.99] transition-transform"
-            style={{ background: CORAL, boxShadow: '7px 8px 0 ' + INK }}
-          >
-            <div className="flex items-center gap-4">
-              <div className="text-[44px] leading-none">⛳</div>
-              <div className="min-w-0 flex-1">
-                <div className="text-[22px] font-black" style={{ color: CREAM }}>ラウンド募集</div>
-                <div className="text-[13px] font-bold mt-0.5" style={{ color: '#FDE8E1' }}>いま募集中のラウンドを見る</div>
-              </div>
-              <div className="text-[22px]" style={{ color: CREAM }}>›</div>
-            </div>
-          </Link>
-        </div>
+        {/* 2つのコンテンツ（表示・クリックを /api/lp/hit に計測） */}
+        <HubLinks />
 
         <div className="mt-10 text-[11px] font-bold" style={{ color: '#8AA79A' }}>
           © ゴルトモ
