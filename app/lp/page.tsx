@@ -85,6 +85,11 @@ html body{background:#F4E8CE}
 .sv .bd{display:flex;align-items:baseline;gap:10px;background:var(--cream);border:2.5px solid var(--ink);
   border-radius:14px;box-shadow:3px 3px 0 var(--ink);padding:11px 15px;font-size:12.5px;font-weight:700;color:#6b5a44}
 .sv .bd b{font-size:13.5px;font-weight:900;color:var(--ink);white-space:nowrap}
+/* メリット（ヒーロー直下・大きめ2×2で一目で伝える） */
+.sv .merit{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px 18px 0}
+.sv .merit .m{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;background:var(--cream);border:2.5px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--ink);padding:16px 8px}
+.sv .merit .m .i{font-size:30px;line-height:1}
+.sv .merit .m .t{font-size:15px;font-weight:900;color:var(--ink);line-height:1.3}
 
 .sv .chap{display:flex;align-items:center;gap:12px;padding:0 22px;margin:52px 0 14px}
 .sv .chap .no{width:44px;height:44px;flex:none;background:var(--cream);border:2.5px solid var(--ink);border-radius:50%;
@@ -269,6 +274,14 @@ export default async function LandingPage() {
           </p>
         </header>
 
+        {/* メリット（4つを大きく・一目で） */}
+        <div className="merit">
+          <div className="m"><div className="i">💬</div><div className="t">LINEで完結</div></div>
+          <div className="m"><div className="i">⛳</div><div className="t">20〜30代限定</div></div>
+          <div className="m"><div className="i">🔰</div><div className="t">初心者OK</div></div>
+          <div className="m"><div className="i">🚗</div><div className="t">車がなくても行ける</div></div>
+        </div>
+
         {/* 上部CTA（ファーストビューで登録に進めるように） */}
         <div className="cta2">
           <StartButton className="p">💬 LINEで無料ではじめる</StartButton>
@@ -308,15 +321,6 @@ export default async function LandingPage() {
             ))}
           </>
         )}
-
-        {/* 前提バッジ（アプリDL不要・LINE完結） */}
-        <div className="badges">
-          <span className="bd"><b>📥 DL不要</b>アプリ入れずに使える</span>
-          <span className="bd"><b>💬 LINEで完結</b>ログインも通知もLINE</span>
-          <span className="bd"><b>⛳ 20〜30代</b>年代が近い人だけ</span>
-          <span className="bd"><b>🔰 初心者OK</b>ラウンドデビューでも</span>
-          <span className="bd"><b>🚗 送迎あり</b>車がなくても行ける</span>
-        </div>
 
         {/* はじめてでも安心の理由（要点だけに凝縮。詳しい説明は使い方/アプリ内に集約） */}
         <div className="chap">
