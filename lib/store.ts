@@ -306,6 +306,15 @@ export const store = {
     return round;
   },
 
+  // ゲスト枠（知り合い枠 or 名前付きゲスト）を登録ユーザーに置き換える（主催者）。
+  replaceGuest: async (roundId: string, opts: { userId: string; guestId?: string; gender?: string }) => {
+    const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/replace-guest`, {
+      method: 'POST', body: JSON.stringify(opts),
+    });
+    setState({ rounds: state.rounds.map((r) => (r.id === roundId ? { ...r, ...round } : r)) });
+    return round;
+  },
+
   // 主催者が送った招待を取り消す。
   uninviteFromRound: async (roundId: string, userId: string) => {
     const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/uninvite`, {

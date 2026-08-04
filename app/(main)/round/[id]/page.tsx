@@ -64,6 +64,9 @@ export default function RoundDetailPage() {
   // 主催者限定：この募集を「見に来た人」一覧（誰がいつ見たか）。招待の起点にできる。
   const [viewers, setViewers] = useState<{ user: User; at: number; count: number }[] | null>(null);
   const [viewersOpen, setViewersOpen] = useState(false);
+  // ゲスト枠→登録ユーザーの置き換え（主催者）。target: 名前付きゲスト(guestId) or 知り合い枠(external)。
+  const [replaceTarget, setReplaceTarget] = useState<{ guestId?: string; label: string } | null>(null);
+  const [replaceBusy, setReplaceBusy] = useState(false);
   // 主催者向け「ラウンドは完了しましたか？」プロンプトを「まだ」で閉じたか（この画面表示中のみ）。
   const [completionDismissed, setCompletionDismissed] = useState(false);
   // 詳細のセクション切り替えタブ（参加してる人／ピックアップ／組み分け）。
@@ -458,6 +461,20 @@ export default function RoundDetailPage() {
       toast(`${name}さんを招待しました`);
     } catch (e) { toast((e as Error).message, 'error'); }
   }
+  // ゲスト枠（名前付きゲスト or 知り合い枠）を登録ユーザーに置き換える。
+  async function doReplaceGuest(userId: string, name: string) {
+    if (!replaceTarget) return;
+    setReplaceBusy(true);
+    try {
+      const updated = await store.replaceGuest(round!.id, { userId, guestId: replaceTarget.guestId });
+      if (!storeRound && updated) setFetchedRound((prev) => (prev ? { ...prev, ...updated } : prev));
+      track('replace_guest', { roundId: round!.id, kind: replaceTarget.guestId ? 'named' : 'external' });
+      toast(`${replaceTarget.label} を ${name}さん に置き換えました`);
+      setReplaceTarget(null);
+    } catch (e) { toast((e as Error).message, 'error'); }
+    finally { setReplaceBusy(false); }
+  }
+
   // 招待済みの相手の「招待」を再度押したとき：確認のうえ招待を取り消す。
   async function uninvite(userId: string, name: string) {
     if (!(await confirmDialog(`${name}さんへの招待を取り消しますか？`))) return;
@@ -828,12 +845,26 @@ export default function RoundDetailPage() {
                     <div className="text-[13px] font-semibold truncate">{g.name} <span className="text-[10px] text-muted font-bold">ゲスト</span></div>
                     <div className="text-[10px] text-sub">{pickupStatusLabel(round.participantPickups?.[g.id])}</div>
                   </div>
+                  {isHost && round.status !== 'completed' && (
+                    <button onClick={() => setReplaceTarget({ guestId: g.id, label: `ゲスト「${g.name}」` })} className="px-2.5 py-1 bg-green text-white rounded text-[11px] font-bold flex-shrink-0">👤 登録者に置換</button>
+                  )}
                 </div>
                 {isHost && round.status !== 'completed' && (
                   <PickupMemberControl round={round} member={{ id: g.id, displayName: g.name }} meId={meId} isHost={isHost} guest />
                 )}
               </div>
             ))}
+            {/* 知り合い枠（人数カウント）を登録ユーザーに置き換える（主催者・完了前） */}
+            {isHost && round.status !== 'completed' && ((round.externalMale || 0) + (round.externalFemale || 0) + (round.externalCount || 0)) > 0 && (
+              <div className="flex items-center gap-2 p-2.5 bg-bg rounded-[10px] mb-1.5">
+                <div className="w-9 h-9 rounded-full bg-card flex items-center justify-center text-base flex-shrink-0 border border-border">🧑‍🤝‍🧑</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-semibold truncate">主催者の知り合い <span className="text-[10px] text-muted font-bold">{(round.externalMale || 0) + (round.externalFemale || 0) + (round.externalCount || 0)}名</span></div>
+                  <div className="text-[10px] text-sub">当日アプリ登録した本人に置き換えるとレビューできます</div>
+                </div>
+                <button onClick={() => setReplaceTarget({ label: '知り合い枠' })} className="px-2.5 py-1 bg-green text-white rounded text-[11px] font-bold flex-shrink-0">👤 登録者に置換</button>
+              </div>
+            )}
           </div>
         )}
 
@@ -1056,6 +1087,20 @@ export default function RoundDetailPage() {
               );
             })
           )}
+        </PickerModal>
+      )}
+
+      {/* ゲスト枠 → 登録ユーザー 置き換えモーダル（主催者） */}
+      {replaceTarget && isHost && (
+        <PickerModal title={`👤 ${replaceTarget.label}を登録者に置き換え`} onClose={() => setReplaceTarget(null)}>
+          <div className="mb-3 text-[12px] text-sub bg-bg rounded-xl p-3 leading-relaxed">
+            当日アプリ登録した本人を選ぶと、その人が<b className="text-text">参加確定</b>に入り、完了時に<b className="text-text">レビュー</b>できます。除外→再招待は不要です。
+          </div>
+          <GuestReplacePicker
+            excludeIds={new Set<string>([round.hostId, ...(round.applicantIds || []), ...(round.pendingApplicantIds || [])])}
+            busy={replaceBusy}
+            onPick={(id, name) => doReplaceGuest(id, name)}
+          />
         </PickerModal>
       )}
 
@@ -1296,6 +1341,68 @@ function InviteSearch({ inviteState, onInvite, onUninvite }: { inviteState: (id:
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ゲスト枠の置き換え先を、登録ユーザーから選ぶピッカー。/api/users/search を使う。
+// すでに参加している人（excludeIds）は候補から外す。
+function GuestReplacePicker({ excludeIds, busy, onPick }: { excludeIds: Set<string>; busy: boolean; onPick: (id: string, name: string) => void }) {
+  const [gender, setGender] = useState<'' | 'male' | 'female'>('');
+  const [q, setQ] = useState('');
+  const [items, setItems] = useState<SearchUser[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [note, setNote] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const p = new URLSearchParams();
+        if (gender) p.set('gender', gender);
+        if (q.trim()) p.set('q', q.trim());
+        const res = await fetch(`/api/users/search?${p.toString()}`, { cache: 'no-store', credentials: 'include' });
+        const d = await res.json();
+        if (cancelled) return;
+        setItems(d.items || []);
+        setNote(d.note || '');
+      } catch { if (!cancelled) setItems([]); }
+      finally { if (!cancelled) setLoading(false); }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [gender, q]);
+
+  const chip = (label: string, on: boolean, onClick: () => void) => (
+    <button onClick={onClick} className={'px-3 py-1.5 rounded-full text-xs font-bold border-[1.5px] ' + (on ? 'bg-green text-white border-green' : 'bg-bg border-border text-sub')}>{label}</button>
+  );
+  const list = items.filter((u) => !excludeIds.has(u.id));
+
+  return (
+    <div>
+      <div className="flex gap-1.5 mb-2">
+        {chip('全員', gender === '', () => setGender(''))}
+        {chip('👨 男性', gender === 'male', () => setGender('male'))}
+        {chip('👩 女性', gender === 'female', () => setGender('female'))}
+      </div>
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 名前で検索" className="w-full px-3 py-2 mb-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+      {loading && <div className="text-center text-[11px] text-muted py-3">検索中...</div>}
+      {!loading && note && <div className="text-center text-[12px] text-muted py-6">{note}</div>}
+      {!loading && !note && list.length === 0 && <div className="text-center text-[12px] text-muted py-6">条件に合うユーザーがいません</div>}
+      {list.map((u) => (
+        <div key={u.id} className="flex items-center gap-2 p-2.5 bg-bg rounded-[10px] mb-1.5">
+          <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
+            <Avatar user={{ id: u.id, displayName: u.displayName, avatar: u.avatar, avatarUrl: u.avatarUrl, color: '#2A8C82' } as any} size={36} />
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
+              <div className="text-[10px] text-sub truncate">
+                {[u.gender === 'male' ? '👨男性' : u.gender === 'female' ? '👩女性' : '', u.age ? `${u.age}歳` : '', u.area].filter(Boolean).join(' ・ ')}
+              </div>
+            </div>
+          </Link>
+          <button disabled={busy} onClick={() => onPick(u.id, u.displayName)} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold flex-shrink-0 disabled:opacity-50">この人にする</button>
+        </div>
+      ))}
     </div>
   );
 }

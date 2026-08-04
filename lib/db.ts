@@ -34,6 +34,11 @@ export interface DB {
   setInterest(id: string, userId: string, interested: boolean): Promise<{ round: Round; added: boolean }>;
   // Host invites a user. Returns the updated round and whether newly invited.
   inviteToRound(id: string, userId: string): Promise<{ round: Round; added: boolean }>;
+  // ゲスト枠（知り合いの人数枠＝external / 名前付きゲスト＝guests[gst_...]）を、当日アプリ登録
+  // した本人（登録ユーザー userId）に置き換える。userId は参加確定(applicantIds)に入り、以後は
+  // レビュー対象になる。guestId 指定＝名前付きゲスト置換（groups/noShowも付け替え）。未指定＝
+  // 知り合い枠(external)を1減らす（gender優先）。頭数が二重にならないよう currentCount を調整。
+  replaceGuestWithUser(id: string, opts: { userId: string; guestId?: string; gender?: string }): Promise<Round>;
   // 「見に来た人」を記録する。viewedBy[viewerId] の最終閲覧時刻を now に、count を +1。
   // 主催者本人の記録は呼び出し側で弾く（ここでは弾かない）。冪等ではない（開くたび count++）。
   recordRoundView(id: string, viewerId: string, at: number): Promise<void>;
@@ -170,6 +175,27 @@ class MemoryDB implements DB {
     if (!r.applicantIds.includes(userId)) {
       r.applicantIds.push(userId);
       r.currentCount += 1;
+    }
+    return r;
+  }
+  async replaceGuestWithUser(id: string, opts: { userId: string; guestId?: string; gender?: string }) {
+    const r = this.rounds.find((x) => x.id === id);
+    if (!r) throw new Error('round not found');
+    const { userId, guestId, gender } = opts;
+    const already = r.applicantIds.includes(userId);
+    r.pendingApplicantIds = (r.pendingApplicantIds || []).filter((x) => x !== userId);
+    if (!already) r.applicantIds.push(userId);
+    if (guestId) {
+      r.guests = (r.guests || []).filter((g) => g.id !== guestId);
+      r.groups = (r.groups || []).map((g) => ({ ...g, memberIds: (g.memberIds || []).map((m) => (m === guestId ? userId : m)) }));
+      r.noShowIds = (r.noShowIds || []).map((x) => (x === guestId ? userId : x));
+      if (!already) r.currentCount += 1; // ゲストは未算入・登録者は算入
+    } else {
+      let m = r.externalMale || 0, f = r.externalFemale || 0, c = r.externalCount || 0;
+      if (gender === 'female' && f > 0) f--; else if (gender === 'male' && m > 0) m--;
+      else if (f > 0) f--; else if (m > 0) m--; else if (c > 0) c--;
+      r.externalMale = m; r.externalFemale = f; r.externalCount = c;
+      if (already) r.currentCount = Math.max(1, r.currentCount - 1); // 新規時は user+1/external-1 で据え置き
     }
     return r;
   }
@@ -642,6 +668,36 @@ class FirestoreDB implements DB {
         : (data.currentCount || 1) + 1;
       tx.set(ref, { pendingApplicantIds: pending, applicantIds, currentCount }, { merge: true });
       return { ...data, id: snap.id, pendingApplicantIds: pending, applicantIds, currentCount } as Round;
+    });
+  }
+  async replaceGuestWithUser(id: string, opts: { userId: string; guestId?: string; gender?: string }) {
+    const { userId, guestId, gender } = opts;
+    const ref = this.fs.collection('rounds').doc(id);
+    return await this.fs.runTransaction(async (tx: any) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('round not found');
+      const data = snap.data() as Omit<Round, 'id'>;
+      const applicants = data.applicantIds || [];
+      const already = applicants.includes(userId);
+      const applicantIds = already ? applicants : [...applicants, userId];
+      const pendingApplicantIds = (data.pendingApplicantIds || []).filter((x) => x !== userId);
+      const patch: Record<string, unknown> = { applicantIds, pendingApplicantIds };
+      let currentCount = data.currentCount || 1;
+      if (guestId) {
+        patch.guests = (data.guests || []).filter((g) => g.id !== guestId);
+        patch.groups = (data.groups || []).map((g: any) => ({ ...g, memberIds: (g.memberIds || []).map((m: string) => (m === guestId ? userId : m)) }));
+        patch.noShowIds = (data.noShowIds || []).map((x) => (x === guestId ? userId : x));
+        if (!already) currentCount += 1;
+      } else {
+        let m = data.externalMale || 0, f = data.externalFemale || 0, c = data.externalCount || 0;
+        if (gender === 'female' && f > 0) f--; else if (gender === 'male' && m > 0) m--;
+        else if (f > 0) f--; else if (m > 0) m--; else if (c > 0) c--;
+        patch.externalMale = m; patch.externalFemale = f; patch.externalCount = c;
+        if (already) currentCount = Math.max(1, currentCount - 1);
+      }
+      patch.currentCount = currentCount;
+      tx.set(ref, patch, { merge: true });
+      return { ...data, id: snap.id, ...patch } as Round;
     });
   }
   async rejectApplicant(id: string, userId: string) {
