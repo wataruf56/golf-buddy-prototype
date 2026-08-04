@@ -94,6 +94,20 @@ html body{background:#F4E8CE}
 .sv .big3 .b .rev{display:inline-flex;align-items:center;gap:8px;margin-top:8px;background:var(--paper);border:2px solid var(--ink);border-radius:10px;padding:5px 9px}
 .sv .big3 .b .rev .st{color:var(--mustard);font-size:14px;letter-spacing:1px;-webkit-text-stroke:.5px var(--ink)}
 .sv .big3 .b .rev .lbl{font-size:11px;font-weight:900;color:var(--ink)}
+/* 公式コンペ 男女比の配慮（女性も安心） */
+.sv .comp{background:var(--cream);border:3px solid var(--ink);border-radius:20px;box-shadow:6px 6px 0 var(--ink);margin:16px 18px 0;padding:20px 18px}
+.sv .comp .pill{display:inline-block;background:var(--pink);color:#fff;border:2.5px solid var(--ink);border-radius:999px;font-weight:900;font-size:12px;padding:5px 13px;box-shadow:2px 2px 0 var(--ink)}
+.sv .comp h3{font-size:18px;font-weight:900;margin:12px 0 6px;line-height:1.4}
+.sv .comp p{font-size:13px;font-weight:700;color:#4a3a2c;line-height:1.7}
+.sv .comp .ratio{display:flex;gap:8px;margin:14px 0 8px}
+.sv .comp .rp{flex:1;text-align:center;font-weight:900;font-size:15px;border:2.5px solid var(--ink);border-radius:12px;padding:11px 6px;box-shadow:3px 3px 0 var(--ink)}
+.sv .comp .rp.m{background:var(--teal);color:var(--cream)}
+.sv .comp .rp.f{background:var(--pink);color:#fff}
+.sv .comp .rp .n{font-family:'Baloo 2';font-size:24px;display:block;line-height:1}
+.sv .comp .rbar{display:flex;height:16px;border:2.5px solid var(--ink);border-radius:999px;overflow:hidden;margin-bottom:12px}
+.sv .comp .rbar .rm{background:var(--teal)}
+.sv .comp .rbar .rf{background:var(--pink)}
+.sv .comp .note{display:flex;gap:9px;align-items:flex-start;background:var(--paper);border:2.5px dashed var(--ink);border-radius:14px;padding:12px 13px;font-size:12.5px;font-weight:700;margin-top:6px}
 
 .sv .chap{display:flex;align-items:center;gap:12px;padding:0 22px;margin:52px 0 14px}
 .sv .chap .no{width:44px;height:44px;flex:none;background:var(--cream);border:2.5px solid var(--ink);border-radius:50%;
@@ -343,6 +357,22 @@ export default async function LandingPage() {
             ))}
           </>
         )}
+
+        {/* 公式コンペの男女比配慮（女性が孤立しないよう組み分け） */}
+        <div className="comp">
+          <span className="pill">👩 女性も安心</span>
+          <h3>ゴルトモ公式コンペは、<br />男女比とグループを配慮。</h3>
+          <p>主催コンペは男女比のバランスをとります。例えば<b>20人なら 男性12 : 女性8</b>。</p>
+          <div className="ratio">
+            <div className="rp m"><span className="n">12</span>👨 男性</div>
+            <div className="rp f"><span className="n">8</span>👩 女性</div>
+          </div>
+          <div className="rbar"><span className="rm" style={{ flex: 12 }} /><span className="rf" style={{ flex: 8 }} /></div>
+          <div className="note">
+            <span>🤝</span>
+            <span><b>女性が1組に1人きりにならないよう組み分けを配慮。</b>同性の友達もできるので、はじめてでも安心して参加できます。</span>
+          </div>
+        </div>
 
         {/* CTA */}
         <div className="cta">
