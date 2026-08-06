@@ -89,7 +89,7 @@ html body{background:#F4E8CE}
 .sv .big3{display:flex;flex-direction:column;gap:11px;padding:16px 18px 0}
 .sv .big3 .b{display:flex;gap:13px;align-items:flex-start;background:var(--cream);border:2px solid #d8c3a0;border-radius:16px;padding:15px}
 .sv .big3 .b .ic{font-size:30px;line-height:1;flex:none}
-.sv .big3 .b .tt{font-size:16px;font-weight:900;line-height:1.35}
+.sv .big3 .b .tt{font-size:16px;font-weight:900;line-height:1.35;margin:0}
 .sv .big3 .b .ds{font-size:12.5px;font-weight:700;color:#6b5a44;margin-top:4px;line-height:1.65}
 .sv .big3 .b .rev{display:inline-flex;align-items:center;gap:8px;margin-top:8px;background:var(--paper);border:2px solid var(--ink);border-radius:10px;padding:5px 9px}
 .sv .big3 .b .rev .st{color:var(--mustard);font-size:14px;letter-spacing:1px;-webkit-text-stroke:.5px var(--ink)}
@@ -97,7 +97,7 @@ html body{background:#F4E8CE}
 /* 公式コンペ 男女比の配慮（女性も安心） */
 .sv .comp{background:var(--cream);border:2px solid #d8c3a0;border-radius:20px;margin:16px 18px 0;padding:20px 18px}
 .sv .comp .pill{display:inline-block;background:var(--pink);color:#fff;border:2.5px solid var(--ink);border-radius:999px;font-weight:900;font-size:12px;padding:5px 13px;box-shadow:2px 2px 0 var(--ink)}
-.sv .comp h3{font-size:18px;font-weight:900;margin:12px 0 6px;line-height:1.4}
+.sv .comp h2{font-size:18px;font-weight:900;margin:12px 0 6px;line-height:1.4}
 .sv .comp p{font-size:13px;font-weight:700;color:#4a3a2c;line-height:1.7}
 .sv .comp .ratio{display:flex;gap:8px;margin:14px 0 8px}
 .sv .comp .rp{flex:1;text-align:center;font-weight:900;font-size:15px;border:2.5px solid var(--ink);border-radius:12px;padding:11px 6px;box-shadow:3px 3px 0 var(--ink)}
@@ -269,7 +269,7 @@ export default async function LandingPage() {
           <div className="b">
             <div className="ic">🛡️</div>
             <div>
-              <div className="tt">初めましてでも、安心。</div>
+              <h2 className="tt">初めましてでも、安心。</h2>
               <div className="ds">ラウンド後の相互レビューで、その人が“変な人”じゃないかが★で見えます。マナーの良い人が可視化されるので、知らない人と回るのが不安でも大丈夫。</div>
               <div className="rev"><span className="st">★★★★☆</span><span className="lbl">また回りたい 12/14</span></div>
             </div>
@@ -277,14 +277,14 @@ export default async function LandingPage() {
           <div className="b">
             <div className="ic">⛳</div>
             <div>
-              <div className="tt">募集も参加も、気軽に。</div>
+              <h2 className="tt">募集も参加も、気軽に。</h2>
               <div className="ds">コースが決まっていなくてもOK。一人参加でも、1タップで申し込めます。「行きたいけど誘える人がいない」を無くすアプリ。</div>
             </div>
           </div>
           <div className="b">
             <div className="ic">🚗</div>
             <div>
-              <div className="tt">車がなくても、行ける。</div>
+              <h2 className="tt">車がなくても、行ける。</h2>
               <div className="ds">送迎（ピックアップ）の調整がアプリの中で完結。拾える駅を登録、参加者は申込時に希望を答えるだけ。LINEで何往復もしません。</div>
             </div>
           </div>
@@ -309,7 +309,7 @@ export default async function LandingPage() {
         {/* 公式コンペの男女比配慮（女性が孤立しないよう組み分け） */}
         <div className="comp">
           <span className="pill">👩 女性も安心</span>
-          <h3>ゴルトモ公式コンペは、<br />男女比とグループを配慮。</h3>
+          <h2>ゴルトモ公式コンペは、<br />男女比とグループを配慮。</h2>
           <p>主催コンペは男女比のバランスをとります。例えば<b>20人なら 男性12 : 女性8</b>。</p>
           <div className="ratio">
             <div className="rp m"><span className="n">12</span>👨 男性</div>
