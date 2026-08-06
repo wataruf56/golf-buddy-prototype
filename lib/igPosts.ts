@@ -95,6 +95,11 @@ export async function updateIgPost(id: string, patch: Partial<IgPost>): Promise<
   await db().collection(COL).doc(id).set(clean, { merge: true });
 }
 
+/** 下書きを消す。公開済みは消さない（記録として残す）。 */
+export async function deleteIgPost(id: string): Promise<void> {
+  await db().collection(COL).doc(id).delete();
+}
+
 /** 同じ指紋の投稿が既にあるか（公開済み・予約済み・下書きすべて対象）。 */
 export async function signatureExists(signature: string): Promise<boolean> {
   if (!signature) return false;

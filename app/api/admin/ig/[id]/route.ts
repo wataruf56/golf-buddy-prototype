@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getIgPost, updateIgPost } from '@/lib/igPosts';
+import { deleteIgPost, getIgPost, updateIgPost } from '@/lib/igPosts';
 import { igPublishImage, IG_CAPTION_LIMIT } from '@/lib/igPublish';
 
 // 1件の投稿を操作する。?token=ADMIN_LOG_TOKEN で保護。
@@ -10,6 +10,7 @@ import { igPublishImage, IG_CAPTION_LIMIT } from '@/lib/igPublish';
 //     {action:'unschedule'}                        予約を解除して下書きに戻す
 //     {action:'publish'}                           今すぐ公開する
 //     {action:'cancel'}                            取りやめ
+//     {action:'delete'}                            下書きを削除（公開済みは不可）
 //
 // 公開はこの publish か、予約時刻に走る /api/cron/ig-publish-due だけ。
 
@@ -67,6 +68,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     if (action === 'cancel') {
       await updateIgPost(id, { status: 'canceled', scheduledAt: null });
+      return NextResponse.json({ ok: true }, { headers: noStore });
+    }
+
+    if (action === 'delete') {
+      if (post.status === 'published') {
+        return NextResponse.json({ error: '公開済みは削除できません' }, { status: 400, headers: noStore });
+      }
+      await deleteIgPost(id);
       return NextResponse.json({ ok: true }, { headers: noStore });
     }
 

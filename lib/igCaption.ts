@@ -18,11 +18,15 @@ export const COMMUNITY_STATS = {
 
 export const HASHTAGS = '#ゴルフラウンド #ゴルフ仲間募集 #ゴルフ初心者 #ゴルトモ #ラウンド募集';
 
+// Cloud Run は UTC で動くため、Date のローカル getter を使うと日付が1日ずれる。
+// YYYY-MM-DD をそのまま数値として扱い、曜日だけ UTC で求める。
 function fmtDate(iso?: string): string {
   if (!iso) return '日程調整中';
-  const d = new Date(`${iso}T00:00:00+09:00`);
-  if (isNaN(d.getTime())) return iso;
-  return `${d.getMonth() + 1}/${d.getDate()}(${WD[d.getDay()]})`;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!m) return iso;
+  const y = Number(m[1]), mo = Number(m[2]), d = Number(m[3]);
+  const wd = new Date(Date.UTC(y, mo - 1, d)).getUTCDay();
+  return `${mo}/${d}(${WD[wd]})`;
 }
 
 export type CaptionInput = {
