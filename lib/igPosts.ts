@@ -16,7 +16,10 @@ export type IgPostStatus = 'draft' | 'scheduled' | 'published' | 'canceled' | 'f
 export type IgPost = {
   id: string;
   roundId?: string;
+  /** 1枚目の画像。一覧のサムネイルにも使う。 */
   imageUrl: string;
+  /** カルーセルのときの全ページ。1枚投稿では imageUrl と同じ1件だけ入る。 */
+  imageUrls: string[];
   caption: string;
   status: IgPostStatus;
   /** 予約時刻（epoch ms）。status='scheduled' のときのみ意味を持つ。 */
@@ -40,10 +43,16 @@ function db(): any {
 }
 
 function toPost(id: string, d: any): IgPost {
+  // 旧データには imageUrls が無いので、imageUrl から補う。
+  const urls: string[] = Array.isArray(d?.imageUrls)
+    ? d.imageUrls.map((u: any) => String(u)).filter(Boolean)
+    : [];
+  const first = String(d?.imageUrl || urls[0] || '');
   return {
     id,
     roundId: d?.roundId || undefined,
-    imageUrl: String(d?.imageUrl || ''),
+    imageUrl: first,
+    imageUrls: urls.length ? urls : (first ? [first] : []),
     caption: String(d?.caption || ''),
     status: (d?.status || 'draft') as IgPostStatus,
     scheduledAt: typeof d?.scheduledAt === 'number' ? d.scheduledAt : null,
@@ -67,12 +76,15 @@ export async function getIgPost(id: string): Promise<IgPost | null> {
 }
 
 export async function createIgPost(input: {
-  roundId?: string; imageUrl: string; caption: string; signature?: string;
+  roundId?: string; imageUrl?: string; imageUrls?: string[]; caption: string; signature?: string;
 }): Promise<IgPost> {
   const now = Date.now();
+  const urls = (input.imageUrls?.length ? input.imageUrls : [input.imageUrl || '']).filter(Boolean);
+  if (!urls.length) throw new Error('画像がありません');
   const doc = {
     roundId: input.roundId || null,
-    imageUrl: input.imageUrl,
+    imageUrl: urls[0],
+    imageUrls: urls,
     caption: input.caption,
     status: 'draft' as IgPostStatus,
     scheduledAt: null,
@@ -89,7 +101,7 @@ export async function createIgPost(input: {
 
 export async function updateIgPost(id: string, patch: Partial<IgPost>): Promise<void> {
   const clean: any = { updatedAt: Date.now() };
-  for (const k of ['caption', 'imageUrl', 'status', 'scheduledAt', 'publishedAt', 'igMediaId', 'error'] as const) {
+  for (const k of ['caption', 'imageUrl', 'imageUrls', 'status', 'scheduledAt', 'publishedAt', 'igMediaId', 'error'] as const) {
     if (k in patch) clean[k] = (patch as any)[k];
   }
   await db().collection(COL).doc(id).set(clean, { merge: true });

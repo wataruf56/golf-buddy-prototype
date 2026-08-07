@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createIgPost, getCronState, listIgPosts, listRoundImages, setRoundImage } from '@/lib/igPosts';
-import { igConfigured } from '@/lib/igPublish';
+import { igConfigured, IG_CAROUSEL_MAX } from '@/lib/igPublish';
 
 // 管理画面 /admin/ig 用。既存の管理APIと同じ ?token=ADMIN_LOG_TOKEN で保護する。
 //
@@ -49,13 +49,24 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'create') {
-      const imageUrl = String(body?.imageUrl || '').trim();
+      // imageUrls を渡せばカルーセル（2〜10枚）になる。1枚なら通常の投稿。
+      const list: string[] = Array.isArray(body?.imageUrls)
+        ? body.imageUrls.map((u: any) => String(u).trim()).filter(Boolean)
+        : [];
+      const single = String(body?.imageUrl || '').trim();
+      const imageUrls = list.length ? list : (single ? [single] : []);
       const caption = String(body?.caption || '').trim();
-      if (!imageUrl || !caption) {
-        return NextResponse.json({ error: 'imageUrl と caption が必要です' }, { status: 400, headers: noStore });
+      if (!imageUrls.length || !caption) {
+        return NextResponse.json({ error: 'imageUrl(s) と caption が必要です' }, { status: 400, headers: noStore });
+      }
+      if (imageUrls.length > IG_CAROUSEL_MAX) {
+        return NextResponse.json(
+          { error: `画像は${IG_CAROUSEL_MAX}枚までです` }, { status: 400, headers: noStore });
       }
       const post = await createIgPost({
-        imageUrl, caption, roundId: String(body?.roundId || '').trim() || undefined,
+        imageUrls, caption,
+        roundId: String(body?.roundId || '').trim() || undefined,
+        signature: String(body?.signature || '').trim() || undefined,
       });
       return NextResponse.json({ ok: true, post }, { headers: noStore });
     }

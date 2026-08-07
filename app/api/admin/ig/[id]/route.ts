@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteIgPost, getIgPost, updateIgPost } from '@/lib/igPosts';
-import { igPublishImage, IG_CAPTION_LIMIT } from '@/lib/igPublish';
+import { igPublishPost, IG_CAPTION_LIMIT } from '@/lib/igPublish';
 
 // 1件の投稿を操作する。?token=ADMIN_LOG_TOKEN で保護。
 //
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       // 二重公開を防ぐため先に published にしてから叩く。
       await updateIgPost(id, { status: 'published', publishedAt: Date.now(), error: null });
       try {
-        const mediaId = await igPublishImage(post.imageUrl, post.caption);
+        const mediaId = await igPublishPost(post.imageUrls, post.caption);
         await updateIgPost(id, { igMediaId: mediaId });
         return NextResponse.json({ ok: true, mediaId }, { headers: noStore });
       } catch (e) {

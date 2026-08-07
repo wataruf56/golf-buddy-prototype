@@ -9,6 +9,7 @@ type Post = {
   id: string;
   roundId?: string;
   imageUrl: string;
+  imageUrls: string[];
   caption: string;
   status: 'draft' | 'scheduled' | 'published' | 'canceled' | 'failed';
   scheduledAt?: number | null;
@@ -113,7 +114,18 @@ export default function AdminIgPage() {
               {p.publishedAt ? <span style={S.small}>公開: {new Date(p.publishedAt).toLocaleString('ja-JP')}</span> : null}
             </div>
 
-            {p.imageUrl ? (
+            {(p.imageUrls?.length ?? 0) > 1 ? (
+              // カルーセルは横スクロールで全ページ確認できるようにする
+              <div style={S.strip}>
+                {p.imageUrls.map((u, i) => (
+                  <div key={u} style={S.slide}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={u} alt="" style={S.slideImg} />
+                    <span style={S.slideNo}>{i + 1} / {p.imageUrls.length}</span>
+                  </div>
+                ))}
+              </div>
+            ) : p.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={p.imageUrl} alt="" style={S.img} />
             ) : null}
@@ -198,6 +210,11 @@ const S: Record<string, React.CSSProperties> = {
   small: { fontSize: 12, color: '#6b7280' },
   note: { fontSize: 12, color: '#9ca3af', marginTop: 6 },
   img: { width: '100%', borderRadius: 10, display: 'block', marginBottom: 10 },
+  strip: { display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 10, paddingBottom: 4 },
+  slide: { position: 'relative', flex: '0 0 auto', width: '62%' },
+  slideImg: { width: '100%', borderRadius: 10, display: 'block' },
+  slideNo: { position: 'absolute', right: 8, bottom: 8, background: 'rgba(0,0,0,.6)', color: '#fff',
+             fontSize: 11, borderRadius: 999, padding: '2px 8px' },
   ta: { width: '100%', boxSizing: 'border-box', fontSize: 14, lineHeight: 1.6, padding: 10,
         border: '1px solid #d1d5db', borderRadius: 8, fontFamily: 'inherit' },
   actions: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10, alignItems: 'center' },

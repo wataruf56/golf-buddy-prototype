@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pushToMany } from '@/lib/linePush';
-import { igPublishImage } from '@/lib/igPublish';
+import { igPublishPost } from '@/lib/igPublish';
 import { listDueScheduled, recordCronRun, updateIgPost } from '@/lib/igPosts';
 
 // 予約時刻を過ぎた投稿を公開する。
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
       // 二重公開を防ぐため、走る前に publishing 相当へ落としておく。
       await updateIgPost(p.id, { status: 'published', publishedAt: Date.now(), error: null });
       try {
-        const mediaId = await igPublishImage(p.imageUrl, p.caption);
+        const mediaId = await igPublishPost(p.imageUrls, p.caption);
         await updateIgPost(p.id, { igMediaId: mediaId });
         done.push(p.id);
       } catch (e) {
