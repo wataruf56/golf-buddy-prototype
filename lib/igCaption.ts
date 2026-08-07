@@ -16,7 +16,7 @@ export const COMMUNITY_STATS = {
   scoreWomen: '110〜130',
 };
 
-export const HASHTAGS = '#ゴルフラウンド #ゴルフ仲間募集 #ゴルフ初心者 #ゴルトモ #ラウンド募集';
+export const HASHTAGS = '#ゴルフラウンド #ゴルフ仲間 #ゴルフ初心者 #ゴルトモ #ラウンド募集';
 
 // Cloud Run は UTC で動くため、Date のローカル getter を使うと日付が1日ずれる。
 // YYYY-MM-DD をそのまま数値として扱い、曜日だけ UTC で求める。
