@@ -29,8 +29,12 @@ export async function PATCH(req: NextRequest) {
     const days = Array.isArray(nm.days)
       ? Array.from(new Set(nm.days.map((d: any) => String(d)).filter((d: string) => daySet.has(d))))
       : [];
+    // 送迎の希望（3択）。旧データ/旧クライアントの pickup:true は 'pickup' に読み替え。
+    let pickupPref: 'any' | 'pickup' | 'car' = 'any';
+    if (nm.pickupPref === 'pickup' || nm.pickupPref === 'car' || nm.pickupPref === 'any') pickupPref = nm.pickupPref;
+    else if (nm.pickup === true) pickupPref = 'pickup';
     // 県を1つ以上選んでいないと通知しようがないので、その場合は enabled=false に落とす。
-    patch.notifyMatch = { enabled: !!nm.enabled && areas.length > 0, areas, days, pickup: !!nm.pickup };
+    patch.notifyMatch = { enabled: !!nm.enabled && areas.length > 0, areas, days, pickupPref };
   }
 
   // 趣味タグ：正規化・重複除去・最大数制限。共有台帳(_hobbyTags)の count も増減する。

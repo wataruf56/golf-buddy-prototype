@@ -77,7 +77,7 @@ export default function ProfileEditPage() {
   // 希望条件でのラウンド通知（県・曜日・送迎）。県を1つ以上選ぶと通知ON。
   const [nmAreas, setNmAreas] = useState<string[]>([]);
   const [nmDays, setNmDays] = useState<string[]>([]);
-  const [nmPickup, setNmPickup] = useState(false);
+  const [nmPickupPref, setNmPickupPref] = useState<'any' | 'pickup' | 'car'>('any');
   // ライフスタイル＋趣味タグ。
   const [drinkStatus, setDrinkStatus] = useState<'' | 'yes' | 'sometimes' | 'no'>('');
   const [smokeStatus, setSmokeStatus] = useState<'' | 'no' | 'yes' | 'sometimes'>('');
@@ -112,7 +112,7 @@ export default function ProfileEditPage() {
     setAvailableDays(me.availableDays || '');
     setNmAreas(Array.isArray(me.notifyMatch?.areas) ? me.notifyMatch!.areas : []);
     setNmDays(Array.isArray(me.notifyMatch?.days) ? me.notifyMatch!.days : []);
-    setNmPickup(!!me.notifyMatch?.pickup);
+    setNmPickupPref(((me.notifyMatch as any)?.pickupPref as any) || (me.notifyMatch?.pickup ? 'pickup' : 'any'));
     setDrinkStatus((me.drinkStatus as any) || '');
     setSmokeStatus((me.smokeStatus as any) || '');
     setJob(me.job || '');
@@ -222,7 +222,7 @@ export default function ProfileEditPage() {
         recentScores: cleanedScores,
         golfHistory,
         availableDays,
-        notifyMatch: { enabled: nmAreas.length > 0, areas: nmAreas, days: nmDays, pickup: nmPickup },
+        notifyMatch: { enabled: nmAreas.length > 0, areas: nmAreas, days: nmDays, pickupPref: nmPickupPref },
         drinkStatus: (drinkStatus || undefined) as any,
         smokeStatus: (smokeStatus || undefined) as any,
         job,
@@ -456,10 +456,28 @@ export default function ProfileEditPage() {
               })}
             </div>
           </div>
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={nmPickup} onChange={(e) => setNmPickup(e.target.checked)} className="w-5 h-5" />
-            <span className="text-[13px] font-bold">🚗 送迎ありの募集だけ通知する</span>
-          </label>
+          <div>
+            <div className="text-[12px] font-bold mb-1.5">送迎（ピックアップ）の希望<span className="text-[10px] text-muted font-normal">（あなたの移動手段に合わせて）</span></div>
+            <div className="flex flex-col gap-1.5">
+              {([
+                ['any', 'こだわらない', 'すべての募集を通知'],
+                ['pickup', '送迎ありの募集だけ', '車がなく送迎してほしい人向け（拾える駅は募集ごと）'],
+                ['car', '車で自分で行ける', '送迎の有無を問わずすべて通知'],
+              ] as const).map(([v, label, hint]) => {
+                const on = nmPickupPref === v;
+                return (
+                  <button key={v} type="button" onClick={() => setNmPickupPref(v)}
+                    className={`text-left px-3 py-2 rounded-[10px] border-[1.5px] ${on ? 'bg-green-light border-green' : 'bg-card border-border'}`}>
+                    <div className="flex items-center gap-2">
+                      <span className={`w-4 h-4 rounded-full border-[2px] flex-shrink-0 ${on ? 'border-green bg-green' : 'border-border'}`} />
+                      <span className="text-[13px] font-bold">{v === 'pickup' ? '🚗 ' : v === 'car' ? '🚙 ' : ''}{label}</span>
+                    </div>
+                    <div className="text-[10px] text-muted mt-0.5 pl-6">{hint}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <div className="text-[11px] text-muted leading-relaxed">選んだ都道府県で新しい募集が投稿されたときに、LINE（＋アプリ内）でお知らせします。都道府県を1つも選ばなければ通知OFF。※LINE通知は「未読メッセージ等の通知」がONの場合に届きます。</div>
         </div>
 

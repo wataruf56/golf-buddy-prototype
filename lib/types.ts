@@ -50,8 +50,10 @@ export type User = {
   // ときだけLINE通知する（LP診断の興味シグナルと同じ仕組みをプロフィール発でも使う）。
   //   areas : 通知を受け取りたい都道府県（allAreas の値・複数）
   //   days  : 曜日で絞る（'平日'/'土日'。空＝どちらでも）
-  //   pickup: true=送迎ありの募集だけ通知
-  notifyMatch?: { enabled: boolean; areas: string[]; days: string[]; pickup: boolean };
+  //   pickupPref: 送迎の希望。'any'=こだわらない（全通知）／'pickup'=送迎ありの募集だけ
+  //     （車がない人向け）／'car'=車で自分で行ける（送迎有無を問わず全通知）。
+  //     旧データの pickup:true は 'pickup' 相当として扱う。
+  notifyMatch?: { enabled: boolean; areas: string[]; days: string[]; pickupPref: 'any' | 'pickup' | 'car'; pickup?: boolean };
   // 「お知らせ」(アプリ内通知インボックス) を最後に既読にした時刻。これより
   // 新しい createdAt の通知が未読扱い。
   notifReadAt?: number;

@@ -52,8 +52,10 @@ export async function notifyMatchingSignals(round: Round): Promise<void> {
         if (d.id === round.hostId) return;
         // 曜日フィルタ：設定があり、ラウンドに日付があるときだけ判定。
         if (Array.isArray(nm.days) && nm.days.length && roundDay && !nm.days.includes(roundDay)) return;
-        // 送迎フィルタ：送迎ありだけ希望なら、送迎ありの募集のみ。
-        if (nm.pickup === true && round.pickupOffered !== true) return;
+        // 送迎フィルタ：'pickup'(送迎ありだけ希望)のときのみ、送迎ありの募集に絞る。
+        // 'any'(こだわらない)・'car'(自分で行ける)は絞らない。旧データ pickup:true も 'pickup' 扱い。
+        const wantsPickupOnly = nm.pickupPref === 'pickup' || (nm.pickupPref == null && nm.pickup === true);
+        if (wantsPickupOnly && round.pickupOffered !== true) return;
         userIds.add(String(d.id));
       });
     } catch { /* noop */ }
