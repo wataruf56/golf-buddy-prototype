@@ -157,15 +157,40 @@ export async function getCronState(): Promise<CronState | null> {
 }
 
 // ------------------------------------------------------------------ 画像対応表
-export async function getRoundImage(roundId: string): Promise<string | null> {
+//
+// 画像には日付と残り枠が焼き込まれている。ラウンドの内容が変わると
+// 画像だけ古いまま残り、本文と食い違う（2026-08-07 の「1日ずれる」問題）。
+// そこで、どの日付・どの残り枠で焼いたのかを一緒に控えておき、
+// 提案時に突き合わせて、合わないものは投稿を作らないようにする。
+
+export type RoundImage = {
+  imageUrl: string;
+  /** 画像に焼かれている日付（YYYY-MM-DD）。古い画像には無い。 */
+  imageDate?: string | null;
+  /** 画像に焼かれている残り枠。古い画像には無い。 */
+  imageRest?: number | null;
+};
+
+export async function getRoundImage(roundId: string): Promise<RoundImage | null> {
   if (!roundId) return null;
   const s = await db().collection(IMG).doc(roundId).get();
-  return s.exists ? (s.data()?.imageUrl || null) : null;
+  if (!s.exists) return null;
+  const d = s.data() || {};
+  if (!d.imageUrl) return null;
+  return {
+    imageUrl: String(d.imageUrl),
+    imageDate: typeof d.imageDate === 'string' ? d.imageDate : null,
+    imageRest: typeof d.imageRest === 'number' ? d.imageRest : null,
+  };
 }
 
-export async function setRoundImage(roundId: string, imageUrl: string): Promise<void> {
-  await db().collection(IMG).doc(roundId).set(
-    { imageUrl, updatedAt: Date.now() }, { merge: true });
+export async function setRoundImage(
+  roundId: string, imageUrl: string, meta?: { imageDate?: string; imageRest?: number },
+): Promise<void> {
+  const doc: any = { imageUrl, updatedAt: Date.now() };
+  if (meta?.imageDate) doc.imageDate = meta.imageDate;
+  if (typeof meta?.imageRest === 'number') doc.imageRest = meta.imageRest;
+  await db().collection(IMG).doc(roundId).set(doc, { merge: true });
 }
 
 export async function listRoundImages(): Promise<{ roundId: string; imageUrl: string }[]> {

@@ -38,6 +38,11 @@ export type CaptionInput = {
   womenPct?: number;
 };
 
+// 本文は短くする方針（2026-08-07 に約550字→約300字へ）。
+// Instagram は約2行で折り畳まれるので、日付と残り枠を先頭に置いて
+// 「…続きを読む」を押す前に伝わるようにしている。
+// リピート率・女性比率といった「初心者でも浮きません」の証明は
+// カルーセル投稿「ゴルトモに参加してる人はこんな人です」に寄せた。
 export function buildCaption(input: CaptionInput): string {
   const r = input.round;
   const place = r.courseName || r.venue || r.area || '未定';
@@ -45,71 +50,27 @@ export function buildCaption(input: CaptionInput): string {
   const date = fmtDate(r.date);
   const start = r.startTime ? ` ${r.startTime} START` : '';
   const area = r.area ? `（${r.area}）` : '';
-  const price = input.price ? `\n💰 ${input.price}` : '';
-
-  const stats = r.isOfficial
-    ? [
-        '',
-        '▍いま参加している人のこと',
-        '',
-        `　参加確定　　　　${r.currentCount}名`,
-        input.womenPct != null ? `　女性の参加率　　${input.womenPct}%` : '',
-        `　リピート率　　　${COMMUNITY_STATS.repeatPct}%（${COMMUNITY_STATS.repeatWords}）`,
-        `　平均スコア　　　男性 ${COMMUNITY_STATS.scoreMen} ／ 女性 ${COMMUNITY_STATS.scoreWomen}`,
-        '',
-        `女性のスコアは${COMMUNITY_STATS.scoreWomen}と幅があります。`,
-        '上限側でも浮きません。むしろ、そのくらいの方が多いです。',
-      ].filter(Boolean).join('\n')
-    : [
-        '',
-        '▍どんな人が来ますか',
-        '',
-        `　リピート率　　　${COMMUNITY_STATS.repeatPct}%（${COMMUNITY_STATS.repeatWords}）`,
-        `　平均スコア　　　男性 ${COMMUNITY_STATS.scoreMen} ／ 女性 ${COMMUNITY_STATS.scoreWomen}`,
-      ].join('\n');
 
   return [
-    '「ゴルフ行きたいけど、誘える人がいない」',
+    `${date}${r.area ? ` ${r.area}` : ''}、あと${rest}名です。`,
     '',
-    'その1回目を、ここで。',
-    '',
-    '━━━━━━━━━━━━━━',
+    '20代・30代だけの、気楽なラウンドです。',
     '',
     `📅 ${date}${start}`,
-    `📍 ${place}${area}`.trimEnd() + price,
-    `👥 定員${r.maxSpots}名 ／ 残り${rest}名`,
+    `📍 ${place}${area}`.trimEnd(),
+    `👥 定員${r.maxSpots}名 / 残り${rest}名`,
+    input.price ? `💰 ${input.price}` : '',
     '',
-    '━━━━━━━━━━━━━━',
+    '「上手い人ばかりだったらどうしよう」がいちばん多い不安なので、先に数字を。',
+    `平均スコアは男性${COMMUNITY_STATS.scoreMen}、女性${COMMUNITY_STATS.scoreWomen}。ガチ勢の集まりではありません。`,
     '',
-    '▍20代・30代だけの、気楽なラウンドです',
+    '車がなくても、最寄り駅までのピックアップを調整できます🚗',
     '',
-    'ゴルフ初心者の方も歓迎です。',
-    '「上手い人ばかりだったらどうしよう」',
-    'という不安がいちばん多いので、先に数字を出しておきます。',
-    stats,
+    'お申し込みはプロフィールのリンクから。質問だけでもDMどうぞ。',
     '',
-    '▍車がなくても参加できます',
-    '',
-    '参加者同士のピックアップが可能です。',
-    '「クルマがないから」で諦めていた方も、',
-    '最寄り駅までお迎えに行けるのでご安心ください🚗',
-    '',
-    '▍参加方法',
-    '',
-    '① プロフィールのリンクから公式サイトへ',
-    '②「募集中のラウンド」の中から',
-    `　 ${date} ${place} を選択`,
-    '③ そのままお申し込み',
-    '',
-    '質問だけでも、DMでお気軽にどうぞ。',
-    '',
-    `残り${rest}名です。`,
-    '気になったら、早めにお声がけください ⛳️',
-    '',
-    '━━━━━━━━━━━━━━',
-    '※画像はイメージです',
+    '※写真はイメージです',
     HASHTAGS,
-  ].join('\n');
+  ].filter((l, i, a) => !(l === '' && a[i - 1] === '')).join('\n');
 }
 
 /** 同じ状態の投稿を二重に提案しないための指紋。残枠が変われば別扱いになる。 */

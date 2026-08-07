@@ -42,7 +42,9 @@ export async function POST(req: NextRequest) {
       if (!roundId || !imageUrl) {
         return NextResponse.json({ error: 'roundId と imageUrl が必要です' }, { status: 400, headers: noStore });
       }
-      await setRoundImage(roundId, imageUrl);
+      const imageDate = String(body?.imageDate || '').trim() || undefined;
+      const imageRest = typeof body?.imageRest === 'number' ? body.imageRest : undefined;
+      await setRoundImage(roundId, imageUrl, { imageDate, imageRest });
       return NextResponse.json({ ok: true }, { headers: noStore });
     }
 

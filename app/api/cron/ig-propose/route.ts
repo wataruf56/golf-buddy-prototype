@@ -54,6 +54,7 @@ export async function GET(req: NextRequest) {
     const created: string[] = [];
     const skipped: { id: string; why: string }[] = [];
     const needImage: { id: string; label: string }[] = [];
+    const staleImage: { id: string; label: string; why: string }[] = [];
 
     for (const r of rounds as any[]) {
       const rest = Math.max(0, (r.maxSpots || 0) - (r.currentCount || 0));
@@ -64,27 +65,43 @@ export async function GET(req: NextRequest) {
       const sig = captionSignature(r.id, rest);
       if (await signatureExists(sig)) { skipped.push({ id: r.id, why: '提案済み' }); continue; }
 
-      const imageUrl = await getRoundImage(r.id);
-      if (!imageUrl) { needImage.push({ id: r.id, label }); continue; }
+      const img = await getRoundImage(r.id);
+      if (!img) { needImage.push({ id: r.id, label }); continue; }
+
+      // 画像に焼かれた日付・残り枠が今の内容と違うなら、投稿を作らない。
+      // 本文だけ正しくて画像が古い、という食い違いを防ぐ。
+      const roundDate = String(r.date || '').slice(0, 10);
+      if (img.imageDate && roundDate && img.imageDate !== roundDate) {
+        staleImage.push({ id: r.id, label, why: `画像は${img.imageDate}` });
+        continue;
+      }
+      if (typeof img.imageRest === 'number' && img.imageRest !== rest) {
+        staleImage.push({ id: r.id, label, why: `画像は残り${img.imageRest}名／いまは残り${rest}名` });
+        continue;
+      }
 
       const caption = buildCaption({ round: { ...r, isOfficial: !!r.isOfficial } });
-      const post = await createIgPost({ roundId: r.id, imageUrl, caption, signature: sig });
+      const post = await createIgPost({ roundId: r.id, imageUrl: img.imageUrl, caption, signature: sig });
       created.push(post.id);
     }
 
     const ids = adminIds();
-    if (ids.length && (created.length || needImage.length)) {
+    if (ids.length && (created.length || needImage.length || staleImage.length)) {
       const lines: string[] = ['📷 Instagram投稿の下書きができました'];
       if (created.length) lines.push(`・下書き ${created.length}件（内容を確認して公開または予約してください）`);
       if (needImage.length) {
         lines.push(`・画像未登録 ${needImage.length}件`);
         for (const n of needImage.slice(0, 5)) lines.push(`　- ${n.label}`);
       }
+      if (staleImage.length) {
+        lines.push(`・画像が古い ${staleImage.length}件（作り直してください）`);
+        for (const n of staleImage.slice(0, 5)) lines.push(`　- ${n.label}（${n.why}）`);
+      }
       await pushToMany(ids, lines.join('\n'), `${baseUrl()}/admin/ig`, 'ig_propose');
     }
 
     return NextResponse.json(
-      { ok: true, created: created.length, needImage, skipped },
+      { ok: true, created: created.length, needImage, staleImage, skipped },
       { headers: noStore },
     );
   } catch (e) {
