@@ -10,6 +10,15 @@ import type { Round } from './types';
 // _lpSignal: { lineUserId, areas[], days[], pickup, pickupPlaces[], ... }
 // マッチ条件＝ round.area が signal.areas に含まれること（県の一致）。
 // 主催者自身・通知OFFの人は除外。失敗しても投稿処理は止めない（best-effort）。
+// ラウンドの開催日を「平日」「土日」に分類。日付が無い/不正なら ''（曜日で絞らない）。
+function weekdayCategory(date?: string): '' | '平日' | '土日' {
+  if (!date) return '';
+  const dt = new Date(date);
+  if (isNaN(dt.getTime())) return '';
+  const d = dt.getDay(); // 0=日,6=土
+  return (d === 0 || d === 6) ? '土日' : '平日';
+}
+
 export async function notifyMatchingSignals(round: Round): Promise<void> {
   try {
     const rawArea = (round.area || '').trim();
@@ -21,16 +30,36 @@ export async function notifyMatchingSignals(round: Round): Promise<void> {
     // 接尾辞なしで保存されている。都/道/府/県 を除いて照合する（例: 東京都→東京）。
     const area = rawArea.replace(/[都道府県]$/, '');
 
-    // 希望エリアにこの県を含むアンケート回答者を取得。
-    const snap = await adb.collection('_lpSignal').where('areas', 'array-contains', area).limit(1000).get();
-    if (snap.empty) return;
-
-    // 同一ユーザーが複数 visitorId で登録している場合に備えて lineUserId で重複排除。
     const userIds = new Set<string>();
-    snap.docs.forEach((d: any) => {
-      const uid = String(d.data()?.lineUserId || '').trim();
-      if (uid && uid !== round.hostId) userIds.add(uid);
-    });
+
+    // (1) LP診断アンケート（_lpSignal）：希望エリアにこの県(接尾辞なし)を含む回答者。
+    try {
+      const snap = await adb.collection('_lpSignal').where('areas', 'array-contains', area).limit(1000).get();
+      snap.docs.forEach((d: any) => {
+        const uid = String(d.data()?.lineUserId || '').trim();
+        if (uid && uid !== round.hostId) userIds.add(uid);
+      });
+    } catch { /* noop */ }
+
+    // (2) プロフィール登録の希望条件（notifyMatch）：県(フルネーム)一致＋曜日・送迎で絞り込み。
+    try {
+      const roundDay = weekdayCategory(round.date); // '平日'|'土日'|''（日程未定）
+      const usnap = await adb.collection('users').where('notifyMatch.areas', 'array-contains', rawArea).limit(3000).get();
+      usnap.docs.forEach((d: any) => {
+        const u = d.data() || {};
+        const nm = u.notifyMatch;
+        if (!nm || !nm.enabled) return;
+        if (d.id === round.hostId) return;
+        // 曜日フィルタ：設定があり、ラウンドに日付があるときだけ判定。
+        if (Array.isArray(nm.days) && nm.days.length && roundDay && !nm.days.includes(roundDay)) return;
+        // 送迎フィルタ：送迎ありだけ希望なら、送迎ありの募集のみ。
+        if (nm.pickup === true && round.pickupOffered !== true) return;
+        userIds.add(String(d.id));
+      });
+    } catch { /* noop */ }
+
+    // すでにこのラウンドに関わっている人（参加/申請中）は通知対象から外す。
+    for (const uid of [round.hostId, ...(round.applicantIds || []), ...(round.pendingApplicantIds || [])]) userIds.delete(uid);
     if (userIds.size === 0) return;
 
     const { addNotification } = await import('./notifications');

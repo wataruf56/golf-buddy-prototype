@@ -74,6 +74,11 @@ export default function ProfileEditPage() {
   const [recentScores, setRecentScores] = useState<ScoreEntry[]>([]);
   const [golfHistory, setGolfHistory] = useState('');
   const [availableDays, setAvailableDays] = useState('');
+  // 希望条件でのラウンド通知（県・曜日・送迎）。
+  const [nmEnabled, setNmEnabled] = useState(false);
+  const [nmAreas, setNmAreas] = useState<string[]>([]);
+  const [nmDays, setNmDays] = useState<string[]>([]);
+  const [nmPickup, setNmPickup] = useState(false);
   // ライフスタイル＋趣味タグ。
   const [drinkStatus, setDrinkStatus] = useState<'' | 'yes' | 'sometimes' | 'no'>('');
   const [smokeStatus, setSmokeStatus] = useState<'' | 'no' | 'yes' | 'sometimes'>('');
@@ -106,6 +111,10 @@ export default function ProfileEditPage() {
     setRecentScores(Array.isArray(me.recentScores) ? me.recentScores : []);
     setGolfHistory(me.golfHistory || '');
     setAvailableDays(me.availableDays || '');
+    setNmEnabled(!!me.notifyMatch?.enabled);
+    setNmAreas(Array.isArray(me.notifyMatch?.areas) ? me.notifyMatch!.areas : []);
+    setNmDays(Array.isArray(me.notifyMatch?.days) ? me.notifyMatch!.days : []);
+    setNmPickup(!!me.notifyMatch?.pickup);
     setDrinkStatus((me.drinkStatus as any) || '');
     setSmokeStatus((me.smokeStatus as any) || '');
     setJob(me.job || '');
@@ -215,6 +224,7 @@ export default function ProfileEditPage() {
         recentScores: cleanedScores,
         golfHistory,
         availableDays,
+        notifyMatch: { enabled: nmEnabled, areas: nmAreas, days: nmDays, pickup: nmPickup },
         drinkStatus: (drinkStatus || undefined) as any,
         smokeStatus: (smokeStatus || undefined) as any,
         job,
@@ -413,6 +423,52 @@ export default function ProfileEditPage() {
             {availableDaysOptions.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
         </Field>
+
+        {/* ── 希望条件でラウンド通知（登録した県で新規募集が出たらLINE通知） ── */}
+        <div className="mt-1 mb-2 text-[13px] font-black text-sub">🔔 希望条件でラウンド通知<span className="text-[11px] text-muted font-normal">（条件に合う募集が出たらLINEでお知らせ）</span></div>
+        <div className="bg-bg rounded-[12px] p-3 mb-4">
+          <label className="flex items-center justify-between">
+            <span className="text-[13px] font-bold">この通知を受け取る</span>
+            <input type="checkbox" checked={nmEnabled} onChange={(e) => setNmEnabled(e.target.checked)} className="w-5 h-5" />
+          </label>
+          {nmEnabled && (
+            <div className="mt-3 flex flex-col gap-3">
+              <div>
+                <div className="text-[12px] font-bold mb-1.5">通知を受け取りたいエリア<span className="text-[10px] text-muted font-normal">（複数選択可・必須）</span></div>
+                <div className="flex flex-wrap gap-1.5">
+                  {allAreas.map((a) => {
+                    const on = nmAreas.includes(a);
+                    return (
+                      <button key={a} type="button"
+                        onClick={() => setNmAreas((prev) => on ? prev.filter((x) => x !== a) : [...prev, a])}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-full border-[1.5px] ${on ? 'bg-orange border-orange text-white' : 'bg-card border-border text-sub'}`}
+                      >{a}</button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <div className="text-[12px] font-bold mb-1.5">曜日<span className="text-[10px] text-muted font-normal">（未選択＝どちらでも）</span></div>
+                <div className="flex gap-1.5">
+                  {['平日', '土日'].map((d) => {
+                    const on = nmDays.includes(d);
+                    return (
+                      <button key={d} type="button"
+                        onClick={() => setNmDays((prev) => on ? prev.filter((x) => x !== d) : [...prev, d])}
+                        className={`px-4 py-1.5 text-xs font-bold rounded-full border-[1.5px] ${on ? 'bg-orange border-orange text-white' : 'bg-card border-border text-sub'}`}
+                      >{d}</button>
+                    );
+                  })}
+                </div>
+              </div>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={nmPickup} onChange={(e) => setNmPickup(e.target.checked)} className="w-5 h-5" />
+                <span className="text-[13px] font-bold">🚗 送迎ありの募集だけ通知する</span>
+              </label>
+              <div className="text-[11px] text-muted leading-relaxed">選んだエリアで新しい募集が投稿されたときに、LINE（＋アプリ内）でお知らせします。※LINE通知は「未読メッセージ等の通知」がONの場合に届きます。</div>
+            </div>
+          )}
+        </div>
 
         {/* ── ライフスタイル・趣味（任意・お互い閲覧可） ── */}
         <div className="mt-1 mb-2 text-[13px] font-black text-sub">🍶 ライフスタイル・趣味<span className="text-[11px] text-muted font-normal">（任意・共通点づくり用）</span></div>

@@ -46,6 +46,12 @@ export type User = {
   // Per-type notification preferences for the LINE official account + web push.
   // Keys are NotifyType (lib/notifyPrefs). Missing key → that type's default.
   notifyPrefs?: Record<string, boolean>;
+  // 希望条件でのラウンド通知。ここに登録した県で新規ラウンドが投稿されると、条件に合う
+  // ときだけLINE通知する（LP診断の興味シグナルと同じ仕組みをプロフィール発でも使う）。
+  //   areas : 通知を受け取りたい都道府県（allAreas の値・複数）
+  //   days  : 曜日で絞る（'平日'/'土日'。空＝どちらでも）
+  //   pickup: true=送迎ありの募集だけ通知
+  notifyMatch?: { enabled: boolean; areas: string[]; days: string[]; pickup: boolean };
   // 「お知らせ」(アプリ内通知インボックス) を最後に既読にした時刻。これより
   // 新しい createdAt の通知が未読扱い。
   notifReadAt?: number;
