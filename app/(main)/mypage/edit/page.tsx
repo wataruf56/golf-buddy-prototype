@@ -6,7 +6,7 @@ import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { Avatar } from '@/components/Avatar';
 import { track } from '@/lib/telemetry';
-import { allAreas } from '@/lib/mockData';
+import { allAreas, allPrefectures } from '@/lib/mockData';
 import { GOLMOTI_TYPES, getGolmotiType, golmotiImg } from '@/lib/golmoti';
 import type { Gender, CarStatus, ScoreEntry } from '@/lib/types';
 import { DRINK_OPTIONS, SMOKE_OPTIONS, JOB_OPTIONS } from '@/lib/lifestyle';
@@ -74,8 +74,7 @@ export default function ProfileEditPage() {
   const [recentScores, setRecentScores] = useState<ScoreEntry[]>([]);
   const [golfHistory, setGolfHistory] = useState('');
   const [availableDays, setAvailableDays] = useState('');
-  // 希望条件でのラウンド通知（県・曜日・送迎）。
-  const [nmEnabled, setNmEnabled] = useState(false);
+  // 希望条件でのラウンド通知（県・曜日・送迎）。県を1つ以上選ぶと通知ON。
   const [nmAreas, setNmAreas] = useState<string[]>([]);
   const [nmDays, setNmDays] = useState<string[]>([]);
   const [nmPickup, setNmPickup] = useState(false);
@@ -111,7 +110,6 @@ export default function ProfileEditPage() {
     setRecentScores(Array.isArray(me.recentScores) ? me.recentScores : []);
     setGolfHistory(me.golfHistory || '');
     setAvailableDays(me.availableDays || '');
-    setNmEnabled(!!me.notifyMatch?.enabled);
     setNmAreas(Array.isArray(me.notifyMatch?.areas) ? me.notifyMatch!.areas : []);
     setNmDays(Array.isArray(me.notifyMatch?.days) ? me.notifyMatch!.days : []);
     setNmPickup(!!me.notifyMatch?.pickup);
@@ -224,7 +222,7 @@ export default function ProfileEditPage() {
         recentScores: cleanedScores,
         golfHistory,
         availableDays,
-        notifyMatch: { enabled: nmEnabled, areas: nmAreas, days: nmDays, pickup: nmPickup },
+        notifyMatch: { enabled: nmAreas.length > 0, areas: nmAreas, days: nmDays, pickup: nmPickup },
         drinkStatus: (drinkStatus || undefined) as any,
         smokeStatus: (smokeStatus || undefined) as any,
         job,
@@ -426,48 +424,43 @@ export default function ProfileEditPage() {
 
         {/* ── 希望条件でラウンド通知（登録した県で新規募集が出たらLINE通知） ── */}
         <div className="mt-1 mb-2 text-[13px] font-black text-sub">🔔 希望条件でラウンド通知<span className="text-[11px] text-muted font-normal">（条件に合う募集が出たらLINEでお知らせ）</span></div>
-        <div className="bg-bg rounded-[12px] p-3 mb-4">
-          <label className="flex items-center justify-between">
-            <span className="text-[13px] font-bold">この通知を受け取る</span>
-            <input type="checkbox" checked={nmEnabled} onChange={(e) => setNmEnabled(e.target.checked)} className="w-5 h-5" />
-          </label>
-          {nmEnabled && (
-            <div className="mt-3 flex flex-col gap-3">
-              <div>
-                <div className="text-[12px] font-bold mb-1.5">通知を受け取りたいエリア<span className="text-[10px] text-muted font-normal">（複数選択可・必須）</span></div>
-                <div className="flex flex-wrap gap-1.5">
-                  {allAreas.map((a) => {
-                    const on = nmAreas.includes(a);
-                    return (
-                      <button key={a} type="button"
-                        onClick={() => setNmAreas((prev) => on ? prev.filter((x) => x !== a) : [...prev, a])}
-                        className={`px-3 py-1.5 text-xs font-bold rounded-full border-[1.5px] ${on ? 'bg-orange border-orange text-white' : 'bg-card border-border text-sub'}`}
-                      >{a}</button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <div className="text-[12px] font-bold mb-1.5">曜日<span className="text-[10px] text-muted font-normal">（未選択＝どちらでも）</span></div>
-                <div className="flex gap-1.5">
-                  {['平日', '土日'].map((d) => {
-                    const on = nmDays.includes(d);
-                    return (
-                      <button key={d} type="button"
-                        onClick={() => setNmDays((prev) => on ? prev.filter((x) => x !== d) : [...prev, d])}
-                        className={`px-4 py-1.5 text-xs font-bold rounded-full border-[1.5px] ${on ? 'bg-orange border-orange text-white' : 'bg-card border-border text-sub'}`}
-                      >{d}</button>
-                    );
-                  })}
-                </div>
-              </div>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={nmPickup} onChange={(e) => setNmPickup(e.target.checked)} className="w-5 h-5" />
-                <span className="text-[13px] font-bold">🚗 送迎ありの募集だけ通知する</span>
-              </label>
-              <div className="text-[11px] text-muted leading-relaxed">選んだエリアで新しい募集が投稿されたときに、LINE（＋アプリ内）でお知らせします。※LINE通知は「未読メッセージ等の通知」がONの場合に届きます。</div>
+        <div className="bg-bg rounded-[12px] p-3 mb-4 flex flex-col gap-3">
+          <div>
+            <div className="text-[12px] font-bold mb-1.5">通知を受け取りたい都道府県<span className="text-[10px] text-muted font-normal">（複数タップで選択・選ぶと通知ON／全解除でOFF）</span></div>
+            <div className="flex flex-wrap gap-1.5">
+              {allPrefectures.map((a) => {
+                const on = nmAreas.includes(a);
+                return (
+                  <button key={a} type="button"
+                    onClick={() => setNmAreas((prev) => on ? prev.filter((x) => x !== a) : [...prev, a])}
+                    className={`px-2.5 py-1.5 text-xs font-bold rounded-full border-[1.5px] ${on ? 'bg-orange border-orange text-white' : 'bg-card border-border text-sub'}`}
+                  >{a}</button>
+                );
+              })}
             </div>
-          )}
+            {nmAreas.length > 0 && (
+              <div className="mt-1.5 text-[11px] text-green font-bold">選択中: {nmAreas.length}件（{nmAreas.join('・')}）<button type="button" onClick={() => setNmAreas([])} className="ml-2 text-muted underline">全て解除</button></div>
+            )}
+          </div>
+          <div>
+            <div className="text-[12px] font-bold mb-1.5">曜日<span className="text-[10px] text-muted font-normal">（未選択＝どちらでも）</span></div>
+            <div className="flex gap-1.5">
+              {['平日', '土日'].map((d) => {
+                const on = nmDays.includes(d);
+                return (
+                  <button key={d} type="button"
+                    onClick={() => setNmDays((prev) => on ? prev.filter((x) => x !== d) : [...prev, d])}
+                    className={`px-4 py-1.5 text-xs font-bold rounded-full border-[1.5px] ${on ? 'bg-orange border-orange text-white' : 'bg-card border-border text-sub'}`}
+                  >{d}</button>
+                );
+              })}
+            </div>
+          </div>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={nmPickup} onChange={(e) => setNmPickup(e.target.checked)} className="w-5 h-5" />
+            <span className="text-[13px] font-bold">🚗 送迎ありの募集だけ通知する</span>
+          </label>
+          <div className="text-[11px] text-muted leading-relaxed">選んだ都道府県で新しい募集が投稿されたときに、LINE（＋アプリ内）でお知らせします。都道府県を1つも選ばなければ通知OFF。※LINE通知は「未読メッセージ等の通知」がONの場合に届きます。</div>
         </div>
 
         {/* ── ライフスタイル・趣味（任意・お互い閲覧可） ── */}

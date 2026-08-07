@@ -20,10 +20,10 @@ export async function PATCH(req: NextRequest) {
   // 希望条件でのラウンド通知（県・曜日・送迎）。サニタイズして保存。
   if ('notifyMatch' in body) {
     const nm = (body.notifyMatch || {}) as any;
-    const { allAreas } = await import('@/lib/mockData');
-    const areaSet = new Set(allAreas);
+    const { allPrefectures } = await import('@/lib/mockData');
+    const areaSet = new Set(allPrefectures);
     const areas = Array.isArray(nm.areas)
-      ? Array.from(new Set(nm.areas.map((a: any) => String(a)).filter((a: string) => areaSet.has(a)))).slice(0, 20)
+      ? Array.from(new Set(nm.areas.map((a: any) => String(a)).filter((a: string) => areaSet.has(a)))).slice(0, 47)
       : [];
     const daySet = new Set(['平日', '土日']);
     const days = Array.isArray(nm.days)
