@@ -55,16 +55,20 @@ export async function POST(req: NextRequest) {
         : [];
       const single = String(body?.imageUrl || '').trim();
       const imageUrls = list.length ? list : (single ? [single] : []);
+      const videoUrl = String(body?.videoUrl || '').trim();     // 渡すとリールになる
+      const coverUrl = String(body?.coverUrl || '').trim();
       const caption = String(body?.caption || '').trim();
-      if (!imageUrls.length || !caption) {
-        return NextResponse.json({ error: 'imageUrl(s) と caption が必要です' }, { status: 400, headers: noStore });
+      if ((!imageUrls.length && !videoUrl) || !caption) {
+        return NextResponse.json(
+          { error: 'imageUrl(s) か videoUrl、および caption が必要です' },
+          { status: 400, headers: noStore });
       }
       if (imageUrls.length > IG_CAROUSEL_MAX) {
         return NextResponse.json(
           { error: `画像は${IG_CAROUSEL_MAX}枚までです` }, { status: 400, headers: noStore });
       }
       const post = await createIgPost({
-        imageUrls, caption,
+        imageUrls, videoUrl: videoUrl || undefined, coverUrl: coverUrl || undefined, caption,
         roundId: String(body?.roundId || '').trim() || undefined,
         signature: String(body?.signature || '').trim() || undefined,
       });

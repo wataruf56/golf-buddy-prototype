@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteIgPost, getIgPost, updateIgPost } from '@/lib/igPosts';
-import { igPublishPost, IG_CAPTION_LIMIT } from '@/lib/igPublish';
+import { IG_CAPTION_LIMIT } from '@/lib/igPublish';
+import { advancePublish } from '@/lib/igRunPublish';
 
 // 1件の投稿を操作する。?token=ADMIN_LOG_TOKEN で保護。
 //
@@ -93,15 +94,28 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       if (post.status === 'published') {
         return NextResponse.json({ error: '公開済みです' }, { status: 400, headers: noStore });
       }
-      // 二重公開を防ぐため先に published にしてから叩く。
-      await updateIgPost(id, { status: 'published', publishedAt: Date.now(), error: null });
+      if (post.status === 'publishing') {
+        return NextResponse.json({ error: 'いま公開処理中です' }, { status: 400, headers: noStore });
+      }
+      // 二重公開を防ぐため先に publishing にしてから叩く。
+      await updateIgPost(id, { status: 'publishing', error: null });
       try {
-        const mediaId = await igPublishPost(post.imageUrls, post.caption);
-        await updateIgPost(id, { igMediaId: mediaId });
-        return NextResponse.json({ ok: true, mediaId }, { headers: noStore });
+        const r = await advancePublish({ ...post, status: 'publishing' });
+        if (r.state === 'published') {
+          await updateIgPost(id, {
+            status: 'published', publishedAt: Date.now(),
+            igMediaId: r.mediaId, containerId: null, containerAt: null, error: null,
+          });
+          return NextResponse.json({ ok: true, mediaId: r.mediaId }, { headers: noStore });
+        }
+        // 動画の変換が長引いた。publishing のまま残し、5分ごとの巡回が仕上げる。
+        return NextResponse.json(
+          { ok: true, pending: true, message: '動画を変換中です。終わり次第、自動で公開されます' },
+          { headers: noStore });
       } catch (e) {
         await updateIgPost(id, {
-          status: 'failed', publishedAt: null, error: (e as Error).message.slice(0, 500),
+          status: 'failed', publishedAt: null, containerId: null, containerAt: null,
+          error: (e as Error).message.slice(0, 500),
         });
         return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
       }

@@ -10,8 +10,11 @@ type Post = {
   roundId?: string;
   imageUrl: string;
   imageUrls: string[];
+  videoUrl?: string | null;
+  coverUrl?: string | null;
+  mediaType: 'IMAGE' | 'CAROUSEL' | 'REELS';
   caption: string;
-  status: 'draft' | 'scheduled' | 'published' | 'canceled' | 'failed';
+  status: 'draft' | 'scheduled' | 'publishing' | 'published' | 'canceled' | 'failed';
   scheduledAt?: number | null;
   createdAt: number;
   publishedAt?: number | null;
@@ -20,10 +23,15 @@ type Post = {
 };
 
 const STATUS_LABEL: Record<Post['status'], string> = {
-  draft: '下書き', scheduled: '予約済み', published: '公開済み', canceled: '取りやめ', failed: '失敗',
+  draft: '下書き', scheduled: '予約済み', publishing: '公開処理中',
+  published: '公開済み', canceled: '取りやめ', failed: '失敗',
 };
 const STATUS_COLOR: Record<Post['status'], string> = {
-  draft: '#6b7280', scheduled: '#2563eb', published: '#15803d', canceled: '#9ca3af', failed: '#dc2626',
+  draft: '#6b7280', scheduled: '#2563eb', publishing: '#b45309',
+  published: '#15803d', canceled: '#9ca3af', failed: '#dc2626',
+};
+const TYPE_LABEL: Record<Post['mediaType'], string> = {
+  IMAGE: '写真', CAROUSEL: 'カルーセル', REELS: 'リール',
 };
 
 /** epoch ms → datetime-local 用の文字列（ローカル時刻）。 */
@@ -110,11 +118,16 @@ export default function AdminIgPage() {
           <section key={p.id} style={S.card}>
             <div style={S.row}>
               <span style={{ ...S.badge, background: STATUS_COLOR[p.status] }}>{STATUS_LABEL[p.status]}</span>
+              <span style={S.typeBadge}>{TYPE_LABEL[p.mediaType] || '写真'}</span>
               {p.scheduledAt ? <span style={S.small}>予約: {new Date(p.scheduledAt).toLocaleString('ja-JP')}</span> : null}
               {p.publishedAt ? <span style={S.small}>公開: {new Date(p.publishedAt).toLocaleString('ja-JP')}</span> : null}
             </div>
 
-            {(p.imageUrls?.length ?? 0) > 1 ? (
+            {p.mediaType === 'REELS' && p.videoUrl ? (
+              // eslint-disable-next-line jsx-a11y/media-has-caption
+              <video src={p.videoUrl} poster={p.coverUrl || undefined} controls playsInline
+                     preload="metadata" style={S.video} />
+            ) : (p.imageUrls?.length ?? 0) > 1 ? (
               // カルーセルは横スクロールで全ページ確認できるようにする
               <div style={S.strip}>
                 {p.imageUrls.map((u, i) => (
@@ -210,6 +223,10 @@ const S: Record<string, React.CSSProperties> = {
   small: { fontSize: 12, color: '#6b7280' },
   note: { fontSize: 12, color: '#9ca3af', marginTop: 6 },
   img: { width: '100%', borderRadius: 10, display: 'block', marginBottom: 10 },
+  video: { width: '100%', maxHeight: 460, borderRadius: 10, display: 'block',
+           marginBottom: 10, background: '#000' },
+  typeBadge: { border: '1px solid #d1d5db', color: '#374151', borderRadius: 999,
+               padding: '2px 9px', fontSize: 12 },
   strip: { display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 10, paddingBottom: 4 },
   slide: { position: 'relative', flex: '0 0 auto', width: '62%' },
   slideImg: { width: '100%', borderRadius: 10, display: 'block' },

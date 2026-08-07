@@ -65,6 +65,48 @@ async function waitFinished(token: string, containerId: string): Promise<void> {
   throw new Error(`コンテナがFINISHEDになりませんでした（最後の状態: ${last || '不明'}）`);
 }
 
+/** コンテナの状態を1回だけ見る。 */
+export async function igContainerStatus(containerId: string): Promise<string> {
+  const token = igToken();
+  if (!token) throw new Error('IG_ACCESS_TOKEN が未設定です');
+  const q = new URLSearchParams({ fields: 'status_code,status', access_token: token });
+  const st = await call(`${GRAPH}/${containerId}?${q}`);
+  return String(st?.status_code || '');
+}
+
+/** リール（動画）のコンテナを作る。変換に数分かかるので公開は分けて行う。 */
+export async function igCreateReelContainer(
+  videoUrl: string, caption: string, coverUrl?: string,
+): Promise<string> {
+  const token = igToken();
+  if (!token) throw new Error('IG_ACCESS_TOKEN が未設定です');
+  assertUrl(videoUrl);
+  if (coverUrl) assertUrl(coverUrl);
+
+  const params: Record<string, string> = {
+    media_type: 'REELS',
+    video_url: videoUrl,
+    caption: (caption || '').slice(0, IG_CAPTION_LIMIT),
+    access_token: token,
+  };
+  if (coverUrl) params.cover_url = coverUrl;
+
+  const created = await call(`${GRAPH}/me/media`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(params),
+  });
+  if (!created?.id) throw new Error('リールのコンテナ作成に失敗しました');
+  return created.id;
+}
+
+/** できあがったコンテナを公開する。 */
+export async function igPublishReadyContainer(containerId: string): Promise<string> {
+  const token = igToken();
+  if (!token) throw new Error('IG_ACCESS_TOKEN が未設定です');
+  return publishContainer(token, containerId);
+}
+
 async function publishContainer(token: string, containerId: string): Promise<string> {
   const pub = await call(`${GRAPH}/me/media_publish`, {
     method: 'POST',

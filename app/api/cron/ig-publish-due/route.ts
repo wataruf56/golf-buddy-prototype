@@ -1,17 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pushToMany } from '@/lib/linePush';
-import { igPublishPost } from '@/lib/igPublish';
-import { listDueScheduled, recordCronRun, updateIgPost } from '@/lib/igPosts';
+import { advancePublish } from '@/lib/igRunPublish';
+import { IgPost, listDueScheduled, listPublishing, recordCronRun, updateIgPost } from '@/lib/igPosts';
 
 // 予約時刻を過ぎた投稿を公開する。
 //
 // ★公開されるのは status='scheduled' のものだけ。つまり「人が予約した投稿」だけ。
 //  下書き(draft)は絶対に自動公開されない。
 //
+// リールは動画の変換待ちで1回では終わらないことがある。その場合は
+// status='publishing' のまま残るので、次の巡回で続きをやる。
+//
 // Auth: Bearer CRON_SECRET / ?secret=
 
 export const dynamic = 'force-dynamic';
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
+
+/** 変換待ちがこれ以上続いたら諦める。 */
+const STUCK_MS = 40 * 60 * 1000;
 
 function authorize(req: NextRequest): boolean {
   const expected = (process.env.CRON_SECRET || '').trim();
@@ -32,20 +38,43 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const due = await listDueScheduled();
+    // 変換待ちの続き → 新しく時刻が来たもの、の順に処理する。
+    const [stalled, due] = await Promise.all([listPublishing(), listDueScheduled()]);
+    const targets = [...stalled, ...due];
+
     const done: string[] = [];
+    const pending: string[] = [];
     const failed: { id: string; error: string }[] = [];
 
-    for (const p of due) {
-      // 二重公開を防ぐため、走る前に publishing 相当へ落としておく。
-      await updateIgPost(p.id, { status: 'published', publishedAt: Date.now(), error: null });
+    for (const p of targets) {
+      // 変換待ちが長すぎるものは失敗にして、無限に居座らせない。
+      if (p.status === 'publishing' && p.containerAt && Date.now() - p.containerAt > STUCK_MS) {
+        await updateIgPost(p.id, {
+          status: 'failed', containerId: null, containerAt: null,
+          error: '動画の変換が終わりませんでした。動画を確認してやり直してください',
+        });
+        failed.push({ id: p.id, error: '動画の変換が終わりませんでした' });
+        continue;
+      }
+
+      // 二重公開を防ぐため、走る前に publishing へ落としておく。
+      if (p.status !== 'publishing') await updateIgPost(p.id, { status: 'publishing', error: null });
+
       try {
-        const mediaId = await igPublishPost(p.imageUrls, p.caption);
-        await updateIgPost(p.id, { igMediaId: mediaId });
-        done.push(p.id);
+        const r = await advancePublish({ ...p, status: 'publishing' } as IgPost);
+        if (r.state === 'published') {
+          await updateIgPost(p.id, {
+            status: 'published', publishedAt: Date.now(),
+            igMediaId: r.mediaId, containerId: null, containerAt: null, error: null,
+          });
+          done.push(p.id);
+        } else {
+          pending.push(p.id);   // publishing のまま。次の巡回で続きをやる
+        }
       } catch (e) {
         await updateIgPost(p.id, {
-          status: 'failed', publishedAt: null, error: (e as Error).message.slice(0, 500),
+          status: 'failed', publishedAt: null, containerId: null, containerAt: null,
+          error: (e as Error).message.slice(0, 500),
         });
         failed.push({ id: p.id, error: (e as Error).message.slice(0, 200) });
       }
@@ -63,7 +92,10 @@ export async function GET(req: NextRequest) {
     }
 
     await recordCronRun(null);
-    return NextResponse.json({ ok: true, published: done.length, failed }, { headers: noStore });
+    return NextResponse.json(
+      { ok: true, published: done.length, pending: pending.length, failed },
+      { headers: noStore },
+    );
   } catch (e) {
     // 落ちたことに気づけるよう、ログと Firestore の両方に残す。
     // LINE通知にしないのは、5分ごとなので月間の配信上限を食い潰すため。

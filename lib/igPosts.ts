@@ -11,7 +11,11 @@ import { getAdminDb } from '@/lib/firebase';
 //   ・propose は draft しか作らない。勝手に公開しない。
 //   ・publish は「人が公開を押す」か「人が予約した時刻が来る」かのどちらかでのみ走る。
 
-export type IgPostStatus = 'draft' | 'scheduled' | 'published' | 'canceled' | 'failed';
+export type IgPostStatus =
+  | 'draft' | 'scheduled' | 'publishing' | 'published' | 'canceled' | 'failed';
+
+/** 投稿の種類。リールは動画の変換待ちがあるので公開の進め方が違う。 */
+export type IgMediaType = 'IMAGE' | 'CAROUSEL' | 'REELS';
 
 export type IgPost = {
   id: string;
@@ -20,6 +24,14 @@ export type IgPost = {
   imageUrl: string;
   /** カルーセルのときの全ページ。1枚投稿では imageUrl と同じ1件だけ入る。 */
   imageUrls: string[];
+  /** リールのときだけ。mp4 の公開URL。 */
+  videoUrl?: string | null;
+  /** リールの表紙画像（任意）。一覧のサムネイルにも使う。 */
+  coverUrl?: string | null;
+  mediaType: IgMediaType;
+  /** 変換待ちのコンテナ。リールで、その回に公開まで届かなかったときに残る。 */
+  containerId?: string | null;
+  containerAt?: number | null;
   caption: string;
   status: IgPostStatus;
   /** 予約時刻（epoch ms）。status='scheduled' のときのみ意味を持つ。 */
@@ -48,11 +60,20 @@ function toPost(id: string, d: any): IgPost {
     ? d.imageUrls.map((u: any) => String(u)).filter(Boolean)
     : [];
   const first = String(d?.imageUrl || urls[0] || '');
+  const videoUrl = d?.videoUrl ? String(d.videoUrl) : null;
+  const mediaType: IgMediaType = d?.mediaType
+    ? (d.mediaType as IgMediaType)
+    : (videoUrl ? 'REELS' : (urls.length > 1 ? 'CAROUSEL' : 'IMAGE'));
   return {
     id,
     roundId: d?.roundId || undefined,
     imageUrl: first,
     imageUrls: urls.length ? urls : (first ? [first] : []),
+    videoUrl,
+    coverUrl: d?.coverUrl ? String(d.coverUrl) : null,
+    mediaType,
+    containerId: d?.containerId ? String(d.containerId) : null,
+    containerAt: typeof d?.containerAt === 'number' ? d.containerAt : null,
     caption: String(d?.caption || ''),
     status: (d?.status || 'draft') as IgPostStatus,
     scheduledAt: typeof d?.scheduledAt === 'number' ? d.scheduledAt : null,
@@ -76,15 +97,25 @@ export async function getIgPost(id: string): Promise<IgPost | null> {
 }
 
 export async function createIgPost(input: {
-  roundId?: string; imageUrl?: string; imageUrls?: string[]; caption: string; signature?: string;
+  roundId?: string; imageUrl?: string; imageUrls?: string[];
+  videoUrl?: string; coverUrl?: string;
+  caption: string; signature?: string;
 }): Promise<IgPost> {
   const now = Date.now();
   const urls = (input.imageUrls?.length ? input.imageUrls : [input.imageUrl || '']).filter(Boolean);
-  if (!urls.length) throw new Error('画像がありません');
+  const video = (input.videoUrl || '').trim();
+  if (!urls.length && !video) throw new Error('画像も動画もありません');
+  const mediaType: IgMediaType = video ? 'REELS' : (urls.length > 1 ? 'CAROUSEL' : 'IMAGE');
   const doc = {
     roundId: input.roundId || null,
-    imageUrl: urls[0],
-    imageUrls: urls,
+    // リールは表紙をサムネイルに使う。無ければ空。
+    imageUrl: video ? (input.coverUrl || '') : urls[0],
+    imageUrls: video ? [] : urls,
+    videoUrl: video || null,
+    coverUrl: input.coverUrl || null,
+    mediaType,
+    containerId: null,
+    containerAt: null,
     caption: input.caption,
     status: 'draft' as IgPostStatus,
     scheduledAt: null,
@@ -101,7 +132,8 @@ export async function createIgPost(input: {
 
 export async function updateIgPost(id: string, patch: Partial<IgPost>): Promise<void> {
   const clean: any = { updatedAt: Date.now() };
-  for (const k of ['caption', 'imageUrl', 'imageUrls', 'status', 'scheduledAt', 'publishedAt', 'igMediaId', 'error'] as const) {
+  for (const k of ['caption', 'imageUrl', 'imageUrls', 'videoUrl', 'coverUrl', 'mediaType',
+    'containerId', 'containerAt', 'status', 'scheduledAt', 'publishedAt', 'igMediaId', 'error'] as const) {
     if (k in patch) clean[k] = (patch as any)[k];
   }
   await db().collection(COL).doc(id).set(clean, { merge: true });
@@ -134,9 +166,9 @@ export async function listDueScheduled(now = Date.now()): Promise<IgPost[]> {
     .sort((a: IgPost, b: IgPost) => (a.scheduledAt as number) - (b.scheduledAt as number));
 }
 
-/** 予約中のものを全部返す（管理画面の見張り用）。 */
-export async function listScheduled(): Promise<IgPost[]> {
-  const snap = await db().collection(COL).where('status', '==', 'scheduled').limit(50).get();
+/** 公開の途中で止まっているもの（リールの変換待ち）。次の巡回で続きをやる。 */
+export async function listPublishing(): Promise<IgPost[]> {
+  const snap = await db().collection(COL).where('status', '==', 'publishing').limit(20).get();
   return snap.docs.map((s: any) => toPost(s.id, s.data()));
 }
 
