@@ -57,7 +57,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       if (post.status === 'published') {
         return NextResponse.json({ error: '公開済みです' }, { status: 400, headers: noStore });
       }
-      await updateIgPost(id, { status: 'scheduled', scheduledAt: at, error: null });
+      // 「保存」を押し忘れても編集内容が消えないよう、本文も一緒に受け取る。
+      const patch: any = { status: 'scheduled', scheduledAt: at, error: null };
+      if (typeof body.caption === 'string') {
+        if (body.caption.length > IG_CAPTION_LIMIT) {
+          return NextResponse.json(
+            { error: `本文が長すぎます（${body.caption.length}/${IG_CAPTION_LIMIT}）` },
+            { status: 400, headers: noStore });
+        }
+        patch.caption = body.caption;
+      }
+      await updateIgPost(id, patch);
       return NextResponse.json({ ok: true }, { headers: noStore });
     }
 

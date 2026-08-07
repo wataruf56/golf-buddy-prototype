@@ -37,6 +37,7 @@ export default function AdminIgPage() {
   const [token, setToken] = useState('');
   const [posts, setPosts] = useState<Post[]>([]);
   const [igReady, setIgReady] = useState(true);
+  const [cron, setCron] = useState<{ lastRunAt: number; lastOkAt: number | null; lastError: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -51,6 +52,7 @@ export default function AdminIgPage() {
       if (j.error) { setMsg(j.error); return; }
       setPosts(j.posts || []);
       setIgReady(!!j.igConfigured);
+      setCron(j.cron || null);
       const d: Record<string, string> = {}; const t: Record<string, string> = {};
       for (const p of (j.posts || []) as Post[]) { d[p.id] = p.caption; t[p.id] = toLocalInput(p.scheduledAt); }
       setDrafts(d); setTimes(t);
@@ -85,6 +87,16 @@ export default function AdminIgPage() {
       {!igReady && (
         <p style={S.warn}>
           IG_ACCESS_TOKEN が未設定です。Cloud Run に Secret Manager の ig-access-token を注入してください。
+        </p>
+      )}
+      {/* 予約投稿のcronが黙って止まっていても気づけるようにする。 */}
+      {cron && (cron.lastError || !cron.lastOkAt || Date.now() - cron.lastOkAt > 30 * 60 * 1000) && (
+        <p style={S.warn}>
+          ⚠️ 予約投稿の自動実行が止まっています。予約しても公開されません。<br />
+          <span style={S.small}>
+            最後に成功: {cron.lastOkAt ? new Date(cron.lastOkAt).toLocaleString('ja-JP') : 'なし'}
+            {cron.lastError ? ` / ${cron.lastError}` : ''}
+          </span>
         </p>
       )}
       {msg && <p style={S.msg}>{msg}</p>}
@@ -144,7 +156,11 @@ export default function AdminIgPage() {
                     onClick={() => {
                       const v = times[p.id];
                       if (!v) { setMsg('予約時刻を入れてください'); return; }
-                      act(p.id, { action: 'schedule', scheduledAt: new Date(v).getTime() }, '予約しました');
+                      const at = new Date(v).getTime();
+                      if (at < Date.now()) { setMsg('⚠️ 過去の時刻です。未来の時刻を入れてください'); return; }
+                      // 本文も一緒に送る。「保存」を押し忘れても編集が消えないように。
+                      act(p.id, { action: 'schedule', scheduledAt: at, caption: drafts[p.id] },
+                          `${new Date(at).toLocaleString('ja-JP')} に予約しました`);
                     }}>
                     この時刻に予約
                   </button>

@@ -107,16 +107,53 @@ export async function signatureExists(signature: string): Promise<boolean> {
   return !snap.empty;
 }
 
-/** 予約時刻を過ぎた scheduled を取得する。 */
+/** 予約時刻を過ぎた scheduled を取得する。
+ *
+ * where + orderBy を組み合わせると Firestore の複合インデックスが要る。
+ * 未作成だとクエリごと FAILED_PRECONDITION で落ち、予約投稿が丸ごと動かなくなる
+ * （2026-08-07 の不具合はこれ）。予約は多くても数件なので、
+ * 単一条件で引いてから並べ替えと絞り込みをメモリ上でやる。
+ */
 export async function listDueScheduled(now = Date.now()): Promise<IgPost[]> {
-  const snap = await db().collection(COL)
-    .where('status', '==', 'scheduled')
-    .orderBy('scheduledAt', 'asc')
-    .limit(20)
-    .get();
+  const snap = await db().collection(COL).where('status', '==', 'scheduled').limit(50).get();
   return snap.docs
     .map((s: any) => toPost(s.id, s.data()))
-    .filter((p: IgPost) => typeof p.scheduledAt === 'number' && (p.scheduledAt as number) <= now);
+    .filter((p: IgPost) => typeof p.scheduledAt === 'number' && (p.scheduledAt as number) <= now)
+    .sort((a: IgPost, b: IgPost) => (a.scheduledAt as number) - (b.scheduledAt as number));
+}
+
+/** 予約中のものを全部返す（管理画面の見張り用）。 */
+export async function listScheduled(): Promise<IgPost[]> {
+  const snap = await db().collection(COL).where('status', '==', 'scheduled').limit(50).get();
+  return snap.docs.map((s: any) => toPost(s.id, s.data()));
+}
+
+// ------------------------------------------------------------------ 死活監視
+//
+// 予約投稿のcronが黙って落ちていても誰も気づけなかったので、
+// 毎回の実行結果をここに1件だけ書き、管理画面で見えるようにする。
+
+const SYS = 'igSystem';
+const SYS_DOC = 'publishDue';
+
+export type CronState = { lastRunAt: number; lastOkAt: number | null; lastError: string | null };
+
+export async function recordCronRun(error: string | null): Promise<void> {
+  const now = Date.now();
+  const patch: any = { lastRunAt: now, lastError: error };
+  if (!error) patch.lastOkAt = now;
+  await db().collection(SYS).doc(SYS_DOC).set(patch, { merge: true });
+}
+
+export async function getCronState(): Promise<CronState | null> {
+  const s = await db().collection(SYS).doc(SYS_DOC).get();
+  if (!s.exists) return null;
+  const d = s.data() || {};
+  return {
+    lastRunAt: Number(d.lastRunAt || 0),
+    lastOkAt: typeof d.lastOkAt === 'number' ? d.lastOkAt : null,
+    lastError: d.lastError || null,
+  };
 }
 
 // ------------------------------------------------------------------ 画像対応表

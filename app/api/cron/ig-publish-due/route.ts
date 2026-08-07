@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pushToMany } from '@/lib/linePush';
 import { igPublishImage } from '@/lib/igPublish';
-import { listDueScheduled, updateIgPost } from '@/lib/igPosts';
+import { listDueScheduled, recordCronRun, updateIgPost } from '@/lib/igPosts';
 
 // 予約時刻を過ぎた投稿を公開する。
 //
@@ -62,8 +62,14 @@ export async function GET(req: NextRequest) {
       await pushToMany(ids, lines.join('\n'), 'https://www.instagram.com/goltomo.golf/', 'ig_publish');
     }
 
+    await recordCronRun(null);
     return NextResponse.json({ ok: true, published: done.length, failed }, { headers: noStore });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
+    // 落ちたことに気づけるよう、ログと Firestore の両方に残す。
+    // LINE通知にしないのは、5分ごとなので月間の配信上限を食い潰すため。
+    const msg = (e as Error).message;
+    console.error('[ig-publish-due] failed:', msg);
+    await recordCronRun(msg.slice(0, 500)).catch(() => {});
+    return NextResponse.json({ error: msg }, { status: 500, headers: noStore });
   }
 }

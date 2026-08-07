@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createIgPost, listIgPosts, listRoundImages, setRoundImage } from '@/lib/igPosts';
+import { createIgPost, getCronState, listIgPosts, listRoundImages, setRoundImage } from '@/lib/igPosts';
 import { igConfigured } from '@/lib/igPublish';
 
 // 管理画面 /admin/ig 用。既存の管理APIと同じ ?token=ADMIN_LOG_TOKEN で保護する。
@@ -21,8 +21,10 @@ function ok(req: NextRequest): boolean {
 export async function GET(req: NextRequest) {
   if (!ok(req)) return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: noStore });
   try {
-    const [posts, images] = await Promise.all([listIgPosts(60), listRoundImages()]);
-    return NextResponse.json({ posts, images, igConfigured: igConfigured() }, { headers: noStore });
+    const [posts, images, cron] = await Promise.all([
+      listIgPosts(60), listRoundImages(), getCronState().catch(() => null),
+    ]);
+    return NextResponse.json({ posts, images, cron, igConfigured: igConfigured() }, { headers: noStore });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
   }
