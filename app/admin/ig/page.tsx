@@ -46,7 +46,8 @@ export default function AdminIgPage() {
   const [token, setToken] = useState('');
   const [posts, setPosts] = useState<Post[]>([]);
   const [igReady, setIgReady] = useState(true);
-  const [cron, setCron] = useState<{ lastRunAt: number; lastOkAt: number | null; lastError: string | null } | null>(null);
+  const [cron, setCron] = useState<{ lastRunAt: number; lastOkAt: number | null; lastError: string | null;
+    igBlocked?: string | null; igBlockedAt?: number | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -96,6 +97,17 @@ export default function AdminIgPage() {
       {!igReady && (
         <p style={S.warn}>
           IG_ACCESS_TOKEN が未設定です。Cloud Run に Secret Manager の ig-access-token を注入してください。
+        </p>
+      )}
+      {/* Instagram 側で接続が止められているとき。投稿の中身の問題ではない。 */}
+      {cron?.igBlocked && (
+        <p style={S.warn}>
+          🚫 Instagramに接続できません。公開・予約とも通りません。<br />
+          <span style={S.small}>
+            {cron.igBlocked}
+            {cron.igBlockedAt ? ` / ${new Date(cron.igBlockedAt).toLocaleString('ja-JP')} 時点` : ''}
+            <br />Meta for Developers のアプリ画面で制限が出ていないか確認してください。
+          </span>
         </p>
       )}
       {/* 予約投稿のcronが黙って止まっていても気づけるようにする。 */}

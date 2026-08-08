@@ -180,13 +180,24 @@ export async function listPublishing(): Promise<IgPost[]> {
 const SYS = 'igSystem';
 const SYS_DOC = 'publishDue';
 
-export type CronState = { lastRunAt: number; lastOkAt: number | null; lastError: string | null };
+export type CronState = {
+  lastRunAt: number; lastOkAt: number | null; lastError: string | null;
+  /** Instagram 側でアクセスが止められているときの文言。直れば null に戻す。 */
+  igBlocked?: string | null;
+  igBlockedAt?: number | null;
+};
 
 export async function recordCronRun(error: string | null): Promise<void> {
   const now = Date.now();
   const patch: any = { lastRunAt: now, lastError: error };
   if (!error) patch.lastOkAt = now;
   await db().collection(SYS).doc(SYS_DOC).set(patch, { merge: true });
+}
+
+/** Instagram に繋がらない状態を記録する。null を渡すと解除。 */
+export async function recordIgBlocked(message: string | null): Promise<void> {
+  await db().collection(SYS).doc(SYS_DOC).set(
+    { igBlocked: message, igBlockedAt: message ? Date.now() : null }, { merge: true });
 }
 
 export async function getCronState(): Promise<CronState | null> {
@@ -197,6 +208,8 @@ export async function getCronState(): Promise<CronState | null> {
     lastRunAt: Number(d.lastRunAt || 0),
     lastOkAt: typeof d.lastOkAt === 'number' ? d.lastOkAt : null,
     lastError: d.lastError || null,
+    igBlocked: d.igBlocked || null,
+    igBlockedAt: typeof d.igBlockedAt === 'number' ? d.igBlockedAt : null,
   };
 }
 

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pushToMany } from '@/lib/linePush';
 import { advancePublish } from '@/lib/igRunPublish';
-import { IgPost, listDueScheduled, listPublishing, recordCronRun, updateIgPost } from '@/lib/igPosts';
+import { isIgAccessError } from '@/lib/igPublish';
+import {
+  IgPost, listDueScheduled, listPublishing, recordCronRun, recordIgBlocked, updateIgPost,
+} from '@/lib/igPosts';
 
 // 予約時刻を過ぎた投稿を公開する。
 //
@@ -45,6 +48,7 @@ export async function GET(req: NextRequest) {
     const done: string[] = [];
     const pending: string[] = [];
     const failed: { id: string; error: string }[] = [];
+    let blocked = '';        // Instagram に繋がらない。予約は消さずに残す
 
     for (const p of targets) {
       // 変換待ちが長すぎるものは失敗にして、無限に居座らせない。
@@ -72,13 +76,25 @@ export async function GET(req: NextRequest) {
           pending.push(p.id);   // publishing のまま。次の巡回で続きをやる
         }
       } catch (e) {
+        const msg = (e as Error).message;
+        if (isIgAccessError(e)) {
+          // 投稿の中身は悪くない。接続が戻れば同じ内容で通るので、予約のまま戻す。
+          blocked = msg;
+          await updateIgPost(p.id, {
+            status: p.status === 'publishing' ? 'scheduled' : p.status,
+            containerId: null, containerAt: null, error: msg.slice(0, 500),
+          });
+          break;   // 全部同じ理由で落ちるので、これ以上叩かない
+        }
         await updateIgPost(p.id, {
           status: 'failed', publishedAt: null, containerId: null, containerAt: null,
-          error: (e as Error).message.slice(0, 500),
+          error: msg.slice(0, 500),
         });
-        failed.push({ id: p.id, error: (e as Error).message.slice(0, 200) });
+        failed.push({ id: p.id, error: msg.slice(0, 200) });
       }
     }
+
+    await recordIgBlocked(blocked || null);
 
     const ids = adminIds();
     if (ids.length && (done.length || failed.length)) {
@@ -93,7 +109,7 @@ export async function GET(req: NextRequest) {
 
     await recordCronRun(null);
     return NextResponse.json(
-      { ok: true, published: done.length, pending: pending.length, failed },
+      { ok: true, published: done.length, pending: pending.length, failed, blocked: blocked || null },
       { headers: noStore },
     );
   } catch (e) {

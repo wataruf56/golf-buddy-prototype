@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { deleteIgPost, getIgPost, updateIgPost } from '@/lib/igPosts';
-import { IG_CAPTION_LIMIT } from '@/lib/igPublish';
+import { deleteIgPost, getIgPost, recordIgBlocked, updateIgPost } from '@/lib/igPosts';
+import { IG_CAPTION_LIMIT, isIgAccessError } from '@/lib/igPublish';
 import { advancePublish } from '@/lib/igRunPublish';
 
 // 1件の投稿を操作する。?token=ADMIN_LOG_TOKEN で保護。
@@ -113,11 +113,22 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
           { ok: true, pending: true, message: '動画を変換中です。終わり次第、自動で公開されます' },
           { headers: noStore });
       } catch (e) {
+        const msg = (e as Error).message;
+        if (isIgAccessError(e)) {
+          // 接続が止まっているだけ。中身は無事なので元の状態に戻す。
+          await recordIgBlocked(msg).catch(() => {});
+          await updateIgPost(id, {
+            status: post.status, containerId: null, containerAt: null, error: msg.slice(0, 500),
+          });
+          return NextResponse.json(
+            { error: `Instagramに接続できません（${msg}）。下書きはそのまま残しています` },
+            { status: 502, headers: noStore });
+        }
         await updateIgPost(id, {
           status: 'failed', publishedAt: null, containerId: null, containerAt: null,
-          error: (e as Error).message.slice(0, 500),
+          error: msg.slice(0, 500),
         });
-        return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
+        return NextResponse.json({ error: msg }, { status: 500, headers: noStore });
       }
     }
 

@@ -33,9 +33,27 @@ async function call(url: string, init?: RequestInit): Promise<any> {
   try { json = text ? JSON.parse(text) : null; } catch { /* noop */ }
   if (!r.ok) {
     const msg = json?.error?.message || text.slice(0, 300) || `HTTP ${r.status}`;
-    throw new Error(`Instagram API: ${msg}`);
+    const e = new Error(`Instagram API: ${msg}`) as IgApiError;
+    e.igCode = json?.error?.code;
+    throw e;
   }
   return json;
+}
+
+export type IgApiError = Error & { igCode?: number };
+
+/** 投稿の中身ではなく、接続そのものが止まっている類のエラーか。
+ *
+ *  200 = API access blocked（Metaがアプリのアクセスを止めている）
+ *  190 = トークンが失効した
+ *  10  = 権限がない
+ *  この場合は投稿を「失敗」にしてはいけない。原因が直れば同じ内容で通るので、
+ *  予約したまま残して次の巡回に賭けるのが正しい。
+ */
+export function isIgAccessError(e: unknown): boolean {
+  const code = (e as IgApiError)?.igCode;
+  if (code === 200 || code === 190 || code === 10) return true;
+  return /API access blocked|Session has expired|access token/i.test(String((e as Error)?.message || ''));
 }
 
 export async function igWhoAmI(): Promise<{ id: string; username: string; account_type?: string }> {
