@@ -189,6 +189,13 @@ html body{background:#F4E8CE}
 .sv .bar{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;z-index:70;padding:11px 16px calc(11px + env(safe-area-inset-bottom));background:rgba(244,232,206,.96);backdrop-filter:blur(5px);border-top:2.5px solid var(--ink)}
 .sv .bar .b2{display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;background:var(--orange);color:var(--cream);font-weight:900;font-size:16px;padding:15px;border:3px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--ink)}
 .sv .wrap{padding-bottom:88px}
+/* QRで共有（LPのURLを他の人に見せて読み取ってもらう） */
+.sv .qrshare{margin:30px 18px 0;background:var(--cream);border:2.5px solid var(--ink);border-radius:18px;box-shadow:5px 5px 0 var(--ink);padding:20px 18px;text-align:center}
+.sv .qrshare .qh{font-size:15px;font-weight:900;margin-bottom:3px}
+.sv .qrshare .qs{font-size:12px;font-weight:700;color:#6b5a44;margin-bottom:14px}
+.sv .qrshare .qbox{display:inline-block;background:var(--cream);border:2.5px solid var(--ink);border-radius:14px;padding:10px;box-shadow:3px 3px 0 var(--ink)}
+.sv .qrshare .qbox img{display:block;width:190px;height:190px}
+.sv .qrshare .qu{font-size:11px;font-weight:900;color:var(--teal);margin-top:12px}
 `;
 
 // トップLPの「社会的証明」（募集中件数・直近1hログイン数）を実データから作る。
@@ -333,6 +340,17 @@ export default async function LandingPage() {
         <div className="quiz">
           <div className="t">⛳ どんなゴルファーか、先に知りたい人は</div>
           <a href={DIAGNOSIS_URL}>ゴルフ版MBTI・16タイプ診断をしてみる →</a>
+        </div>
+
+        {/* QRで共有：この画面を見せて、他の人に読み取ってもらうと同じLPが開く */}
+        <div className="qrshare">
+          <div className="qh">📱 このページを共有</div>
+          <div className="qs">QRを読み取ると、このページ（ゴルトモ）が開きます。<br />お友達に見せてシェアしてください。</div>
+          <div className="qbox">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/qr-lp.svg" alt="ゴルトモのQRコード（読み取るとLPが開きます）" width={190} height={190} />
+          </div>
+          <div className="qu">goltomo.com</div>
         </div>
 
         <footer>
