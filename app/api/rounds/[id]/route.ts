@@ -100,6 +100,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const em = has('externalMale') ? clampN(body.externalMale, round.externalMale) : (round.externalMale || 0);
     const ef = has('externalFemale') ? clampN(body.externalFemale, round.externalFemale) : (round.externalFemale || 0);
     const external = em + ef;
+    // 共同管理者は承認済み参加者(applicantIds)として通常の参加者と同様に募集枠を1つ占有する。
     const approvedApp = round.applicantIds?.length || 0;
     if (slots < approvedApp) {
       return NextResponse.json(
@@ -110,7 +111,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const nextMax = Math.min(50, 1 + external + slots);
     patch.spotsMale = sm; patch.spotsFemale = sf; patch.spotsAny = sa;
     patch.externalMale = em; patch.externalFemale = ef;
-    patch.currentCount = 1 + external + approvedApp; // 主催者 + 知り合い + 承認済み
+    patch.currentCount = 1 + external + approvedApp; // 主催者 + 知り合い + 承認済み(共同管理者含む)
     patch.maxSpots = nextMax; patch.isCompetition = nextMax >= 5;
     genderCondition = sa === 0 && sf === 0 && sm > 0 ? 'male'
       : sa === 0 && sm === 0 && sf > 0 ? 'female' : 'any';

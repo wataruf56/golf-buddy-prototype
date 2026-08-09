@@ -101,9 +101,8 @@ export default function CreatePage() {
   const [pickupStations, setPickupStations] = useState<string[]>([]);
   const [pickupCapacity, setPickupCapacity] = useState(0); // 自分含め乗れる人数
 
-  // 共同管理者（任意・現状1名）。ゴル友（マッチ済み）から選ぶ。主催者と同権限＋作成時から参加確定。
-  const [coHostId, setCoHostId] = useState('');
-  const [coHostName, setCoHostName] = useState('');
+  // 共同管理者（任意・複数可）。ゴル友（マッチ済み）から選ぶ。主催者と同権限＋作成時から参加確定。
+  const [coHostIds, setCoHostIds] = useState<string[]>([]);
   const [coHostPickerOpen, setCoHostPickerOpen] = useState(false);
   const [coHostCandidates, setCoHostCandidates] = useState<{ id: string; displayName: string; avatar: string; avatarUrl?: string }[]>([]);
 
@@ -305,8 +304,8 @@ export default function CreatePage() {
       pickupOffered: offerPickup,
       pickupStations: offerPickup && pickupStations.length ? pickupStations : undefined,
       pickupCapacity: offerPickup && pickupStations.length && pickupCapacity > 0 ? pickupCapacity : undefined,
-      // 共同管理者（任意）。サーバー側で実在ユーザーを検証し、承認済み参加者＋同権限として登録する。
-      coHostId: coHostId || undefined,
+      // 共同管理者（任意・複数可）。サーバー側で実在ユーザーを検証し、承認済み参加者＋同権限として登録する。
+      coHostIds: coHostIds.length ? coHostIds : undefined,
       // Admin-only: request publishing under the ゴルトモ公式 identity. Server
       // re-validates the caller is actually an admin before honoring this.
       asOfficial: isAdmin ? postAsOfficial : undefined,
@@ -680,33 +679,44 @@ export default function CreatePage() {
               </div>
             </Field>
 
-            {/* 共同管理者（任意・ゴル友から1名） */}
-            <Field label="共同管理者" hint="（任意・ゴル友から1名／あなたと同じ管理権限）">
-              {coHostId ? (
-                <div className="flex items-center justify-between px-3 py-2 bg-green-light rounded-lg">
-                  <span className="text-sm font-bold text-text flex items-center gap-1.5">🤝 {coHostName}</span>
-                  <button type="button" className="text-xs font-bold text-red" onClick={() => { setCoHostId(''); setCoHostName(''); }}>外す</button>
+            {/* 共同管理者（任意・ゴル友から複数選択可） */}
+            <Field label="共同管理者" hint="（任意・ゴル友から複数可／あなたと同じ管理権限）">
+              {coHostIds.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {coHostIds.map((id) => {
+                    const c = coHostCandidates.find((x) => x.id === id);
+                    return (
+                      <span key={id} className="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 bg-green-light rounded-full">
+                        <span className="text-[13px] font-bold text-text">🤝 {c?.displayName || 'メンバー'}</span>
+                        <button type="button" className="w-5 h-5 flex items-center justify-center text-red font-black" onClick={() => setCoHostIds((prev) => prev.filter((x) => x !== id))}>×</button>
+                      </span>
+                    );
+                  })}
                 </div>
-              ) : (
-                <button type="button" onClick={() => setCoHostPickerOpen((v) => !v)} className="w-full px-3 py-2 bg-bg rounded-lg text-sm font-bold text-sub border border-line">
-                  ＋ 共同管理者を選ぶ
-                </button>
               )}
-              {coHostPickerOpen && !coHostId && (
+              <button type="button" onClick={() => setCoHostPickerOpen((v) => !v)} className="w-full px-3 py-2 bg-bg rounded-lg text-sm font-bold text-sub border border-line">
+                {coHostPickerOpen ? '閉じる' : '＋ 共同管理者を選ぶ'}
+              </button>
+              {coHostPickerOpen && (
                 <div className="mt-2 flex flex-col gap-1.5 max-h-56 overflow-y-auto">
                   {coHostCandidates.length === 0 ? (
                     <div className="px-3 py-2 text-[11px] text-muted font-medium">選べるゴル友（「また回りたい」でマッチした人）がまだいません。</div>
-                  ) : coHostCandidates.map((c) => (
-                    <button key={c.id} type="button" onClick={() => { setCoHostId(c.id); setCoHostName(c.displayName); setCoHostPickerOpen(false); }}
-                      className="flex items-center gap-2 px-3 py-2 bg-bg rounded-lg text-left">
-                      {c.avatarUrl ? <img src={c.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover" /> : <span className="text-lg">{c.avatar}</span>}
-                      <span className="text-sm font-bold text-text">{c.displayName}</span>
-                    </button>
-                  ))}
+                  ) : coHostCandidates.map((c) => {
+                    const selected = coHostIds.includes(c.id);
+                    return (
+                      <button key={c.id} type="button"
+                        onClick={() => setCoHostIds((prev) => selected ? prev.filter((x) => x !== c.id) : [...prev, c.id])}
+                        className={cn('flex items-center gap-2 px-3 py-2 rounded-lg text-left', selected ? 'bg-green-light' : 'bg-bg')}>
+                        {c.avatarUrl ? <img src={c.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover" /> : <span className="text-lg">{c.avatar}</span>}
+                        <span className="text-sm font-bold text-text flex-1">{c.displayName}</span>
+                        {selected && <span className="text-green font-black">✓</span>}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
               <div className="mt-1.5 text-[10px] text-muted font-medium">
-                選ばれた人は投稿と同時に参加確定（申請不要）になり、あなたと同じく編集・承認・組み分けなどの管理操作ができます。募集枠は減りません。
+                選ばれた人は投稿と同時に参加確定（申請不要）になり、あなたと同じく編集・承認・組み分けなどの管理操作ができます。参加確定として枠を使います（人数が足りなければ自動で+1）。
               </div>
             </Field>
           </>

@@ -225,7 +225,10 @@ export default function RoundDetailPage() {
   }
 
   const host = users.find((u) => u.id === round.hostId);
-  const applicants = round.applicantIds.map((id) => users.find((u) => u.id === id)).filter(Boolean);
+  // 共同管理者は「主催者」欄にまとめて表示するため、参加確定リストからは除外する。
+  const coHostIds = round.coHostIds || [];
+  const coHosts = coHostIds.map((id) => users.find((u) => u.id === id)).filter(Boolean);
+  const applicants = round.applicantIds.filter((id) => !coHostIds.includes(id)).map((id) => users.find((u) => u.id === id)).filter(Boolean);
   const pendingApplicants = (round.pendingApplicantIds || []).map((id) => users.find((u) => u.id === id)).filter(Boolean);
   const isHost = isRoundHost(round, meId);
   const isApproved = round.applicantIds.includes(meId);
@@ -783,26 +786,28 @@ export default function RoundDetailPage() {
               </div>
             </div>
           </div>
-        ) : host ? (
+        ) : (host || coHosts.length > 0) ? (
           <div className="mb-4">
-            <div className="text-[13px] font-bold mb-2">主催者</div>
-            <div className="flex items-center gap-2.5 p-3 bg-bg rounded-xl">
-              <Link href={`/profile/${host.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
-                <Avatar user={host} size={44} />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-bold truncate">{host.displayName}</div>
-                  <div className="text-[11px] text-sub truncate">{describeUser(host)}{ratingText(host.id, true) ? ' ・ ' + ratingText(host.id, true) : ''}{host.scoreRange ? ' ・ ' + host.scoreRange : ''}</div>
-                </div>
-              </Link>
-              {!isHost && (
-                <Link
-                  href={`/chat/${chatIdFor(meId, host.id)}?other=${host.id}`}
-                  className="px-3 py-1.5 bg-blue text-white rounded-lg text-xs font-bold flex-shrink-0"
-                >
-                  💬 メッセージ
+            <div className="text-[13px] font-bold mb-2">主催者{coHosts.length > 0 ? `（${(host ? 1 : 0) + coHosts.length}名）` : ''}</div>
+            {[...(host ? [host] : []), ...coHosts].map((h, idx) => h && (
+              <div key={h.id} className="flex items-center gap-2.5 p-3 bg-bg rounded-xl mb-1.5">
+                <Link href={`/profile/${h.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
+                  <Avatar user={h} size={44} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-bold truncate flex items-center gap-1.5">{h.displayName}{idx > 0 && <span className="text-[10px] text-green font-bold flex-shrink-0">🤝 共同管理者</span>}</div>
+                    <div className="text-[11px] text-sub truncate">{describeUser(h)}{ratingText(h.id, true) ? ' ・ ' + ratingText(h.id, true) : ''}{h.scoreRange ? ' ・ ' + h.scoreRange : ''}</div>
+                  </div>
                 </Link>
-              )}
-            </div>
+                {!!meId && h.id !== meId && (
+                  <Link
+                    href={`/chat/${chatIdFor(meId, h.id)}?other=${h.id}`}
+                    className="px-3 py-1.5 bg-blue text-white rounded-lg text-xs font-bold flex-shrink-0"
+                  >
+                    💬 メッセージ
+                  </Link>
+                )}
+              </div>
+            ))}
           </div>
         ) : null}
 
@@ -816,7 +821,7 @@ export default function RoundDetailPage() {
                   <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
                     <Avatar user={u} size={36} />
                     <div className="flex-1 min-w-0">
-                      <div className="text-[13px] font-semibold truncate">{u.displayName}{round.coHostIds?.includes(u.id) && <span className="ml-1.5 text-[10px] text-green font-bold">🤝 共同管理者</span>}</div>
+                      <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
                       {isHost && participantNames[u.id] && (
                         <div className="text-[10px] text-green font-bold">📋 {participantNames[u.id]}</div>
                       )}

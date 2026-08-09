@@ -78,6 +78,53 @@ export default function EditRoundPage() {
   const [pickupCapacity, setPickupCapacity] = useState(0);
   const [openChatUrl, setOpenChatUrl] = useState('');
 
+  // 共同管理者（後から追加/解除）。候補＝ゴル友（マッチ済み）。名前解決にストアのusersも使う。
+  const storeUsers = useStore((s) => s.users);
+  const [coHostCandidates, setCoHostCandidates] = useState<{ id: string; displayName: string; avatar: string; avatarUrl?: string }[]>([]);
+  const [coHostPickerOpen, setCoHostPickerOpen] = useState(false);
+  const [coHostBusy, setCoHostBusy] = useState(false);
+
+  // ゴル友候補を取得（追加リスト＋現在の共同管理者の氏名表示に使う）。
+  useEffect(() => {
+    fetch('/api/me/matches', { cache: 'no-store', credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d?.matches) return;
+        setCoHostCandidates(Object.keys(d.matches).map((id) => ({
+          id,
+          displayName: d.users?.[id]?.displayName || 'メンバー',
+          avatar: d.users?.[id]?.avatar || '⛳',
+          avatarUrl: d.users?.[id]?.avatarUrl || '',
+        })));
+      })
+      .catch(() => {});
+  }, []);
+
+  const coHostNameOf = (id: string): string =>
+    coHostCandidates.find((c) => c.id === id)?.displayName
+    || storeUsers.find((u) => u.id === id)?.displayName
+    || 'メンバー';
+
+  async function toggleCoHost(userId: string, on: boolean) {
+    if (coHostBusy) return;
+    setCoHostBusy(true);
+    try {
+      const res = await fetch(`/api/rounds/${encodeURIComponent(params.id)}/cohosts`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, on }), cache: 'no-store', credentials: 'include',
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { toast(d?.message || '操作に失敗しました', 'error'); return; }
+      if (d.round) setRound(d.round);
+      store.refreshRounds().catch(() => {});
+      toast(on ? '共同管理者を追加しました' : '共同管理者を解除しました');
+    } catch {
+      toast('操作に失敗しました', 'error');
+    } finally {
+      setCoHostBusy(false);
+    }
+  }
+
   // 管理画面で編集されたタイトル定型文を取得（失敗時は既定値のまま）。
   useEffect(() => {
     fetch('/api/round-titles', { cache: 'no-store' })
@@ -554,6 +601,43 @@ export default function EditRoundPage() {
               />
             </Field>
           </>
+          )}
+
+          {/* 共同管理者（後から追加/解除）。タブ外＝常に表示。 */}
+          {round && (
+            <div className="mb-4">
+              <div className="text-xs font-bold text-sub mb-1.5">共同管理者 <span className="text-muted font-medium">（あなたと同じ管理権限。追加した人は参加確定になります）</span></div>
+              {(round.coHostIds || []).length > 0 && (
+                <div className="flex flex-col gap-1.5 mb-2">
+                  {(round.coHostIds || []).map((id) => (
+                    <div key={id} className="flex items-center justify-between px-3 py-2 bg-green-light rounded-lg">
+                      <span className="text-sm font-bold text-text">🤝 {coHostNameOf(id)}</span>
+                      <button type="button" disabled={coHostBusy} className="text-xs font-bold text-red disabled:opacity-50" onClick={() => toggleCoHost(id, false)}>外す</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button type="button" onClick={() => setCoHostPickerOpen((v) => !v)} className="w-full px-3 py-2 bg-bg rounded-lg text-sm font-bold text-sub border border-line">
+                {coHostPickerOpen ? '閉じる' : '＋ 共同管理者を追加'}
+              </button>
+              {coHostPickerOpen && (() => {
+                const addable = coHostCandidates.filter((c) => c.id !== round.hostId && !(round.coHostIds || []).includes(c.id));
+                return (
+                  <div className="mt-2 flex flex-col gap-1.5 max-h-56 overflow-y-auto">
+                    {addable.length === 0 ? (
+                      <div className="px-3 py-2 text-[11px] text-muted font-medium">追加できるゴル友（「また回りたい」でマッチした人）がいません。</div>
+                    ) : addable.map((c) => (
+                      <button key={c.id} type="button" disabled={coHostBusy} onClick={() => toggleCoHost(c.id, true)}
+                        className="flex items-center gap-2 px-3 py-2 bg-bg rounded-lg text-left disabled:opacity-50">
+                        {c.avatarUrl ? <img src={c.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover" /> : <span className="text-lg">{c.avatar}</span>}
+                        <span className="text-sm font-bold text-text">{c.displayName}</span>
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
+              <div className="mt-1.5 text-[10px] text-muted font-medium">「外す」は共同管理者権限のみ解除します（参加者としては残ります）。</div>
+            </div>
           )}
 
           <button

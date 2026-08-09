@@ -64,18 +64,23 @@ export async function POST(req: NextRequest) {
     spotsMale = 0; spotsFemale = 0; spotsAny = Math.max(0, maxSpots - 1 - externalTotal);
   }
 
-  // 共同管理者（任意・現状1名）。主催者と同じ権限を持ち、作成時から参加者(applicantIds)として
-  // 扱う（参加申請不要）。実在ユーザーのみ・自分自身は除外。
+  // 共同管理者（任意・複数可）。主催者と同じ権限を持ち、作成時から参加者(applicantIds)として
+  // 扱う（参加申請不要）。実在ユーザーのみ・自分自身/重複は除外。
   const coHostIds: string[] = [];
   {
-    const rawCo = body.coHostId ? String(body.coHostId) : '';
-    if (rawCo && rawCo !== meId) {
-      const cu = await db.getUser(rawCo);
-      if (cu) coHostIds.push(rawCo);
+    const raw: string[] = Array.isArray(body.coHostIds)
+      ? body.coHostIds.map((x: any) => String(x))
+      : body.coHostId ? [String(body.coHostId)] : []; // 旧クライアント（単一）互換
+    for (const id of raw) {
+      if (!id || id === meId || coHostIds.includes(id)) continue;
+      const cu = await db.getUser(id);
+      if (cu) coHostIds.push(id);
+      if (coHostIds.length >= 10) break; // 安全上限
     }
   }
-  // 共同管理者は主催者同様「最初から埋まっている固定メンバー」。募集枠(spotsAny等)は変えず総定員だけ広げる。
-  if (coHostIds.length) maxSpots = Math.min(isDrink ? DRINK_CAP : 50, maxSpots + coHostIds.length);
+  // 共同管理者は承認済み参加者として1枠を占有する。定員に収まらない場合のみ総定員を広げる。
+  const baseFixedCount = 1 + externalTotal + coHostIds.length; // 主催者 + 知り合い + 共同管理者
+  if (baseFixedCount > maxSpots) maxSpots = Math.min(isDrink ? DRINK_CAP : 50, baseFixedCount);
   // 後方互換の性別条件をサーバー側で内訳から導出（単一性別のみ厳格ゲート）。飲み会は常に 'any'。
   const genderCondition: 'any' | 'male' | 'female' = isDrink ? 'any'
     : spotsAny === 0 && spotsFemale === 0 && spotsMale > 0 ? 'male'
