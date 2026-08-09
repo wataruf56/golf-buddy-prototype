@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
     const recentActions = logs
       .filter((l: any) => l.event && !LOG_HIDDEN.has(l.event))
       .slice(0, 500)
-      .map((l: any) => ({ userId: l.userId, event: l.event, page: l.page, pageNorm: normPage(l.page || ''), ts: l.ts }));
+      .map((l: any) => ({ userId: l.userId, event: l.event, page: l.page, pageNorm: normPage(l.page || ''), ts: l.ts, to: (l?.data && typeof l.data.to === 'string') ? l.data.to : '' }));
 
     // リッチメニューからの入口（?e= を付けたリンク経由の menu_entry を集計）。
     let menuEntries: Array<{ menu: string; count: number }> = [];
@@ -232,7 +232,7 @@ export async function GET(req: NextRequest) {
       popularPages,
       acquisition,
       menuEntries,
-      recentActions: recentActions.map((a: any) => ({ ...a, name: nameOf(a.userId) })),
+      recentActions: recentActions.map((a: any) => ({ ...a, name: nameOf(a.userId), toName: a.to ? nameOf(a.to) : '' })),
       swingUsers,
       recentSwings,
     }, { headers: noStore });

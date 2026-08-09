@@ -16,7 +16,7 @@ type Report = {
     byChannel?: { channel: string; count: number; tags: { source: string; count: number }[] }[];
   };
   menuEntries?: { menu: string; count: number }[];
-  recentActions: { userId: string; name: string; event: string; page: string; pageNorm?: string; ts: number }[];
+  recentActions: { userId: string; name: string; event: string; page: string; pageNorm?: string; ts: number; to?: string; toName?: string }[];
   swingUsers: { userId: string; name: string; total: number; done: number; lastAt: number }[];
   recentSwings: { userId: string; name: string; mode: string; status: string; createdAt: number }[];
 };
@@ -384,7 +384,7 @@ function Inner() {
             {data.recentActions.length === 0 ? <Empty /> : data.recentActions.map((a, i) => (
               <div key={i} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
                 <div className="min-w-0 flex-1">
-                  <div className="text-[12px] font-semibold truncate">{a.name} <span className="text-muted font-normal">/ {a.event === 'page_view' ? `📱 ${pageLabel(a.pageNorm || a.page)}を開いた` : eventJa(a.event)}</span></div>
+                  <div className="text-[12px] font-semibold truncate">{a.name} <span className="text-muted font-normal">/ {a.event === 'page_view' ? `📱 ${pageLabel(a.pageNorm || a.page)}を開いた` : eventJa(a.event)}{(a.event === 'dm_open' || a.event === 'dm_send') && a.toName ? ` → ${a.toName}` : ''}</span></div>
                   <div className="text-[9px] text-muted truncate">{a.page}</div>
                 </div>
                 <div className="text-[10px] text-muted flex-shrink-0 ml-2">{ago(a.ts)}</div>

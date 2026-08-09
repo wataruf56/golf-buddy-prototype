@@ -75,7 +75,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!params.chatId) return;
-    track('dm_open'); // DMを開いた（操作ログ用・チャットを開くたび1回）
+    track('dm_open', { to: otherId }); // DMを開いた＋相手（操作ログ用・チャットを開くたび1回）
     store.loadChat(params.chatId);
     const interval = setInterval(() => store.loadChat(params.chatId), 3000);
     return () => clearInterval(interval);
@@ -131,7 +131,7 @@ export default function ChatPage() {
     if ((!t && !imageUrl) || !other || sending) return;
     setSending(true);
     if (!imageUrl) setText('');
-    try { await store.sendMessage(params.chatId, other.id, imageUrl ? '' : t, imageUrl); track('dm_send'); }
+    try { await store.sendMessage(params.chatId, other.id, imageUrl ? '' : t, imageUrl); track('dm_send', { to: other.id }); }
     catch (e) {
       toast('送信失敗: ' + (e as Error).message, 'error');
     } finally { setSending(false); }

@@ -10,6 +10,7 @@ import { HomeUpdateCard } from '@/components/HomeUpdateCard';
 import { toast } from '@/components/Toast';
 import { RESTRICTION_MSG } from '@/lib/restrictions';
 import { isRoundHost } from '@/lib/roundHost';
+import { chatIdFor } from '@/lib/utils';
 
 function relTime(ts: number): string {
   const diff = Date.now() - ts;
@@ -49,6 +50,18 @@ export default function HomePage() {
     fetch('/api/stats/active-now', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (!cancelled && d && typeof d.count === 'number') setActiveNow(d.count); })
+      .catch(() => { /* noop */ });
+    return () => { cancelled = true; };
+  }, []);
+  // 直近ログインしたユーザー（最大30人・ログイン新しい順）。プロフィール下にグリッド表示。
+  // DMは「ゴル友 or 同じコンペを回った人」だけ（canDm）。それ以外はタップでプロフィールのみ。
+  type RecentUser = { id: string; displayName: string; avatar: string; avatarUrl: string; avatarMode?: 'photo' | 'emoji' | 'golmoti'; golmotiType?: string; color: string; canDm: boolean };
+  const [recentLogins, setRecentLogins] = useState<RecentUser[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/stats/recent-logins', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled && d && Array.isArray(d.users)) setRecentLogins(d.users); })
       .catch(() => { /* noop */ });
     return () => { cancelled = true; };
   }, []);
@@ -288,6 +301,26 @@ export default function HomePage() {
           <Link href="/mypage/edit" className="flex-shrink-0 px-3 py-2 bg-bg border-2 border-border rounded-full text-xs font-bold">✏️ 編集</Link>
         </div>
       </div>
+
+      {/* 直近ログインしたユーザー（ログイン新しい順・最大30人）。DMは「ゴル友 or 同コンペ」のみ。 */}
+      {recentLogins.length > 0 && (
+        <div className="px-5 pb-3">
+          <div className="text-[12px] font-bold text-sub mb-2">🟢 最近ログインしたユーザー</div>
+          <div className="grid grid-cols-5 gap-x-2 gap-y-3">
+            {recentLogins.map((u) => (
+              <div key={u.id} className="flex flex-col items-center min-w-0">
+                <Link href={`/profile/${u.id}`} className="flex flex-col items-center w-full min-w-0">
+                  <Avatar user={u} size={44} />
+                  <div className="text-[10px] text-center truncate w-full mt-1">{u.displayName}</div>
+                </Link>
+                {u.canDm && (
+                  <Link href={`/chat/${chatIdFor(me.id, u.id)}?other=${u.id}`} className="mt-0.5 text-[10px] text-blue font-bold leading-none">💬 DM</Link>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 募集する／さがす */}
       <div className="px-5 pb-3 grid grid-cols-2 gap-3">
