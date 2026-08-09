@@ -10,7 +10,6 @@ import { HomeUpdateCard } from '@/components/HomeUpdateCard';
 import { toast } from '@/components/Toast';
 import { RESTRICTION_MSG } from '@/lib/restrictions';
 import { isRoundHost } from '@/lib/roundHost';
-import { chatIdFor } from '@/lib/utils';
 
 function relTime(ts: number): string {
   const diff = Date.now() - ts;
@@ -302,21 +301,19 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 直近ログインしたユーザー（ログイン新しい順・最大30人）。DMは「ゴル友 or 同コンペ」のみ。 */}
+      {/* 直近ログインしたユーザー（ログイン新しい順・最大30人）。写真＋名前のみ。
+          すでにつながっている人（ゴル友・一緒に回った人など＝canDm）はアイコンに薄い緑のリング。 */}
       {recentLogins.length > 0 && (
         <div className="px-5 pb-3">
           <div className="text-[12px] font-bold text-sub mb-2">🟢 最近ログインしたユーザー</div>
           <div className="grid grid-cols-5 gap-x-2 gap-y-3">
             {recentLogins.map((u) => (
-              <div key={u.id} className="flex flex-col items-center min-w-0">
-                <Link href={`/profile/${u.id}`} className="flex flex-col items-center w-full min-w-0">
+              <Link key={u.id} href={`/profile/${u.id}`} className="flex flex-col items-center min-w-0">
+                <div className={`rounded-full p-[2px] ${u.canDm ? 'bg-green-light' : ''}`}>
                   <Avatar user={u} size={44} />
-                  <div className="text-[10px] text-center truncate w-full mt-1">{u.displayName}</div>
-                </Link>
-                {u.canDm && (
-                  <Link href={`/chat/${chatIdFor(me.id, u.id)}?other=${u.id}`} className="mt-0.5 text-[10px] text-blue font-bold leading-none">💬 DM</Link>
-                )}
-              </div>
+                </div>
+                <div className="text-[10px] text-center truncate w-full mt-1">{u.displayName}</div>
+              </Link>
             ))}
           </div>
         </div>

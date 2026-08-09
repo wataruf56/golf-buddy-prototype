@@ -384,7 +384,7 @@ function Inner() {
             {data.recentActions.length === 0 ? <Empty /> : data.recentActions.map((a, i) => (
               <div key={i} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
                 <div className="min-w-0 flex-1">
-                  <div className="text-[12px] font-semibold truncate">{a.name} <span className="text-muted font-normal">/ {a.event === 'page_view' ? `📱 ${pageLabel(a.pageNorm || a.page)}を開いた` : eventJa(a.event)}{(a.event === 'dm_open' || a.event === 'dm_send') && a.toName ? ` → ${a.toName}` : ''}</span></div>
+                  <div className="text-[12px] font-semibold truncate">{a.name} <span className="text-muted font-normal">/ {a.event === 'page_view' ? `📱 ${pageLabel(a.pageNorm || a.page)}を開いた` : eventJa(a.event)}{a.toName ? ` → ${a.toName}` : ''}</span></div>
                   <div className="text-[9px] text-muted truncate">{a.page}</div>
                 </div>
                 <div className="text-[10px] text-muted flex-shrink-0 ml-2">{ago(a.ts)}</div>

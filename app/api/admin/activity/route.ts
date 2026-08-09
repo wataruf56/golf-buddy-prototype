@@ -47,7 +47,9 @@ export async function GET(req: NextRequest) {
     // ①いま使っているユーザーの「最後の操作」は実操作のみ（画面表示は除く）。
     const ACTION_HIDDEN = new Set(['app_open', 'hydrate_success', 'hydrate_error', 'page_view', 'mypage_render', 'menu_entry']);
     // ②直近の操作ログは「画面（タブ）を開いた」も残す（アプリ起動系だけ除外）。
-    const LOG_HIDDEN = new Set(['app_open', 'hydrate_success', 'hydrate_error', 'mypage_render', 'menu_entry']);
+    // profile_edit_initialized は page_view /mypage/edit と毎回2重になり操作ログを埋めるため非表示
+    // （編集画面を開いた事実は page_view 行で追える）。
+    const LOG_HIDDEN = new Set(['app_open', 'hydrate_success', 'hydrate_error', 'mypage_render', 'menu_entry', 'profile_edit_initialized']);
 
     // Per-user rollup。lastTs=最後の活動(閲覧含む)、lastActionTs=最後の“操作”(②に出るもの)。
     const perUser: Record<string, {
@@ -78,7 +80,16 @@ export async function GET(req: NextRequest) {
     const recentActions = logs
       .filter((l: any) => l.event && !LOG_HIDDEN.has(l.event))
       .slice(0, 500)
-      .map((l: any) => ({ userId: l.userId, event: l.event, page: l.page, pageNorm: normPage(l.page || ''), ts: l.ts, to: (l?.data && typeof l.data.to === 'string') ? l.data.to : '' }));
+      .map((l: any) => {
+        const pageNorm = normPage(l.page || '');
+        // 「誰に対して」の相手ID。DM(dm_open/dm_send)は data.to、
+        // 他の人のプロフィール閲覧(page_view /profile/[id])はパス末尾のユーザーIDから取る。
+        let to = (l?.data && typeof l.data.to === 'string') ? l.data.to : '';
+        if (!to && l.event === 'page_view' && pageNorm === '/profile/[id]') {
+          try { to = decodeURIComponent(String(l.page || '').split('?')[0].split('/').pop() || ''); } catch { /* noop */ }
+        }
+        return { userId: l.userId, event: l.event, page: l.page, pageNorm, ts: l.ts, to };
+      });
 
     // リッチメニューからの入口（?e= を付けたリンク経由の menu_entry を集計）。
     let menuEntries: Array<{ menu: string; count: number }> = [];
