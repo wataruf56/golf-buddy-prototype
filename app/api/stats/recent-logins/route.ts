@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getMeId } from '@/lib/session';
 import { getAdminDb } from '@/lib/firebase';
 import { db as appDb } from '@/lib/db';
-import { isNoShow } from '@/lib/groups';
-import type { Round } from '@/lib/types';
+import { dmAllowedSet } from '@/lib/dmPolicy';
 
 // GET /api/stats/recent-logins
 // 直近ログイン順のユーザー（最大30人）。ホーム「自分のプロフィール」下のグリッド表示用。
-// 各ユーザーに canDm を付与：DMを送れるのは (1)ゴル友(friendIds) または (2)同じコンペを回った人 のみ。
-// lastActiveAt は bootstrap でアプリを開くたびに更新される。テストアカウントは一般ユーザーから隠す。
+// 各ユーザーに canDm を付与：判定は lib/dmPolicy（ゴル友／同ラウンド・コンペ／申請・招待の関係／
+// 募集中の主催者）に一元化。lastActiveAt は bootstrap でアプリを開くたびに更新される。
+// テストアカウントは一般ユーザーから隠す。
 export const dynamic = 'force-dynamic';
 
 const noStore = { 'Cache-Control': 'no-store' };
@@ -21,7 +21,6 @@ export async function GET(_req: NextRequest) {
   if (!db) return NextResponse.json({ users: [] }, { headers: noStore });
 
   const me = await appDb.getUser(meId);
-  const friendSet = new Set(me?.friendIds || []);
   const blocked = new Set(me?.blockedUserIds || []);
 
   // テストアカウント隠し（bootstrap と同じ方針）。
@@ -35,29 +34,6 @@ export async function GET(_req: NextRequest) {
     isTestId = (id: string) => !!id && (id.startsWith('test_') || tset.has(id));
     hideTest = tcfg.hideFromGeneral && !isTestMe;
   } catch { /* 判定不能時は隠さない */ }
-
-  // 同じコンペ（完了・isCompetition）を回った人の集合。
-  const compMates = new Set<string>();
-  try {
-    const [asApplicant, asHost] = await Promise.all([
-      db.collection('rounds').where('applicantIds', 'array-contains', meId).limit(500).get(),
-      db.collection('rounds').where('hostId', '==', meId).limit(500).get(),
-    ]);
-    const seen = new Set<string>();
-    const consider = (doc: any) => {
-      if (seen.has(doc.id)) return;
-      seen.add(doc.id);
-      const r = { id: doc.id, ...(doc.data() || {}) } as Round;
-      if (r.status !== 'completed' || !r.isCompetition) return;
-      const members: string[] = [r.hostId, ...((r.applicantIds as string[]) || [])].filter(Boolean);
-      if (!members.includes(meId)) return;
-      for (const id of members) {
-        if (id && id !== meId && !isNoShow(r, id)) compMates.add(id);
-      }
-    };
-    asApplicant.docs.forEach(consider);
-    asHost.docs.forEach(consider);
-  } catch { /* best-effort */ }
 
   const out: Array<Record<string, any>> = [];
   try {
@@ -77,13 +53,19 @@ export async function GET(_req: NextRequest) {
         golmotiType: u.golmotiType || undefined,
         color: u.color || '',
         lastActiveAt: u.lastActiveAt || 0,
-        canDm: friendSet.has(id) || compMates.has(id),
+        canDm: false, // 後段で dmAllowedSet の結果を反映
       });
       if (out.length >= MAX) break;
     }
   } catch (e) {
     return NextResponse.json({ users: [], error: (e as Error).message }, { headers: noStore });
   }
+
+  // DM可否を一括判定（lib/dmPolicy に一元化）
+  try {
+    const allowed = await dmAllowedSet(meId, out.map((o) => o.id as string));
+    for (const o of out) o.canDm = allowed.has(o.id as string);
+  } catch { /* 判定失敗時は全員 canDm=false（安全側） */ }
 
   return NextResponse.json({ users: out }, { headers: noStore });
 }

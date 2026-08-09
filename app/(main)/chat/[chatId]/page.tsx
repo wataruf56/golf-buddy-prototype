@@ -73,6 +73,20 @@ export default function ChatPage() {
     ? `★${revisitStar(otherTrack.roundedWith, otherTrack.neverCount).toFixed(1)}（${otherTrack.roundedWith}）`
     : '🆕 初参加';
 
+  // DM可否（関係性ゲート・lib/dmPolicy と同一判定）。false なら入力欄を出さず案内を表示。
+  // 過去のやり取りは読める（閲覧はブロックしない）。
+  const [dmAllowed, setDmAllowed] = useState<boolean | null>(null);
+  useEffect(() => {
+    setDmAllowed(null);
+    if (!otherId || !params.chatId) return;
+    let cancelled = false;
+    fetch(`/api/me/can-dm?userId=${encodeURIComponent(otherId)}&chatId=${encodeURIComponent(params.chatId)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled && d) setDmAllowed(!!d.allowed); })
+      .catch(() => { /* 判定不能時は入力欄を出す（送信時にサーバーが最終判定） */ });
+    return () => { cancelled = true; };
+  }, [otherId, params.chatId]);
+
   useEffect(() => {
     if (!params.chatId) return;
     track('dm_open', { to: otherId }); // DMを開いた＋相手（操作ログ用・チャットを開くたび1回）
@@ -196,6 +210,11 @@ export default function ChatPage() {
         })}
       </div>
 
+      {dmAllowed === false ? (
+        <div className="px-5 py-4 pb-8 bg-card border-t border-border flex-shrink-0 text-center text-[11px] text-sub leading-relaxed">
+          💬 メッセージを送れるのは「ゴル友（QRでつながった人）」「一緒にラウンド・コンペを回った人」「参加申請・招待中の相手」「募集中ラウンドの主催者」のみです
+        </div>
+      ) : (
       <div className="flex items-end gap-2 px-4 py-3 pb-7 bg-card border-t border-border flex-shrink-0">
         {/* 画像添付（ラウンドチャットと同仕様） */}
         <button
@@ -222,6 +241,7 @@ export default function ChatPage() {
         />
         <button onClick={() => send()} disabled={sending} aria-label="送信" className="self-end flex-shrink-0 w-10 h-10 bg-green text-white rounded-full text-base font-bold disabled:opacity-50">➤</button>
       </div>
+      )}
     </div>
   );
 }

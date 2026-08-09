@@ -20,10 +20,11 @@ export default function ProfilePage() {
   const cachedUser = useStore((s) => s.users.find((u) => u.id === params.id));
   const meId = useStore((s) => s.meId);
   const me = useStore(getMe);
-  // メッセージは、相手をブロックしていない限り誰にでも送れる（サーバー側もブロック/バン/
-  // 年齢/DM制限のみで関係性は要求しない）。友達でなくても招待相手などにDMできる。
+  // メッセージを送れるのは「ゴル友／一緒にラウンド・コンペ／申請・招待の関係／募集中の主催者」
+  // のみ（/api/me/can-dm で判定・サーバーの /api/messages も同じ lib/dmPolicy で強制）。
   const isBlocked = (me.blockedUserIds || []).includes(params.id || '');
   const isMe = meId === params.id;
+  const [dmAllowed, setDmAllowed] = useState<boolean | null>(null); // null=判定中（ボタン非表示）
 
   const [user, setUser] = useState<User | undefined>(cachedUser);
   const [notFound, setNotFound] = useState(false);
@@ -50,6 +51,19 @@ export default function ProfilePage() {
       .then((d) => setTrack({ roundedWith: d.roundedWith || 0, againCount: d.againCount || 0, neverCount: d.neverCount || 0, hostedCount: d.hostedCount || 0, joinedCount: d.joinedCount || 0 }))
       .catch(() => {});
   }, [params.id]);
+
+  // DM可否（関係性ゲート）。判定が返るまでボタンは出さない。
+  useEffect(() => {
+    setDmAllowed(null);
+    if (!params.id || !meId || params.id === meId) return;
+    let cancelled = false;
+    const cid = chatIdFor(meId, params.id);
+    fetch(`/api/me/can-dm?userId=${encodeURIComponent(params.id)}&chatId=${encodeURIComponent(cid)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled && d) setDmAllowed(!!d.allowed); })
+      .catch(() => { /* 判定失敗時はボタンを出さない（サーバー側でも弾かれる） */ });
+    return () => { cancelled = true; };
+  }, [params.id, meId]);
 
   async function toggleBlock() {
     setMenuOpen(false);
@@ -146,7 +160,7 @@ export default function ProfilePage() {
           <div className="relative z-10 rounded-full p-1 bg-card inline-block shadow-card">
             <Avatar user={user} size={88} emojiSize={44} />
           </div>
-          {!isMe && !isBlocked && (
+          {!isMe && !isBlocked && dmAllowed === true && (
             <Link href={`/chat/${chatIdFor(meId, user.id)}?other=${user.id}`} aria-label={`${user.displayName}さんにメッセージを送る`} className="mb-1 px-5 py-2.5 bg-green text-white rounded-full text-sm font-black shadow-card flex items-center gap-1.5">
               <span className="text-base">💬</span> メッセージを送る
             </Link>
@@ -230,11 +244,15 @@ export default function ProfilePage() {
         <div className="mt-4">
           {isMe ? null : isBlocked ? (
             <div className="text-center py-3 bg-bg rounded-xl text-[13px] text-sub">🚫 このユーザーをブロック中</div>
-          ) : (
+          ) : dmAllowed === true ? (
             <Link href={`/chat/${chatIdFor(meId, user.id)}?other=${user.id}`} aria-label={`${user.displayName}さんにメッセージを送る`} className="flex items-center justify-center gap-2 w-full py-3.5 bg-green text-white rounded-xl text-[15px] font-black text-center">
               <span className="text-lg">💬</span> {user.displayName}さんにメッセージを送る
             </Link>
-          )}
+          ) : dmAllowed === false ? (
+            <div className="text-center py-3 px-4 bg-bg rounded-xl text-[11px] text-sub leading-relaxed">
+              💬 メッセージを送れるのは「ゴル友」「一緒にラウンド・コンペを回った人」「参加申請・招待中の相手」「募集中ラウンドの主催者」のみです
+            </div>
+          ) : null}
         </div>
       </div>
 

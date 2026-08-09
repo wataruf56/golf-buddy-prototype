@@ -40,6 +40,14 @@ export async function POST(req: NextRequest) {
   const otherBlocksMe = (other?.blockedUserIds || []).includes(meId);
   if (meBlocksOther) return NextResponse.json({ error: 'blocked_by_self' }, { status: 403 });
   if (otherBlocksMe) return NextResponse.json({ error: 'blocked_by_other' }, { status: 403 });
+  // 関係性ゲート（2026-08-09 仕様）：ゴル友／同じラウンド・コンペ／申請・招待の関係／
+  // 募集中の主催者／管理人 のみDM可。判定は lib/dmPolicy に一元化（UI側もこれに従う）。
+  {
+    const { canDm, DM_POLICY_MSG } = await import('@/lib/dmPolicy');
+    if (!(await canDm(meId, otherUserId, chatId))) {
+      return NextResponse.json({ error: 'dm_not_allowed', message: DM_POLICY_MSG }, { status: 403 });
+    }
+  }
   const participants: [string, string] = [meId, otherUserId].sort() as [string, string];
   const message = await db.sendMessage(chatId, participants, meId, msgText.trim(), img);
   // Always record in the in-app inbox (home screen), even if LINE is off.

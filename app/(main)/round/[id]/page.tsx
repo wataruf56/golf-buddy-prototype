@@ -236,6 +236,9 @@ export default function RoundDetailPage() {
   // 参加者同士のDMは「主催者/共同管理者 or 承認済み参加者」だけに開放する。未参加の閲覧者は
   // 参加者一覧からDMを送れない（問い合わせは主催者欄の💬に集約）。
   const canDmMembers = isHost || isApproved;
+  // 主催者への💬：募集中(open)は誰でも可（問い合わせ）。締切/完了後はメンバー・申請中・招待中のみ
+  // （lib/dmPolicy のサーバー判定と同じ範囲に揃える）。
+  const canDmHost = round.status === 'open' || canDmMembers || isPending || (round.invitedIds || []).includes(meId);
   // 飲み会（eventType='drink'）: 定員なし・ゴルフ場/組み分け/送迎/レビュー無し。
   const isDrink = round.eventType === 'drink';
   const isFull = !isDrink && round.currentCount >= round.maxSpots;
@@ -801,7 +804,7 @@ export default function RoundDetailPage() {
                     <div className="text-[11px] text-sub truncate">{describeUser(h)}{ratingText(h.id, true) ? ' ・ ' + ratingText(h.id, true) : ''}{h.scoreRange ? ' ・ ' + h.scoreRange : ''}</div>
                   </div>
                 </Link>
-                {!!meId && h.id !== meId && (
+                {!!meId && h.id !== meId && canDmHost && (
                   <Link
                     href={`/chat/${chatIdFor(meId, h.id)}?other=${h.id}`}
                     className="px-3 py-1.5 bg-blue text-white rounded-lg text-xs font-bold flex-shrink-0"
