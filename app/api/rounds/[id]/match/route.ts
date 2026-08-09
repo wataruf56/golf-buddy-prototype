@@ -117,12 +117,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
   }
 
+  // 自分の like が「今回のこの操作で新たに付いたか」を判定する（like はペア単位で永続するため、
+  // 一度マッチした相手と再ラウンドして同じ選択を押しても、既に付いている＝新規ではない）。
+  const myLikeExisted = await likeExists(docId(kind, meId, toUserId));
   await setLike(docId(kind, meId, toUserId), { from: meId, to: toUserId, kind, roundId: params.id, ts: Date.now() }, on);
 
   let matched = false;
   if (on) {
     matched = await likeExists(docId(kind, toUserId, meId));
-    if (matched) {
+    // マッチしていても、通知するのは「新しく成立したマッチ」のときだけ。既にマッチ済みの相手と
+    // 再ラウンドして同じ選択を押し直しただけ（内容不変）なら、LINE等の通知はしない。
+    if (matched && !myLikeExisted) {
       const me = await db.getUser(meId);
       const other = await db.getUser(toUserId);
       const meName = me?.displayName || '相手';
