@@ -107,6 +107,9 @@ export type EventType = 'golf' | 'drink';
 export type Round = {
   id: string;
   hostId: string;
+  // 共同管理者。主催者(hostId)と同じ権限（編集・承認・組み分け等）を持ち、作成時から参加者
+  // (applicantIds)として扱われる（参加申請不要）。判定は lib/roundHost.isRoundHost を使う。
+  coHostIds?: string[];
   hostCohort?: 'a' | 'b';        // 'a' = 20s/30s, 'b' = 40s/50s. Stamped at creation time.
   title: string;
   // 未設定の既存データは 'golf' とみなす（後方互換）。

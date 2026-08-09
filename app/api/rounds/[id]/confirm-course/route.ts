@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { isRoundHost } from '@/lib/roundHost';
 import { getMeId } from '@/lib/session';
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
@@ -7,7 +8,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const round = await db.getRound(params.id);
   if (!round) return NextResponse.json({ error: 'not_found' }, { status: 404 });
-  if (round.hostId !== meId) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (!isRoundHost(round, meId)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const body = await req.json();
   const { courseName, date, startTime, price } = body || {};
   if (!courseName || !date || !startTime) {

@@ -63,6 +63,19 @@ export async function POST(req: NextRequest) {
     maxSpots = Math.max(2, Math.min(50, Number(body.maxSpots) || 2));
     spotsMale = 0; spotsFemale = 0; spotsAny = Math.max(0, maxSpots - 1 - externalTotal);
   }
+
+  // 共同管理者（任意・現状1名）。主催者と同じ権限を持ち、作成時から参加者(applicantIds)として
+  // 扱う（参加申請不要）。実在ユーザーのみ・自分自身は除外。
+  const coHostIds: string[] = [];
+  {
+    const rawCo = body.coHostId ? String(body.coHostId) : '';
+    if (rawCo && rawCo !== meId) {
+      const cu = await db.getUser(rawCo);
+      if (cu) coHostIds.push(rawCo);
+    }
+  }
+  // 共同管理者は主催者同様「最初から埋まっている固定メンバー」。募集枠(spotsAny等)は変えず総定員だけ広げる。
+  if (coHostIds.length) maxSpots = Math.min(isDrink ? DRINK_CAP : 50, maxSpots + coHostIds.length);
   // 後方互換の性別条件をサーバー側で内訳から導出（単一性別のみ厳格ゲート）。飲み会は常に 'any'。
   const genderCondition: 'any' | 'male' | 'female' = isDrink ? 'any'
     : spotsAny === 0 && spotsFemale === 0 && spotsMale > 0 ? 'male'
@@ -70,6 +83,7 @@ export async function POST(req: NextRequest) {
     : 'any';
   const round: Omit<Round, 'id'> = {
     hostId: meId,
+    coHostIds: coHostIds.length ? coHostIds : undefined,
     hostCohort: cohort,
     title: body.title,
     eventType,
@@ -89,8 +103,9 @@ export async function POST(req: NextRequest) {
     spotsAny,
     externalMale,
     externalFemale,
-    currentCount: 1 + externalTotal, // 主催者 + 知り合いは最初から参加扱い
-    applicantIds: [],
+    currentCount: 1 + externalTotal + coHostIds.length, // 主催者 + 知り合い + 共同管理者は最初から参加扱い
+    applicantIds: [...coHostIds], // 共同管理者は承認済み参加者として初期登録（申請不要）
+
     price: body.price ? String(body.price).slice(0, 40) : undefined,
     // 男女別料金（両方あるときだけ有効）。
     priceMale: body.priceMale ? String(body.priceMale).slice(0, 40) : undefined,

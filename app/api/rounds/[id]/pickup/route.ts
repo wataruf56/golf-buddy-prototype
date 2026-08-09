@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { isRoundHost } from '@/lib/roundHost';
 import { getMeId } from '@/lib/session';
 import type { PickupStatus } from '@/lib/types';
 
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   let body: any = {};
   try { body = await req.json(); } catch {}
   // 入力できるのは主催者（誰の分でも代理可）か本人（自分の分のみ）だけ。ゲストは主催者のみ。
-  const isHost = round.hostId === meId;
+  const isHost = isRoundHost(round, meId);
   const proxyTargets = new Set([...members, ...((round.guests || []).map((g) => g.id))]);
   const targetId = body?.userId ? String(body.userId) : meId;
   if (targetId !== meId && !proxyTargets.has(targetId)) {

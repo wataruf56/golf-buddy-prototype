@@ -9,6 +9,7 @@ import { Avatar } from '@/components/Avatar';
 import { HomeUpdateCard } from '@/components/HomeUpdateCard';
 import { toast } from '@/components/Toast';
 import { RESTRICTION_MSG } from '@/lib/restrictions';
+import { isRoundHost } from '@/lib/roundHost';
 
 function relTime(ts: number): string {
   const diff = Date.now() - ts;
@@ -128,7 +129,7 @@ export default function HomePage() {
     return [...(officialComp ? [officialComp] : []), ...rest];
   })();
   const myHostedPending = useStore((s) =>
-    s.rounds.filter((r) => r.hostId === s.meId).flatMap((r) =>
+    s.rounds.filter((r) => isRoundHost(r, s.meId)).flatMap((r) =>
       (r.pendingApplicantIds || []).map((uid) => ({ round: r, applicantId: uid }))
     )
   );

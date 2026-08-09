@@ -101,12 +101,36 @@ export default function CreatePage() {
   const [pickupStations, setPickupStations] = useState<string[]>([]);
   const [pickupCapacity, setPickupCapacity] = useState(0); // 自分含め乗れる人数
 
+  // 共同管理者（任意・現状1名）。ゴル友（マッチ済み）から選ぶ。主催者と同権限＋作成時から参加確定。
+  const [coHostId, setCoHostId] = useState('');
+  const [coHostName, setCoHostName] = useState('');
+  const [coHostPickerOpen, setCoHostPickerOpen] = useState(false);
+  const [coHostCandidates, setCoHostCandidates] = useState<{ id: string; displayName: string; avatar: string; avatarUrl?: string }[]>([]);
+
   const isComp = maxSpots >= 5;
   const MIN_TOTAL = 2, MAX_TOTAL = 50;
   const extTotal = externalMale + externalFemale;               // 知り合い合計
   // 性別内訳は「自分を含めた全体(=募集人数)」の内訳。男 + 女 + どちらでも = maxSpots。
   // spotsMale / spotsFemale は内訳の男/女。どちらでも(bAny)は残りの自動計算。
   const bAny = Math.max(0, maxSpots - spotsMale - spotsFemale);
+
+  // 共同管理者の候補（ゴル友＝マッチ済みユーザー）をピッカーを開いたとき遅延取得。
+  useEffect(() => {
+    if (!coHostPickerOpen || coHostCandidates.length) return;
+    fetch('/api/me/matches', { cache: 'no-store', credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d?.matches) return;
+        const list = Object.keys(d.matches).map((id) => ({
+          id,
+          displayName: d.users?.[id]?.displayName || 'メンバー',
+          avatar: d.users?.[id]?.avatar || '⛳',
+          avatarUrl: d.users?.[id]?.avatarUrl || '',
+        }));
+        setCoHostCandidates(list);
+      })
+      .catch(() => {});
+  }, [coHostPickerOpen, coHostCandidates.length]);
 
   // 管理画面で編集されたタイトル定型文を取得（失敗時は既定値のまま）。
   useEffect(() => {
@@ -281,6 +305,8 @@ export default function CreatePage() {
       pickupOffered: offerPickup,
       pickupStations: offerPickup && pickupStations.length ? pickupStations : undefined,
       pickupCapacity: offerPickup && pickupStations.length && pickupCapacity > 0 ? pickupCapacity : undefined,
+      // 共同管理者（任意）。サーバー側で実在ユーザーを検証し、承認済み参加者＋同権限として登録する。
+      coHostId: coHostId || undefined,
       // Admin-only: request publishing under the ゴルトモ公式 identity. Server
       // re-validates the caller is actually an admin before honoring this.
       asOfficial: isAdmin ? postAsOfficial : undefined,
@@ -651,6 +677,36 @@ export default function CreatePage() {
               </div>
               <div className="mt-1.5 text-[10px] text-muted font-medium">
                 ゴルトモにいないメンバー（他アプリ等で既に集まっている人）。上の募集人数の内数で、その分ゴルトモでの募集枠が減ります。
+              </div>
+            </Field>
+
+            {/* 共同管理者（任意・ゴル友から1名） */}
+            <Field label="共同管理者" hint="（任意・ゴル友から1名／あなたと同じ管理権限）">
+              {coHostId ? (
+                <div className="flex items-center justify-between px-3 py-2 bg-green-light rounded-lg">
+                  <span className="text-sm font-bold text-text flex items-center gap-1.5">🤝 {coHostName}</span>
+                  <button type="button" className="text-xs font-bold text-red" onClick={() => { setCoHostId(''); setCoHostName(''); }}>外す</button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setCoHostPickerOpen((v) => !v)} className="w-full px-3 py-2 bg-bg rounded-lg text-sm font-bold text-sub border border-line">
+                  ＋ 共同管理者を選ぶ
+                </button>
+              )}
+              {coHostPickerOpen && !coHostId && (
+                <div className="mt-2 flex flex-col gap-1.5 max-h-56 overflow-y-auto">
+                  {coHostCandidates.length === 0 ? (
+                    <div className="px-3 py-2 text-[11px] text-muted font-medium">選べるゴル友（「また回りたい」でマッチした人）がまだいません。</div>
+                  ) : coHostCandidates.map((c) => (
+                    <button key={c.id} type="button" onClick={() => { setCoHostId(c.id); setCoHostName(c.displayName); setCoHostPickerOpen(false); }}
+                      className="flex items-center gap-2 px-3 py-2 bg-bg rounded-lg text-left">
+                      {c.avatarUrl ? <img src={c.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover" /> : <span className="text-lg">{c.avatar}</span>}
+                      <span className="text-sm font-bold text-text">{c.displayName}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="mt-1.5 text-[10px] text-muted font-medium">
+                選ばれた人は投稿と同時に参加確定（申請不要）になり、あなたと同じく編集・承認・組み分けなどの管理操作ができます。募集枠は減りません。
               </div>
             </Field>
           </>

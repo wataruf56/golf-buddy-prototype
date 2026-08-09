@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { isRoundHost } from '@/lib/roundHost';
 import { getMeId } from '@/lib/session';
 
 const noStore = { 'Cache-Control': 'no-store' };
@@ -15,7 +16,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
   const round = await db.getRound(params.id);
   if (!round) return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStore });
-  if (round.hostId !== meId) {
+  if (!isRoundHost(round, meId)) {
     return NextResponse.json({ error: 'forbidden', message: '主催者のみ閲覧できます' }, { status: 403, headers: noStore });
   }
 

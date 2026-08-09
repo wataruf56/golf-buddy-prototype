@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { isRoundHost } from '@/lib/roundHost';
 import { getMeId } from '@/lib/session';
 
 const noStore = { 'Cache-Control': 'no-store' };
@@ -18,7 +19,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   if (!round) return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStore });
 
   // 主催者本人は記録しない。
-  if (round.hostId === meId) return NextResponse.json({ ok: true, recorded: false, self: true }, { headers: noStore });
+  if (isRoundHost(round, meId)) return NextResponse.json({ ok: true, recorded: false, self: true }, { headers: noStore });
 
   try {
     await db.recordRoundView(params.id, meId, Date.now());

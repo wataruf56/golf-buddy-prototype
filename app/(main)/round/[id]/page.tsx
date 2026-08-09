@@ -10,6 +10,7 @@ import { Avatar } from '@/components/Avatar';
 import { track } from '@/lib/telemetry';
 import { chatIdFor, formatDate, revisitRatingLabel, carLabel, priceLabelForGender, isSplitPrice, timeAgo } from '@/lib/utils';
 import { levelConditionLabel } from '@/lib/roundEligibility';
+import { isRoundHost } from '@/lib/roundHost';
 import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
 import { GroupAssignment } from '@/components/GroupAssignment';
 import { GroupPrefs } from '@/components/GroupPrefs';
@@ -111,7 +112,7 @@ export default function RoundDetailPage() {
   // (returns 403 otherwise), so real names never reach non-hosts.
   useEffect(() => {
     const r = storeRound || fetchedRound;
-    if (!params.id || !r || r.hostId !== meId) { setParticipantNames({}); return; }
+    if (!params.id || !r || !isRoundHost(r, meId)) { setParticipantNames({}); return; }
     let cancelled = false;
     (async () => {
       try {
@@ -132,7 +133,7 @@ export default function RoundDetailPage() {
   // （通知はしない）。募集ごと・ログインユーザーごとに1回だけ送る。
   useEffect(() => {
     const r = storeRound || fetchedRound;
-    if (!r || !meId || r.hostId === meId) return;
+    if (!r || !meId || isRoundHost(r, meId)) return;
     fetch(`/api/rounds/${encodeURIComponent(r.id)}/view`, { method: 'POST', cache: 'no-store', keepalive: true }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [(storeRound || fetchedRound)?.id, meId]);
@@ -140,7 +141,7 @@ export default function RoundDetailPage() {
   // 主催者限定：この募集を見に来た人の一覧を取得（他ユーザーには 403 で返らない）。
   useEffect(() => {
     const r = storeRound || fetchedRound;
-    if (!params.id || !r || r.hostId !== meId) { setViewers(null); return; }
+    if (!params.id || !r || !isRoundHost(r, meId)) { setViewers(null); return; }
     let cancelled = false;
     (async () => {
       try {
@@ -205,7 +206,7 @@ export default function RoundDetailPage() {
     if (!r) return; // ラウンド読み込み待ち
     autoJoinHandled.done = true;
     router.replace(`/round/${r.id}`); // リロードで再発火しないようパラメータを除去
-    const participating = r.hostId === meId || r.applicantIds.includes(meId) || (r.pendingApplicantIds || []).includes(meId);
+    const participating = isRoundHost(r, meId) || r.applicantIds.includes(meId) || (r.pendingApplicantIds || []).includes(meId);
     const full = r.currentCount >= r.maxSpots;
     if (participating || full || r.status !== 'open') return;
     if (!joinReady) return; // 名前がまだ未入力なら開かない
@@ -226,7 +227,7 @@ export default function RoundDetailPage() {
   const host = users.find((u) => u.id === round.hostId);
   const applicants = round.applicantIds.map((id) => users.find((u) => u.id === id)).filter(Boolean);
   const pendingApplicants = (round.pendingApplicantIds || []).map((id) => users.find((u) => u.id === id)).filter(Boolean);
-  const isHost = round.hostId === meId;
+  const isHost = isRoundHost(round, meId);
   const isApproved = round.applicantIds.includes(meId);
   const isPending = (round.pendingApplicantIds || []).includes(meId);
   // 飲み会（eventType='drink'）: 定員なし・ゴルフ場/組み分け/送迎/レビュー無し。
@@ -815,7 +816,7 @@ export default function RoundDetailPage() {
                   <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
                     <Avatar user={u} size={36} />
                     <div className="flex-1 min-w-0">
-                      <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
+                      <div className="text-[13px] font-semibold truncate">{u.displayName}{round.coHostIds?.includes(u.id) && <span className="ml-1.5 text-[10px] text-green font-bold">🤝 共同管理者</span>}</div>
                       {isHost && participantNames[u.id] && (
                         <div className="text-[10px] text-green font-bold">📋 {participantNames[u.id]}</div>
                       )}
@@ -828,7 +829,9 @@ export default function RoundDetailPage() {
                   {isHost && (
                     <>
                       <Link href={`/chat/${chatIdFor(meId, u.id)}?other=${u.id}`} className="px-2.5 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
-                      <button onClick={() => kick(u.id, u.displayName)} className="px-2.5 py-1 bg-card text-red border border-red rounded text-[11px] font-bold flex-shrink-0">外す</button>
+                      {!round.coHostIds?.includes(u.id) && (
+                        <button onClick={() => kick(u.id, u.displayName)} className="px-2.5 py-1 bg-card text-red border border-red rounded text-[11px] font-bold flex-shrink-0">外す</button>
+                      )}
                     </>
                   )}
                 </div>

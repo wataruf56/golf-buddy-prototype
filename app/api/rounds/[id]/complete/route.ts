@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { isRoundHost } from '@/lib/roundHost';
 import { getMeId } from '@/lib/session';
 import { competitionGroupsComplete } from '@/lib/groups';
 
@@ -8,7 +9,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const round = await db.getRound(params.id);
   if (!round) return NextResponse.json({ error: 'not_found' }, { status: 404 });
-  if (round.hostId !== meId) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (!isRoundHost(round, meId)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   // コンペは組み分け必須。相互レビューは「同じ組」の人だけを対象にするため、全員が
   // いずれかの組に入っている（または「当日来れなかった人」に移されている）必要がある。

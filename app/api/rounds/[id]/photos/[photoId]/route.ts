@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { isRoundHost } from '@/lib/roundHost';
 import { getMeId } from '@/lib/session';
 
 // 写真の削除。アップロードした本人 or ラウンド主催者のみ。
@@ -14,7 +15,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   const photos = await db.listRoundPhotos(params.id);
   const target = photos.find((p) => p.id === params.photoId);
   if (!target) return NextResponse.json({ ok: true }, { headers: noStore }); // already gone
-  if (target.uploadedBy !== meId && round.hostId !== meId) {
+  if (target.uploadedBy !== meId && !isRoundHost(round, meId)) {
     return NextResponse.json({ error: 'forbidden', message: '自分の写真か、主催者だけが削除できます' }, { status: 403, headers: noStore });
   }
   await db.deleteRoundPhoto(params.id, params.photoId);

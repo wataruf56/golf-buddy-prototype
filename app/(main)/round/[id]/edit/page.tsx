@@ -11,6 +11,7 @@ import { toast } from '@/components/Toast';
 import type { Round } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Stepper } from '@/components/Stepper';
+import { isRoundHost } from '@/lib/roundHost';
 
 // 募集タイトルのプルダウン既定値。管理画面で編集されると /api/round-titles で上書き。
 const DEFAULT_TITLE_PRESETS = [
@@ -208,12 +209,12 @@ export default function EditRoundPage() {
   }
   timeSlots.push('24:00'); // ナイター対応（深夜0時まで選択可）
 
-  // Guard: only the host may edit.
-  if (round && meId && round.hostId !== meId) {
+  // Guard: only the host or a co-host may edit.
+  if (round && meId && !isRoundHost(round, meId)) {
     return (
       <div className="flex flex-col items-center justify-center h-full px-8 text-center">
         <div className="text-4xl mb-3">🔒</div>
-        <div className="text-base font-black mb-2">主催者のみ編集できます</div>
+        <div className="text-base font-black mb-2">主催者・共同管理者のみ編集できます</div>
         <button onClick={() => router.push(`/round/${params.id}`)} className="mt-4 px-5 py-2.5 bg-green text-white rounded-xl text-sm font-bold">募集の詳細へ戻る</button>
       </div>
     );

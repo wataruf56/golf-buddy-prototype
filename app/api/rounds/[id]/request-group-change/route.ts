@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { isRoundHost } from '@/lib/roundHost';
 import { getMeId } from '@/lib/session';
 import { addNotification } from '@/lib/notifications';
 import { pushTo, liffUrl } from '@/lib/linePush';
@@ -20,7 +21,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   if (!members.has(meId)) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
   }
-  if (round.hostId === meId) {
+  if (isRoundHost(round, meId)) {
     // 主催者自身は依頼不要（自分で直せる）。
     return NextResponse.json({ ok: true, self: true }, { headers: noStore });
   }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { isRoundHost } from '@/lib/roundHost';
 import { getMeId } from '@/lib/session';
 
 // POST /api/rounds/[id]/uninvite  body: { userId }
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const existing = await db.getRound(params.id);
   if (!existing) return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStore });
-  if (existing.hostId !== meId) {
+  if (!isRoundHost(existing, meId)) {
     return NextResponse.json({ error: 'forbidden', message: '募集者のみ操作できます' }, { status: 403, headers: noStore });
   }
 

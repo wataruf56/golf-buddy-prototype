@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { isRoundHost } from '@/lib/roundHost';
 import { getMeId } from '@/lib/session';
 import type { PickupProposal } from '@/lib/types';
 
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   let body: any = {};
   try { body = await req.json(); } catch {}
   const action = String(body?.action || '');
-  const isHost = round.hostId === meId;
+  const isHost = isRoundHost(round, meId);
 
   // ---- 主催者: 提案する ----
   if (action === 'propose') {
