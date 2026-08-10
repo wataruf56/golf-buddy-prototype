@@ -301,24 +301,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 直近ログインしたユーザー（ログイン新しい順・最大30人）。写真＋名前のみ。
-          すでにつながっている人（ゴル友・一緒に回った人など＝canDm）はアイコンに薄い緑のリング。 */}
-      {recentLogins.length > 0 && (
-        <div className="px-5 pb-3">
-          <div className="text-[12px] font-bold text-sub mb-2">🟢 最近ログインしたユーザー</div>
-          <div className="grid grid-cols-5 gap-x-2 gap-y-3">
-            {recentLogins.map((u) => (
-              <Link key={u.id} href={`/profile/${u.id}`} className="flex flex-col items-center min-w-0">
-                <div className={`rounded-full p-[2px] ${u.canDm ? 'bg-green-light' : ''}`}>
-                  <Avatar user={u} size={44} />
-                </div>
-                <div className="text-[10px] text-center truncate w-full mt-1">{u.displayName}</div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* 募集する／さがす */}
       <div className="px-5 pb-3 grid grid-cols-2 gap-3">
         <Link
@@ -430,6 +412,24 @@ export default function HomePage() {
           </button>
           <div className="text-[11px] text-muted mt-1.5 text-center">
             ※ラウンド日時経過後に表示されるレビュー画面のデモ
+          </div>
+        </div>
+      )}
+
+      {/* 直近ログインしたユーザー（ログイン新しい順・最大30人）。ホーム最下部に配置。写真＋名前のみ。
+          すでにつながっている人（ゴル友・一緒に回った人など＝canDm）はアイコンに薄い緑のリング。 */}
+      {recentLogins.length > 0 && (
+        <div className="px-5 pt-1 pb-3">
+          <div className="text-[12px] font-bold text-sub mb-2">🟢 最近ログインしたユーザー</div>
+          <div className="grid grid-cols-5 gap-x-2 gap-y-3">
+            {recentLogins.map((u) => (
+              <Link key={u.id} href={`/profile/${u.id}`} className="flex flex-col items-center min-w-0">
+                <div className={`rounded-full p-[2px] ${u.canDm ? 'bg-green-light' : ''}`}>
+                  <Avatar user={u} size={44} />
+                </div>
+                <div className="text-[10px] text-center truncate w-full mt-1">{u.displayName}</div>
+              </Link>
+            ))}
           </div>
         </div>
       )}
