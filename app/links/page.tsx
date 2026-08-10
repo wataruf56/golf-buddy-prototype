@@ -1,12 +1,14 @@
 import type { Metadata } from 'next';
 import { HubLinks } from '@/components/HubLinks';
 
-// Instagram の link-in-bio 用ハブ。プロフィールに貼れるリンクは1つだけなので、
-// ここから「ゴルフMBTI（診断）」と「ラウンド募集一覧」の2つへ振り分ける。
+// Instagram の link-in-bio 用ページ（LINE友だち追加専用）。
+// インスタのプロフィールには line.me のURLを直接貼れない（ドメインブロック）ため、
+// このページを経由して公式LINEの友だち追加へ誘導する。診断（MBTI）等は
+// インスタ側で別リンクとして直接貼る方針（2026-08-10〜）。
 // app.goltomo.com/links で公開（未ログインで閲覧可・アプリ枠なし）。
 export const metadata: Metadata = {
-  title: 'ゴルフMBTI | ゴルトモ',
-  description: '無料のゴルフ版MBTI（16タイプ性格診断）と、いま募集中のゴルフラウンド一覧。ゴルフ仲間を見つけよう。',
+  title: 'ゴルトモ 公式LINE | 友だち追加',
+  description: 'ゴルトモの公式LINEを友だち追加。募集中のゴルフラウンド一覧が届き、登録も参加もLINEで完結。',
 };
 
 const CREAM = '#FBF7EC';
@@ -31,18 +33,18 @@ export default function LinksHubPage() {
           <span>⛳</span> ゴルトモ
         </div>
 
-        {/* 大見出し：ゴルフMBTI */}
+        {/* 大見出し：公式LINE */}
         <h1
           className="text-center font-black leading-tight tracking-tight"
-          style={{ color: INK, fontSize: '46px' }}
+          style={{ color: INK, fontSize: '42px' }}
         >
-          ゴルフMBTI
+          ゴルトモ公式LINE
         </h1>
         <p className="text-center mt-2.5 text-[14px] font-bold leading-relaxed" style={{ color: '#5A7A6D' }}>
-          ゴルフ版の性格診断で、あなたに合うゴルフ仲間を見つけよう。<br />気になるコンテンツを選んでね👇
+          友だち追加すると、いま募集中のラウンド一覧が届きます。<br />登録も参加もLINEで完結👇
         </p>
 
-        {/* 2つのコンテンツ（表示・クリックを /api/lp/hit に計測） */}
+        {/* LINE友だち追加（表示・クリックを /api/lp/hit に計測） */}
         <HubLinks />
 
         <div className="mt-10 text-[11px] font-bold" style={{ color: '#8AA79A' }}>
