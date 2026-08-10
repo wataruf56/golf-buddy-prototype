@@ -116,8 +116,9 @@ export async function GET() {
   const roundChatActivity: Record<string, number> = {};
   await Promise.all(myRounds.map(async (r) => {
     try {
-      const msgs = await db.listRoundMessages(r.id);
-      if (msgs.length) roundChatActivity[r.id] = Math.max(...msgs.map((m) => m.createdAt));
+      // 最終投稿の時刻だけ取得（以前は最大200件を全部読んでいた）。
+      const at = await db.latestRoundMessageAt(r.id);
+      if (at) roundChatActivity[r.id] = at;
     } catch {}
   }));
 

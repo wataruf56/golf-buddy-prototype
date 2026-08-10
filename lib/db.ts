@@ -54,6 +54,10 @@ export interface DB {
 
   // Round group chat (messages may belong to a named thread via threadId)
   listRoundMessages(roundId: string): Promise<Message[]>;
+  // ラウンドチャットの最終投稿時刻だけを取る（未読バッジ判定用）。
+  // bootstrap は「最新時刻」しか要らないのに全メッセージ(最大200件)を読んでいたため、
+  // 参加ラウンド数 × 200件 の読み取りが毎回発生していた。1件だけ読むように分離。
+  latestRoundMessageAt(roundId: string): Promise<number>;
   addRoundMessage(roundId: string, senderId: string, text: string, threadId?: string, imageUrl?: string): Promise<Message>;
   listRoundThreads(roundId: string): Promise<RoundThread[]>;
   createRoundThread(roundId: string, name: string, userId: string): Promise<RoundThread>;
@@ -390,6 +394,10 @@ class MemoryDB implements DB {
   async listRoundMessages(roundId: string) {
     return [...(this.roundChats.get(roundId) || [])];
   }
+  async latestRoundMessageAt(roundId: string) {
+    const arr = this.roundChats.get(roundId) || [];
+    return arr.length ? Math.max(...arr.map((m) => m.createdAt || 0)) : 0;
+  }
   async addRoundMessage(roundId: string, senderId: string, text: string, threadId?: string, imageUrl?: string) {
     const msg: Message = { id: `rm_${Date.now()}_${Math.random().toString(36).slice(2,8)}`, senderId, text, createdAt: Date.now(), read: false, ...(threadId ? { threadId } : {}), ...(imageUrl ? { imageUrl } : {}) };
     const arr = this.roundChats.get(roundId) || [];
@@ -468,15 +476,18 @@ class FirestoreDB implements DB {
   }
   async listUsers(ids: string[]) {
     if (!ids.length) return [];
-    // Firestore 'in' supports up to 30 in v10+, batch if needed
-    const batches: User[] = [];
+    // Firestore の 'in' は最大30件なので分割。ゴル友が増えるとチャンク数も増えるため、
+    // 逐次 await ではなく並列で投げる（30人ごとに1往復ぶんの待ち時間が積み上がるのを防ぐ）。
     const chunkSize = 30;
-    for (let i = 0; i < ids.length; i += chunkSize) {
-      const chunk = ids.slice(i, i + chunkSize);
-      const snap = await this.fs.collection('users').where('__name__', 'in', chunk).get();
-      snap.docs.forEach((d: any) => batches.push({ id: d.id, ...d.data() } as User));
-    }
-    return batches;
+    const chunks: string[][] = [];
+    for (let i = 0; i < ids.length; i += chunkSize) chunks.push(ids.slice(i, i + chunkSize));
+    const results = await Promise.all(chunks.map(async (chunk) => {
+      try {
+        const snap = await this.fs.collection('users').where('__name__', 'in', chunk).get();
+        return snap.docs.map((d: any) => ({ id: d.id, ...d.data() } as User));
+      } catch { return [] as User[]; }
+    }));
+    return results.flat();
   }
 
   async listRounds(opts?: { status?: 'open' | 'closed' | 'completed' }) {
@@ -1058,6 +1069,21 @@ class FirestoreDB implements DB {
     } catch (e) {
       console.error('[listRoundMessages] failed', e);
       return [];
+    }
+  }
+  async latestRoundMessageAt(roundId: string) {
+    try {
+      // 最新1件だけ読む（未読バッジに必要なのは最終投稿時刻のみ）。
+      const snap = await this.fs.collection('rounds').doc(roundId).collection('chat')
+        .orderBy('createdAt', 'desc').limit(1).get();
+      if (snap.empty) return 0;
+      return Number(snap.docs[0].data()?.createdAt || 0);
+    } catch {
+      // orderBy に必要な索引が無い等の場合は、従来どおり全件から最大を取る（安全側）。
+      try {
+        const all = await this.listRoundMessages(roundId);
+        return all.length ? Math.max(...all.map((m) => m.createdAt || 0)) : 0;
+      } catch { return 0; }
     }
   }
   async addRoundMessage(roundId: string, senderId: string, text: string, threadId?: string, imageUrl?: string) {

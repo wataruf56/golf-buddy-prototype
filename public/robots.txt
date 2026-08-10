@@ -8,5 +8,8 @@ Disallow: /login
 Disallow: /liff
 Disallow: /mypage
 Disallow: /chat
+# 流入計測の中継ページ（すぐLINEへ転送するだけ）。検索結果に出す意味がない。
+Disallow: /go
+Disallow: /links
 
 Sitemap: https://goltomo.com/sitemap.xml
