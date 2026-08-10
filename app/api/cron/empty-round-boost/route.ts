@@ -18,14 +18,21 @@ const DAY = 24 * 60 * 60 * 1000;
 // ルール：
 //   対象 = status:'open' かつ 参加者0人（共同管理者も除く）かつ 開催まで 2〜10日
 //   1つの募集につき 1回だけ 送る（round.emptyBoostSentAt で冪等化）
-//   宛先 = 直近30日にアプリを開いた人（＝生きているユーザー）から、主催者本人と
-//          既にこの募集に関わっている人を除いた最大80人
-//   ※エリア一致は条件にしない。母数が小さいうちは「近い日に空いている募集がある」ことを
-//     広く知らせるほうが埋まりやすいため。母数が増えたらエリア絞りを足す。
+//   宛先 = プロフィールの「🔔 希望条件でラウンド通知」(User.notifyMatch) が、この募集の
+//          県・曜日・送迎条件に合致する人だけ。全員には送らない（無関係な通知は嫌われるため）。
+//          判定は投稿時の通知(lib/surveyMatch)と完全に同じルールに揃えてある。
 const MIN_DAYS = 2;      // 直前すぎると予定を組めないので2日前まで
 const MAX_DAYS = 10;     // 早すぎても動かないので10日前から
-const ACTIVE_WINDOW = 30 * DAY;
 const MAX_RECIPIENTS = 80;
+
+// 開催日が平日か土日か（プロフィールの希望曜日と突き合わせる）。
+function weekdayCategory(date?: string): '' | '平日' | '土日' {
+  if (!date) return '';
+  const dt = new Date(date);
+  if (isNaN(dt.getTime())) return '';
+  const d = dt.getDay(); // 0=日, 6=土
+  return (d === 0 || d === 6) ? '土日' : '平日';
+}
 
 function authorizeCron(req: NextRequest): boolean {
   const auth = req.headers.get('authorization') || '';
@@ -70,16 +77,29 @@ export async function GET(req: NextRequest) {
 
     if (!targets.length) return NextResponse.json({ ok: true, targets: 0 }, { headers: noStore });
 
-    // 生きているユーザー（直近30日にアプリを開いた人）を宛先候補にする。
-    const since = Date.now() - ACTIVE_WINDOW;
-    let candidates: string[] = [];
-    try {
-      const us = await adb.collection('users').where('lastActiveAt', '>=', since).limit(500).get();
-      candidates = us.docs.map((d: any) => d.id);
-    } catch { /* 索引が無い等 */ }
-
     const results: any[] = [];
     for (const r of targets) {
+      // 宛先＝プロフィールの希望条件（県・曜日・送迎）がこの募集に合う人だけ。
+      const rawArea = (r.area || '').trim();
+      const roundDay = weekdayCategory(r.date);
+      let candidates: string[] = [];
+      if (rawArea) {
+        try {
+          const us = await adb.collection('users').where('notifyMatch.areas', 'array-contains', rawArea).limit(3000).get();
+          us.docs.forEach((doc: any) => {
+            const u = doc.data() || {};
+            const nm = u.notifyMatch;
+            if (!nm || !nm.enabled) return;
+            // 曜日：希望が設定されていて開催日が決まっているときだけ絞る。
+            if (Array.isArray(nm.days) && nm.days.length && roundDay && !nm.days.includes(roundDay)) return;
+            // 送迎：「送迎ありだけ希望」の人には、送迎ありの募集だけ送る。
+            const wantsPickupOnly = nm.pickupPref === 'pickup' || (nm.pickupPref == null && nm.pickup === true);
+            if (wantsPickupOnly && r.pickupOffered !== true) return;
+            candidates.push(String(doc.id));
+          });
+        } catch { /* 索引が無い等。該当なしとして扱う */ }
+      }
+
       const exclude = new Set<string>([r.hostId, ...(r.coHostIds || []), ...(r.applicantIds || []), ...(r.pendingApplicantIds || []), ...(r.invitedIds || [])]);
       const to = candidates.filter((id) => !exclude.has(id)).slice(0, MAX_RECIPIENTS);
       const d = daysUntil(r.date);
@@ -88,7 +108,9 @@ export async function GET(req: NextRequest) {
       const text = `⛳ あと${d}日！「${title}」${where ? `（${where}）` : ''}がまだ空いています。ご都合が合えばぜひ！`;
       const link = `/round/${r.id}`;
 
-      if (!dryRun) {
+      // 条件が合う人が誰もいなければ送信済みフラグを立てない
+      // （後から希望条件を登録した人に、次の巡回で届くようにするため）。
+      if (!dryRun && to.length > 0) {
         await Promise.all(to.map(async (uid) => {
           try {
             const user = await db.getUser(uid);
