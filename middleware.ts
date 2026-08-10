@@ -64,6 +64,14 @@ export default async function middleware(req: NextRequest) {
     if (path.startsWith('/legal') || path === '/lp' || path.startsWith('/lp/') || path.startsWith('/icons/') || path.startsWith('/golmoti-chars/') || path === '/manifest.json' || path === '/favicon.ico' || path === '/golmoti' || path === '/golmoti.html' || path === '/golmoti-lp' || path === '/golmoti-lp.html' || path === '/type' || path.startsWith('/type/')) {
       return NextResponse.next();
     }
+    // 短縮URL: goltomo.com/mbti → 診断LP（golmoti.html）。
+    // インスタのプロフィールリンクは「https://を含め30文字以内」制限があり、
+    // /golmoti.html?ref=ig_bio (43字) は貼れないため、この24文字URLを経由させる。
+    // 既定で ref=ig_bio を付与（インスタbio用）。?ref= 指定があればそちらを優先。
+    if (path === '/mbti') {
+      const ref = (url.searchParams.get('ref') || 'ig_bio').toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 40) || 'ig_bio';
+      return NextResponse.redirect(new URL(`/golmoti.html?ref=${ref}`, req.url));
+    }
     // Branded launch URL: goltomo.com/app → LIFF entry. Lets us share a
     // friendly URL on the goltomo.com domain instead of liff.line.me/{id}.
     // Preserves ?to=/some/path so deep links keep working. We hardcode the

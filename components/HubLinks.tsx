@@ -44,6 +44,28 @@ export function HubLinks() {
         </div>
       </a>
 
+      {/* 友だち追加後の使い方ガイド：リッチメニュー右上「現在募集中」の場所を実画像＋ハイライトで示す */}
+      <div className="rounded-[26px] p-5" style={{ background: '#FFFFFF', boxShadow: '7px 8px 0 ' + INK }}>
+        <div className="text-[15px] font-black leading-relaxed" style={{ color: INK }}>
+          友だち追加後は、トーク画面下のメニュー<span style={{ color: '#E8643C' }}>右上「現在募集中」</span>から、いつでも募集中のラウンドを見られます👇
+        </div>
+        <div className="relative mt-3 rounded-2xl overflow-hidden" style={{ border: '2px solid #E7F2EC' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/richmenu-guide.png" alt="LINEリッチメニュー：右上の「現在募集中」ボタン" className="block w-full h-auto" />
+          {/* 右上セルのハイライト枠（画像は3列2行・外周約1.4%余白） */}
+          <div
+            className="absolute pointer-events-none rounded-2xl"
+            style={{ top: '1.2%', left: '66.6%', width: '32%', height: '49%', border: '4px solid #E8643C', boxShadow: '0 0 0 3px rgba(232,100,60,0.35)' }}
+          />
+          <div
+            className="absolute pointer-events-none px-2.5 py-1 rounded-full text-[12px] font-black"
+            style={{ top: '52%', left: '66.6%', background: '#E8643C', color: '#FFFFFF' }}
+          >
+            👆 ここをタップ！
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }
