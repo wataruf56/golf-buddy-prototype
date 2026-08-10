@@ -108,10 +108,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         { status: 400, headers: noStore },
       );
     }
-    const nextMax = Math.min(50, 1 + external + slots);
+    // 名前つきゲストも参加確定メンバー（詳細画面の「参加確定」に並ぶ）なので人数に含める。
+    const guestCount = (round.guests || []).length;
+    const nextMax = Math.min(50, 1 + external + guestCount + slots);
     patch.spotsMale = sm; patch.spotsFemale = sf; patch.spotsAny = sa;
     patch.externalMale = em; patch.externalFemale = ef;
-    patch.currentCount = 1 + external + approvedApp; // 主催者 + 知り合い + 承認済み(共同管理者含む)
+    patch.currentCount = 1 + external + guestCount + approvedApp; // 主催者 + 知り合い + ゲスト + 承認済み(共同管理者含む)
     patch.maxSpots = nextMax; patch.isCompetition = nextMax >= 5;
     genderCondition = sa === 0 && sf === 0 && sm > 0 ? 'male'
       : sa === 0 && sm === 0 && sf > 0 ? 'female' : 'any';

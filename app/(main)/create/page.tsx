@@ -53,7 +53,7 @@ export default function CreatePage() {
   const noCreate = useStore((s) => !!s.restrictions.noCreate);
   const [step, setStep] = useState<'select' | 'form'>('select');
   // フォームのセクション切り替えタブ（募集内容／募集人数／ピックアップ）。
-  const [tab, setTab] = useState<'basic' | 'count' | 'pickup'>('basic');
+  const [tab, setTab] = useState<'basic' | 'count' | 'pickup' | 'payment'>('basic');
   // ピックアップ可否（必須で選択）。'' = 未選択 / 'yes' = 送迎できる / 'no' = しない。
   const [pickupMode, setPickupMode] = useState<'' | 'yes' | 'no'>('');
   const [type, setType] = useState<RoundType>('confirmed');
@@ -491,16 +491,16 @@ export default function CreatePage() {
             </div>
           )}
 
-          {/* セクション切り替えタブ（募集内容／募集人数／ピックアップ）。
+          {/* セクション切り替えタブ（募集内容／募集人数／ピックアップ／入金）。
               飲み会は「募集人数」も「ピックアップ」も無く1セクションのみなのでタブ自体を出さない。 */}
           {!isDrink && (
             <div className="flex gap-1 mb-4 bg-bg rounded-xl p-1">
-              {([['basic', '募集内容'], ['count', '募集人数'], ['pickup', 'ピックアップ']] as const).map(([k, label]) => (
+              {([['basic', '募集内容'], ['count', '募集人数'], ['pickup', 'ピックアップ'], ['payment', '入金']] as const).map(([k, label]) => (
                 <button
                   key={k}
                   type="button"
                   onClick={() => setTab(k)}
-                  className={'flex-1 py-2 rounded-lg text-[12px] font-black ' + (tab === k ? 'bg-orange text-white shadow-sm' : 'text-sub')}
+                  className={'flex-1 py-2 rounded-lg text-[11px] font-black ' + (tab === k ? 'bg-orange text-white shadow-sm' : 'text-sub')}
                 >
                   {label}
                 </button>
@@ -724,7 +724,12 @@ export default function CreatePage() {
               </div>
             </Field>
 
-            {/* 入金管理（事前集金してまとめて払うとき用） */}
+          </>
+          )}
+
+          {/* ── 入金 タブ（事前集金してまとめて払うとき用） ── */}
+          {tab === 'payment' && (
+          <>
             <Field label="入金管理" hint="（任意・事前に集金してまとめて払うとき）">
               <button
                 type="button"
@@ -740,9 +745,14 @@ export default function CreatePage() {
                 </span>
               </button>
               <div className="mt-1.5 text-[10px] text-muted font-medium">
-                ONにすると募集の詳細に「💰 入金」タブが出ます。主催者・共同管理者が参加者一覧をポチポチして入金確認でき、その状況は参加メンバー全員が見られます（金額や振込先の案内もそこに書けます）。
+                ONにすると募集の詳細に「💰 入金」タブが出ます。主催者・共同管理者が参加者一覧をポチポチして入金確認でき、その状況は参加メンバー全員が見られます。金額や振込先の案内、ゴルトモ未登録のゲスト追加もそこで行えます。
               </div>
             </Field>
+            {!paymentEnabled && (
+              <div className="px-3 py-2.5 bg-bg rounded-lg text-[11px] text-sub font-medium">
+                使わない場合はこのままでOKです（あとから募集の編集画面でONにもできます）。
+              </div>
+            )}
           </>
           )}
 

@@ -48,7 +48,7 @@ export default function EditRoundPage() {
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   // 編集画面のセクション切り替えタブ（募集内容／募集人数／ピックアップ）。
-  const [tab, setTab] = useState<'basic' | 'count' | 'pickup'>('basic');
+  const [tab, setTab] = useState<'basic' | 'count' | 'pickup' | 'payment'>('basic');
   // ピックアップ可否（必須）。'' = 未選択 / 'yes' = 送迎できる / 'no' = しない。
   const [pickupMode, setPickupMode] = useState<'' | 'yes' | 'no'>('');
 
@@ -382,14 +382,14 @@ export default function EditRoundPage() {
 
       <div className="px-5">
         <div className="bg-card rounded-card p-5 shadow-card">
-          {/* セクション切り替えタブ（募集内容／募集人数／ピックアップ） */}
+          {/* セクション切り替えタブ（募集内容／募集人数／ピックアップ／入金） */}
           <div className="flex gap-1 mb-4 bg-bg rounded-xl p-1">
-            {([['basic', '募集内容'], ['count', '募集人数'], ['pickup', 'ピックアップ']] as const).map(([k, label]) => (
+            {([['basic', '募集内容'], ['count', '募集人数'], ['pickup', 'ピックアップ'], ['payment', '入金']] as const).map(([k, label]) => (
               <button
                 key={k}
                 type="button"
                 onClick={() => setTab(k)}
-                className={'flex-1 py-2 rounded-lg text-[12px] font-black ' + (tab === k ? 'bg-orange text-white shadow-sm' : 'text-sub')}
+                className={'flex-1 py-2 rounded-lg text-[11px] font-black ' + (tab === k ? 'bg-orange text-white shadow-sm' : 'text-sub')}
               >
                 {label}
               </button>
@@ -660,8 +660,8 @@ export default function EditRoundPage() {
             </div>
           )}
 
-          {/* 入金管理（後からON/OFF）。ONにすると詳細に「💰 入金」タブが出る。 */}
-          {round && (
+          {/* ── 入金 タブ（後からON/OFF）。ONにすると詳細に「💰 入金」タブが出る。 ── */}
+          {tab === 'payment' && round && (
             <div className="mb-4">
               <div className="text-xs font-bold text-sub mb-1.5">入金管理 <span className="text-muted font-medium">（事前に集金してまとめて払うとき）</span></div>
               <button
@@ -678,7 +678,17 @@ export default function EditRoundPage() {
                   <span className="block text-[10px] text-muted font-medium mt-0.5">参加者ごとに入金済みかチェックできます</span>
                 </span>
               </button>
-              <div className="mt-1.5 text-[10px] text-muted font-medium">募集の詳細に「💰 入金」タブが出ます。チェックは主催者・共同管理者のみ、閲覧は参加メンバー全員。</div>
+              <div className="mt-1.5 text-[10px] text-muted font-medium">
+                募集の詳細に「💰 入金」タブが出ます。チェックは主催者・共同管理者のみ、閲覧は参加メンバー全員。
+                入金の案内（金額・振込先）やゴルトモ未登録のゲスト追加は、その「💰 入金」タブで行えます。
+              </div>
+              {round.paymentEnabled && (
+                <button
+                  type="button"
+                  onClick={() => router.push(`/round/${params.id}?tab=payment`)}
+                  className="mt-2 w-full py-2.5 bg-bg border-[1.5px] border-border rounded-xl text-[12px] font-bold text-sub"
+                >💰 入金タブを開く（チェック・ゲスト追加）</button>
+              )}
             </div>
           )}
 
