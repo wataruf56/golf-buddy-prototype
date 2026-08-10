@@ -80,6 +80,8 @@ export default function CreatePage() {
   const [maxSpots, setMaxSpots] = useState(0);
   const [externalMale, setExternalMale] = useState(0);   // 主催者の知り合い（男性）
   const [externalFemale, setExternalFemale] = useState(0); // 主催者の知り合い（女性）
+  // 知り合い枠の人数ぶんの名前（任意）。入力するとゲストとして参加者一覧・入金タブに並ぶ。
+  const [guestNames, setGuestNames] = useState<string[]>([]);
   const [spotsMale, setSpotsMale] = useState(0);
   const [spotsFemale, setSpotsFemale] = useState(0);
   const [price, setPrice] = useState('');
@@ -294,6 +296,8 @@ export default function CreatePage() {
       maxSpots,
       externalMale,
       externalFemale,
+      // 知り合い枠の名前（任意）。サーバー側で人数ぶんのゲストに変換される。
+      guestNames: extTotal > 0 ? Array.from({ length: extTotal }, (_, i) => guestNames[i] || '') : undefined,
       spotsMale: rSlots.spotsMale,
       spotsFemale: rSlots.spotsFemale,
       spotsAny: rSlots.spotsAny,
@@ -681,6 +685,33 @@ export default function CreatePage() {
               <div className="mt-1.5 text-[10px] text-muted font-medium">
                 ゴルトモにいないメンバー（他アプリ等で既に集まっている人）。上の募集人数の内数で、その分ゴルトモでの募集枠が減ります。
               </div>
+
+              {/* 人数ぶんの名前入力（任意）。入力するとそのまま参加者一覧・入金タブにゲストとして並ぶ。 */}
+              {extTotal > 0 && (
+                <div className="mt-3 pt-3 border-t border-border">
+                  <div className="text-[11px] font-bold text-sub mb-1.5">👤 知り合いの名前 <span className="text-muted font-medium">（任意・空欄でもOK）</span></div>
+                  <div className="flex flex-col gap-1.5">
+                    {Array.from({ length: extTotal }, (_, i) => (
+                      <input
+                        key={i}
+                        value={guestNames[i] || ''}
+                        onChange={(e) => setGuestNames((prev) => {
+                          const next = [...prev];
+                          while (next.length < extTotal) next.push('');
+                          next[i] = e.target.value;
+                          return next;
+                        })}
+                        maxLength={30}
+                        placeholder={`${i + 1}人目（例: 田中さん）`}
+                        className="w-full text-[13px] border-[1.5px] border-border rounded-lg px-2.5 py-2 bg-bg outline-none"
+                      />
+                    ))}
+                  </div>
+                  <div className="mt-1.5 text-[10px] text-muted font-medium">
+                    入力した名前は参加者一覧に「ゲスト」として並び、入金タブでも入金チェックの対象になります。
+                  </div>
+                </div>
+              )}
             </Field>
 
             {/* 共同管理者（任意・ゴル友から複数選択可） */}

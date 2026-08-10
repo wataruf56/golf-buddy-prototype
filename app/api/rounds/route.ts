@@ -4,6 +4,7 @@ import { getMeId } from '@/lib/session';
 import { isMatchingAllowedByAge, getCohort } from '@/lib/ageGate';
 import { isAdminUserId } from '@/lib/adminAccess';
 import { levelConditionLabel } from '@/lib/roundEligibility';
+import { reconcileGuests } from '@/lib/roundGuests';
 import type { Round } from '@/lib/types';
 
 export async function GET() {
@@ -78,6 +79,16 @@ export async function POST(req: NextRequest) {
       if (coHostIds.length >= 10) break; // 安全上限
     }
   }
+  // 知り合い枠（external）の人数ぶん、名前つきゲスト（guests）のスロットを作る。名前は任意で、
+  // 空欄なら「知り合い1」等の既定名。人数は external で数えているので二重計上はしない。
+  const guestList = (() => {
+    if (isDrink || externalTotal <= 0) return undefined;
+    const raw: string[] = Array.isArray(body.guestNames) ? body.guestNames.map((x: any) => String(x ?? '')) : [];
+    const names = Array.from({ length: externalTotal }, (_, i) => raw[i] || '');
+    const g = reconcileGuests(undefined, names);
+    return g.length ? g : undefined;
+  })();
+
   // 共同管理者は承認済み参加者として1枠を占有する。定員に収まらない場合のみ総定員を広げる。
   const baseFixedCount = 1 + externalTotal + coHostIds.length; // 主催者 + 知り合い + 共同管理者
   if (baseFixedCount > maxSpots) maxSpots = Math.min(isDrink ? DRINK_CAP : 50, baseFixedCount);
@@ -129,6 +140,9 @@ export async function POST(req: NextRequest) {
       ? Math.min(8, Math.floor(body.pickupCapacity)) : undefined),
     pickupOffered: isDrink ? false : (typeof body.pickupOffered === 'boolean' ? body.pickupOffered : undefined),
     status: 'open',
+    // 知り合い枠（external）の人数ぶんの「名前つきゲスト」。募集人数タブで入力された名前。
+    // 人数は externalMale/Female でカウント済みなので、ここでは名札を作るだけ。
+    guests: guestList,
     // 入金管理（主催者が事前集金してまとめて払うケース）。ONのとき詳細に「💰 入金」タブが出る。
     paymentEnabled: !!body.paymentEnabled,
     // 飲み会は定員なしのため大きな maxSpots になるが、コンペ扱いにはしない。

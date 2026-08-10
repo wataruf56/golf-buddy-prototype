@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { isRoundHost } from '@/lib/roundHost';
 import { getMeId } from '@/lib/session';
 import { levelConditionLabel } from '@/lib/roundEligibility';
+import { reconcileGuests } from '@/lib/roundGuests';
 import type { Round } from '@/lib/types';
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
@@ -108,12 +109,30 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         { status: 400, headers: noStore },
       );
     }
-    // 名前つきゲストも参加確定メンバー（詳細画面の「参加確定」に並ぶ）なので人数に含める。
-    const guestCount = (round.guests || []).length;
-    const nextMax = Math.min(50, 1 + external + guestCount + slots);
+    // 名前つきゲスト（guests）は「知り合い枠(external)に名前を付けたもの」なので、
+    // 人数は external でカウント済み。ここで二重に足さない。
+    const nextMax = Math.min(50, 1 + external + slots);
     patch.spotsMale = sm; patch.spotsFemale = sf; patch.spotsAny = sa;
     patch.externalMale = em; patch.externalFemale = ef;
-    patch.currentCount = 1 + external + guestCount + approvedApp; // 主催者 + 知り合い + ゲスト + 承認済み(共同管理者含む)
+    patch.currentCount = 1 + external + approvedApp; // 主催者 + 知り合い(=ゲスト) + 承認済み(共同管理者含む)
+    // 知り合い枠の人数に合わせてゲストのスロットを増減。名前は募集人数タブの入力を反映し、
+    // 同じ位置の既存ゲストは id を維持する（入金チェック・組み分けが外れない）。
+    if (Array.isArray(body.guestNames)) {
+      const raw: string[] = body.guestNames.map((x: any) => String(x ?? ''));
+      const names = Array.from({ length: external }, (_, i) => raw[i] || '');
+      const nextGuests = reconcileGuests(round.guests, names);
+      patch.guests = nextGuests;
+      // 枠が減って消えたゲストは、入金チェック・組み分け・当日欠席からも外す。
+      const alive = new Set(nextGuests.map((g) => g.id));
+      const dropped = (round.guests || []).filter((g) => !alive.has(g.id)).map((g) => g.id);
+      if (dropped.length) {
+        if (round.paidIds?.length) patch.paidIds = round.paidIds.filter((x) => !dropped.includes(x));
+        if (round.noShowIds?.length) patch.noShowIds = round.noShowIds.filter((x) => !dropped.includes(x));
+        if (round.groups?.length) {
+          patch.groups = round.groups.map((g) => ({ ...g, memberIds: (g.memberIds || []).filter((m) => !dropped.includes(m)) }));
+        }
+      }
+    }
     patch.maxSpots = nextMax; patch.isCompetition = nextMax >= 5;
     genderCondition = sa === 0 && sf === 0 && sm > 0 ? 'male'
       : sa === 0 && sm === 0 && sf > 0 ? 'female' : 'any';

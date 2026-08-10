@@ -871,17 +871,23 @@ export default function RoundDetailPage() {
                 )}
               </div>
             ))}
-            {/* 知り合い枠（人数カウント）を登録ユーザーに置き換える（主催者・完了前） */}
-            {isHost && round.status !== 'completed' && ((round.externalMale || 0) + (round.externalFemale || 0) + (round.externalCount || 0)) > 0 && (
-              <div className="flex items-center gap-2 p-2.5 bg-bg rounded-[10px] mb-1.5">
-                <div className="w-9 h-9 rounded-full bg-card flex items-center justify-center text-base flex-shrink-0 border border-border">🧑‍🤝‍🧑</div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-semibold truncate">主催者の知り合い <span className="text-[10px] text-muted font-bold">{(round.externalMale || 0) + (round.externalFemale || 0) + (round.externalCount || 0)}名</span></div>
-                  <div className="text-[10px] text-sub">当日アプリ登録した本人に置き換えるとレビューできます</div>
+            {/* 知り合い枠のうち「まだ名前を入れていない人数」だけ表示（名前入り＝上のゲスト行と二重にしない）。
+                当日アプリ登録した本人への置き換えもここから。 */}
+            {(() => {
+              const extTotal = (round.externalMale || 0) + (round.externalFemale || 0) + (round.externalCount || 0);
+              const unnamed = Math.max(0, extTotal - (round.guests?.length ?? 0));
+              if (!isHost || round.status === 'completed' || unnamed <= 0) return null;
+              return (
+                <div className="flex items-center gap-2 p-2.5 bg-bg rounded-[10px] mb-1.5">
+                  <div className="w-9 h-9 rounded-full bg-card flex items-center justify-center text-base flex-shrink-0 border border-border">🧑‍🤝‍🧑</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-semibold truncate">主催者の知り合い <span className="text-[10px] text-muted font-bold">{unnamed}名</span></div>
+                    <div className="text-[10px] text-sub">募集の編集→「募集人数」タブで名前を入れられます</div>
+                  </div>
+                  <button onClick={() => setReplaceTarget({ label: '知り合い枠' })} className="px-2.5 py-1 bg-green text-white rounded text-[11px] font-bold flex-shrink-0">👤 登録者に置換</button>
                 </div>
-                <button onClick={() => setReplaceTarget({ label: '知り合い枠' })} className="px-2.5 py-1 bg-green text-white rounded text-[11px] font-bold flex-shrink-0">👤 登録者に置換</button>
-              </div>
-            )}
+              );
+            })()}
           </div>
         )}
 
