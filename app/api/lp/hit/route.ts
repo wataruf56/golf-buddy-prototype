@@ -22,10 +22,17 @@ export async function POST(req: NextRequest) {
   if (adb) {
     try {
       const ref = adb.collection('_config').doc(DOC);
+      // 累計に加えて日別（JST）も刻む → 管理画面で「投稿後どれだけ来たか」を追える。
+      const day = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
       await adb.runTransaction(async (tx: any) => {
         const s = await tx.get(ref);
         const d = (s.exists ? s.data() : {}) || {};
-        tx.set(ref, { [key]: (d[key] || 0) + 1, updatedAt: Date.now() }, { merge: true });
+        const dayCur = (d.daily && d.daily[day]) || {};
+        tx.set(ref, {
+          [key]: (d[key] || 0) + 1,
+          daily: { [day]: { ...dayCur, [key]: (dayCur[key] || 0) + 1 } },
+          updatedAt: Date.now(),
+        }, { merge: true });
       });
     } catch { /* best-effort（計測失敗はユーザー体験に影響させない） */ }
   }
@@ -46,8 +53,11 @@ export async function GET(req: NextRequest) {
   const clickMbti = d.clickMbti || 0;
   const clickRounds = d.clickRounds || 0;
   const clicks = clickLine + clickMbti + clickRounds;
+  // 日別（直近14日・新しい順）。
+  const daily = Object.keys(d.daily || {}).sort().slice(-14).reverse()
+    .map((k) => ({ date: k, opened: d.daily[k]?.opened || 0, clickLine: d.daily[k]?.clickLine || 0 }));
   return NextResponse.json({
-    opened, clickLine, clickMbti, clickRounds,
+    opened, clickLine, clickMbti, clickRounds, daily,
     // クリック率（開封のうち何%が何かを押したか）。
     ctr: opened > 0 ? Math.round((clicks / opened) * 1000) / 10 : 0,
   }, { headers: noStore });

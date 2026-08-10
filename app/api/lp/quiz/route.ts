@@ -243,6 +243,42 @@ export async function GET(req: NextRequest) {
 
     const dailyArr = Object.keys(daily).sort().map((k) => ({ date: k, ...daily[k] }));
 
+    // --- ?ref= タグ別ファネル（インスタ等の投稿リンク計測）---
+    // visit イベントだけが utmSource(?ref= / ?utm_source= 由来)を持つため、まず visitorId→ref を
+    // 解決し（first-touch＝最初の来訪の値）、start/complete/cta を visitorId 経由で流入元に帰属させる。
+    const refOfVisitor: Record<string, string> = {};
+    for (let i = docs.length - 1; i >= 0; i--) { // docsはts降順 → 逆走査で「最初の来訪」を採用
+      const d = docs[i];
+      if (d.event === 'visit' && d.visitorId && d.utmSource) {
+        refOfVisitor[d.visitorId] = String(d.utmSource).toLowerCase().slice(0, 40);
+      }
+    }
+    const refFunnelMap: Record<string, { visits: number; visitors: Set<string>; starts: Set<string>; completes: Set<string>; ctas: Set<string> }> = {};
+    const rfOf = (r: string) => (refFunnelMap[r] = refFunnelMap[r] || { visits: 0, visitors: new Set(), starts: new Set(), completes: new Set(), ctas: new Set() });
+    for (const d of docs) {
+      const r = d.visitorId ? refOfVisitor[d.visitorId] : '';
+      if (!r) continue;
+      const f = rfOf(r);
+      if (d.event === 'visit') { f.visits++; f.visitors.add(d.visitorId); }
+      else if (d.event === 'start') f.starts.add(d.visitorId);
+      else if (d.event === 'complete') f.completes.add(d.visitorId);
+      else if (d.event === 'cta') f.ctas.add(d.visitorId);
+    }
+    // 流入元ごとの「登録に至った人数」（users.acquisitionSource。登録時の ?ref= が保存されている）。
+    // ※期間フィルタとは独立の累計。ラベルで明示する。
+    const regBySource: Record<string, number> = {};
+    try {
+      const us = await db.collection('users').select('acquisitionSource').limit(3000).get();
+      us.docs.forEach((u: any) => {
+        const s = String((u.data() || {}).acquisitionSource || '').toLowerCase();
+        if (s && s !== 'unknown') regBySource[s] = (regBySource[s] || 0) + 1;
+      });
+    } catch { /* best-effort */ }
+    const refFunnels = Object.entries(refFunnelMap)
+      .map(([ref, f]) => ({ ref, visits: f.visits, visitors: f.visitors.size, starts: f.starts.size, completes: f.completes.size, ctas: f.ctas.size, registered: regBySource[ref] || 0 }))
+      .sort((a, b) => b.visitors - a.visitors)
+      .slice(0, 20);
+
     // タイプ別の「完了 → 通知登録」転換（ユニーク）。
     const signalConvByResult: Record<string, { completed: number; signaled: number; rate: number }> = {};
     for (const rt of Object.keys(completeVByResult)) {
@@ -345,7 +381,7 @@ export async function GET(req: NextRequest) {
       byOption, byResult, byPattern, stepReach,
       demand: { areaCounts, dayCounts, comboCounts, pickupCounts, pickupPlaceCounts, areaByPlace, resultByArea },
       daily: dailyArr,
-      byRef, byDevice, byHour,
+      byRef, byDevice, byHour, refFunnels,
       // --- 拡張 ---
       range: { from: fromStr, to: toStr },
       attribution: { byUtmSource, byUtmMedium, byUtmCampaign, byLang },

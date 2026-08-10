@@ -50,6 +50,8 @@ type Report = {
   };
   daily: { date: string; visit: number; start: number; complete: number; signal: number }[];
   byRef: Record<string, number>;
+  // ?ref= タグ別ファネル（来訪→診断開始→完了→LINE遷移→登録）。
+  refFunnels?: Array<{ ref: string; visits: number; visitors: number; starts: number; completes: number; ctas: number; registered: number }>;
   byDevice: { mobile: number; desktop: number };
   byHour: number[];
   raw: RawEvent[];
@@ -101,7 +103,7 @@ function Inner() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   // インスタ link-in-bio ハブ（/links）の計測。
-  const [hub, setHub] = useState<{ opened: number; clickLine?: number; clickMbti: number; clickRounds: number; ctr: number } | null>(null);
+  const [hub, setHub] = useState<{ opened: number; clickLine?: number; clickMbti: number; clickRounds: number; ctr: number; daily?: Array<{ date: string; opened: number; clickLine: number }> } | null>(null);
 
   // 他の管理画面と同じトークン取得パターン（/api/admin/init を正とする）
   useEffect(() => {
@@ -206,6 +208,7 @@ function Inner() {
             <>
               <StatGrid data={data} />
               <InstaHub hub={hub} />
+              <RefFunnels rows={data.refFunnels || []} />
               <Funnel data={data} />
               <LinkedRegistrants list={data.linkedList || []} token={token} />
               <Engagement data={data} />
@@ -261,37 +264,87 @@ function Card({ title, sub, children }: { title: string; sub?: string; children:
   );
 }
 
-function InstaHub({ hub }: { hub: { opened: number; clickLine?: number; clickMbti: number; clickRounds: number; ctr: number } | null }) {
+function InstaHub({ hub }: { hub: { opened: number; clickLine?: number; clickMbti: number; clickRounds: number; ctr: number; daily?: Array<{ date: string; opened: number; clickLine: number }> } | null }) {
   const line = hub?.clickLine || 0;
   return (
-    <Card title="📸 インスタ リンクハブ（/links）" sub="プロフのリンクが開かれた数と、どのボタンが押されたか（累計）">
+    <Card title="📸 インスタ→LINE公式リンク（/links）" sub="インスタprofileの「LINE公式アカウント」リンク。開封数と友だち追加タップ数（累計＋日別）">
       {!hub ? (
         <div className="text-[12px] text-muted py-2">読み込み中...</div>
       ) : (
         <>
-          <div className="grid grid-cols-4 gap-2 mb-3">
+          <div className="grid grid-cols-2 gap-2 mb-3">
             <div className="bg-bg rounded-lg p-2.5 text-center">
               <div className="text-[18px] font-black">{hub.opened}</div>
-              <div className="text-[10px] text-muted mt-0.5">開かれた</div>
+              <div className="text-[10px] text-muted mt-0.5">ページが開かれた</div>
             </div>
             <div className="bg-bg rounded-lg p-2.5 text-center">
               <div className="text-[18px] font-black" style={{ color: '#06C755' }}>{line}</div>
-              <div className="text-[10px] text-muted mt-0.5">💬 LINE追加</div>
-            </div>
-            <div className="bg-bg rounded-lg p-2.5 text-center">
-              <div className="text-[18px] font-black text-green">{hub.clickMbti}</div>
-              <div className="text-[10px] text-muted mt-0.5">✨ 診断</div>
-            </div>
-            <div className="bg-bg rounded-lg p-2.5 text-center">
-              <div className="text-[18px] font-black text-orange">{hub.clickRounds}</div>
-              <div className="text-[10px] text-muted mt-0.5">⛳ 募集一覧</div>
+              <div className="text-[10px] text-muted mt-0.5">💬 LINE追加タップ（{pct(line, hub.opened)}%）</div>
             </div>
           </div>
           <Bar label="💬 LINEで友だち追加" value={line} max={Math.max(hub.opened, 1)} hint={`${pct(line, hub.opened)}%`} />
-          <Bar label="✨ ゴルフMBTI 診断" value={hub.clickMbti} max={Math.max(hub.opened, 1)} hint={`${pct(hub.clickMbti, hub.opened)}%`} />
-          <Bar label="⛳ ラウンド募集" value={hub.clickRounds} max={Math.max(hub.opened, 1)} hint={`${pct(hub.clickRounds, hub.opened)}%`} color="bg-orange" />
-          <div className="text-[10px] text-muted mt-2">クリック率（開封のうち何かを押した割合）: <b className="text-text">{hub.ctr}%</b></div>
+          {(hub.daily || []).length > 0 && (
+            <div className="mt-3">
+              <div className="text-[10px] text-muted mb-1">日別（直近14日）</div>
+              <div className="flex flex-col gap-0.5">
+                {(hub.daily || []).map((d) => (
+                  <div key={d.date} className="flex items-center justify-between text-[11px] py-0.5 border-b border-border last:border-0">
+                    <span className="text-sub">{d.date.slice(5).replace('-', '/')}</span>
+                    <span>開封 <b>{d.opened}</b> ・ LINE追加 <b style={{ color: '#06C755' }}>{d.clickLine}</b></span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {(hub.clickMbti > 0 || hub.clickRounds > 0) && (
+            <div className="text-[10px] text-muted mt-2">旧ボタンの累計（現在は撤去済み）: 診断 {hub.clickMbti} ・ 募集一覧 {hub.clickRounds}</div>
+          )}
         </>
+      )}
+    </Card>
+  );
+}
+
+function RefFunnels({ rows }: { rows: Array<{ ref: string; visits: number; visitors: number; starts: number; completes: number; ctas: number; registered: number }> }) {
+  const REF_LABEL: Record<string, string> = {
+    ig_bio: '📸 インスタprofile（MBTIリンク）',
+    ig_story: '📸 インスタ ストーリーズ',
+    instagram: '📸 インスタ（旧タグ）',
+  };
+  return (
+    <Card title="🔗 リンク別ファネル（?ref=タグ）" sub="タグ付きリンク経由の来訪 → 診断開始 → 完了 → LINE遷移 → 登録。goltomo.com/mbti は ref=ig_bio として計上">
+      {rows.length === 0 ? (
+        <div className="text-[12px] text-muted py-2">タグ付きリンク経由の来訪はまだありません（goltomo.com/mbti 経由の来訪がここに出ます）。</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr className="text-muted text-left border-b border-border">
+                <th className="py-1.5 pr-2 font-bold">流入元</th>
+                <th className="py-1.5 px-1.5 text-right font-bold">来訪(人)</th>
+                <th className="py-1.5 px-1.5 text-right font-bold">診断開始</th>
+                <th className="py-1.5 px-1.5 text-right font-bold">完了</th>
+                <th className="py-1.5 px-1.5 text-right font-bold">LINE遷移</th>
+                <th className="py-1.5 pl-1.5 text-right font-bold">登録済み</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.ref} className={'border-b border-border last:border-0 ' + (r.ref === 'ig_bio' ? 'bg-green-light/40 font-bold' : '')}>
+                  <td className="py-1.5 pr-2">{REF_LABEL[r.ref] || r.ref}</td>
+                  <td className="py-1.5 px-1.5 text-right">{r.visitors}<span className="text-muted font-normal">（{r.visits}回）</span></td>
+                  <td className="py-1.5 px-1.5 text-right">{r.starts}</td>
+                  <td className="py-1.5 px-1.5 text-right">{r.completes}</td>
+                  <td className="py-1.5 px-1.5 text-right">{r.ctas}</td>
+                  <td className="py-1.5 pl-1.5 text-right text-green">{r.registered}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="text-[10px] text-muted mt-2">
+            人数はユニーク訪問者。「登録済み」はそのタグ経由で新規登録した人数（全期間・登録時の ?ref= から）。
+          </div>
+        </div>
       )}
     </Card>
   );
