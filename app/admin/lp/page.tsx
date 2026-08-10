@@ -101,7 +101,7 @@ function Inner() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   // インスタ link-in-bio ハブ（/links）の計測。
-  const [hub, setHub] = useState<{ opened: number; clickMbti: number; clickRounds: number; ctr: number } | null>(null);
+  const [hub, setHub] = useState<{ opened: number; clickLine?: number; clickMbti: number; clickRounds: number; ctr: number } | null>(null);
 
   // 他の管理画面と同じトークン取得パターン（/api/admin/init を正とする）
   useEffect(() => {
@@ -261,17 +261,22 @@ function Card({ title, sub, children }: { title: string; sub?: string; children:
   );
 }
 
-function InstaHub({ hub }: { hub: { opened: number; clickMbti: number; clickRounds: number; ctr: number } | null }) {
+function InstaHub({ hub }: { hub: { opened: number; clickLine?: number; clickMbti: number; clickRounds: number; ctr: number } | null }) {
+  const line = hub?.clickLine || 0;
   return (
-    <Card title="📸 インスタ リンクハブ（/links）" sub="プロフのリンクが開かれた数と、どちらのボタンが押されたか（累計）">
+    <Card title="📸 インスタ リンクハブ（/links）" sub="プロフのリンクが開かれた数と、どのボタンが押されたか（累計）">
       {!hub ? (
         <div className="text-[12px] text-muted py-2">読み込み中...</div>
       ) : (
         <>
-          <div className="grid grid-cols-3 gap-2 mb-3">
+          <div className="grid grid-cols-4 gap-2 mb-3">
             <div className="bg-bg rounded-lg p-2.5 text-center">
               <div className="text-[18px] font-black">{hub.opened}</div>
               <div className="text-[10px] text-muted mt-0.5">開かれた</div>
+            </div>
+            <div className="bg-bg rounded-lg p-2.5 text-center">
+              <div className="text-[18px] font-black" style={{ color: '#06C755' }}>{line}</div>
+              <div className="text-[10px] text-muted mt-0.5">💬 LINE追加</div>
             </div>
             <div className="bg-bg rounded-lg p-2.5 text-center">
               <div className="text-[18px] font-black text-green">{hub.clickMbti}</div>
@@ -282,6 +287,7 @@ function InstaHub({ hub }: { hub: { opened: number; clickMbti: number; clickRoun
               <div className="text-[10px] text-muted mt-0.5">⛳ 募集一覧</div>
             </div>
           </div>
+          <Bar label="💬 LINEで友だち追加" value={line} max={Math.max(hub.opened, 1)} hint={`${pct(line, hub.opened)}%`} />
           <Bar label="✨ ゴルフMBTI 診断" value={hub.clickMbti} max={Math.max(hub.opened, 1)} hint={`${pct(hub.clickMbti, hub.opened)}%`} />
           <Bar label="⛳ ラウンド募集" value={hub.clickRounds} max={Math.max(hub.opened, 1)} hint={`${pct(hub.clickRounds, hub.opened)}%`} color="bg-orange" />
           <div className="text-[10px] text-muted mt-2">クリック率（開封のうち何かを押した割合）: <b className="text-text">{hub.ctr}%</b></div>
