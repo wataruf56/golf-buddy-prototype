@@ -109,6 +109,10 @@ function Inner() {
           総ユーザー <b className="text-text">{stats.users}</b> / Swing許可 <b className="text-text">{stats.swingAllowed}</b>
         </div>
       )}
+
+      {/* 事業サマリー：見るべき数字だけをここに集約（詳細は各レポートへ） */}
+      <KpiSummary token={token} />
+
       <div className="flex flex-col gap-2">
         {items.map((it) => (
           <Link
@@ -146,6 +150,106 @@ function Inner() {
       >トークンを忘れる (ログアウト)</button>
 
       <div className="text-center text-[11px] text-muted py-3">管理画面 ver {APP_VERSION}</div>
+    </div>
+  );
+}
+
+// ── 事業サマリー ───────────────────────────────────────────────
+// マッチング系サービスは「登録者数」を追うと失敗する（人が集まっても出会いが起きないため）。
+// 見るのは 北極星＝実際にラウンドした人数 と、その下の 供給／成立／定着 の3つだけ。
+type Kpi = {
+  northStar: { thisWeek: number; lastWeek: number };
+  supply: { roundsThisWeek: number; roundsLastWeek: number; newHostsThisWeek: number; newHostsLastWeek: number; totalHosts: number };
+  matching: { fillRateThisWeek: number | null; fillRateAll: number | null };
+  retention: { everPlayed: number; repeat: number; repeatRate: number };
+  activation: { totalUsers: number; engaged: number; rate: number };
+  alerts: Array<{ id: string; title: string; date: string; daysLeft: number | null; joined: number; maxSpots: number; isCompetition: boolean }>;
+};
+
+function Delta({ now, prev }: { now: number; prev: number }) {
+  const d = now - prev;
+  if (d === 0) return <span className="text-[10px] text-muted">±0</span>;
+  return <span className={'text-[10px] font-bold ' + (d > 0 ? 'text-green' : 'text-red')}>{d > 0 ? '▲' : '▼'}{Math.abs(d)}</span>;
+}
+
+function KpiSummary({ token }: { token: string }) {
+  const [k, setK] = useState<Kpi | null>(null);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    if (!token) return;
+    fetch(`/api/admin/kpi?token=${encodeURIComponent(token)}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => { if (d?.error) setErr(d.error); else setK(d); })
+      .catch((e) => setErr(String(e)));
+  }, [token]);
+
+  if (err) return <div className="bg-card rounded-xl shadow-card p-4 mb-3 text-[11px] text-red">サマリー取得エラー: {err}</div>;
+  if (!k) return <div className="bg-card rounded-xl shadow-card p-4 mb-3 text-[11px] text-muted">サマリーを読み込み中…</div>;
+
+  return (
+    <div className="bg-card rounded-xl shadow-card p-4 mb-3">
+      <div className="text-[13px] font-black mb-0.5">📈 事業サマリー</div>
+      <div className="text-[10px] text-muted mb-3">直近7日 ／ 前の7日と比較</div>
+
+      {/* 北極星 */}
+      <div className="bg-green-light rounded-xl p-3 mb-3">
+        <div className="text-[10px] font-bold text-green mb-0.5">⭐ 北極星：実際にラウンドした人数</div>
+        <div className="flex items-end gap-2">
+          <div className="text-[28px] font-black leading-none text-green">{k.northStar.thisWeek}<span className="text-[13px] ml-0.5">人</span></div>
+          <div className="pb-1"><Delta now={k.northStar.thisWeek} prev={k.northStar.lastWeek} /> <span className="text-[10px] text-muted">(前週 {k.northStar.lastWeek})</span></div>
+        </div>
+        <div className="text-[10px] text-sub mt-1">この数字だけが本当の価値提供。登録者数ではなくここを伸ばす。</div>
+      </div>
+
+      {/* 供給・成立・定着 */}
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        <div className="bg-bg rounded-lg p-2.5">
+          <div className="text-[9px] text-muted mb-0.5">① 供給</div>
+          <div className="text-[17px] font-black leading-none">{k.supply.newHostsThisWeek}<span className="text-[10px]">人</span></div>
+          <div className="text-[9px] text-muted mt-0.5">初めて主催 <Delta now={k.supply.newHostsThisWeek} prev={k.supply.newHostsLastWeek} /></div>
+          <div className="text-[9px] text-sub mt-1">募集 {k.supply.roundsThisWeek}件 / 主催経験 {k.supply.totalHosts}人</div>
+        </div>
+        <div className="bg-bg rounded-lg p-2.5">
+          <div className="text-[9px] text-muted mb-0.5">② 成立</div>
+          <div className="text-[17px] font-black leading-none">{k.matching.fillRateAll ?? '—'}<span className="text-[10px]">%</span></div>
+          <div className="text-[9px] text-muted mt-0.5">定員の充足率</div>
+          <div className="text-[9px] text-sub mt-1">立った募集が埋まったか</div>
+        </div>
+        <div className="bg-bg rounded-lg p-2.5">
+          <div className="text-[9px] text-muted mb-0.5">③ 定着</div>
+          <div className="text-[17px] font-black leading-none">{k.retention.repeatRate}<span className="text-[10px]">%</span></div>
+          <div className="text-[9px] text-muted mt-0.5">2回以上 {k.retention.repeat}/{k.retention.everPlayed}人</div>
+          <div className="text-[9px] text-sub mt-1">戻ってきているか</div>
+        </div>
+      </div>
+
+      {/* 活性化 */}
+      <div className="bg-bg rounded-lg p-2.5 mb-3">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[10px] font-bold text-sub">登録者のうちラウンドに関与した人</span>
+          <span className="text-[12px] font-black">{k.activation.engaged}<span className="text-[10px] text-muted"> / {k.activation.totalUsers}人（{k.activation.rate}%）</span></span>
+        </div>
+        <div className="h-1.5 bg-card rounded-full overflow-hidden">
+          <div className="h-full bg-green rounded-full" style={{ width: `${k.activation.rate}%` }} />
+        </div>
+      </div>
+
+      {/* 運用アラート */}
+      {k.alerts.length > 0 && (
+        <div className="border-t border-border pt-2.5">
+          <div className="text-[11px] font-black text-red mb-1.5">⚠️ 参加者ゼロのまま開催が近い募集（{k.alerts.length}件）</div>
+          <div className="flex flex-col gap-1">
+            {k.alerts.slice(0, 5).map((a) => (
+              <div key={a.id} className="flex items-center justify-between text-[11px] bg-orange-light rounded-lg px-2.5 py-1.5">
+                <span className="truncate flex-1 min-w-0 font-bold">{a.isCompetition ? '🏆 ' : ''}{a.title}</span>
+                <span className="flex-shrink-0 ml-2 text-orange font-black">あと{a.daysLeft}日</span>
+              </div>
+            ))}
+          </div>
+          <div className="text-[9px] text-muted mt-1.5">※「掘り起こし通知」（希望条件が合う人へ再案内）が自動で走ります。</div>
+        </div>
+      )}
     </div>
   );
 }

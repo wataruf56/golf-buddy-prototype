@@ -84,5 +84,14 @@ export async function GET(req: NextRequest) {
     results.unreadDigest = { error: (e as Error).message };
   }
 
+  // 参加者ゼロのまま開催が近づいた募集の掘り起こし（1募集につき1回だけ通知）。
+  try {
+    const { GET: emptyRoundBoost } = await import('../empty-round-boost/route');
+    const res = await emptyRoundBoost(req);
+    results.emptyRoundBoost = await res.json().catch(() => ({ ok: res.ok }));
+  } catch (e) {
+    results.emptyRoundBoost = { error: (e as Error).message };
+  }
+
   return NextResponse.json({ ok: true, ...results }, { headers: noStore });
 }

@@ -25,6 +25,25 @@ function visitorId(): string {
   } catch { return ''; }
 }
 
+// 流入経路タグ（?ref=）を localStorage に記録する。/links は app.goltomo.com＝アプリ本体と
+// 同一オリジンなので、ここで書いておけば、後日リッチメニュー等からアプリを開いたときに
+// /liff がこれを読み、新規登録時の acquisitionSource として保存できる。
+// （LINEの友だち追加URLにはパラメータを載せられないため、この方法でしか経路を運べない）
+function rememberRef() {
+  try {
+    const sp = new URLSearchParams(window.location.search);
+    const raw = sp.get('ref') || sp.get('utm_source') || sp.get('source') || 'ig_bio';
+    const ref = String(raw).trim().toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 40) || 'ig_bio';
+    if (!localStorage.getItem('gb_ref')) {
+      localStorage.setItem('gb_ref', ref);
+      localStorage.setItem('gb_ref_at', String(Date.now()));
+    }
+    if (document.referrer && !localStorage.getItem('gb_referrer')) {
+      localStorage.setItem('gb_referrer', document.referrer.slice(0, 200));
+    }
+  } catch { /* noop */ }
+}
+
 function hit(t: 'open' | 'line') {
   try {
     const body = JSON.stringify({ t, v: visitorId() });
@@ -37,7 +56,7 @@ function hit(t: 'open' | 'line') {
 }
 
 export function HubLinks() {
-  useEffect(() => { hit('open'); }, []);
+  useEffect(() => { rememberRef(); hit('open'); }, []);
   return (
     <div className="w-full mt-8 flex flex-col gap-4">
       <a

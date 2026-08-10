@@ -250,6 +250,8 @@ export type Round = {
   guests?: RoundGuest[];
   // 開催前リマインドの送信記録。キー: 'd30'|'d7'|'d1' → 送信時刻(ms)。二重送信防止。
   upcomingRemindersSent?: Record<string, number>;
+  // 「参加者ゼロのまま開催が近い」募集の掘り起こし通知を送った時刻。1募集につき1回だけ送る。
+  emptyBoostSentAt?: number;
   // この募集の元になった日程調整（調整さん）ポールのID。ポール→募集の順で作った場合に入る。
   schedulePollId?: string;
 };

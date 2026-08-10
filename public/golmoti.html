@@ -572,7 +572,12 @@
   const LSKEY='golmotiEvents';
   // LIFF経由で「通知を受け取る」→ LINEアカウントと診断結果を紐付ける着地ページへ。
   const LIFF_ID='2009973733-P5UdNex9';
-  const FRIEND_ADD='https://line.me/R/ti/p/@711xiyrs';
+  // 友だち追加は app.goltomo.com/go を必ず経由させる。goltomo.com と app.goltomo.com は
+  // オリジンが違い localStorage を共有できないため、LINEへ直リンクすると流入経路タグ(?ref=)が
+  // 完全に失われる（登録44人中0人しかタグが付いていなかった原因）。/go 側で ref を保存してから
+  // LINEへ転送することで、後日アプリを開いたときに登録経路として記録できる。
+  const FRIEND_ADD_BASE='https://app.goltomo.com/go';
+  function friendAddUrl(){ const r=REF||'golmoti'; return FRIEND_ADD_BASE+'?ref='+encodeURIComponent(r); }
   function uid(){try{if(crypto&&crypto.randomUUID)return crypto.randomUUID();}catch(e){}return 's_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);}
   let SESSION=sessionStorage.getItem('golmotiSession'); if(!SESSION){SESSION=uid();sessionStorage.setItem('golmotiSession',SESSION);}
   // 永続の匿名訪問者ID（セッションをまたいでユニーク計測）。既に存在＝再訪。
@@ -594,6 +599,11 @@
     if(urlRef && !localStorage.getItem('gb_ref')){ localStorage.setItem('gb_ref',urlRef); localStorage.setItem('gb_ref_at',String(Date.now())); }
     REF=urlRef||localStorage.getItem('gb_ref')||'';
     if(document.referrer && !localStorage.getItem('gb_referrer')){ localStorage.setItem('gb_referrer',document.referrer.slice(0,200)); }
+  }catch(e){}
+  // ページ内の「LINE友だち追加」直リンクを、流入タグを運べる中継ページ(/go)へ書き換える。
+  // これを通さないと ?ref= が失われ、登録経路が全て unknown になる。
+  try{
+    document.querySelectorAll('a[href^="https://line.me/R/ti/p/"]').forEach(function(a){ a.href=friendAddUrl(); });
   }catch(e){}
   // 流入・デバイス等のコンテキスト（visit / leave に付与して属性分析に使う）。
   function ctx(){
@@ -1174,7 +1184,7 @@
     }));
     PL.querySelectorAll('.sigchip').forEach(b=>b.addEventListener('click',()=>{ const p=b.dataset.place; if(selPlaces.has(p)){selPlaces.delete(p);b.classList.remove('on');}else{selPlaces.add(p);b.classList.add('on');} }));
     const sub=document.getElementById('sgSubmit');
-    if(sub) sub.addEventListener('click',(e)=>{ e.preventDefault(); if(!gotoLineSignal(SG_CODE,[...selA],[...selD],selP,[...selPlaces],'signal-screen')) window.location.href=FRIEND_ADD; });
+    if(sub) sub.addEventListener('click',(e)=>{ e.preventDefault(); if(!gotoLineSignal(SG_CODE,[...selA],[...selD],selP,[...selPlaces],'signal-screen')) window.location.href=friendAddUrl(); });
     const xb=document.getElementById('sgClose'); if(xb) xb.addEventListener('click',closeSignalScreen);
     screen.addEventListener('click',(e)=>{ if(e.target===screen) closeSignalScreen(); });
   }
