@@ -102,8 +102,8 @@ function Inner() {
   const [tab, setTab] = useState<'overview' | 'analysis' | 'demand' | 'data'>('overview');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  // インスタ link-in-bio ハブ（/links）の計測。
-  const [hub, setHub] = useState<{ opened: number; clickLine?: number; clickMbti: number; clickRounds: number; ctr: number; daily?: Array<{ date: string; opened: number; clickLine: number }> } | null>(null);
+  // インスタ link-in-bio ハブ（/links）の計測。人数（ユニーク）が主指標、回数は参考値。
+  const [hub, setHub] = useState<{ opened: number; clickLine?: number; openedU?: number; clickLineU?: number; clickMbti: number; clickRounds: number; ctr: number; daily?: Array<{ date: string; opened: number; clickLine: number; openedU?: number; clickLineU?: number }> } | null>(null);
 
   // 他の管理画面と同じトークン取得パターン（/api/admin/init を正とする）
   useEffect(() => {
@@ -264,40 +264,38 @@ function Card({ title, sub, children }: { title: string; sub?: string; children:
   );
 }
 
-function InstaHub({ hub }: { hub: { opened: number; clickLine?: number; clickMbti: number; clickRounds: number; ctr: number; daily?: Array<{ date: string; opened: number; clickLine: number }> } | null }) {
-  const line = hub?.clickLine || 0;
+function InstaHub({ hub }: { hub: { opened: number; clickLine?: number; openedU?: number; clickLineU?: number; clickMbti: number; clickRounds: number; ctr: number; daily?: Array<{ date: string; opened: number; clickLine: number; openedU?: number; clickLineU?: number }> } | null }) {
+  const lineU = hub?.clickLineU || 0;
+  const openedU = hub?.openedU || 0;
   return (
-    <Card title="📸 インスタ→LINE公式リンク（/links）" sub="インスタprofileの「LINE公式アカウント」リンク。開封数と友だち追加タップ数（累計＋日別）">
+    <Card title="📸 インスタ→LINE公式リンク（/links）" sub="インスタprofileの「LINE公式アカウント」リンク。人数＝ユニーク（同じ人が何度開いても1人）">
       {!hub ? (
         <div className="text-[12px] text-muted py-2">読み込み中...</div>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-2 mb-3">
             <div className="bg-bg rounded-lg p-2.5 text-center">
-              <div className="text-[18px] font-black">{hub.opened}</div>
-              <div className="text-[10px] text-muted mt-0.5">ページが開かれた</div>
+              <div className="text-[18px] font-black">{openedU}<span className="text-[11px] font-bold">人</span></div>
+              <div className="text-[10px] text-muted mt-0.5">ページを開いた（{hub.opened}回）</div>
             </div>
             <div className="bg-bg rounded-lg p-2.5 text-center">
-              <div className="text-[18px] font-black" style={{ color: '#06C755' }}>{line}</div>
-              <div className="text-[10px] text-muted mt-0.5">💬 LINE追加タップ（{pct(line, hub.opened)}%）</div>
+              <div className="text-[18px] font-black" style={{ color: '#06C755' }}>{lineU}<span className="text-[11px] font-bold">人</span></div>
+              <div className="text-[10px] text-muted mt-0.5">💬 LINE追加タップ（{hub.clickLine || 0}回・{pct(lineU, openedU)}%）</div>
             </div>
           </div>
-          <Bar label="💬 LINEで友だち追加" value={line} max={Math.max(hub.opened, 1)} hint={`${pct(line, hub.opened)}%`} />
+          <Bar label="💬 LINEで友だち追加（人数）" value={lineU} max={Math.max(openedU, 1)} hint={`${pct(lineU, openedU)}%`} />
           {(hub.daily || []).length > 0 && (
             <div className="mt-3">
-              <div className="text-[10px] text-muted mb-1">日別（直近14日）</div>
+              <div className="text-[10px] text-muted mb-1">日別（直近14日・新規◯人＝その日に初めて来た人）</div>
               <div className="flex flex-col gap-0.5">
                 {(hub.daily || []).map((d) => (
                   <div key={d.date} className="flex items-center justify-between text-[11px] py-0.5 border-b border-border last:border-0">
                     <span className="text-sub">{d.date.slice(5).replace('-', '/')}</span>
-                    <span>開封 <b>{d.opened}</b> ・ LINE追加 <b style={{ color: '#06C755' }}>{d.clickLine}</b></span>
+                    <span>開封 新規<b>{d.openedU || 0}</b>人/{d.opened}回 ・ LINE追加 新規<b style={{ color: '#06C755' }}>{d.clickLineU || 0}</b>人/{d.clickLine}回</span>
                   </div>
                 ))}
               </div>
             </div>
-          )}
-          {(hub.clickMbti > 0 || hub.clickRounds > 0) && (
-            <div className="text-[10px] text-muted mt-2">旧ボタンの累計（現在は撤去済み）: 診断 {hub.clickMbti} ・ 募集一覧 {hub.clickRounds}</div>
           )}
         </>
       )}

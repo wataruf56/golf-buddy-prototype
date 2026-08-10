@@ -13,15 +13,27 @@ const LINE_GREEN = '#06C755';
 // LINE公式アカウント「ゴルトモ」の友だち追加URL（ベーシックID @711xiyrs）。
 const LINE_ADD_URL = 'https://line.me/R/ti/p/@711xiyrs';
 
+// 匿名の訪問者ID（localStorage永続）。同じ人が何度開いても「1人」と数えるためのユニーク計測用。
+function visitorId(): string {
+  try {
+    let v = localStorage.getItem('gb_links_vid');
+    if (!v) {
+      v = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      localStorage.setItem('gb_links_vid', v);
+    }
+    return v;
+  } catch { return ''; }
+}
+
 function hit(t: 'open' | 'line') {
   try {
-    const body = JSON.stringify({ t });
+    const body = JSON.stringify({ t, v: visitorId() });
     if (typeof navigator !== 'undefined' && 'sendBeacon' in navigator) {
       navigator.sendBeacon('/api/lp/hit', new Blob([body], { type: 'application/json' }));
       return;
     }
+    fetch('/api/lp/hit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => {});
   } catch { /* noop */ }
-  try { fetch('/api/lp/hit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ t }), keepalive: true }).catch(() => {}); } catch { /* noop */ }
 }
 
 export function HubLinks() {
