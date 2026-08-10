@@ -129,6 +129,8 @@ export async function POST(req: NextRequest) {
       ? Math.min(8, Math.floor(body.pickupCapacity)) : undefined),
     pickupOffered: isDrink ? false : (typeof body.pickupOffered === 'boolean' ? body.pickupOffered : undefined),
     status: 'open',
+    // 入金管理（主催者が事前集金してまとめて払うケース）。ONのとき詳細に「💰 入金」タブが出る。
+    paymentEnabled: !!body.paymentEnabled,
     // 飲み会は定員なしのため大きな maxSpots になるが、コンペ扱いにはしない。
     isCompetition: !isDrink && maxSpots >= 5,
     // "ゴルトモ公式" は管理者（福田渉）のみが選択可能。クライアントの申告は

@@ -211,6 +211,14 @@ export type Round = {
   groupPrefs?: Record<string, { avoid?: string[]; prefer?: string }>;
   // 主催者から参加者への連絡（注意事項・ルール等）。長文・改行OK。参加者は閲覧のみ。
   hostNote?: string;
+  // 入金管理。主催者が事前にお金を集めてまとめて払うケース用の簡易チェック機能。
+  // paymentEnabled=true のときだけラウンド詳細に「💰 入金」タブが出る（作成時/編集時に切替）。
+  // paidIds = 入金確認済みのメンバーID（登録ユーザーの userId ＋ 名前付きゲストの gst_ id）。
+  // チェックの ON/OFF は主催者・共同管理者のみ。参加者は一覧を閲覧できる（誰が払ったか可視化）。
+  paymentEnabled?: boolean;
+  paidIds?: string[];
+  // 入金の案内（金額・振込先・締切など。主催者が自由記述）。参加者に表示。
+  paymentNote?: string;
   // 主催者が自前のLINEオープンチャットを持っている場合のURL。設定されていれば
   // グループチャット上部に「LINEのオープンチャットあり」として表示。未設定なら非表示。
   openChatUrl?: string;

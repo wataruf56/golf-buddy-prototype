@@ -15,6 +15,7 @@ import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
 import { GroupAssignment } from '@/components/GroupAssignment';
 import { GroupPrefs } from '@/components/GroupPrefs';
 import { HostNote } from '@/components/HostNote';
+import { PaymentTracker } from '@/components/PaymentTracker';
 import { CarDispatch } from '@/components/CarDispatch';
 import { PickupStationPicker } from '@/components/PickupStationPicker';
 import { NumberInput } from '@/components/NumberInput';
@@ -70,11 +71,11 @@ export default function RoundDetailPage() {
   const [replaceBusy, setReplaceBusy] = useState(false);
   // 主催者向け「ラウンドは完了しましたか？」プロンプトを「まだ」で閉じたか（この画面表示中のみ）。
   const [completionDismissed, setCompletionDismissed] = useState(false);
-  // 詳細のセクション切り替えタブ（参加してる人／ピックアップ／組み分け）。
-  const [tab, setTab] = useState<'people' | 'pickup' | 'groups' | 'hostnote' | 'album'>(
+  // 詳細のセクション切り替えタブ（参加してる人／ピックアップ／組み分け／入金）。
+  const [tab, setTab] = useState<'people' | 'pickup' | 'groups' | 'hostnote' | 'album' | 'payment'>(
     () => {
       const t = search?.get('tab');
-      return t === 'groups' || t === 'pickup' || t === 'hostnote' ? t : 'people';
+      return t === 'groups' || t === 'pickup' || t === 'hostnote' || t === 'payment' ? t : 'people';
     },
   );
   // Host-only: kanji full names of participants (for golf-course registration).
@@ -748,6 +749,8 @@ export default function RoundDetailPage() {
             ...(isDrink ? [] : [['pickup', 'ピックアップ'], ['groups', '組み分け']]),
             // 「主催者から」はコンペ、または既に連絡が書かれている場合に表示。
             ...((round.isCompetition || round.hostNote) ? [['hostnote', '主催者から']] : []),
+            // 入金管理がONのラウンドだけ。メンバー（主催者＋承認済み参加者）全員が見られる。
+            ...((round.paymentEnabled && (isHost || isApproved)) ? [['payment', '💰 入金']] : []),
             // アルバムは参加者（主催者＋承認済み）だけに表示。
             ...((isHost || isApproved) ? [['album', '📷 アルバム']] : []),
           ] as const)).map(([k, label]) => (
@@ -975,6 +978,11 @@ export default function RoundDetailPage() {
         {/* ── 主催者から タブ（注意事項・ルール等。主催者のみ編集・参加者は閲覧） ── */}
         {tab === 'hostnote' && (
           <HostNote round={round} isHost={isHost} />
+        )}
+
+        {/* ── 💰 入金 タブ（主催者がチェック・メンバー全員が閲覧） ── */}
+        {tab === 'payment' && round.paymentEnabled && (isHost || isApproved) && (
+          <PaymentTracker round={round} isHost={isHost} meId={meId} users={users} />
         )}
 
         {/* ── 📷 アルバム タブ（参加者で写真を共有） ── */}

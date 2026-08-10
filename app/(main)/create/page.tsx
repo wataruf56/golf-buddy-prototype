@@ -101,6 +101,8 @@ export default function CreatePage() {
   const [pickupStations, setPickupStations] = useState<string[]>([]);
   const [pickupCapacity, setPickupCapacity] = useState(0); // 自分含め乗れる人数
 
+  // 入金管理（主催者が事前集金してまとめて払うケース）。ONにすると詳細に「💰 入金」タブが出る。
+  const [paymentEnabled, setPaymentEnabled] = useState(false);
   // 共同管理者（任意・複数可）。ゴル友（マッチ済み）から選ぶ。主催者と同権限＋作成時から参加確定。
   const [coHostIds, setCoHostIds] = useState<string[]>([]);
   const [coHostPickerOpen, setCoHostPickerOpen] = useState(false);
@@ -306,6 +308,8 @@ export default function CreatePage() {
       pickupCapacity: offerPickup && pickupStations.length && pickupCapacity > 0 ? pickupCapacity : undefined,
       // 共同管理者（任意・複数可）。サーバー側で実在ユーザーを検証し、承認済み参加者＋同権限として登録する。
       coHostIds: coHostIds.length ? coHostIds : undefined,
+      // 入金管理（ONなら詳細に「💰 入金」タブが出て、主催者が入金チェックを付けられる）。
+      paymentEnabled,
       // Admin-only: request publishing under the ゴルトモ公式 identity. Server
       // re-validates the caller is actually an admin before honoring this.
       asOfficial: isAdmin ? postAsOfficial : undefined,
@@ -717,6 +721,26 @@ export default function CreatePage() {
               )}
               <div className="mt-1.5 text-[10px] text-muted font-medium">
                 選ばれた人は投稿と同時に参加確定（申請不要）になり、あなたと同じく編集・承認・組み分けなどの管理操作ができます。参加確定として枠を使います（人数が足りなければ自動で+1）。
+              </div>
+            </Field>
+
+            {/* 入金管理（事前集金してまとめて払うとき用） */}
+            <Field label="入金管理" hint="（任意・事前に集金してまとめて払うとき）">
+              <button
+                type="button"
+                onClick={() => setPaymentEnabled((v) => !v)}
+                className={cn('w-full flex items-center gap-3 p-3 rounded-[10px] border-[1.5px] text-left',
+                  paymentEnabled ? 'border-green bg-green-light' : 'border-border bg-bg')}
+              >
+                <span className={cn('w-6 h-6 rounded-md flex items-center justify-center text-[14px] font-black flex-shrink-0 border-2',
+                  paymentEnabled ? 'bg-green border-green text-white' : 'bg-card border-border text-transparent')}>✓</span>
+                <span className="flex-1 min-w-0">
+                  <span className={cn('block text-sm font-bold', paymentEnabled ? 'text-green' : 'text-sub')}>💰 入金管理を使う</span>
+                  <span className="block text-[10px] text-muted font-medium mt-0.5">参加者ごとに入金済みかチェックできます</span>
+                </span>
+              </button>
+              <div className="mt-1.5 text-[10px] text-muted font-medium">
+                ONにすると募集の詳細に「💰 入金」タブが出ます。主催者・共同管理者が参加者一覧をポチポチして入金確認でき、その状況は参加メンバー全員が見られます（金額や振込先の案内もそこに書けます）。
               </div>
             </Field>
           </>

@@ -83,6 +83,26 @@ export default function EditRoundPage() {
   const [coHostCandidates, setCoHostCandidates] = useState<{ id: string; displayName: string; avatar: string; avatarUrl?: string }[]>([]);
   const [coHostPickerOpen, setCoHostPickerOpen] = useState(false);
   const [coHostBusy, setCoHostBusy] = useState(false);
+  // 入金管理のON/OFF（作成後でも切り替えられる）。
+  const [paymentBusy, setPaymentBusy] = useState(false);
+
+  async function togglePayment(on: boolean) {
+    if (paymentBusy) return;
+    setPaymentBusy(true);
+    try {
+      const res = await fetch(`/api/rounds/${encodeURIComponent(params.id)}/payments`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentEnabled: on }), cache: 'no-store', credentials: 'include',
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { toast(d?.message || '更新に失敗しました', 'error'); return; }
+      if (d.round) setRound(d.round);
+      store.refreshRounds().catch(() => {});
+      toast(on ? '入金管理をONにしました' : '入金管理をOFFにしました');
+    } catch {
+      toast('更新に失敗しました', 'error');
+    } finally { setPaymentBusy(false); }
+  }
 
   // ゴル友候補を取得（追加リスト＋現在の共同管理者の氏名表示に使う）。
   useEffect(() => {
@@ -637,6 +657,28 @@ export default function EditRoundPage() {
                 );
               })()}
               <div className="mt-1.5 text-[10px] text-muted font-medium">「外す」は共同管理者権限のみ解除します（参加者としては残ります）。</div>
+            </div>
+          )}
+
+          {/* 入金管理（後からON/OFF）。ONにすると詳細に「💰 入金」タブが出る。 */}
+          {round && (
+            <div className="mb-4">
+              <div className="text-xs font-bold text-sub mb-1.5">入金管理 <span className="text-muted font-medium">（事前に集金してまとめて払うとき）</span></div>
+              <button
+                type="button"
+                disabled={paymentBusy}
+                onClick={() => togglePayment(!round.paymentEnabled)}
+                className={cn('w-full flex items-center gap-3 p-3 rounded-[10px] border-[1.5px] text-left disabled:opacity-60',
+                  round.paymentEnabled ? 'border-green bg-green-light' : 'border-border bg-bg')}
+              >
+                <span className={cn('w-6 h-6 rounded-md flex items-center justify-center text-[14px] font-black flex-shrink-0 border-2',
+                  round.paymentEnabled ? 'bg-green border-green text-white' : 'bg-card border-border text-transparent')}>✓</span>
+                <span className="flex-1 min-w-0">
+                  <span className={cn('block text-sm font-bold', round.paymentEnabled ? 'text-green' : 'text-sub')}>💰 入金管理を使う</span>
+                  <span className="block text-[10px] text-muted font-medium mt-0.5">参加者ごとに入金済みかチェックできます</span>
+                </span>
+              </button>
+              <div className="mt-1.5 text-[10px] text-muted font-medium">募集の詳細に「💰 入金」タブが出ます。チェックは主催者・共同管理者のみ、閲覧は参加メンバー全員。</div>
             </div>
           )}
 
