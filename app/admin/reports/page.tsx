@@ -54,14 +54,20 @@ function Inner() {
   }
   useEffect(() => { if (token) load(token); /* eslint-disable-next-line */ }, [token]);
 
-  async function adjustManner(userId: string, delta: 1 | -1, name: string) {
+  // 通報からの操作も `/admin/manner` の履歴に残るよう、通報理由と通報IDをメモに添えて送る。
+  async function adjustManner(userId: string, delta: 1 | -1, name: string, rep?: Report) {
     if (busy) return;
     if (delta === 1 && !window.confirm(`${name} さんのマナー評価を下げます（事実確認済みですか？）。よろしいですか？`)) return;
     setBusy(userId + delta); setMsg('');
     try {
       const r = await fetch(`/api/admin/manner?token=${encodeURIComponent(token)}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, delta }), cache: 'no-store',
+        body: JSON.stringify({
+          userId, delta,
+          reason: rep?.reason || 'report',
+          note: rep ? `通報から対応（通報者: ${rep.reporterName || rep.reporterId}）${rep.detail ? `\n${rep.detail}` : ''}` : '',
+          roundId: rep?.roundId || '',
+        }), cache: 'no-store',
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j?.error || `${r.status}`);
@@ -122,8 +128,8 @@ function Inner() {
               {r.status === 'resolved' && <div className="text-[11px] font-bold text-green mb-2">✅ 対応済み</div>}
 
               <div className="grid grid-cols-2 gap-1.5 mt-2">
-                <button onClick={() => adjustManner(r.targetId, 1, r.targetName || '対象')} disabled={!!busy} className="py-2.5 bg-red-500 text-white rounded-lg text-xs font-black disabled:opacity-50">評価を下げる</button>
-                <button onClick={() => adjustManner(r.targetId, -1, r.targetName || '対象')} disabled={!!busy} className="py-2.5 bg-bg border border-border text-sub rounded-lg text-xs font-bold disabled:opacity-50">↩ 戻す</button>
+                <button onClick={() => adjustManner(r.targetId, 1, r.targetName || '対象', r)} disabled={!!busy} className="py-2.5 bg-red-500 text-white rounded-lg text-xs font-black disabled:opacity-50">評価を下げる</button>
+                <button onClick={() => adjustManner(r.targetId, -1, r.targetName || '対象', r)} disabled={!!busy} className="py-2.5 bg-bg border border-border text-sub rounded-lg text-xs font-bold disabled:opacity-50">↩ 戻す</button>
                 <Link href={`/admin/support?token=${token}&userId=${r.reporterId}`} className="py-2.5 bg-green text-white rounded-lg text-xs font-black text-center">🛡️ 通報者とチャット</Link>
                 {r.status === 'resolved'
                   ? <button onClick={() => setStatus(r.id, 'reopen')} disabled={!!busy} className="py-2.5 bg-bg border border-border text-sub rounded-lg text-xs font-bold disabled:opacity-50">未対応に戻す</button>
