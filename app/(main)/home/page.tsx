@@ -502,12 +502,14 @@ export default function HomePage() {
       {hostNudge && (
         <div className="absolute inset-0 bg-black/50 z-[120] flex items-center justify-center p-5 backdrop-blur-sm">
           <div className="relative w-full max-w-[330px]">
-            {/* クマはカードの上端からはみ出して覗かせる */}
+            {/* クマはカードの上端からひょこっと身を乗り出し、中身を指差している見た目にする。
+                深く重ねると「カードの裏に隠れて頭だけ見えている」ように見えてしまうため、
+                指差す手がカードの上端より上に出る位置（body高-22px）まで持ち上げている。 */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/bear-guts.png"
+              src="/bear-point.png"
               alt=""
-              className="absolute left-1/2 -translate-x-1/2 -top-[76px] w-[112px] h-auto pointer-events-none select-none drop-shadow-lg"
+              className="absolute left-3.5 -top-[150px] w-[150px] h-auto pointer-events-none select-none drop-shadow-lg"
             />
             <div className="relative bg-card border-2 border-border rounded-card shadow-card pt-9 px-6 pb-6 text-center">
               <button
