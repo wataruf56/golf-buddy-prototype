@@ -74,13 +74,23 @@ export async function GET(req: NextRequest) {
     const latest = series.length ? series[series.length - 1] : null;
     const first = series.length ? series[0] : null;
 
-    // アプリ側の登録者数（＝LIFFを開いてユーザードキュメントができた人）。
-    let appUsers = 0;
+    // アプリ側（users）の内訳。LINEログインは「友だち追加」を必須としないため、
+    // アプリは使っているのに公式アカウントを友だち追加していない人が出る。
+    // その人たちにはLINE通知（push）が届かないので、人数を明示する。
+    // botFollowed は LIFFログイン時の liff.getFriendship() の結果（未取得なら undefined）。
+    let appUsers = 0, followed = 0, notFollowed = 0, unknownFollow = 0;
     try {
       const db = getAdminDb() as any;
       if (db) {
         const snap = await db.collection('users').limit(3000).get();
-        snap.docs.forEach((d: any) => { if (!(d.data() || {}).isSystem) appUsers++; });
+        snap.docs.forEach((d: any) => {
+          const u = d.data() || {};
+          if (u.isSystem) return;
+          appUsers++;
+          if (u.botFollowed === true) followed++;
+          else if (u.botFollowed === false) notFollowed++;
+          else unknownFollow++;
+        });
       }
     } catch { /* best-effort */ }
 
@@ -94,7 +104,11 @@ export async function GET(req: NextRequest) {
       gainedInRange: first && latest ? (latest.followers as number) - (first.followers as number) : null,
       rangeFrom: first?.date || '',
       appUsers,
-      notOpenedApp: latest?.followers != null ? Math.max(0, (latest.followers as number) - appUsers) : null,
+      followed, notFollowed, unknownFollow,
+      // LINE通知が届かない人＝友だち追加していない／確認できていないアプリ利用者
+      noPush: notFollowed + unknownFollow,
+      // 友だち追加はしたが、まだLIFFを一度も開いていない人
+      notOpenedApp: latest?.followers != null ? Math.max(0, (latest.followers as number) - followed) : null,
       series,
       // 取得できなかった日の理由（unready / out_of_service 等）を1つだけ添える
       note: results.find((x) => x.followers == null)?.status || '',

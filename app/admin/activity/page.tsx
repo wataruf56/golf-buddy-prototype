@@ -449,6 +449,7 @@ function Inner() {
 type Fw = {
   followers: number | null; blocks: number | null; targetedReaches: number | null; asOf: string;
   gainedInRange: number | null; rangeFrom: string; appUsers: number; notOpenedApp: number | null;
+  followed?: number; notFollowed?: number; unknownFollow?: number; noPush?: number;
   series: { date: string; followers: number | null; delta: number | null }[];
   note?: string; error?: string;
 };
@@ -496,18 +497,28 @@ function Followers({ token }: { token: string }) {
               <div className="text-[9px] text-muted">{md(f.rangeFrom)} から</div>
             </div>
             <div className="bg-bg rounded-lg p-2.5">
-              <div className="text-[10px] text-muted font-bold">アプリを開いた人</div>
+              <div className="text-[10px] text-muted font-bold">アプリの利用者</div>
               <div className="text-[22px] font-black leading-tight">{f.appUsers}<span className="text-[11px]">人</span></div>
-              <div className="text-[9px] text-muted">プロフィールが作られた数</div>
+              <div className="text-[9px] text-muted">うち友だち {f.followed ?? '—'}人</div>
             </div>
             <div className="bg-bg rounded-lg p-2.5">
-              <div className="text-[10px] text-muted font-bold">まだ開いていない</div>
-              <div className={'text-[22px] font-black leading-tight ' + ((f.notOpenedApp ?? 0) > 0 ? 'text-orange' : '')}>
-                {f.notOpenedApp ?? '—'}<span className="text-[11px]">人</span>
+              <div className="text-[10px] text-muted font-bold">LINE通知が届かない</div>
+              <div className={'text-[22px] font-black leading-tight ' + ((f.noPush ?? 0) > 0 ? 'text-red-600' : '')}>
+                {f.noPush ?? '—'}<span className="text-[11px]">人</span>
               </div>
-              <div className="text-[9px] text-muted">友だち − アプリ利用</div>
+              <div className="text-[9px] text-muted">友だち追加していない利用者</div>
             </div>
           </div>
+          {(f.noPush ?? 0) > 0 && (
+            <div className="text-[10.5px] text-red-700 bg-red-50 border border-red-200 rounded-lg p-2 mb-2 leading-relaxed">
+              ⚠️ アプリは使っているのに公式アカウントを友だち追加していない人が <b>{f.noPush}人</b> います。
+              この人たちにはマッチ通知・リマインドなどのLINEが一切届きません
+              {(f.unknownFollow ?? 0) > 0 && <>（うち {f.unknownFollow}人は未確認＝古いバージョンでログインしたまま）</>}。
+            </div>
+          )}
+          {f.notOpenedApp != null && f.notOpenedApp > 0 && (
+            <div className="text-[10.5px] text-muted mb-2">友だち追加はしたが、まだアプリを開いていない人：{f.notOpenedApp}人</div>
+          )}
           {f.blocks != null && <div className="text-[10px] text-muted mb-2">ブロック累計 {f.blocks}人 ・ メッセージが届く人 {f.targetedReaches ?? '—'}人</div>}
           {recent.length > 0 && (
             <details>
