@@ -242,6 +242,10 @@ function Inner() {
 
       {data && (
         <>
+          {/* 登録＝LINE公式アカウントの友だち追加、として見る。
+              LINE Insight は前日23:59時点の集計なので「◯/◯時点」を明示する。 */}
+          <Followers token={token} />
+
           {/* Summary＝事業のボトルネックが見える4つ。
               ラウンドが実際に行われた人数（価値が届いた量）→ 供給（募集と主催者）→
               立てれば埋まるか（満員率）→ 生きているユーザー数、の順で並べる。 */}
@@ -437,6 +441,94 @@ function Inner() {
         </>
       )}
       <div className="h-8" />
+    </div>
+  );
+}
+
+// LINE公式アカウントの友だち数（＝登録者数とみなす）。/api/admin/line-followers から取得。
+type Fw = {
+  followers: number | null; blocks: number | null; targetedReaches: number | null; asOf: string;
+  gainedInRange: number | null; rangeFrom: string; appUsers: number; notOpenedApp: number | null;
+  series: { date: string; followers: number | null; delta: number | null }[];
+  note?: string; error?: string;
+};
+function Followers({ token }: { token: string }) {
+  const [f, setF] = useState<Fw | null>(null);
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    if (!token) return;
+    fetch(`/api/admin/line-followers?token=${encodeURIComponent(token)}&days=30`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => { if (j?.error) setErr(j.error); else setF(j); })
+      .catch((e) => setErr(String(e)));
+  }, [token]);
+
+  const md = (d: string) => (d && d.length === 8 ? `${Number(d.slice(4, 6))}/${Number(d.slice(6, 8))}` : '');
+  const recent = (f?.series || []).slice(-14).reverse();
+
+  return (
+    <div className="bg-card rounded-xl shadow-card p-3.5 mb-3">
+      <div className="text-[13px] font-black mb-0.5">💚 LINE公式アカウントの友だち（＝登録者）</div>
+      <div className="text-[10px] text-muted mb-2.5">
+        友だち追加＝サービス登録として数えています。LINEの集計は前日23:59時点です。
+      </div>
+      {err ? (
+        <div className="text-[11px] text-red-600">取得できませんでした（{err}）</div>
+      ) : !f ? (
+        <div className="text-[11px] text-muted py-2">読み込み中...</div>
+      ) : f.followers == null ? (
+        <div className="text-[11px] text-muted py-2 leading-relaxed">
+          LINEからまだ数値が返っていません{f.note ? `（${f.note}）` : ''}。友だちが少ない期間は集計が出ないことがあります。
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <div className="bg-bg rounded-lg p-2.5">
+              <div className="text-[10px] text-muted font-bold">友だち（登録者）</div>
+              <div className="text-[22px] font-black text-green leading-tight">{f.followers}<span className="text-[11px]">人</span></div>
+              <div className="text-[9px] text-muted">{md(f.asOf)} 時点</div>
+            </div>
+            <div className="bg-bg rounded-lg p-2.5">
+              <div className="text-[10px] text-muted font-bold">この30日で増えた</div>
+              <div className={'text-[22px] font-black leading-tight ' + ((f.gainedInRange ?? 0) > 0 ? 'text-blue' : '')}>
+                {f.gainedInRange == null ? '—' : `${f.gainedInRange > 0 ? '+' : ''}${f.gainedInRange}`}<span className="text-[11px]">人</span>
+              </div>
+              <div className="text-[9px] text-muted">{md(f.rangeFrom)} から</div>
+            </div>
+            <div className="bg-bg rounded-lg p-2.5">
+              <div className="text-[10px] text-muted font-bold">アプリを開いた人</div>
+              <div className="text-[22px] font-black leading-tight">{f.appUsers}<span className="text-[11px]">人</span></div>
+              <div className="text-[9px] text-muted">プロフィールが作られた数</div>
+            </div>
+            <div className="bg-bg rounded-lg p-2.5">
+              <div className="text-[10px] text-muted font-bold">まだ開いていない</div>
+              <div className={'text-[22px] font-black leading-tight ' + ((f.notOpenedApp ?? 0) > 0 ? 'text-orange' : '')}>
+                {f.notOpenedApp ?? '—'}<span className="text-[11px]">人</span>
+              </div>
+              <div className="text-[9px] text-muted">友だち − アプリ利用</div>
+            </div>
+          </div>
+          {f.blocks != null && <div className="text-[10px] text-muted mb-2">ブロック累計 {f.blocks}人 ・ メッセージが届く人 {f.targetedReaches ?? '—'}人</div>}
+          {recent.length > 0 && (
+            <details>
+              <summary className="text-[11px] font-bold text-sub cursor-pointer list-none">📈 日別の推移（直近14日） ▾</summary>
+              <div className="mt-1.5">
+                {recent.map((d) => (
+                  <div key={d.date} className="flex items-center justify-between text-[11px] py-1 border-b border-border last:border-0">
+                    <span className="text-sub">{md(d.date)}</span>
+                    <span>
+                      {d.followers}人
+                      {d.delta != null && d.delta !== 0 && (
+                        <b className={d.delta > 0 ? 'text-green ml-2' : 'text-red-600 ml-2'}>{d.delta > 0 ? `+${d.delta}` : d.delta}</b>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+        </>
+      )}
     </div>
   );
 }
