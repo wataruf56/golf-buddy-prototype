@@ -7,7 +7,7 @@ import { useSearchParams } from 'next/navigation';
 type Report = {
   generatedAt: number;
   summary: { active24h: number; active7d: number; totalUsersSeen: number; totalSwingUsers: number; totalSwings: number; logsScanned: number };
-  activeUsers: { userId: string; name: string; count: number; lastTs: number; lastPage: string; lastPageNorm?: string; lastActionTs: number; lastActionEvent: string; lastActionPage: string }[];
+  activeUsers: { userId: string; name: string; count: number; lastTs: number; lastPage: string; lastPageNorm?: string; lastActionTs: number; lastActionEvent: string; lastActionPage: string; lastToName?: string }[];
   popularPages?: { page: string; views: number; users: number; lastTs: number }[];
   acquisition?: {
     total: number; tagged: number;
@@ -366,10 +366,12 @@ function Inner() {
               const showAction = !!u.lastActionEvent && u.lastActionTs >= u.lastTs;
               const what = showAction ? eventJa(u.lastActionEvent) : screenJa(u.lastPageNorm);
               return (
-              <div key={u.userId} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+              <div key={u.userId} className="flex items-start justify-between gap-2 py-2 border-b border-border last:border-0">
                 <div className="min-w-0 flex-1">
-                  <div className="text-[13px] font-bold truncate">{u.name}</div>
-                  <div className="text-[10px] text-muted truncate">{what}</div>
+                  <div className="text-[13px] font-bold break-words">{u.name}</div>
+                  <div className="text-[10px] text-muted break-words leading-snug">
+                    {what}{u.lastToName && <span className="text-green font-bold"> → {u.lastToName}</span>}
+                  </div>
                 </div>
                 <div className="text-right flex-shrink-0 ml-2">
                   <div className="text-[11px] font-bold text-green">{ago(whenTs)}</div>
@@ -382,12 +384,18 @@ function Inner() {
           {/* 2. Recent actions */}
           <Section title="② 直近の操作ログ" sub="誰が・何を・どの画面で" count={data.recentActions.length}>
             {data.recentActions.length === 0 ? <Empty /> : data.recentActions.map((a, i) => (
-              <div key={i} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
+              <div key={i} className="flex items-start justify-between gap-2 py-1.5 border-b border-border last:border-0">
+                {/* 文章は折り返して全部見せる（truncateだと「誰のプロフィールを見たか」が切れて読めない） */}
                 <div className="min-w-0 flex-1">
-                  <div className="text-[12px] font-semibold truncate">{a.name} <span className="text-muted font-normal">/ {a.event === 'page_view' ? `📱 ${pageLabel(a.pageNorm || a.page)}を開いた` : eventJa(a.event)}{a.toName ? ` → ${a.toName}` : ''}</span></div>
-                  <div className="text-[9px] text-muted truncate">{a.page}</div>
+                  <div className="text-[12px] font-semibold leading-snug break-words">
+                    {a.name}
+                    <span className="text-muted font-normal"> / {a.event === 'page_view' ? `📱 ${pageLabel(a.pageNorm || a.page)}を開いた` : eventJa(a.event)}</span>
+                    {a.toName && <span className="text-green"> → {a.toName}</span>}
+                  </div>
+                  {/* 相手が特定できているときは生のIDパスは冗長なので出さない */}
+                  {!a.toName && <div className="text-[9px] text-muted break-all">{a.page}</div>}
                 </div>
-                <div className="text-[10px] text-muted flex-shrink-0 ml-2">{ago(a.ts)}</div>
+                <div className="text-[10px] text-muted flex-shrink-0 whitespace-nowrap">{ago(a.ts)}</div>
               </div>
             ))}
           </Section>

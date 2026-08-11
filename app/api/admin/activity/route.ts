@@ -64,6 +64,10 @@ export async function GET(req: NextRequest) {
       if ((l.ts || 0) > perUser[uid].lastTs) {
         perUser[uid].lastTs = l.ts || 0;
         perUser[uid].lastPage = l.page || '';
+        // 「誰に対して」の相手ID（DMの宛先・閲覧したプロフィールの本人）。①でも名前を出すため。
+        (perUser[uid] as any).lastTo = (l?.data && typeof l.data.to === 'string' && l.data.to)
+          || (String(l.page || '').startsWith('/profile/')
+              ? decodeURIComponent(String(l.page).split('?')[0].split('/').pop() || '') : '');
       }
       // 最後の「操作」（②直近の操作ログに出るのと同じ種類）を別途保持。
       if (l.event && !ACTION_HIDDEN.has(l.event) && (l.ts || 0) > perUser[uid].lastActionTs) {
@@ -142,7 +146,14 @@ export async function GET(req: NextRequest) {
     }
 
     // --- Resolve display names for every referenced user ---
-    const ids = Array.from(new Set([...Object.keys(perUser), ...Object.keys(swingPerUser)]));
+    // 「操作した人」だけでなく「操作の相手」(DMの宛先・閲覧されたプロフィールの本人)も
+    // 名前解決の対象に含める。含めないと管理画面で「→ (未登録)」になってしまう。
+    const ids = Array.from(new Set([
+      ...Object.keys(perUser),
+      ...Object.keys(swingPerUser),
+      ...recentActions.map((a: any) => a.to).filter(Boolean),
+      ...Object.values(perUser).map((v: any) => v.lastTo).filter(Boolean),
+    ]));
     const names: Record<string, string> = {};
     for (let i = 0; i < ids.length; i += 30) {
       const chunk = ids.slice(i, i + 30);
@@ -154,7 +165,8 @@ export async function GET(req: NextRequest) {
 
     // --- Assemble ---
     const activeUsers = Object.entries(perUser)
-      .map(([id, v]) => ({ userId: id, name: nameOf(id), ...v, lastPageNorm: normPage(v.lastPage || '') }))
+      .map(([id, v]) => ({ userId: id, name: nameOf(id), ...v, lastPageNorm: normPage(v.lastPage || ''),
+        lastToName: (v as any).lastTo ? nameOf((v as any).lastTo) : '' }))
       .sort((a, b) => b.lastTs - a.lastTs);
     const active24h = activeUsers.filter((u) => now - u.lastTs <= DAY).length;
     const active7d = activeUsers.filter((u) => now - u.lastTs <= 7 * DAY).length;
