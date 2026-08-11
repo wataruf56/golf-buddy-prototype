@@ -43,6 +43,8 @@ export type IgPost = {
   publishedAt?: number | null;
   igMediaId?: string | null;
   error?: string | null;
+  /** 一覧から隠す。公開済みは記録として消さないので、代わりにこれを立てる。 */
+  hidden?: boolean;
 };
 
 const COL = 'igPosts';
@@ -83,12 +85,14 @@ function toPost(id: string, d: any): IgPost {
     publishedAt: typeof d?.publishedAt === 'number' ? d.publishedAt : null,
     igMediaId: d?.igMediaId || null,
     error: d?.error || null,
+    hidden: !!d?.hidden,
   };
 }
 
-export async function listIgPosts(limit = 50): Promise<IgPost[]> {
+export async function listIgPosts(limit = 50, includeHidden = false): Promise<IgPost[]> {
   const snap = await db().collection(COL).orderBy('createdAt', 'desc').limit(limit).get();
-  return snap.docs.map((s: any) => toPost(s.id, s.data()));
+  const all = snap.docs.map((s: any) => toPost(s.id, s.data()));
+  return includeHidden ? all : all.filter((p: IgPost) => !p.hidden);
 }
 
 export async function getIgPost(id: string): Promise<IgPost | null> {
@@ -125,6 +129,7 @@ export async function createIgPost(input: {
     publishedAt: null,
     igMediaId: null,
     error: null,
+    hidden: false,
   };
   const ref = await db().collection(COL).add(doc);
   return toPost(ref.id, doc);
@@ -133,7 +138,8 @@ export async function createIgPost(input: {
 export async function updateIgPost(id: string, patch: Partial<IgPost>): Promise<void> {
   const clean: any = { updatedAt: Date.now() };
   for (const k of ['caption', 'imageUrl', 'imageUrls', 'videoUrl', 'coverUrl', 'mediaType',
-    'containerId', 'containerAt', 'status', 'scheduledAt', 'publishedAt', 'igMediaId', 'error'] as const) {
+    'containerId', 'containerAt', 'status', 'scheduledAt', 'publishedAt', 'igMediaId', 'error',
+    'hidden'] as const) {
     if (k in patch) clean[k] = (patch as any)[k];
   }
   await db().collection(COL).doc(id).set(clean, { merge: true });

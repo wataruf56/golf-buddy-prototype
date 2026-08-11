@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createIgPost, getCronState, listIgPosts, listRoundImages, setRoundImage } from '@/lib/igPosts';
 import { igConfigured, IG_CAROUSEL_MAX } from '@/lib/igPublish';
+import { pushToMany } from '@/lib/linePush';
 
 // 管理画面 /admin/ig 用。既存の管理APIと同じ ?token=ADMIN_LOG_TOKEN で保護する。
 //
@@ -21,8 +22,10 @@ function ok(req: NextRequest): boolean {
 export async function GET(req: NextRequest) {
   if (!ok(req)) return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: noStore });
   try {
+    // ?all=1 で「一覧から消した」ものも含めて出す。
+    const includeHidden = new URL(req.url).searchParams.get('all') === '1';
     const [posts, images, cron] = await Promise.all([
-      listIgPosts(60), listRoundImages(), getCronState().catch(() => null),
+      listIgPosts(80, includeHidden), listRoundImages(), getCronState().catch(() => null),
     ]);
     return NextResponse.json({ posts, images, cron, igConfigured: igConfigured() }, { headers: noStore });
   } catch (e) {
@@ -72,6 +75,19 @@ export async function POST(req: NextRequest) {
         roundId: String(body?.roundId || '').trim() || undefined,
         signature: String(body?.signature || '').trim() || undefined,
       });
+      // 手で作った下書きもLINEで知らせる。cron由来だけ通知されると、
+      // 「作ったのに飛んでこない」と見えてしまうため。
+      const ids = (process.env.ADMIN_NOTIFY_USER_IDS || process.env.ADMIN_USER_IDS || '')
+        .split(',').map((x) => x.trim()).filter(Boolean);
+      if (ids.length) {
+        const head = post.caption.split('\n')[0].slice(0, 30);
+        const kind = post.mediaType === 'REELS' ? 'リール'
+          : post.mediaType === 'CAROUSEL' ? `カルーセル${post.imageUrls.length}枚` : '写真';
+        const base = (process.env.NEXTAUTH_URL || 'https://app.goltomo.com').replace(/\/+$/, '');
+        await pushToMany(ids, `📷 下書きを追加しました（${kind}）
+${head}`,
+                         `${base}/admin/ig`, 'ig_draft').catch(() => {});
+      }
       return NextResponse.json({ ok: true, post }, { headers: noStore });
     }
 

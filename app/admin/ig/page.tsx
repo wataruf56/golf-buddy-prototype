@@ -20,6 +20,7 @@ type Post = {
   publishedAt?: number | null;
   igMediaId?: string | null;
   error?: string | null;
+  hidden?: boolean;
 };
 
 const STATUS_LABEL: Record<Post['status'], string> = {
@@ -53,11 +54,13 @@ export default function AdminIgPage() {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [times, setTimes] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string>('');
+  const [showHidden, setShowHidden] = useState(false);
 
   const load = useCallback(async (tk: string) => {
     setLoading(true);
     try {
-      const r = await fetch(`/api/admin/ig?token=${encodeURIComponent(tk)}`, { cache: 'no-store' });
+      const q = showHidden ? '&all=1' : '';
+      const r = await fetch(`/api/admin/ig?token=${encodeURIComponent(tk)}${q}`, { cache: 'no-store' });
       const j = await r.json();
       if (j.error) { setMsg(j.error); return; }
       setPosts(j.posts || []);
@@ -67,7 +70,7 @@ export default function AdminIgPage() {
       for (const p of (j.posts || []) as Post[]) { d[p.id] = p.caption; t[p.id] = toLocalInput(p.scheduledAt); }
       setDrafts(d); setTimes(t);
     } catch (e) { setMsg(String(e)); } finally { setLoading(false); }
-  }, []);
+  }, [showHidden]);
 
   useEffect(() => {
     (async () => {
@@ -77,6 +80,9 @@ export default function AdminIgPage() {
       if (j.token) await load(j.token); else setLoading(false);
     })();
   }, [load]);
+
+  // 「消したものも見る」を切り替えたら読み直す。
+  useEffect(() => { if (token) load(token); }, [showHidden, token, load]);
 
   async function act(id: string, body: any, okMsg: string) {
     setBusy(id); setMsg('');
@@ -93,7 +99,12 @@ export default function AdminIgPage() {
 
   return (
     <main style={S.wrap}>
-      <h1 style={S.h1}>Instagram 投稿</h1>
+      <div style={S.head}>
+        <h1 style={S.h1}>Instagram 投稿</h1>
+        <button style={S.link} onClick={() => { setShowHidden(!showHidden); }}>
+          {showHidden ? '消したものを隠す' : '消したものも見る'}
+        </button>
+      </div>
       {!igReady && (
         <p style={S.warn}>
           IG_ACCESS_TOKEN が未設定です。Cloud Run に Secret Manager の ig-access-token を注入してください。
@@ -133,6 +144,27 @@ export default function AdminIgPage() {
               <span style={S.typeBadge}>{TYPE_LABEL[p.mediaType] || '写真'}</span>
               {p.scheduledAt ? <span style={S.small}>予約: {new Date(p.scheduledAt).toLocaleString('ja-JP')}</span> : null}
               {p.publishedAt ? <span style={S.small}>公開: {new Date(p.publishedAt).toLocaleString('ja-JP')}</span> : null}
+              {p.hidden ? <span style={S.hiddenTag}>一覧から削除済み</span> : null}
+              <span style={{ marginLeft: 'auto' }}>
+                {p.hidden ? (
+                  <button style={S.link} disabled={busy === p.id}
+                    onClick={() => act(p.id, { action: 'unhide' }, '一覧に戻しました')}>
+                    一覧に戻す
+                  </button>
+                ) : (
+                  <button style={S.del} disabled={busy === p.id}
+                    onClick={() => {
+                      const done = p.status === 'published';
+                      const q = done
+                        ? 'この投稿を一覧から消します。Instagram上の投稿は消えません。よろしいですか？'
+                        : 'この下書きを削除します。元に戻せません。よろしいですか？';
+                      if (!confirm(q)) return;
+                      act(p.id, { action: 'delete' }, done ? '一覧から消しました' : '削除しました');
+                    }}>
+                    削除
+                  </button>
+                )}
+              </span>
             </div>
 
             {p.mediaType === 'REELS' && p.videoUrl ? (
@@ -228,7 +260,15 @@ export default function AdminIgPage() {
 
 const S: Record<string, React.CSSProperties> = {
   wrap: { maxWidth: 720, margin: '0 auto', padding: '16px 14px 64px', fontFamily: 'system-ui, sans-serif' },
-  h1: { fontSize: 20, fontWeight: 700, margin: '8px 0 16px' },
+  h1: { fontSize: 20, fontWeight: 700, margin: 0 },
+  head: { display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          margin: '8px 0 16px' },
+  link: { background: 'none', border: 'none', color: '#2563eb', fontSize: 13,
+          cursor: 'pointer', padding: 4 },
+  del: { background: 'none', border: '1px solid #fca5a5', color: '#dc2626', fontSize: 12,
+         borderRadius: 8, padding: '3px 10px', cursor: 'pointer' },
+  hiddenTag: { background: '#f3f4f6', color: '#6b7280', borderRadius: 999,
+               padding: '2px 9px', fontSize: 11 },
   card: { border: '1px solid #e5e7eb', borderRadius: 12, padding: 14, marginBottom: 18, background: '#fff' },
   row: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 },
   badge: { color: '#fff', borderRadius: 999, padding: '3px 10px', fontSize: 12, fontWeight: 700 },

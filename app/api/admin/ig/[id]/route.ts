@@ -11,7 +11,8 @@ import { advancePublish } from '@/lib/igRunPublish';
 //     {action:'unschedule'}                        予約を解除して下書きに戻す
 //     {action:'publish'}                           今すぐ公開する
 //     {action:'cancel'}                            取りやめ
-//     {action:'delete'}                            下書きを削除（公開済みは不可）
+//     {action:'delete'}                            削除（公開済みは一覧から隠すだけ）
+//     {action:'hide'} / {action:'unhide'}          一覧の表示・非表示
 //
 // 公開はこの publish か、予約時刻に走る /api/cron/ig-publish-due だけ。
 
@@ -83,10 +84,20 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
 
     if (action === 'delete') {
+      // 公開済みは消さない。指紋（signature）が消えると同じラウンドが再提案され、
+      // 二重投稿になりうるため。代わりに一覧から隠す。
       if (post.status === 'published') {
-        return NextResponse.json({ error: '公開済みは削除できません' }, { status: 400, headers: noStore });
+        await updateIgPost(id, { hidden: true });
+        return NextResponse.json(
+          { ok: true, hidden: true, message: '公開済みなので、記録は残したまま一覧から消しました' },
+          { headers: noStore });
       }
       await deleteIgPost(id);
+      return NextResponse.json({ ok: true }, { headers: noStore });
+    }
+
+    if (action === 'hide' || action === 'unhide') {
+      await updateIgPost(id, { hidden: action === 'hide' });
       return NextResponse.json({ ok: true }, { headers: noStore });
     }
 
