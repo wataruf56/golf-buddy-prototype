@@ -1194,7 +1194,7 @@
       y+=bh+8*k;
 
       // キャラクター
-      const ms=298*k;
+      const ms=348*k;
       if(draw) c.drawImage(mascot,(W-ms)/2,y,ms,ms);
       y+=ms-16*k;
 
@@ -1215,7 +1215,7 @@
       // キーワードの丸ピル（1行に収まらない場合は文字を詰める）
       const list=(kws||[]).filter(Boolean);
       if(list.length){
-        let ks=24*k, kh, items, tot, kg=14*k;
+        let ks=29*k, kh, items, tot, kg=14*k;
         for(let i=0;i<8;i++){
           F('900',ks);
           items=list.map(t=>({t,w:c.measureText(t).width+34*k}));
@@ -1223,7 +1223,7 @@
           if(tot<=BW) break;
           ks*=0.94; kg*=0.94;
         }
-        kh=ks+22*k;
+        kh=ks+24*k;
         if(draw){
           c.textBaseline='middle'; let kx=(W-tot)/2;
           items.forEach(o=>{
