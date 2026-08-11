@@ -449,7 +449,9 @@ function Inner() {
 type Fw = {
   followers: number | null; blocks: number | null; targetedReaches: number | null; asOf: string;
   gainedInRange: number | null; rangeFrom: string; appUsers: number; notOpenedApp: number | null;
-  followed?: number; notFollowed?: number; unknownFollow?: number; noPush?: number;
+  followed?: number; notFollowed?: number; unknownFollow?: number;
+  pushOk?: number; pushFail?: number; pushFailList?: { id: string; name: string; status: number; at: number }[];
+  gapNotFollowing?: number | null; followUnknownAll?: boolean;
   series: { date: string; followers: number | null; delta: number | null }[];
   note?: string; error?: string;
 };
@@ -499,22 +501,40 @@ function Followers({ token }: { token: string }) {
             <div className="bg-bg rounded-lg p-2.5">
               <div className="text-[10px] text-muted font-bold">アプリの利用者</div>
               <div className="text-[22px] font-black leading-tight">{f.appUsers}<span className="text-[11px]">人</span></div>
-              <div className="text-[9px] text-muted">うち友だち {f.followed ?? '—'}人</div>
+              <div className="text-[9px] text-muted">LIFFでログインした数</div>
             </div>
             <div className="bg-bg rounded-lg p-2.5">
-              <div className="text-[10px] text-muted font-bold">LINE通知が届かない</div>
-              <div className={'text-[22px] font-black leading-tight ' + ((f.noPush ?? 0) > 0 ? 'text-red-600' : '')}>
-                {f.noPush ?? '—'}<span className="text-[11px]">人</span>
+              <div className="text-[10px] text-muted font-bold">LINEが届かなかった</div>
+              <div className={'text-[22px] font-black leading-tight ' + ((f.pushFail ?? 0) > 0 ? 'text-red-600' : '')}>
+                {f.pushFail ?? 0}<span className="text-[11px]">人</span>
               </div>
-              <div className="text-[9px] text-muted">友だち追加していない利用者</div>
+              <div className="text-[9px] text-muted">送信が失敗した実績</div>
             </div>
           </div>
-          {(f.noPush ?? 0) > 0 && (
+
+          {(f.gapNotFollowing ?? 0) > 0 && (
             <div className="text-[10.5px] text-red-700 bg-red-50 border border-red-200 rounded-lg p-2 mb-2 leading-relaxed">
-              ⚠️ アプリは使っているのに公式アカウントを友だち追加していない人が <b>{f.noPush}人</b> います。
-              この人たちにはマッチ通知・リマインドなどのLINEが一切届きません
-              {(f.unknownFollow ?? 0) > 0 && <>（うち {f.unknownFollow}人は未確認＝古いバージョンでログインしたまま）</>}。
+              ⚠️ アプリの利用者({f.appUsers}人)が LINE公式の友だち({f.followers}人)より <b>{f.gapNotFollowing}人</b> 多いです。
+              LINEログインは友だち追加を必須としないため、その差の人にはマッチ通知やリマインドが届きません。
             </div>
+          )}
+          {f.followUnknownAll && (
+            <div className="text-[10.5px] text-muted bg-bg rounded-lg p-2 mb-2 leading-relaxed">
+              ※ 一人ずつの友だち状態（LIFFの getFriendship）は現在取得できていません。ログインチャネルに公式アカウントを連携すると個人単位で判定できます。それまでは上の「LINEが届かなかった人」（実際の送信結果）が確実な手がかりです。
+            </div>
+          )}
+          {(f.pushFailList || []).length > 0 && (
+            <details className="mb-2">
+              <summary className="text-[11px] font-bold text-red-700 cursor-pointer list-none">🚫 LINEが届かなかった人（{f.pushFailList!.length}人） ▾</summary>
+              <div className="mt-1.5">
+                {f.pushFailList!.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between text-[11px] py-1 border-b border-border last:border-0">
+                    <span className="font-bold truncate">{p.name}</span>
+                    <span className="text-muted flex-none ml-2">{p.status ? `${p.status}` : ''} ・ {ago(p.at)}</span>
+                  </div>
+                ))}
+              </div>
+            </details>
           )}
           {f.notOpenedApp != null && f.notOpenedApp > 0 && (
             <div className="text-[10.5px] text-muted mb-2">友だち追加はしたが、まだアプリを開いていない人：{f.notOpenedApp}人</div>

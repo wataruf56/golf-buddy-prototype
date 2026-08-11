@@ -79,6 +79,9 @@ export async function GET(req: NextRequest) {
     // その人たちにはLINE通知（push）が届かないので、人数を明示する。
     // botFollowed は LIFFログイン時の liff.getFriendship() の結果（未取得なら undefined）。
     let appUsers = 0, followed = 0, notFollowed = 0, unknownFollow = 0;
+    // 実測：直近のLINE送信が成功した人／失敗した人（lib/linePush が結果を刻む）。
+    let pushOk = 0, pushFail = 0;
+    const pushFailList: Array<{ id: string; name: string; status: number; at: number }> = [];
     try {
       const db = getAdminDb() as any;
       if (db) {
@@ -90,7 +93,12 @@ export async function GET(req: NextRequest) {
           if (u.botFollowed === true) followed++;
           else if (u.botFollowed === false) notFollowed++;
           else unknownFollow++;
+          if (u.pushFailedAt) {
+            pushFail++;
+            pushFailList.push({ id: u.id || d.id, name: u.displayName || '（名前なし）', status: Number(u.pushFailStatus || 0), at: Number(u.pushFailedAt) });
+          } else if (u.pushOkAt) pushOk++;
         });
+        pushFailList.sort((a, b) => b.at - a.at);
       }
     } catch { /* best-effort */ }
 
@@ -105,10 +113,16 @@ export async function GET(req: NextRequest) {
       rangeFrom: first?.date || '',
       appUsers,
       followed, notFollowed, unknownFollow,
-      // LINE通知が届かない人＝友だち追加していない／確認できていないアプリ利用者
-      noPush: notFollowed + unknownFollow,
-      // 友だち追加はしたが、まだLIFFを一度も開いていない人
-      notOpenedApp: latest?.followers != null ? Math.max(0, (latest.followers as number) - followed) : null,
+      // 送信実績（確実な事実）。pushFail = 直近の送信が失敗した＝LINEが届かない人。
+      pushOk, pushFail, pushFailList: pushFailList.slice(0, 50),
+      // 友だち数とアプリ利用者数の差。友だちが全員アプリ利用者だと仮定したときの
+      // 「友だち追加していない利用者」の下限値（これ以上いることはあっても、下回らない）。
+      gapNotFollowing: latest?.followers != null ? Math.max(0, appUsers - (latest.followers as number)) : null,
+      // getFriendship() が取れていない人数（ログインチャネルにOA未連携だと全員ここに入る）
+      followUnknownAll: unknownFollow === appUsers && appUsers > 0,
+      // 友だち追加はしたが、まだLIFFを一度も開いていない人（友だち − 友だち追加済み利用者）。
+      // 個人単位の友だち状態が1件も取れていない状況では意味のある値にならないので出さない。
+      notOpenedApp: (latest?.followers != null && followed > 0) ? Math.max(0, (latest.followers as number) - followed) : null,
       series,
       // 取得できなかった日の理由（unready / out_of_service 等）を1つだけ添える
       note: results.find((x) => x.followers == null)?.status || '',

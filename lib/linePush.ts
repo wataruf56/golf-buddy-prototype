@@ -39,6 +39,25 @@ async function callLine(endpoint: string, body: unknown): Promise<{ ok: boolean;
   }
 }
 
+// 送信結果をユーザーに刻む（best-effort）。
+// 友だち追加していない相手に push すると LINE は 400/403 を返す。これを記録しておくと
+// 「アプリは使っているがLINEが届かない人」を管理画面で実測できる（liff.getFriendship() は
+// ログインチャネルにOAが連携されていないと取れないため、送信結果が唯一の確実な手がかり）。
+async function markPushResult(userId: string, ok: boolean, status?: number): Promise<void> {
+  if (!userId) return;
+  try {
+    const { getAdminDb } = await import('./firebase');
+    const db = getAdminDb() as any;
+    if (!db) return;
+    await db.collection('users').doc(userId).set(
+      ok
+        ? { pushOkAt: Date.now(), pushFailedAt: null, pushFailStatus: null }
+        : { pushFailedAt: Date.now(), pushFailStatus: status || 0 },
+      { merge: true },
+    );
+  } catch { /* noop */ }
+}
+
 // LINE送信の集計ログ（best-effort）。kind=種別（lib/lineStats の LINE_KIND_LABEL）。
 async function logSend(kind: string | undefined, recipients: number): Promise<void> {
   if (recipients <= 0) return;
@@ -51,7 +70,12 @@ export async function pushTo(userId: string, text: string, link?: string, kind?:
   const body = link ? `${text}\n${link}` : text;
   const messages: LineMessage[] = [{ type: 'text', text: body.slice(0, 4900) }];
   const r = await callLine(PUSH_ENDPOINT, { to: userId, messages });
-  if (!r.ok) { console.warn('[linePush] push failed', { userId, status: r.status, detail: r.detail?.slice(0, 200) }); return; }
+  if (!r.ok) {
+    console.warn('[linePush] push failed', { userId, status: r.status, detail: r.detail?.slice(0, 200) });
+    await markPushResult(userId, false, r.status);
+    return;
+  }
+  await markPushResult(userId, true);
   await logSend(kind, 1);
 }
 
