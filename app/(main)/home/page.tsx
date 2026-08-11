@@ -52,6 +52,39 @@ export default function HomePage() {
       .catch(() => { /* noop */ });
     return () => { cancelled = true; };
   }, []);
+  // 「そろそろ募集してみない？」ポップアップ（主催者を増やすための後押し）。
+  // 出す相手＝参加経験あり×主催経験なし（サーバー側 /api/me/host-nudge が判定）。
+  // 頻度＝7日に1回まで、3回閉じたら以降は出さない（localStorageで管理）。
+  const [hostNudge, setHostNudge] = useState<{ name: string; joinedCount: number; fillRate: number } | null>(null);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (Number(localStorage.getItem('gb_hostnudge_dismissed') || 0) >= 3) return;
+      const last = Number(localStorage.getItem('gb_hostnudge_at') || 0);
+      if (last && Date.now() - last < 7 * 24 * 3600 * 1000) return;
+    } catch { /* noop */ }
+    let cancelled = false;
+    fetch('/api/me/host-nudge', { cache: 'no-store', credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled || !d?.show) return;
+        setHostNudge({ name: d.name || '', joinedCount: d.joinedCount || 0, fillRate: d.fillRate || 0 });
+        try { localStorage.setItem('gb_hostnudge_at', String(Date.now())); } catch {}
+      })
+      .catch(() => { /* noop */ });
+    return () => { cancelled = true; };
+  }, []);
+  function closeHostNudge(go: boolean) {
+    if (!go) {
+      try {
+        const n = Number(localStorage.getItem('gb_hostnudge_dismissed') || 0) + 1;
+        localStorage.setItem('gb_hostnudge_dismissed', String(n));
+      } catch {}
+    }
+    setHostNudge(null);
+    if (go) router.push('/create');
+  }
+
   // 直近ログインしたユーザー（最大30人・ログイン新しい順）。プロフィール下にグリッド表示。
   // DMは「ゴル友 or 同じコンペを回った人」だけ（canDm）。それ以外はタップでプロフィールのみ。
   type RecentUser = { id: string; displayName: string; avatar: string; avatarUrl: string; avatarMode?: 'photo' | 'emoji' | 'golmoti'; golmotiType?: string; color: string; canDm: boolean };
@@ -461,6 +494,52 @@ export default function HomePage() {
                 ✓ 未読のお知らせはありません
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ⛳ 主催のお誘いポップアップ。白クマがカードの上から覗く形（案1×ポーズ3）。 */}
+      {hostNudge && (
+        <div className="absolute inset-0 bg-black/50 z-[120] flex items-center justify-center p-5 backdrop-blur-sm">
+          <div className="relative w-full max-w-[330px]">
+            {/* クマはカードの上端からはみ出して覗かせる */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/bear-guts.png"
+              alt=""
+              className="absolute left-1/2 -translate-x-1/2 -top-[76px] w-[112px] h-auto pointer-events-none select-none drop-shadow-lg"
+            />
+            <div className="relative bg-card border-2 border-border rounded-card shadow-card pt-9 px-6 pb-6 text-center">
+              <button
+                onClick={() => closeHostNudge(false)}
+                aria-label="閉じる"
+                className="absolute top-2.5 right-3 text-muted text-lg font-black leading-none"
+              >✕</button>
+
+              <div className="text-[17px] font-black leading-snug mb-1.5">
+                次は、{hostNudge.name ? `${hostNudge.name}さん` : 'あなた'}が<br />募集してみない？
+              </div>
+              <div className="text-[12px] text-sub leading-relaxed mb-4">
+                {hostNudge.joinedCount > 0 && <>もう<b className="text-text">{hostNudge.joinedCount}回</b>参加しているから、<br /></>}
+                誘う側もきっとうまくいくよ。
+              </div>
+
+              {hostNudge.fillRate > 0 && (
+                <div className="flex items-center gap-3 bg-green-light border-2 border-green rounded-xl px-3.5 py-2.5 mb-4 text-left">
+                  <span className="text-[26px] font-black text-green leading-none tabular-nums">{hostNudge.fillRate}%</span>
+                  <span className="text-[11px] font-bold text-green leading-tight">いま、立った募集の<br />{hostNudge.fillRate}%が満員になっています</span>
+                </div>
+              )}
+
+              <button
+                onClick={() => closeHostNudge(true)}
+                className="w-full py-3.5 bg-orange text-white border-2 border-border rounded-xl text-[15px] font-black shadow-card"
+              >募集をつくる（1分）</button>
+              <button
+                onClick={() => closeHostNudge(false)}
+                className="w-full py-2.5 text-sub text-[13px] font-bold mt-1"
+              >あとで</button>
+            </div>
           </div>
         </div>
       )}
