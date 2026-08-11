@@ -67,6 +67,8 @@ type Report = {
   byWeekday?: number[];
   visitors?: { new: number; returning: number };
   axisDist?: Record<string, Record<string, number>>;
+  // シェア画像（インスタ ストーリー用の1枚画像）を保存した回数／人数
+  shareImage?: { saves: number; savers: number };
   signalConvByResult?: Record<string, { completed: number; signaled: number; rate: number }>;
   ctaByWhere?: Record<string, number>;
   engagement?: {
@@ -211,6 +213,7 @@ function Inner() {
               <RefFunnels rows={data.refFunnels || []} />
               <Funnel data={data} />
               <LinkedRegistrants list={data.linkedList || []} token={token} />
+              <ShareImage data={data} />
               <Engagement data={data} />
               <UniqueBreakdown data={data} />
               <Daily daily={data.daily} />
@@ -308,6 +311,7 @@ function RefFunnels({ rows }: { rows: Array<{ ref: string; visits: number; visit
     ig_bio: '📸 インスタprofile（MBTIリンク）',
     ig_story: '📸 インスタ ストーリーズ',
     instagram: '📸 インスタ（旧タグ）',
+    share_img: '🖼 シェア画像のQR（結果画像）',
   };
   return (
     <Card title="🔗 リンク別ファネル（?ref=タグ）" sub="タグ付きリンク経由の来訪 → 診断開始 → 完了 → LINE遷移 → 登録。goltomo.com/mbti は ref=ig_bio として計上">
@@ -699,6 +703,34 @@ function Hours({ byHour }: { byHour: number[] }) {
 }
 
 // 滞在・完了時間・スクロール・新規/再訪などのエンゲージメント指標。
+// シェア画像（結果画面の「📷 画像を保存」）の利用状況。
+// 画像内のQRは goltomo.com/mbti?ref=share_img に飛ぶので、
+// 「そこから戻ってきた人」は上の「リンク別ファネル」の share_img 行で追う。
+function ShareImage({ data }: { data: Report }) {
+  const si = data.shareImage;
+  if (!si) return null;
+  const back = (data.refFunnels || []).find((r) => r.ref === 'share_img');
+  const cells = [
+    { label: '画像の保存', value: String(si.saves), sub: '「📷 画像を保存」を押した回数', color: 'text-green' },
+    { label: '保存した人', value: String(si.savers), sub: 'ユニーク訪問者', color: 'text-blue' },
+    { label: '画像QRからの来訪', value: String(back?.visitors ?? 0), sub: `?ref=share_img（${back?.visits ?? 0}回）`, color: 'text-orange' },
+    { label: '画像QRからの登録', value: String(back?.registered ?? 0), sub: '全期間・登録時のタグより', color: 'text-green' },
+  ];
+  return (
+    <Card title="🖼 シェア画像（ストーリー用1枚画像）" sub="結果画面で保存された枚数と、画像のQR経由で戻ってきた人数">
+      <div className="grid grid-cols-2 gap-2.5">
+        {cells.map((c) => (
+          <div key={c.label} className="bg-bg rounded-xl p-3">
+            <div className="text-[10px] text-sub font-bold mb-0.5">{c.label}</div>
+            <div className={`text-[20px] leading-tight font-black ${c.color}`}>{c.value}</div>
+            <div className="text-[10px] text-muted mt-0.5">{c.sub}</div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function Engagement({ data }: { data: Report }) {
   const e = data.engagement;
   const v = data.visitors;

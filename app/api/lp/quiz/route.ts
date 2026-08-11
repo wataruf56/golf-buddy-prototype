@@ -170,6 +170,10 @@ export async function GET(req: NextRequest) {
     const ctaByWhere: Record<string, number> = {};   // CTA発火位置
     const dropByStep: Record<string, number> = {};   // 離脱（未到達）のステップ分布
     let leaves = 0, completionMsSum = 0, completionMsCount = 0, scrollSum = 0, scrollCount = 0, signalOpens = 0;
+    // シェア画像（インスタ ストーリー用の1枚画像）の保存回数。画像内のQRは ?ref=share_img 付きなので、
+    // 「作られた枚数」はここ、「その画像から戻ってきた人」はリンク別ファネルの share_img 行で見る。
+    let saveImages = 0;
+    const saveImageVisitors = new Set<string>();
 
     const JST = 9 * 3600 * 1000; // 日次バケットは日本時間で切る
     const dayKey = (ts: any) => { try { return new Date((Number(ts) || 0) + JST).toISOString().slice(0, 10); } catch { return ''; } };
@@ -239,6 +243,7 @@ export async function GET(req: NextRequest) {
       }
       if (d.event === 'cta') { ctas++; const w = String(d.where || '(不明)'); ctaByWhere[w] = (ctaByWhere[w] || 0) + 1; }
       if (d.event === 'share') shares++;
+      if (d.event === 'save_image') { saveImages++; if (d.visitorId) saveImageVisitors.add(d.visitorId); }
     }
 
     const dailyArr = Object.keys(daily).sort().map((k) => ({ date: k, ...daily[k] }));
@@ -396,6 +401,8 @@ export async function GET(req: NextRequest) {
         avgScroll: scrollCount ? Math.round(scrollSum / scrollCount) : 0,
         leaves, signalOpens, dropByStep,
       },
+      // シェア画像：保存回数と保存した人数（ユニーク）
+      shareImage: { saves: saveImages, savers: saveImageVisitors.size },
       raw,
       serverTime: new Date().toISOString(),
     }, { headers: cors });

@@ -61,6 +61,25 @@
   .axhead{text-align:center;font-weight:900;font-size:13px;color:#8a7256;margin-bottom:10px}
   .axrow{display:flex;align-items:center;justify-content:space-between;background:var(--cream);border:2.5px solid var(--ink);border-radius:12px;padding:10px 14px;margin-bottom:8px;font-weight:900;font-size:13px;box-shadow:3px 3px 0 var(--ink)}
   .axrow .mid{font-size:11px;color:#b3a489}
+  /* 4色グループ（16タイプを「目的×社交」で4系統に色分け） */
+  .cgwrap{padding:0 16px 4px;display:flex;flex-direction:column;gap:12px}
+  .cg{background:var(--cream);border:2.5px solid var(--ink);border-radius:16px;overflow:hidden;box-shadow:5px 5px 0 var(--ink)}
+  .cg-h{display:flex;align-items:center;gap:10px;padding:11px 14px;color:#fff}
+  .cg-h .ce{font-size:22px;line-height:1}
+  .cg-h .cn{font-weight:900;font-size:16px;line-height:1.25}
+  .cg-h .cs{font-weight:900;font-size:11px;opacity:.9;display:block}
+  .cg-h .cc{margin-left:auto;font-family:'Baloo 2';font-weight:800;font-size:13px;letter-spacing:.1em;background:rgba(255,255,255,.26);border-radius:999px;padding:3px 10px}
+  .cg-b{padding:12px 14px 14px}
+  .cg-d{font-size:12.5px;font-weight:700;color:#4a3a2c;line-height:1.6}
+  .cg-t{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .cg-t span{font-size:11px;font-weight:900;background:#fff;border:2px solid var(--ink);border-radius:999px;padding:4px 10px}
+  .cg-t span b{font-family:'Baloo 2';font-weight:800;letter-spacing:.06em;color:#8a7256;margin-right:4px}
+  /* 結果画面：自分の色グループ */
+  .mycg{margin:14px 16px 0;border:2.5px solid var(--ink);border-radius:16px;padding:12px 14px;box-shadow:5px 5px 0 var(--ink)}
+  .mycg .mh{display:flex;align-items:center;gap:9px;font-weight:900;font-size:15px}
+  .mycg .mh .me2{font-size:20px;line-height:1}
+  .mycg .mh .ms{font-size:10.5px;font-weight:900;color:#fff;border-radius:999px;padding:3px 9px;margin-left:auto}
+  .mycg .md{font-size:12.5px;font-weight:700;color:#4a3a2c;line-height:1.6;margin-top:7px}
   /* animal mascots (custom SVG icons) */
   .mascot{display:block;object-fit:contain}
   img.mascot{margin:0 auto}
@@ -117,6 +136,8 @@
   .share{display:flex;gap:10px;margin:16px 16px 0}
   .sbtn{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;background:var(--cream);border:2.5px solid var(--ink);border-radius:14px;padding:13px;font-weight:900;font-size:13px;box-shadow:3px 3px 0 var(--ink);cursor:pointer;transition:transform .1s,box-shadow .1s}
   .sbtn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+  .sbtn[disabled]{opacity:.6}
+  .sharenote{margin:8px 16px 0;font-size:11px;font-weight:700;color:#8a7256;text-align:center;line-height:1.5}
   .again{display:block;margin:14px auto 0;font-size:12px;font-weight:900;color:#8a7256;background:none;border:none;cursor:pointer;text-decoration:underline}
   /* 共有結果ビューの大きめCTA（→ 紹介LP） */
   .bigcta{display:flex;align-items:center;justify-content:center;gap:8px;margin:18px 0 4px;width:100%;background:var(--orange);color:var(--cream);font-weight:900;font-size:17px;padding:18px;border:3px solid var(--ink);border-radius:16px;box-shadow:5px 5px 0 var(--ink);text-decoration:none;transition:transform .1s,box-shadow .1s}
@@ -289,6 +310,44 @@
       <div class="axrow reveal"><span>🎉 ワイワイ<b>(W)</b></span><span class="mid">vs</span><span><b>(M)</b>マイペース 🧘</span></div>
       <div class="axrow reveal"><span>🚀 飛距離<b>(P)</b></span><span class="mid">vs</span><span><b>(K)</b>技巧 🎯</span></div>
       <div class="axrow reveal"><span>📈 探求<b>(T)</b></span><span class="mid">vs</span><span><b>(I)</b>今満喫 🌴</span></div>
+    </div>
+  </section>
+
+  <!-- 4色グループ：16タイプを「目的（ガチ/エンジョイ）×社交（ワイワイ/マイペース）」で4系統に色分け。
+       静的HTMLで置くことでSEOのクローラにも読ませる（結果画面にも自分の色が出る）。 -->
+  <section class="axexplain" id="colorgroups">
+    <div class="chap"><div class="no">🎨</div><div><div class="lb">4 COLORS</div><div class="tt">4色グループでわかる大きな傾向</div></div></div>
+    <div class="h2">16タイプは、<br>4つの色に分かれます</div>
+    <p style="text-align:center;font-size:12.5px;font-weight:700;color:#8a7256;margin:-10px 22px 18px">「何を大事にするか（ガチ／エンジョイ）」×「誰と回ると楽しいか（ワイワイ／マイペース）」の組み合わせ。同じ色どうしは話が合いやすく、違う色とは新鮮な発見があります。</p>
+    <div class="cgwrap">
+      <div class="cg reveal">
+        <div class="cg-h" style="background:#E8643C"><span class="ce">🔥</span><span><span class="cn">レッド系</span><span class="cs">熱血リーダー</span></span><span class="cc">GW--</span></div>
+        <div class="cg-b">
+          <p class="cg-d">勝ちにこだわりつつ、仲間もぐいぐい巻き込むタイプ。ラウンドの空気を作るのが上手で、コンペやチーム戦でいちばん輝きます。上達意欲が高く、練習の話でも盛り上がれます。</p>
+          <div class="cg-t"><span><b>GWPT</b>ぶっ飛ばしエース派</span><span><b>GWPI</b>一発ロマン砲派</span><span><b>GWKT</b>みんなで堅実・上達派</span><span><b>GWKI</b>賢く立ち回り派</span></div>
+        </div>
+      </div>
+      <div class="cg reveal">
+        <div class="cg-h" style="background:#3E7BD6"><span class="ce">🎯</span><span><span class="cn">ブルー系</span><span class="cs">ストイック職人</span></span><span class="cc">GM--</span></div>
+        <div class="cg-b">
+          <p class="cg-d">自分の型を静かに磨く求道者タイプ。会話よりプレーに集中したい派で、黙々と続けて確実にスコアを縮めます。テンポよく回れる相手だと最高に気持ちよくプレーできます。</p>
+          <div class="cg-t"><span><b>GMPT</b>孤高の飛ばし屋派</span><span><b>GMPI</b>一撃必殺ハンター派</span><span><b>GMKT</b>コツコツ精密派</span><span><b>GMKI</b>黙々マイゴルフ派</span></div>
+        </div>
+      </div>
+      <div class="cg reveal">
+        <div class="cg-h" style="background:#E8A93C"><span class="ce">🎉</span><span><span class="cn">イエロー系</span><span class="cs">お祭りムードメーカー</span></span><span class="cc">EW--</span></div>
+        <div class="cg-b">
+          <p class="cg-d">スコアより「楽しかった！」を最優先するタイプ。初対面でもすぐ打ち解け、その場の空気を明るくします。ワイワイ系のラウンドやエンジョイコンペで本領発揮。</p>
+          <div class="cg-t"><span><b>EWPT</b>楽しく伸びる飛ばし派</span><span><b>EWPI</b>ノリ全開ドカン派</span><span><b>EWKT</b>みんなでコツコツ派</span><span><b>EWKI</b>スコアより笑顔派</span></div>
+        </div>
+      </div>
+      <div class="cg reveal">
+        <div class="cg-h" style="background:#5BA86A"><span class="ce">🌿</span><span><span class="cn">グリーン系</span><span class="cs">のんびりナチュラル</span></span><span class="cc">EM--</span></div>
+        <div class="cg-b">
+          <p class="cg-d">自分のペースでゴルフそのものを味わう癒し系タイプ。景色や空気ごと楽しむので、一緒に回ると肩の力が抜けます。急かされないゆるめの募集がぴったり。</p>
+          <div class="cg-t"><span><b>EMPT</b>自由きまま飛ばし派</span><span><b>EMPI</b>気分で大胆ショット派</span><span><b>EMKT</b>コツコツ自分磨き派</span><span><b>EMKI</b>のんびりフェアウェイ散歩派</span></div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -526,6 +585,7 @@
   <button id="hmBtn" class="hmbtn hidden" aria-label="メニュー" aria-expanded="false">☰</button>
   <div id="hmMenu" class="hmmenu hidden" role="menu">
     <button class="hmitem" data-hm="axes" role="menuitem">📐 4つの診断軸</button>
+    <button class="hmitem" data-hm="colors" role="menuitem">🎨 4色グループの特徴</button>
     <button class="hmitem" data-hm="types" role="menuitem">★ 他のタイプも見てみる</button>
     <button class="hmitem" data-hm="again" role="menuitem">🔄 もう一度診断する</button>
   </div>
@@ -684,6 +744,28 @@
     EMKT:{e:'🐹',n:'コツコツ自分磨き派',t:'マイペースに安全に腕を磨くがんばり屋',an:'ハムスター'},
     EMKI:{e:'🦥',n:'のんびりフェアウェイ散歩派',t:'自然体でゴルフそのものを味わう癒し系',an:'ナマケモノ'},
   };
+
+  /* ===== 4色グループ =====
+     16タイプを「目的（G/E）×社交（W/M）」の頭2文字で4系統に色分けする。
+     LPの #colorgroups セクションと同じ内容を、結果画面にも自分の色として出す。 */
+  const GROUPS={
+    GW:{e:'🔥',n:'レッド系',s:'熱血リーダー',c:'#E8643C',bg:'#FBE0D6',
+        d:'勝ちにこだわりつつ、仲間もぐいぐい巻き込むタイプ。ラウンドの空気を作るのが上手で、コンペやチーム戦でいちばん輝きます。'},
+    GM:{e:'🎯',n:'ブルー系',s:'ストイック職人',c:'#3E7BD6',bg:'#DDE8FA',
+        d:'自分の型を静かに磨く求道者タイプ。黙々と続けて確実にスコアを縮めます。テンポよく回れる相手だと最高に気持ちよくプレーできます。'},
+    EW:{e:'🎉',n:'イエロー系',s:'お祭りムードメーカー',c:'#E8A93C',bg:'#FFEFC2',
+        d:'スコアより「楽しかった！」を最優先するタイプ。初対面でもすぐ打ち解け、その場の空気を明るくします。'},
+    EM:{e:'🌿',n:'グリーン系',s:'のんびりナチュラル',c:'#5BA86A',bg:'#DCF0DC',
+        d:'自分のペースでゴルフそのものを味わう癒し系タイプ。一緒に回ると肩の力が抜けます。急かされないゆるめの募集がぴったり。'},
+  };
+  const groupOf=(code)=>GROUPS[String(code||'').slice(0,2)]||null;
+  function groupHTML(code){
+    const g=groupOf(code); if(!g) return '';
+    return `<div class="mycg" style="background:${g.bg}">
+      <div class="mh"><span class="me2">${g.e}</span><span>あなたは <span style="color:${g.c}">${g.n}</span></span><span class="ms" style="background:${g.c}">${g.s}</span></div>
+      <div class="md">${g.d}</div>
+    </div>`;
+  }
 
   /* ===== 各タイプの詳細（強み・弱み・あるある・おすすめの回り方） ===== */
   const DETAIL={
@@ -933,7 +1015,7 @@
     // 右上ハンバーガーから開けるようにする。
     try{
       const hero=document.querySelector('.hero'); if(hero) hero.style.display='none';
-      const ax=document.querySelector('.axexplain'); if(ax) ax.style.display='none';
+      document.querySelectorAll('.axexplain').forEach(ax=>{ ax.style.display='none'; });
       const cat=document.getElementById('catalog'); if(cat) cat.style.display='none';
       const hmb=document.getElementById('hmBtn'); if(hmb) hmb.classList.remove('hidden');
       const hmm=document.getElementById('hmMenu'); if(hmm) hmm.classList.add('hidden');
@@ -977,6 +1059,7 @@
         </div>
         <div class="rdesc">${(DETAIL[code]||{}).desc || `${traits[0].d}で、${traits[2].d}。${traits[1].d}、${traits[3].d}タイプです。`}</div>
         <div class="kw">${kws.map(k=>`<span>${k}</span>`).join('')}</div>
+        ${groupHTML(code)}
         <div class="axbars2">
           <h4>あなたの4タイプ傾向</h4>
           <div class="note">4つの軸で、あなたがどちら寄りかを表示</div>
@@ -992,8 +1075,10 @@
           <a class="bigcta sigcta" id="findFromResult" href="#" style="margin-top:0">🏌️ ゴルフ友達を探す</a>
         </div>
         <div class="share">
-          <button class="sbtn" id="shareBtn" style="flex:1">📤 結果をシェアする</button>
+          <button class="sbtn" id="shareBtn">📤 結果をシェア</button>
+          <button class="sbtn" id="saveImgBtn">📷 画像を保存</button>
         </div>
+        <div class="sharenote">「📷 画像を保存」でインスタのストーリーにそのまま載せられる1枚画像を作成します</div>
         ${shared
           ? `<a class="bigcta" id="startMine" data-cta="startMine" href="/golmoti">🏌️ 自分も診断してみる</a>`
           : `<button class="again" id="again">もう一度診断する</button>`}
@@ -1016,6 +1101,31 @@
       try{ await navigator.clipboard.writeText(shareUrl); alert('結果のリンクをコピーしました！'); }
       catch(e){ prompt('コピーしてください',shareUrl); }
     });
+    // 📷 画像を保存：インスタ ストーリー用の1枚画像（1080×1920）を生成して共有/ダウンロード。
+    const saveBtn=document.getElementById('saveImgBtn');
+    if(saveBtn) saveBtn.addEventListener('click',async()=>{
+      if(saveBtn._busy) return; saveBtn._busy=true;
+      const label=saveBtn.textContent; saveBtn.textContent='作成中…'; saveBtn.disabled=true;
+      try{
+        track('save_image',{resultType:code});
+        const blob=await buildShareImage(code,kws);
+        if(!blob) throw new Error('blob');
+        const name='goltomo-golf-mbti-'+code+'.png';
+        // iPhone等はネイティブ共有シートから「画像を保存」やインスタへ直接渡せる。
+        try{
+          const file=new File([blob],name,{type:'image/png'});
+          if(navigator.canShare && navigator.canShare({files:[file]})){
+            await navigator.share({files:[file]}); return;
+          }
+        }catch(e){ if(e&&e.name==='AbortError') return; }
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a'); a.href=url; a.download=name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),8000);
+      }catch(e){
+        alert('画像の作成に失敗しました。ページを再読み込みして、もう一度お試しください。');
+      }finally{ saveBtn.textContent=label; saveBtn.disabled=false; saveBtn._busy=false; }
+    });
     // 診断結果の「ゴルフ友達を探す」→ 条件選択画面(#sgScreen)を開く。診断タイプも渡す。
     const findBtn=document.getElementById('findFromResult');
     if(findBtn) findBtn.addEventListener('click',(e)=>{ e.preventDefault(); openSignalScreen('result', code); });
@@ -1023,6 +1133,188 @@
     if(againBtn) againBtn.addEventListener('click',restartQuiz);
     bindCTA();
     resultwrap.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+
+  /* ===== シェア画像（インスタ ストーリー 1080×1920）=====
+     結果ページと同じ配色・構成を Canvas に描き直す（外部ライブラリ不使用・同一オリジン画像のみ
+     なので canvas は汚染されず toBlob できる）。フッターのQRは /qr-mbti-share.png ＝
+     https://goltomo.com/mbti?ref=share_img なので、この画像経由の来訪は管理画面の
+     「リンク別ファネル」で share_img として計上される。 */
+  const SI={W:1080,H:1920,paper:'#F4E8CE',ink:'#33271B',cream:'#FBF3E0',teal:'#2A8C82',orange:'#E8643C',sub:'#6b5946',pt:'#8a7256'};
+  // 取扱説明書の各行（背景・文字色は結果ページの .df-s/.df-w/.df-a/.df-o/.df-t と同じ）
+  const SI_ROWS=[['s','#DCF0DC','#2f5e3a','💪 強み'],['w','#FBE0D6','#b34a2c','⚠️ 弱み'],['a','#FFEFC2','#8a6a1e','😅 あるある'],['o','#D8EFEC','#1f6d63','⛳ おすすめ'],['tip','#E7E0F7','#5b46a8','💡 アドバイス']];
+  const SI_NOHEAD='、。，．）」』】〉》］｝!?！？・ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヶ';
+
+  function siLoad(src){ return new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=()=>rej(new Error('img')); i.src=src; }); }
+  function siRR(c,x,y,w,h,r){ r=Math.min(r,w/2,h/2); c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+  // 日本語の折り返し（禁則：行頭に来られない文字は前の行に残す）
+  function siWrap(c,text,maxW){
+    const out=[]; let line='';
+    for(const ch of String(text||'')){
+      const t=line+ch;
+      if(line && c.measureText(t).width>maxW){
+        if(SI_NOHEAD.indexOf(ch)>=0){ out.push(t); line=''; }
+        else { out.push(line); line=ch; }
+      } else line=t;
+    }
+    if(line) out.push(line);
+    return out;
+  }
+
+  async function buildShareImage(code,kws){
+    const nk=NICK[code]||{}, d=DETAIL[code]||{};
+    const [mascot,qr]=await Promise.all([siLoad('/golmoti-chars/'+code+'.png'), siLoad('/qr-mbti-share.png')]);
+    try{ await Promise.all([document.fonts.load('900 60px "Zen Maru Gothic"'),document.fonts.load('700 30px "Zen Maru Gothic"'),document.fonts.load('800 32px "Baloo 2"')]); await document.fonts.ready; }catch(e){}
+
+    const W=SI.W,H=SI.H;
+    const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+    const c=cv.getContext('2d');
+    const F=(w,s,fam)=>{ c.font=w+' '+s+'px '+(fam||'"Zen Maru Gothic"')+', sans-serif'; };
+
+    const BX=20, BW=W-40;
+    const FOOT_TOP=H-46-150;   // フッター（QR＋誘導文）の上端
+    const AVAIL=FOOT_TOP-26;
+
+    // k=全体の縮小率。タイプごとに本文量が違うため、フッター手前に収まるまで縮める。
+    // 横幅（BX/BW）は縮めないので、常に左右いっぱいを使う。
+    function pass(k,draw){
+      const PAD=36*k, BR=32*k, BD=5*k, SH=10*k;
+      let y=20*k;
+
+      // ヘッダーのバッジ
+      const bs=26*k; F('900',bs);
+      const bt='⛳ ゴルフのMBTI診断';
+      const bw=c.measureText(bt).width+88*k, bh=bs+30*k;
+      if(draw){
+        c.fillStyle=SI.ink; siRR(c,(W-bw)/2,y,bw,bh,bh/2); c.fill();
+        c.fillStyle=SI.cream; c.textAlign='center'; c.textBaseline='middle'; c.fillText(bt,W/2,y+bh/2);
+      }
+      y+=bh+8*k;
+
+      // キャラクター
+      const ms=298*k;
+      if(draw) c.drawImage(mascot,(W-ms)/2,y,ms,ms);
+      y+=ms-16*k;
+
+      // タイプ名 → キャッチ → コード・動物（長いタイプ名でもはみ出さないよう自動で縮める）
+      c.textAlign='center'; c.textBaseline='top';
+      const fitFs=(txt,base,w,fam)=>{ let s=base; for(let i=0;i<14;i++){ F(w,s,fam); if(c.measureText(txt).width<=BW-24) break; s*=0.94; } return s; };
+      const ns=fitFs(nk.n||'',60*k,'900'); F('900',ns);
+      if(draw){ c.fillStyle=SI.ink; c.fillText(nk.n||'',W/2,y); }
+      y+=ns*1.18+4*k;
+      const ts=fitFs(nk.t||'',27*k,'700'); F('700',ts);
+      if(draw){ c.fillStyle=SI.sub; c.fillText(nk.t||'',W/2,y); }
+      y+=ts*1.4+4*k;
+      const cl=code+' ・ '+(nk.an||'');
+      const cs=fitFs(cl,32*k,'800','"Baloo 2"'); F('800',cs,'"Baloo 2"');
+      if(draw){ c.fillStyle=SI.teal; c.fillText(cl,W/2,y); }
+      y+=cs*1.35+20*k;
+
+      // キーワードの丸ピル（1行に収まらない場合は文字を詰める）
+      const list=(kws||[]).filter(Boolean);
+      if(list.length){
+        let ks=24*k, kh, items, tot, kg=14*k;
+        for(let i=0;i<8;i++){
+          F('900',ks);
+          items=list.map(t=>({t,w:c.measureText(t).width+34*k}));
+          tot=items.reduce((a,b)=>a+b.w,0)+kg*(items.length-1);
+          if(tot<=BW) break;
+          ks*=0.94; kg*=0.94;
+        }
+        kh=ks+22*k;
+        if(draw){
+          c.textBaseline='middle'; let kx=(W-tot)/2;
+          items.forEach(o=>{
+            c.fillStyle=SI.teal; siRR(c,kx,y,o.w,kh,kh/2); c.fill();
+            c.strokeStyle=SI.ink; c.lineWidth=4*k; c.stroke();
+            c.fillStyle=SI.cream; c.fillText(o.t,kx+o.w/2,y+kh/2+1); kx+=o.w+kg;
+          });
+        }
+        y+=kh+24*k;
+      }
+
+      // 説明ボックス（結果ページの .rdesc）
+      const ds=27*k, dlh=ds*1.7; F('700',ds);
+      const dl=siWrap(c,d.desc||'',BW-PAD*2);
+      const dh=PAD*2+dl.length*dlh;
+      if(draw){
+        c.fillStyle=SI.ink; siRR(c,BX+SH,y+SH,BW,dh,BR); c.fill();
+        c.fillStyle=SI.cream; siRR(c,BX,y,BW,dh,BR); c.fill();
+        c.strokeStyle=SI.ink; c.lineWidth=BD; c.stroke();
+        c.textAlign='left'; c.textBaseline='middle'; c.fillStyle='#4a3a2c'; F('700',ds);
+        dl.forEach((t,i)=>c.fillText(t,BX+PAD,y+PAD+dlh*i+dlh/2));
+      }
+      y+=dh+30*k;
+
+      // 取扱説明書（結果ページの .panel ＋ .dfk/.dfv）
+      const ps=29*k, ls=25*k, vs=30*k, vlh=vs*1.55;
+      const LW=207*k, LH=ls+22*k, GAP=22*k, RG=20*k;
+      F('700',vs);
+      const rows=SI_ROWS.map(r=>({r,lines:siWrap(c,d[r[0]]||'',BW-PAD*2-LW-GAP)})).filter(o=>o.lines.length);
+      const rowsH=rows.reduce((a,o)=>a+Math.max(LH,o.lines.length*vlh),0)+RG*Math.max(0,rows.length-1);
+      const ph=PAD*2+ps*1.3+14*k+rowsH;
+      if(draw){
+        c.fillStyle=SI.ink; siRR(c,BX+SH,y+SH,BW,ph,BR); c.fill();
+        c.fillStyle=SI.cream; siRR(c,BX,y,BW,ph,BR); c.fill();
+        c.strokeStyle=SI.ink; c.lineWidth=BD; c.stroke();
+        c.textAlign='left'; c.textBaseline='top';
+        F('900',ps); c.fillStyle=SI.pt; c.fillText('📖 あなたの取扱説明書',BX+PAD,y+PAD);
+        let ry=y+PAD+ps*1.3+14*k;
+        rows.forEach(o=>{
+          const bh2=Math.max(LH,o.lines.length*vlh);
+          const py=ry+(bh2-LH)/2;
+          c.fillStyle=o.r[1]; siRR(c,BX+PAD,py,LW,LH,18*k); c.fill();
+          c.strokeStyle=SI.ink; c.lineWidth=4*k; c.stroke();
+          F('900',ls); c.fillStyle=o.r[2]; c.textAlign='center'; c.textBaseline='middle';
+          c.fillText(o.r[3],BX+PAD+LW/2,py+LH/2+1);
+          F('700',vs); c.fillStyle='#4a3a2c'; c.textAlign='left';
+          const tx=BX+PAD+LW+GAP, ty=ry+(bh2-o.lines.length*vlh)/2;
+          o.lines.forEach((t,i)=>c.fillText(t,tx,ty+vlh*i+vlh/2));
+          ry+=bh2+RG;
+        });
+      }
+      y+=ph;
+      return y;
+    }
+
+    // 背景（結果ページと同じ紙色）
+    c.fillStyle=SI.paper; c.fillRect(0,0,W,H);
+
+    // 本体：収まる縮小率を数回の反復で求めてから描画
+    // 文章量が少ないタイプでは少しだけ拡大して余白を埋める（拡大しすぎないよう1.14で頭打ち）
+    let k=1;
+    for(let i=0;i<6;i++){ const need=pass(k,false); if(!need) break; k=Math.min(1.14,k*AVAIL/need); }
+    pass(k,true);
+
+    // 網点（結果ページの .wrap::before と同じ：7px間隔・rgba(51,39,27,.16)・不透明度.45を乗算）
+    // ※QRの読み取りを妨げないよう、フッターより先に描く。
+    try{
+      c.globalCompositeOperation='multiply';
+      c.fillStyle='rgba(51,39,27,0.072)';
+      const st=7*(W/480), rad=1.2*(W/480);
+      for(let yy=st/2; yy<H; yy+=st) for(let xx=st/2; xx<W; xx+=st){ c.beginPath(); c.arc(xx,yy,rad,0,6.2832); c.fill(); }
+      c.globalCompositeOperation='source-over';
+    }catch(e){}
+
+    // フッター（QR＋誘導）。ここは縮小しない。
+    (function(){
+      const qs=130, qp=10, box=qs+qp*2, gap=26;
+      const f1='▶ あなたは16タイプのどれ？', f2='ゴルトモ｜無料・30秒', f3='goltomo.com/mbti';
+      F('900',24); const w1=c.measureText(f1).width;
+      F('900',37); const w2=c.measureText(f2).width;
+      F('700',22); const w3=c.measureText(f3).width;
+      const tw=Math.max(w1,w2,w3), gx=(W-(box+gap+tw))/2, gy=H-46-box;
+      c.fillStyle='#fff'; siRR(c,gx,gy,box,box,18); c.fill();
+      c.strokeStyle=SI.ink; c.lineWidth=5; c.stroke();
+      c.drawImage(qr,gx+qp,gy+qp,qs,qs);
+      const tx=gx+box+gap; let ty=gy+8;
+      c.textAlign='left'; c.textBaseline='top';
+      F('900',24); c.fillStyle=SI.orange; c.fillText(f1,tx,ty); ty+=24*1.4;
+      F('900',37); c.fillStyle=SI.ink;    c.fillText(f2,tx,ty); ty+=37*1.3;
+      F('700',22); c.fillStyle=SI.pt;     c.fillText(f3,tx,ty);
+    })();
+
+    return await new Promise(res=>cv.toBlob(res,'image/png'));
   }
 
   function bindCTA(){
@@ -1036,7 +1328,7 @@
     quiz.classList.remove('hidden'); calcbox.classList.add('hidden');
     try{
       const hero=document.querySelector('.hero'); if(hero) hero.style.display='';
-      const ax=document.querySelector('.axexplain'); if(ax) ax.style.display='';
+      document.querySelectorAll('.axexplain').forEach(ax=>{ ax.style.display=''; });
       const cat=document.getElementById('catalog'); if(cat) cat.style.display='';
       const hmb=document.getElementById('hmBtn'); if(hmb){ hmb.classList.add('hidden'); hmb.setAttribute('aria-expanded','false'); }
       const hmm=document.getElementById('hmMenu'); if(hmm) hmm.classList.add('hidden');
@@ -1058,7 +1350,7 @@
     menu.querySelectorAll('.hmitem').forEach(it=>it.addEventListener('click',()=>{
       const k=it.dataset.hm; openMenu(false);
       if(k==='again'){ restartQuiz(); return; }
-      const target = k==='axes' ? document.querySelector('.axexplain') : document.getElementById('catalog');
+      const target = k==='axes' ? document.querySelector('.axexplain') : (k==='colors' ? document.getElementById('colorgroups') : document.getElementById('catalog'));
       if(target){ target.style.display=''; track('menu',{item:k}); requestAnimationFrame(()=>target.scrollIntoView({behavior:'smooth',block:'start'})); }
     }));
   })();
