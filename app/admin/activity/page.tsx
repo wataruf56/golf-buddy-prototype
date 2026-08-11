@@ -6,6 +6,8 @@ import { useSearchParams } from 'next/navigation';
 
 type Report = {
   generatedAt: number;
+  // 上部KPI（事業のボトルネックが見える4つ）
+  kpi?: { monthPlayers: number; monthRounds: number; monthHosts: number; fillRate: number; active30d: number };
   summary: { active24h: number; active7d: number; totalUsersSeen: number; totalSwingUsers: number; totalSwings: number; logsScanned: number };
   activeUsers: { userId: string; name: string; count: number; lastTs: number; lastPage: string; lastPageNorm?: string; lastActionTs: number; lastActionEvent: string; lastActionPage: string; lastToName?: string }[];
   popularPages?: { page: string; views: number; users: number; lastTs: number }[];
@@ -191,6 +193,8 @@ function Inner() {
   const tokenFromUrl = search?.get('token') || '';
   const [token, setToken] = useState('');
   const [data, setData] = useState<Report | null>(null);
+  // ①でどのユーザーの操作ログを開いているか（②を①に内包したため）
+  const [openUser, setOpenUser] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
@@ -238,15 +242,20 @@ function Inner() {
 
       {data && (
         <>
-          {/* Summary */}
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            <Kpi label="24時間以内に利用" value={`${data.summary.active24h}人`} accent="text-green" />
-            <Kpi label="7日以内に利用" value={`${data.summary.active7d}人`} accent="text-blue" />
-            <Kpi label="スイング解析した人" value={`${data.summary.totalSwingUsers}人`} />
-            <Kpi label="解析の総回数" value={`${data.summary.totalSwings}回`} accent="text-orange" />
+          {/* Summary＝事業のボトルネックが見える4つ。
+              ラウンドが実際に行われた人数（価値が届いた量）→ 供給（募集と主催者）→
+              立てれば埋まるか（満員率）→ 生きているユーザー数、の順で並べる。 */}
+          <div className="grid grid-cols-2 gap-2 mb-1">
+            <Kpi label="今月ラウンドした人" value={`${data.kpi?.monthPlayers ?? 0}人`} accent="text-green" />
+            <Kpi label="今月の募集 / 主催者" value={`${data.kpi?.monthRounds ?? 0}件 / ${data.kpi?.monthHosts ?? 0}人`} accent="text-orange" />
+            <Kpi label="募集の満員率" value={`${data.kpi?.fillRate ?? 0}%`} accent="text-blue" />
+            <Kpi label="30日以内に利用" value={`${data.kpi?.active30d ?? 0}人`} />
+          </div>
+          <div className="text-[10px] text-muted leading-relaxed mb-2 px-1">
+            主催者の人数がボトルネック。満員率が高いのに募集が少なければ「立ててもらう」施策が効きます。
           </div>
           <div className="text-[10px] text-muted text-center mb-3">
-            {jst(data.generatedAt)} 時点 ・ ログ{data.summary.logsScanned}件を集計
+            {jst(data.generatedAt)} 時点 ・ 直近24時間 {data.summary.active24h}人 / 7日 {data.summary.active7d}人 ・ ログ{data.summary.logsScanned}件を集計
           </div>
 
           {/* ★ 人気の画面（直近7日でよく開かれている画面） */}
@@ -356,8 +365,8 @@ function Inner() {
             </div>
           </Section>
 
-          {/* 1. Active users */}
-          <Section title="① いま使っているユーザー" sub="最新の活動が新しい順（画面閲覧も含む）" count={data.activeUsers.length}>
+          {/* 1. Active users（直近の操作ログを内包。名前をタップでその人のログが開く） */}
+          <Section title="① いま使っているユーザー" sub="最新の活動が新しい順。名前をタップするとその人の操作ログが開きます" count={data.activeUsers.length}>
             {data.activeUsers.length === 0 ? <Empty /> : data.activeUsers.map((u) => {
               // 「最新の状態」を表示する。直近イベントが操作なら操作ラベル、閲覧なら画面ラベル。
               // lastTs は page_view を含む真の最新。lastActionTs は“操作”の最新（lastActionTs ≤ lastTs）。
@@ -365,43 +374,56 @@ function Inner() {
               const whenTs = u.lastTs || u.lastActionTs;
               const showAction = !!u.lastActionEvent && u.lastActionTs >= u.lastTs;
               const what = showAction ? eventJa(u.lastActionEvent) : screenJa(u.lastPageNorm);
+              const open = openUser === u.userId;
+              const mine = open ? data.recentActions.filter((a) => a.userId === u.userId) : [];
               return (
-              <div key={u.userId} className="flex items-start justify-between gap-2 py-2 border-b border-border last:border-0">
-                <div className="min-w-0 flex-1">
-                  <div className="text-[13px] font-bold break-words">{u.name}</div>
-                  <div className="text-[10px] text-muted break-words leading-snug">
-                    {what}{u.lastToName && <span className="text-green font-bold"> → {u.lastToName}</span>}
+              <div key={u.userId} className="border-b border-border last:border-0">
+                <button
+                  onClick={() => setOpenUser(open ? '' : u.userId)}
+                  className="w-full flex items-start justify-between gap-2 py-2 text-left"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-bold break-words">
+                      <span className="text-muted mr-1">{open ? '▾' : '▸'}</span>{u.name}
+                    </div>
+                    <div className="text-[10px] text-muted break-words leading-snug">
+                      {what}{u.lastToName && <span className="text-green font-bold"> → {u.lastToName}</span>}
+                    </div>
                   </div>
-                </div>
-                <div className="text-right flex-shrink-0 ml-2">
-                  <div className="text-[11px] font-bold text-green">{ago(whenTs)}</div>
-                </div>
+                  <div className="text-right flex-shrink-0 ml-2">
+                    <div className="text-[11px] font-bold text-green">{ago(whenTs)}</div>
+                    <div className="text-[9px] text-muted">{u.count}件</div>
+                  </div>
+                </button>
+                {open && (
+                  <div className="pl-3 pb-2.5 border-l-2 border-green/40 ml-1 mb-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="text-[10px] font-bold text-sub">🧾 この人の操作ログ（{mine.length}件）</div>
+                      <Link href={`/profile/${u.userId}`} className="text-[10px] text-blue font-bold ml-auto">プロフィール ›</Link>
+                    </div>
+                    {mine.length === 0 ? (
+                      <div className="text-[10px] text-muted py-2">この期間の操作ログはありません。</div>
+                    ) : mine.map((a, i) => (
+                      <div key={i} className="flex items-start justify-between gap-2 py-1 border-b border-border last:border-0">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[11.5px] leading-snug break-words">
+                            {a.event === 'page_view' ? `📱 ${pageLabel(a.pageNorm || a.page)}を開いた` : eventJa(a.event)}
+                            {a.toName && <span className="text-green font-bold"> → {a.toName}</span>}
+                          </div>
+                          {!a.toName && <div className="text-[9px] text-muted break-all">{a.page}</div>}
+                        </div>
+                        <div className="text-[10px] text-muted flex-shrink-0 whitespace-nowrap">{ago(a.ts)}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             );
             })}
           </Section>
 
-          {/* 2. Recent actions */}
-          <Section title="② 直近の操作ログ" sub="誰が・何を・どの画面で" count={data.recentActions.length}>
-            {data.recentActions.length === 0 ? <Empty /> : data.recentActions.map((a, i) => (
-              <div key={i} className="flex items-start justify-between gap-2 py-1.5 border-b border-border last:border-0">
-                {/* 文章は折り返して全部見せる（truncateだと「誰のプロフィールを見たか」が切れて読めない） */}
-                <div className="min-w-0 flex-1">
-                  <div className="text-[12px] font-semibold leading-snug break-words">
-                    {a.name}
-                    <span className="text-muted font-normal"> / {a.event === 'page_view' ? `📱 ${pageLabel(a.pageNorm || a.page)}を開いた` : eventJa(a.event)}</span>
-                    {a.toName && <span className="text-green"> → {a.toName}</span>}
-                  </div>
-                  {/* 相手が特定できているときは生のIDパスは冗長なので出さない */}
-                  {!a.toName && <div className="text-[9px] text-muted break-all">{a.page}</div>}
-                </div>
-                <div className="text-[10px] text-muted flex-shrink-0 whitespace-nowrap">{ago(a.ts)}</div>
-              </div>
-            ))}
-          </Section>
-
-          {/* 3. Recent swing analyses */}
-          <Section title="③ 直近のスイング解析" sub="誰が利用したか" count={data.recentSwings.length}>
+          {/* 2. Recent swing analyses */}
+          <Section title="② 直近のスイング解析" sub="誰が利用したか" count={data.recentSwings.length}>
             {data.recentSwings.length === 0 ? <Empty /> : data.recentSwings.map((s, i) => (
               <div key={i} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
                 <div className="min-w-0 flex-1">
@@ -409,23 +431,6 @@ function Inner() {
                   <div className="text-[9px] text-muted">{MODE_LABEL[s.mode] || s.mode} ・ {s.status}</div>
                 </div>
                 <div className="text-[10px] text-muted flex-shrink-0 ml-2">{ago(s.createdAt)}</div>
-              </div>
-            ))}
-          </Section>
-
-          {/* 4. Swing usage ranking */}
-          <Section title="④ スイング解析 回数ランキング" sub="誰が何回やったか" count={data.swingUsers.length}>
-            {data.swingUsers.length === 0 ? <Empty /> : data.swingUsers.map((u, i) => (
-              <div key={u.userId} className="flex items-center gap-2 py-2 border-b border-border last:border-0">
-                <div className="w-6 text-center font-black text-sub">{i + 1}</div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[13px] font-bold truncate">{u.name}</div>
-                  <div className="text-[9px] text-muted">最終: {ago(u.lastAt)}</div>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <div className="text-[14px] font-black text-green">{u.total}回</div>
-                  <div className="text-[9px] text-muted">完了{u.done}</div>
-                </div>
               </div>
             ))}
           </Section>

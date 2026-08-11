@@ -95,6 +95,7 @@ function Inner() {
     { href: `/admin/notification-templates?token=${token}`, emoji: '✉️', title: '通知メッセージ編集', desc: 'アプリ内 / LINE / スマホ通知の文面をすべて編集' },
     { href: `/admin/reports?token=${token}`, emoji: '🚨', title: '通報の管理', desc: '通報一覧 / 事実確認して「評価を下げる」/ 通報者とチャット' },
     { href: `/admin/manner?token=${token}`, emoji: '🙅', title: 'ドタキャン・マナー管理', desc: '報告を受けた人を検索して評価を下げる / ペナルティ保持者 / 履歴と取り消し' },
+    { href: `/admin/ratings?token=${token}`, emoji: '⭐', title: '評価の状況（全員）', desc: '一人ずつの★・また回りたい率・誰からどう評価されたか・当日欠席・ペナルティ' },
     { href: `/admin/support?token=${token}`, emoji: '🛡️', title: '管理人チャット', desc: 'ユーザーと「管理人」名義でDM（サポート窓口）' },
     { href: `/admin/hobby-tags?token=${token}`, emoji: '🎯', title: '趣味タグの管理', desc: 'ユーザーが追加した趣味タグの確認・不適切タグの削除' },
     { href: `/admin/reviews?token=${token}`, emoji: '📝', title: 'レビュー', desc: '編集・削除・差し戻し（再依頼）' },

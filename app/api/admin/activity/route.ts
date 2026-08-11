@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
     // 操作は基本すべて出す（上限は表示保護として大きめ）。これで①と②が食い違わない。
     const recentActions = logs
       .filter((l: any) => l.event && !LOG_HIDDEN.has(l.event))
-      .slice(0, 500)
+      .slice(0, 1500)   // ①のユーザーごとの操作ログをここから引くため広めに保持
       .map((l: any) => {
         const pageNorm = normPage(l.page || '');
         // 「誰に対して」の相手ID。DM(dm_open/dm_send)は data.to、
@@ -242,8 +242,53 @@ export async function GET(req: NextRequest) {
       };
     } catch { /* best-effort */ }
 
+    // --- 上部KPI：事業のボトルネックが見える4つ ---
+    // ①今月ラウンドした人（＝価値が実際に届いた人。当日欠席は除く）
+    // ②今月の募集数／立てた主催者の人数（＝供給。ここが最大のボトルネック）
+    // ③募集の満員率（＝立てれば埋まるかどうか。主催を促す根拠）
+    // ④30日以内に利用した人（＝生きているユーザー）
+    let kpi = { monthPlayers: 0, monthRounds: 0, monthHosts: 0, fillRate: 0, active30d: 0 };
+    try {
+      const jst = new Date(now + 9 * 3600 * 1000);
+      const monthStart = Date.UTC(jst.getUTCFullYear(), jst.getUTCMonth(), 1) - 9 * 3600 * 1000;
+      const rSnap = await db.collection('rounds').limit(2000).get();
+      const rounds = rSnap.docs.map((d: any) => ({ id: d.id, ...(d.data() || {}) }));
+      const membersOf = (r: any) => [r.hostId, ...(r.coHostIds || []), ...(r.applicantIds || [])].filter(Boolean) as string[];
+      const dateOf = (r: any) => (r.date ? new Date(`${r.date}T00:00:00+09:00`).getTime() : 0);
+
+      const players = new Set<string>();
+      const hosts = new Set<string>();
+      let monthRounds = 0;
+      const done: any[] = [];
+      for (const r of rounds) {
+        if (r.status === 'completed') {
+          done.push(r);
+          const t = r.completedAt || dateOf(r) || r.createdAt || 0;
+          if (t >= monthStart) {
+            const noShow = new Set(r.noShowIds || []);
+            for (const m of membersOf(r)) if (!noShow.has(m)) players.add(m);
+          }
+        }
+        if ((r.createdAt || 0) >= monthStart) { monthRounds++; if (r.hostId) hosts.add(r.hostId); }
+      }
+      // 満員率＝完了した募集の「メンバー数 / 定員」の平均（ホーム側の主催プッシュと同じ定義）。
+      let fillRate = 0;
+      if (done.length) {
+        const sum = done.reduce((a, r) => a + Math.min(1, membersOf(r).length / Math.max(1, r.maxSpots || 1)), 0);
+        fillRate = Math.round((sum / done.length) * 100);
+      }
+      kpi = {
+        monthPlayers: players.size,
+        monthRounds,
+        monthHosts: hosts.size,
+        fillRate,
+        active30d: activeUsers.filter((u) => now - u.lastTs <= 30 * DAY).length,
+      };
+    } catch { /* best-effort */ }
+
     return NextResponse.json({
       generatedAt: now,
+      kpi,
       summary: {
         active24h, active7d,
         totalUsersSeen: activeUsers.length,

@@ -306,16 +306,19 @@ function InstaHub({ hub }: { hub: { opened: number; clickLine?: number; openedU?
   );
 }
 
+// 使っていないタグ（検証中に付いた ig / ig_bosyu と、旧称の instagram）は表に出さない。
+const HIDDEN_REFS = new Set(['instagram', 'ig', 'ig_bosyu']);
+
 function RefFunnels({ rows }: { rows: Array<{ ref: string; visits: number; visitors: number; starts: number; completes: number; ctas: number; registered: number }> }) {
   const REF_LABEL: Record<string, string> = {
     ig_bio: '📸 インスタprofile（MBTIリンク）',
     ig_story: '📸 インスタ ストーリーズ',
-    instagram: '📸 インスタ（旧タグ）',
     share_img: '🖼 シェア画像のQR（結果画像）',
   };
+  const shown = rows.filter((r) => !HIDDEN_REFS.has(r.ref));
   return (
     <Card title="🔗 リンク別ファネル（?ref=タグ）" sub="タグ付きリンク経由の来訪 → 診断開始 → 完了 → LINE遷移 → 登録。goltomo.com/mbti は ref=ig_bio として計上">
-      {rows.length === 0 ? (
+      {shown.length === 0 ? (
         <div className="text-[12px] text-muted py-2">タグ付きリンク経由の来訪はまだありません（goltomo.com/mbti 経由の来訪がここに出ます）。</div>
       ) : (
         <div className="overflow-x-auto">
@@ -331,7 +334,7 @@ function RefFunnels({ rows }: { rows: Array<{ ref: string; visits: number; visit
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {shown.map((r) => (
                 <tr key={r.ref} className={'border-b border-border last:border-0 ' + (r.ref === 'ig_bio' ? 'bg-green-light/40 font-bold' : '')}>
                   <td className="py-1.5 pr-2">{REF_LABEL[r.ref] || r.ref}</td>
                   <td className="py-1.5 px-1.5 text-right">{r.visitors}<span className="text-muted font-normal">（{r.visits}回）</span></td>
@@ -791,8 +794,10 @@ function AxisDist({ axisDist, completes }: { axisDist?: Record<string, Record<st
 
 function Attribution({ attribution, visitors }: { attribution?: Report['attribution']; visitors?: Report['visitors'] }) {
   if (!attribution) return null;
+  // 流入元も、使っていない旧タグは落としてから表示する。
+  const cleanSource = Object.fromEntries(Object.entries(attribution.byUtmSource || {}).filter(([k]) => !HIDDEN_REFS.has(k)));
   const blocks: { title: string; o: Record<string, number> }[] = [
-    { title: '流入元 utm_source', o: attribution.byUtmSource || {} },
+    { title: '流入元 utm_source', o: cleanSource },
     { title: '流入手段 utm_medium', o: attribution.byUtmMedium || {} },
     { title: 'キャンペーン utm_campaign', o: attribution.byUtmCampaign || {} },
   ];
