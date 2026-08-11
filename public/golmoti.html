@@ -1075,7 +1075,7 @@
           <a class="bigcta sigcta" id="findFromResult" href="#" style="margin-top:0">🏌️ ゴルフ友達を探す</a>
         </div>
         <div class="share">
-          <button class="sbtn" id="shareBtn">📤 結果をシェア</button>
+          <button class="sbtn" id="shareBtn">🔗 リンクをコピー</button>
           <button class="sbtn" id="saveImgBtn">📷 画像を保存</button>
         </div>
         <div class="sharenote">「📷 画像を保存」でインスタのストーリーにそのまま載せられる1枚画像を作成します</div>
@@ -1090,16 +1090,30 @@
 
     // 結果のリンクは型コード付き。受け取った側はアプリ未利用・未ログインでも結果を見られる（?type=XXXX）
     const shareUrl=location.origin+location.pathname+'?type='+code;
-    const shareText=`私のゴルフタイプは【${nk.e}${nk.n}（${code}）】！あなたは？ #ゴルトモ #ゴルフMBTI #ゴルフ診断`;
-    document.getElementById('shareBtn').addEventListener('click',async()=>{
-      track('share',{resultType:code, where:'sheet'});
-      // iPhone等のネイティブ共有シート（LINE/AirDrop等）を起動。非対応はコピーにフォールバック。
-      if(navigator.share){
-        try{ await navigator.share({title:'ゴルトモ ゴルフ性格診断（ゴルフ版MBTI）', text:shareText, url:shareUrl}); return; }
-        catch(e){ if(e&&e.name==='AbortError') return; }
-      }
-      try{ await navigator.clipboard.writeText(shareUrl); alert('結果のリンクをコピーしました！'); }
-      catch(e){ prompt('コピーしてください',shareUrl); }
+    // インスタのプロフィールやストーリーにそのまま貼れるよう、URLだけをコピーする
+    // （以前は共有シートでハッシュタグ付きの文章も一緒に入っていた）。
+    const copyBtn=document.getElementById('shareBtn');
+    if(copyBtn) copyBtn.addEventListener('click',()=>{
+      track('share',{resultType:code, where:'copy'});
+      const done=()=>{
+        const before=copyBtn.textContent;
+        copyBtn.textContent='✅ コピーしました';
+        setTimeout(()=>{ copyBtn.textContent=before; },1800);
+      };
+      const legacy=()=>{
+        try{
+          const ta=document.createElement('textarea');
+          ta.value=shareUrl; ta.setAttribute('readonly','');
+          ta.style.cssText='position:fixed;top:0;left:0;opacity:0';
+          document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0,shareUrl.length);
+          const ok=document.execCommand('copy'); ta.remove();
+          if(ok){ done(); return; }
+        }catch(e){}
+        prompt('コピーしてください',shareUrl);
+      };
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(shareUrl).then(done).catch(legacy);
+      } else legacy();
     });
     // 📷 画像を保存：インスタ ストーリー用の1枚画像（1080×1920）を生成して共有/ダウンロード。
     const saveBtn=document.getElementById('saveImgBtn');
