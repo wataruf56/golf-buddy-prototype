@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { appProfileUrl } from '@/lib/adminLinks';
 
 type Report = {
   id: string;
@@ -121,7 +122,7 @@ function Inner() {
                 <span className="text-[10px] text-muted">{r.createdAt ? new Date(r.createdAt).toLocaleString('ja-JP') : ''}</span>
               </div>
               <div className="text-[13px] mb-1">
-                対象：<Link href={`/profile/${r.targetId}`} className="font-bold text-blue underline">{r.targetName || r.targetId.slice(0, 10)}</Link>
+                対象：<a href={appProfileUrl(r.targetId)} target="_blank" rel="noreferrer" className="font-bold text-blue underline">{r.targetName || r.targetId.slice(0, 10)}</a>
               </div>
               <div className="text-[12px] text-sub mb-1">通報者：{r.reporterName || r.reporterId.slice(0, 10)}</div>
               {r.detail && <div className="text-[13px] bg-bg rounded-lg p-2.5 my-2 whitespace-pre-wrap leading-relaxed">{r.detail}</div>}

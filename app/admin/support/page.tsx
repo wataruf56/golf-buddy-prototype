@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { appProfileUrl } from '@/lib/adminLinks';
 
 type ChatRow = { userId: string; displayName: string; avatar: string; avatarUrl: string; lastMessage: string; lastMessageAt: number; unread: number };
 type Msg = { id: string; senderId: string; text: string; imageUrl?: string; createdAt: number };
@@ -110,7 +111,7 @@ function Inner() {
           <div className="flex items-center gap-2 mb-2">
             <button onClick={() => { setActive(''); loadList(); }} className="text-blue text-sm font-semibold">‹ 一覧</button>
             <span className="text-sm font-black">{activeName || active.slice(0, 10)}</span>
-            <Link href={`/profile/${active}`} className="text-[11px] text-blue underline ml-auto">プロフィール</Link>
+            <a href={appProfileUrl(active)} target="_blank" rel="noreferrer" className="text-[11px] text-blue underline ml-auto">プロフィール</a>
           </div>
           <div className="bg-card rounded-xl shadow-card p-3 mb-2 min-h-[320px] max-h-[55vh] overflow-y-auto flex flex-col gap-2">
             {messages.length === 0 ? (

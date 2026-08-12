@@ -3,13 +3,14 @@
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { appProfileUrl } from '@/lib/adminLinks';
 
 type Report = {
   generatedAt: number;
   // 上部KPI（事業のボトルネックが見える4つ）
   kpi?: { monthPlayers: number; monthRounds: number; monthHosts: number; fillRate: number; active30d: number };
   summary: { active24h: number; active7d: number; totalUsersSeen: number; totalSwingUsers: number; totalSwings: number; logsScanned: number };
-  activeUsers: { userId: string; name: string; count: number; lastTs: number; lastPage: string; lastPageNorm?: string; lastActionTs: number; lastActionEvent: string; lastActionPage: string; lastToName?: string }[];
+  activeUsers: { userId: string; name: string; count: number; lastTs: number; lastPage: string; lastPageNorm?: string; lastActionTs: number; lastActionEvent: string; lastActionPage: string; lastToName?: string; lastRoundTitle?: string }[];
   popularPages?: { page: string; views: number; users: number; lastTs: number }[];
   acquisition?: {
     total: number; tagged: number;
@@ -18,7 +19,7 @@ type Report = {
     byChannel?: { channel: string; count: number; tags: { source: string; count: number }[] }[];
   };
   menuEntries?: { menu: string; count: number }[];
-  recentActions: { userId: string; name: string; event: string; page: string; pageNorm?: string; ts: number; to?: string; toName?: string }[];
+  recentActions: { userId: string; name: string; event: string; page: string; pageNorm?: string; ts: number; to?: string; toName?: string; roundTitle?: string }[];
   swingUsers: { userId: string; name: string; total: number; done: number; lastAt: number }[];
   recentSwings: { userId: string; name: string; mode: string; status: string; createdAt: number }[];
 };
@@ -392,6 +393,7 @@ function Inner() {
                     </div>
                     <div className="text-[10px] text-muted break-words leading-snug">
                       {what}{u.lastToName && <span className="text-green font-bold"> → {u.lastToName}</span>}
+                      {!u.lastToName && u.lastRoundTitle && <span className="text-blue font-bold"> → {u.lastRoundTitle}</span>}
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0 ml-2">
@@ -403,7 +405,7 @@ function Inner() {
                   <div className="pl-3 pb-2.5 border-l-2 border-green/40 ml-1 mb-1">
                     <div className="flex items-center gap-2 mb-1">
                       <div className="text-[10px] font-bold text-sub">🧾 この人の操作ログ（{mine.length}件）</div>
-                      <Link href={`/profile/${u.userId}`} className="text-[10px] text-blue font-bold ml-auto">プロフィール ›</Link>
+                      <a href={appProfileUrl(u.userId)} target="_blank" rel="noreferrer" className="text-[10px] text-blue font-bold ml-auto">プロフィール ›</a>
                     </div>
                     {mine.length === 0 ? (
                       <div className="text-[10px] text-muted py-2">この期間の操作ログはありません。</div>
@@ -413,8 +415,9 @@ function Inner() {
                           <div className="text-[11.5px] leading-snug break-words">
                             {a.event === 'page_view' ? `📱 ${pageLabel(a.pageNorm || a.page)}を開いた` : eventJa(a.event)}
                             {a.toName && <span className="text-green font-bold"> → {a.toName}</span>}
+                            {!a.toName && a.roundTitle && <span className="text-blue font-bold"> → {a.roundTitle}</span>}
                           </div>
-                          {!a.toName && <div className="text-[9px] text-muted break-all">{a.page}</div>}
+                          {!a.toName && !a.roundTitle && <div className="text-[9px] text-muted break-all">{a.page}</div>}
                         </div>
                         <div className="text-[10px] text-muted flex-shrink-0 whitespace-nowrap">{ago(a.ts)}</div>
                       </div>

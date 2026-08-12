@@ -163,10 +163,39 @@ export async function GET(req: NextRequest) {
     }
     const nameOf = (id: string) => names[id] || '(未登録)';
 
+    // --- ラウンド名の解決 ---
+    // 「ラウンド詳細を開いた」だけだと何の募集か分からないので、パスのIDから
+    // タイトルを引く。プロフィール閲覧で相手の名前を出しているのと同じ扱い。
+    // 対象は /round/[id]（詳細・チャット・編集）と /poll/[id]（日程調整）。
+    const roundIdOf = (page: string): string => {
+      const m = String(page || '').split('?')[0].match(/^\/(?:round|poll)\/([^/]+)/);
+      try { return m ? decodeURIComponent(m[1]) : ''; } catch { return m ? m[1] : ''; }
+    };
+    const roundIds = Array.from(new Set([
+      ...recentActions.map((a: any) => roundIdOf(a.page)),
+      ...Object.values(perUser).map((v: any) => roundIdOf(v.lastPage)),
+    ].filter(Boolean)));
+    const roundTitles: Record<string, string> = {};
+    for (let i = 0; i < roundIds.length; i += 30) {
+      const chunk = roundIds.slice(i, i + 30);
+      if (!chunk.length) continue;
+      try {
+        const rs = await db.collection('rounds').where('__name__', 'in', chunk).get();
+        rs.docs.forEach((d: any) => {
+          const r = d.data() || {};
+          const t = String(r.title || '').trim();
+          const date = String(r.date || '').slice(5).replace('-', '/');
+          roundTitles[d.id] = [t || '（無題の募集）', date].filter(Boolean).join(' ');
+        });
+      } catch { /* 日程調整など rounds に無いIDは無視 */ }
+    }
+    const roundTitleOf = (page: string) => roundTitles[roundIdOf(page)] || '';
+
     // --- Assemble ---
     const activeUsers = Object.entries(perUser)
       .map(([id, v]) => ({ userId: id, name: nameOf(id), ...v, lastPageNorm: normPage(v.lastPage || ''),
-        lastToName: (v as any).lastTo ? nameOf((v as any).lastTo) : '' }))
+        lastToName: (v as any).lastTo ? nameOf((v as any).lastTo) : '',
+        lastRoundTitle: roundTitleOf(v.lastPage || '') }))
       .sort((a, b) => b.lastTs - a.lastTs);
     const active24h = activeUsers.filter((u) => now - u.lastTs <= DAY).length;
     const active7d = activeUsers.filter((u) => now - u.lastTs <= 7 * DAY).length;
@@ -300,7 +329,7 @@ export async function GET(req: NextRequest) {
       popularPages,
       acquisition,
       menuEntries,
-      recentActions: recentActions.map((a: any) => ({ ...a, name: nameOf(a.userId), toName: a.to ? nameOf(a.to) : '' })),
+      recentActions: recentActions.map((a: any) => ({ ...a, name: nameOf(a.userId), toName: a.to ? nameOf(a.to) : '', roundTitle: roundTitleOf(a.page) })),
       swingUsers,
       recentSwings,
     }, { headers: noStore });

@@ -5,6 +5,7 @@ import { confirmDialog, alertDialog } from '@/components/ConfirmDialog';
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { appRoundUrl } from '@/lib/adminLinks';
 
 type Round = {
   id: string;
@@ -214,10 +215,11 @@ function Inner() {
               </button>
 
               <div className="flex gap-1.5 mt-2">
-                <Link
-                  href={`/round/${r.id}`}
+                <a
+                  href={appRoundUrl(r.id)}
+                  target="_blank" rel="noreferrer"
                   className="flex-1 py-1.5 text-[11px] font-bold bg-bg border-[1.5px] border-border rounded text-center"
-                >アプリで開く</Link>
+                >アプリで開く</a>
                 <button
                   onClick={() => delRound(r.id, false)}
                   className="flex-1 py-1.5 text-[11px] font-bold bg-red-50 text-red-600 rounded"

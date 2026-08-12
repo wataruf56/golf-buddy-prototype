@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { appProfileUrl } from '@/lib/adminLinks';
 
 // 管理画面：全員の評価状況を一覧し、一人ずつ詳しく見る。
 // ★はアプリと同じ「また回りたい率」の定義（レビューをくれた人のうち、ごめんなさいが何人か）。
@@ -182,7 +183,7 @@ function Inner() {
                   )}
 
                   <div className="flex gap-1.5 mt-2.5">
-                    <Link href={`/profile/${r.id}`} className="flex-1 text-center py-2 rounded-lg bg-bg border border-border text-[11px] font-bold">👤 プロフィール</Link>
+                    <a href={appProfileUrl(r.id)} target="_blank" rel="noreferrer" className="flex-1 text-center py-2 rounded-lg bg-bg border border-border text-[11px] font-bold">👤 プロフィール</a>
                     <Link href={`/admin/manner?token=${token}`} className="flex-1 text-center py-2 rounded-lg bg-bg border border-border text-[11px] font-bold">🙅 評価を下げる</Link>
                   </div>
                 </div>
