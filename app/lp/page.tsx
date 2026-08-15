@@ -186,6 +186,22 @@ html body{background:#F4E8CE}
 .sv .rc .tag{font-size:10.5px;font-weight:900;padding:3px 9px;border-radius:999px;border:2px solid var(--ink);white-space:nowrap;align-self:center;flex:none}
 .sv .rc .tag.g{background:var(--teal);color:var(--cream)}.sv .rc .tag.o{background:var(--mustard)}
 /* 追従バー（fixedで中央480px幅・.sv::before と同じ方式。コンテンツは wrap の下余白で逃がす） */
+/* 数字で見るゴルトモ（実データ） */
+.sv .nums{margin:22px 16px 0}
+.sv .nums .nh{font-size:15px;font-weight:900;text-align:center;margin-bottom:10px}
+.sv .nums .ng{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.sv .nums .nc{background:var(--cream);border:2.5px solid var(--ink);border-radius:16px;
+  padding:12px 8px;text-align:center;box-shadow:4px 4px 0 var(--ink)}
+.sv .nums .nv{font-size:26px;font-weight:900;color:var(--teal);line-height:1.1;letter-spacing:-.02em}
+.sv .nums .nl{font-size:12px;font-weight:900;margin-top:3px}
+.sv .nums .ns{font-size:10px;font-weight:700;color:#8a7256;margin-top:3px;line-height:1.4}
+.sv .nums .nf{font-size:10px;font-weight:700;color:#8a7256;text-align:center;margin-top:8px}
+/* 日本語の折り返し。行末に1〜2文字だけ残る「ぶら下がり」を防ぐ。
+   auto-phrase は文節単位で折るので、対応ブラウザでは大きく改善する。 */
+.sv p,.sv .ds,.sv .qs,.sv .mc,.sv .ns,.sv .nl,.sv h1,.sv h2,.sv .tt{
+  text-wrap:pretty;overflow-wrap:anywhere;line-break:strict}
+.sv h1,.sv h2,.sv .tt,.sv .nh{text-wrap:balance;word-break:auto-phrase}
+.sv p,.sv .ds,.sv .qs{word-break:auto-phrase}
 .sv .bar{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;z-index:70;padding:11px 16px calc(11px + env(safe-area-inset-bottom));background:rgba(244,232,206,.96);backdrop-filter:blur(5px);border-top:2.5px solid var(--ink)}
 .sv .bar .b2{display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;background:var(--orange);color:var(--cream);font-weight:900;font-size:16px;padding:15px;border:3px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--ink)}
 .sv .wrap{padding-bottom:88px}
@@ -198,12 +214,25 @@ html body{background:#F4E8CE}
 .sv .qrshare .qu{font-size:11px;font-weight:900;color:var(--teal);margin-top:12px}
 `;
 
+// LPに載せる数字は5分ごとに作り直す（実データを新鮮に保ちつつ読み取りを抑える）。
+export const revalidate = 300;
+
+// LPに出す実績値。手で書いた数字はすぐ古くなり事実と食い違うので、必ず実データから出す。
+// 母数(n)も持ち、少なすぎるものは表示しない。
+type LpStats = {
+  fillRate: number | null; fillN: number;         // 募集の満員率
+  againRate: number | null; againN: number;       // また回りたい率
+  femaleRate: number | null; genderN: number;     // 女性比率
+  avgAge: number | null; ageN: number;            // 平均年齢
+};
+
 // トップLPの「社会的証明」（募集中件数・直近1hログイン数）を実データから作る。
 // 失敗しても LP 本体は必ず描画する（各表示は呼び出し側で少数時に非表示）。
-async function getLpData(): Promise<{ openCount: number; activeNow: number }> {
+async function getLpData(): Promise<{ openCount: number; activeNow: number; stats: LpStats }> {
   const now = Date.now();
   let openCount = 0;
   let activeNow = 0;
+  const stats: LpStats = { fillRate: null, fillN: 0, againRate: null, againN: 0, femaleRate: null, genderN: 0, avgAge: null, ageN: 0 };
   try {
     const { db } = await import('@/lib/db');
     const [open, official] = await Promise.all([
@@ -226,7 +255,66 @@ async function getLpData(): Promise<{ openCount: number; activeNow: number }> {
       activeNow = agg.data().count || 0;
     }
   } catch { /* noop */ }
-  return { openCount, activeNow };
+
+  // 実績値（満員率・また回りたい率・男女比・平均年齢）
+  try {
+    const { getAdminDb } = await import('@/lib/firebase');
+    const adb = getAdminDb() as any;
+    if (adb) {
+      const [rSnap, uSnap, revSnap, likeSnap] = await Promise.all([
+        adb.collection('rounds').limit(2000).get(),
+        adb.collection('users').limit(2000).get(),
+        adb.collection('reviews').limit(5000).get(),
+        adb.collection('_matchLikes').limit(8000).get(),
+      ]);
+
+      // 満員率＝完了した募集の「メンバー数 / 定員」の平均（飲み会は除く）
+      const membersOf = (r: any) => [r.hostId, ...(r.coHostIds || []), ...(r.applicantIds || [])].filter(Boolean);
+      const done = rSnap.docs.map((d: any) => d.data() || {})
+        .filter((r: any) => r.status === 'completed' && r.eventType !== 'drink');
+      stats.fillN = done.length;
+      if (done.length) {
+        const sum = done.reduce((a: number, r: any) => a + Math.min(1, membersOf(r).length / Math.max(1, r.maxSpots || 1)), 0);
+        stats.fillRate = Math.round((sum / done.length) * 100);
+      }
+
+      // また回りたい率＝「レビューをくれた人」のうち「また回りたい」を押した人の割合
+      const reviewersOf: Record<string, Set<string>> = {};
+      revSnap.docs.forEach((d: any) => {
+        const x = d.data() || {};
+        if (!x.revieweeId || !x.reviewerId) return;
+        (reviewersOf[x.revieweeId] = reviewersOf[x.revieweeId] || new Set()).add(x.reviewerId);
+      });
+      const againOf: Record<string, Set<string>> = {};
+      likeSnap.docs.forEach((d: any) => {
+        const x = d.data() || {};
+        if (x.kind !== 'again' || !x.from || !x.to) return;
+        (againOf[x.to] = againOf[x.to] || new Set()).add(x.from);
+      });
+      let ag = 0, pairs = 0;
+      Object.entries(reviewersOf).forEach(([to, revs]) => {
+        (revs as Set<string>).forEach((from) => { pairs++; if (againOf[to]?.has(from)) ag++; });
+      });
+      stats.againN = pairs;
+      if (pairs) stats.againRate = Math.round((ag / pairs) * 100);
+
+      // 会員の属性（テスト・システムは除外）
+      let male = 0, female = 0, ageSum = 0, ageN = 0;
+      uSnap.docs.forEach((d: any) => {
+        const u = d.data() || {};
+        if (u.isSystem || u.isTestAccount) return;
+        if (u.gender === 'male') male++; else if (u.gender === 'female') female++;
+        const age = Number(u.age || 0);
+        if (age >= 15 && age <= 90) { ageSum += age; ageN++; }
+      });
+      stats.genderN = male + female;
+      if (stats.genderN) stats.femaleRate = Math.round((female / stats.genderN) * 100);
+      stats.ageN = ageN;
+      if (ageN) stats.avgAge = Math.round(ageSum / ageN);
+    }
+  } catch { /* 数字が取れなくてもLPは出す */ }
+
+  return { openCount, activeNow, stats };
 }
 
 const JSON_LD = {
@@ -241,11 +329,27 @@ const JSON_LD = {
 };
 
 export default async function LandingPage() {
-  const { openCount, activeNow } = await getLpData();
+  const { openCount, activeNow, stats } = await getLpData();
   // 数字は少ないと逆効果なので、十分あるときだけ出す（実データ・虚偽なし）。
   const showOpen = openCount >= 3;
   const showActive = activeNow >= 3;
   const showProof = showOpen || showActive;
+
+  // 「数字で見るゴルトモ」。母数が足りない項目は黙って落とす。
+  const numbers: Array<{ value: string; label: string; sub: string }> = [];
+  if (stats.fillRate != null && stats.fillN >= 5) {
+    numbers.push({ value: `${stats.fillRate}%`, label: '募集が満員に', sub: `完了した${stats.fillN}件の平均充足率` });
+  }
+  if (stats.againRate != null && stats.againN >= 20) {
+    numbers.push({ value: `${stats.againRate}%`, label: 'また回りたい', sub: `一緒に回った後の評価${stats.againN}件` });
+  }
+  if (stats.avgAge != null && stats.ageN >= 20) {
+    numbers.push({ value: `${stats.avgAge}歳`, label: '参加者の平均年齢', sub: '20〜30代限定コミュニティ' });
+  }
+  if (stats.femaleRate != null && stats.genderN >= 20) {
+    numbers.push({ value: `${100 - stats.femaleRate}:${stats.femaleRate}`, label: '男女比', sub: `男性${100 - stats.femaleRate}% ／ 女性${stats.femaleRate}%` });
+  }
+  const statsAsOf = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '/');
   const APP = 'https://app.goltomo.com';
   return (
     <div className="sv">
@@ -267,7 +371,7 @@ export default async function LandingPage() {
           <h1>一緒に回る<br /><span className="hl">ゴルフ友達</span>が<br />見つかる。</h1>
           <p>
             誘える人がいなくても大丈夫。<br />
-            一人で参加して、気の合う人と「ゴル友」になれます。
+            一人で参加して、気の合う人と「ゴル友」に。
           </p>
         </header>
 
@@ -285,7 +389,7 @@ export default async function LandingPage() {
             <div className="ic">⛳</div>
             <div>
               <h2 className="tt">募集も参加も、気軽に。</h2>
-              <div className="ds">コースが決まっていなくてもOK。一人参加でも、1タップで申し込めます。「行きたいけど誘える人がいない」を無くすアプリ。</div>
+              <div className="ds">コースが決まっていなくてもOK。一人参加でも1タップで申し込めます。「行きたいけど誘う人がいない」を無くします。</div>
             </div>
           </div>
           <div className="b">
@@ -312,6 +416,23 @@ export default async function LandingPage() {
           </div>
         )}
 
+        {/* 数字（すべて実データ。母数が少ない項目は出さない） */}
+        {numbers.length > 0 && (
+          <section className="nums">
+            <h2 className="nh">数字で見るゴルトモ</h2>
+            <div className="ng">
+              {numbers.map((n) => (
+                <div className="nc" key={n.label}>
+                  <div className="nv">{n.value}</div>
+                  <div className="nl">{n.label}</div>
+                  <div className="ns">{n.sub}</div>
+                </div>
+              ))}
+            </div>
+            <div className="nf">アプリ内の実績データより（{statsAsOf}時点）</div>
+          </section>
+        )}
+
 
         {/* 公式コンペの男女比配慮（女性が孤立しないよう組み分け） */}
         <div className="comp">
@@ -332,20 +453,20 @@ export default async function LandingPage() {
         {/* CTA */}
         <div className="cta">
           <h2>ゴルフ友達を<br />見つけにいく</h2>
-          <p>登録は無料。アプリのダウンロードは要りません。<br />まずはLINEログインだけ。</p>
+          <p>登録は無料。アプリのDLは不要。<br />まずはLINEログインだけ。</p>
           <StartButton className="btn">LINEで始める →</StartButton>
           <span className="sub">無料 ・ LINEログインのみ ・ アプリDL不要</span>
         </div>
 
         <div className="quiz">
-          <div className="t">⛳ どんなゴルファーか、先に知りたい人は</div>
+          <div className="t">⛳ 自分がどんなゴルファーか知りたい人へ</div>
           <a href={DIAGNOSIS_URL}>ゴルフ版MBTI・16タイプ診断をしてみる →</a>
         </div>
 
         {/* QRで共有：この画面を見せて、他の人に読み取ってもらうと同じLPが開く */}
         <div className="qrshare">
           <div className="qh">📱 このページを共有</div>
-          <div className="qs">QRを読み取ると、このページ（ゴルトモ）が開きます。<br />お友達に見せてシェアしてください。</div>
+          <div className="qs">読み取るとこのページが開きます。<br />お友達に見せてシェアしてください。</div>
           <div className="qbox">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/qr-lp.svg" alt="ゴルトモのQRコード（読み取るとLPが開きます）" width={190} height={190} />
