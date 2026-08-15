@@ -62,6 +62,7 @@ export function HubLinks() {
       <a
         href={LINE_ADD_URL}
         onClick={() => hit('line')}
+        data-lp="cta_line_hub" data-lp-goal="1"
         className="block rounded-[26px] p-5 active:scale-[0.99] transition-transform"
         style={{ background: LINE_GREEN, boxShadow: '7px 8px 0 ' + INK }}
       >

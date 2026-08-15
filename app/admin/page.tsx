@@ -85,6 +85,7 @@ function Inner() {
     { href: `/admin/line-stats?token=${token}`, emoji: '📨', title: 'LINE送信レポート', desc: '種別ごとの送信通数・月別推移（LINE有料化の通数把握）' },
     { href: `/admin/unread?token=${token}`, emoji: '📩', title: '未読ユーザー', desc: 'DMに未読があるユーザー / 何が未読か（ユーザーごとにMarkdown）' },
     { href: `/admin/dm?token=${token}`, emoji: '💬', title: 'DMログ', desc: '1対1DMの一覧（誰↔誰・直近順）/ タップで本文を表示' },
+    { href: `/admin/lp-funnel?token=${token}`, emoji: '🧭', title: 'LP流入ファネル', desc: '入口別（インスタ/リッチメニュー/検索）× どこまで進んだか / 離脱ポイント / LINE到達' },
     { href: `/admin/lp?token=${token}`, emoji: '📊', title: 'LP診断レポート', desc: '来訪 / 診断ファネル / 結果タイプ / 興味シグナル需要プール' },
     { href: `/admin/users?token=${token}`, emoji: '👥', title: 'ユーザー管理', desc: 'LINE登録ユーザー一覧 / Swing許可リスト編集' },
     { href: `/admin/rounds?token=${token}`, emoji: '🏆', title: 'ラウンド募集', desc: '全募集の一覧・削除' },

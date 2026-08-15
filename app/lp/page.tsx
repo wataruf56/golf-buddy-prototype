@@ -14,6 +14,7 @@
 import type { Metadata } from 'next';
 import { RefCapture } from '@/components/RefCapture';
 import { StartButton } from '@/components/StartButton';
+import { LP_TRACK_SCRIPT } from '@/lib/lpTrackScript';
 
 const SITE = 'https://goltomo.com';
 const DIAGNOSIS_URL = '/golmoti.html';
@@ -355,6 +356,8 @@ export default async function LandingPage() {
     <div className="sv">
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
+      {/* LP計測（到達→スクロール→クリック→LINE遷移）。ユニークは visitorId 基準。 */}
+      <script dangerouslySetInnerHTML={{ __html: `window.__lpPage="top";` + LP_TRACK_SCRIPT }} />
       {/* 流入経路キャプチャ（?ref=instagram 等を初回のみ記憶） */}
       <RefCapture />
 
@@ -403,8 +406,8 @@ export default async function LandingPage() {
 
         {/* 上部CTA（ファーストビューで登録に進めるように） */}
         <div className="cta2">
-          <StartButton className="p">💬 LINEで無料ではじめる</StartButton>
-          <a className="s" href={`${APP}/links/rounds`}>⛳ 募集中のラウンドを見る</a>
+          <StartButton className="p" lp="cta_top">💬 LINEで無料ではじめる</StartButton>
+          <a className="s" href={`${APP}/links/rounds`} data-lp="rounds_top">⛳ 募集中のラウンドを見る</a>
           <div className="mc">LINEログインのみ ・ 約30秒で完了 ・ アプリDL不要</div>
         </div>
 
@@ -454,13 +457,13 @@ export default async function LandingPage() {
         <div className="cta">
           <h2>ゴルフ友達を<br />見つけにいく</h2>
           <p>登録は無料。アプリのDLは不要。<br />まずはLINEログインだけ。</p>
-          <StartButton className="btn">LINEで始める →</StartButton>
+          <StartButton className="btn" lp="cta_final">LINEで始める →</StartButton>
           <span className="sub">無料 ・ LINEログインのみ ・ アプリDL不要</span>
         </div>
 
         <div className="quiz">
           <div className="t">⛳ 自分がどんなゴルファーか知りたい人へ</div>
-          <a href={DIAGNOSIS_URL}>ゴルフ版MBTI・16タイプ診断をしてみる →</a>
+          <a href={DIAGNOSIS_URL} data-lp="mbti_link">ゴルフ版MBTI・16タイプ診断をしてみる →</a>
         </div>
 
         {/* QRで共有：この画面を見せて、他の人に読み取ってもらうと同じLPが開く */}
@@ -482,7 +485,7 @@ export default async function LandingPage() {
 
         {/* 追従CTAバー（スクロール中も常に登録に進める） */}
         <div className="bar">
-          <StartButton className="b2">💬 LINEで無料ではじめる</StartButton>
+          <StartButton className="b2" lp="cta_bar">💬 LINEで無料ではじめる</StartButton>
         </div>
       </div>
     </div>

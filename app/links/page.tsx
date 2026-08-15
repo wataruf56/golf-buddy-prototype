@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { HubLinks } from '@/components/HubLinks';
+import { LP_TRACK_SCRIPT } from '@/lib/lpTrackScript';
 
 // Instagram の link-in-bio 用ページ（LINE友だち追加専用）。
 // インスタのプロフィールには line.me のURLを直接貼れない（ドメインブロック）ため、
@@ -45,6 +46,8 @@ export default function LinksHubPage() {
         </p>
 
         {/* LINE友だち追加（表示・クリックを /api/lp/hit に計測） */}
+        {/* LP計測（到達→スクロール→クリック→LINE遷移） */}
+        <script dangerouslySetInnerHTML={{ __html: `window.__lpPage="links";` + LP_TRACK_SCRIPT }} />
         <HubLinks />
 
         <div className="mt-10 text-[11px] font-bold" style={{ color: '#8AA79A' }}>
