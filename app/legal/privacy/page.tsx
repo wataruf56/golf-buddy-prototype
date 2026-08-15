@@ -1,6 +1,14 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 
-export const metadata = { title: 'プライバシーポリシー - ゴルトモ' };
+const SITE = 'https://goltomo.com';
+
+export const metadata: Metadata = {
+  title: 'プライバシーポリシー - ゴルトモ',
+  description:
+    'ゴルフ友達マッチングアプリ「ゴルトモ」のプライバシーポリシー。取得する情報（LINEプロフィール・入力情報・動画データ）、利用目的、第三者提供、外部サービスへの送信、保存期間と削除について記載しています。',
+  alternates: { canonical: `${SITE}/legal/privacy` },
+};
 
 export default function PrivacyPage() {
   return (

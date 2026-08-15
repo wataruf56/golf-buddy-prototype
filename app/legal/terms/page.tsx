@@ -1,6 +1,14 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 
-export const metadata = { title: '利用規約 - ゴルトモ' };
+const SITE = 'https://goltomo.com';
+
+export const metadata: Metadata = {
+  title: '利用規約 - ゴルトモ',
+  description:
+    'ゴルフ友達マッチングアプリ「ゴルトモ」の利用規約。利用登録、禁止事項、スイング分析機能の取り扱い、ラウンド参加時の責任範囲、免責事項などを定めています。',
+  alternates: { canonical: `${SITE}/legal/terms` },
+};
 
 export default function TermsPage() {
   return (
