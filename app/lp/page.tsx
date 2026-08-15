@@ -15,6 +15,7 @@ import type { Metadata } from 'next';
 import { RefCapture } from '@/components/RefCapture';
 import { StartButton } from '@/components/StartButton';
 import { LP_TRACK_SCRIPT } from '@/lib/lpTrackScript';
+import { computeLpStats, EMPTY_LP_STATS, type LpStats } from '@/lib/lpStats';
 
 const SITE = 'https://goltomo.com';
 const DIAGNOSIS_URL = '/golmoti.html';
@@ -215,25 +216,13 @@ html body{background:#F4E8CE}
 .sv .qrshare .qu{font-size:11px;font-weight:900;color:var(--teal);margin-top:12px}
 `;
 
-// LPに載せる数字は5分ごとに作り直す（実データを新鮮に保ちつつ読み取りを抑える）。
-export const revalidate = 300;
-
-// LPに出す実績値。手で書いた数字はすぐ古くなり事実と食い違うので、必ず実データから出す。
-// 母数(n)も持ち、少なすぎるものは表示しない。
-type LpStats = {
-  fillRate: number | null; fillN: number;         // 募集の満員率
-  againRate: number | null; againN: number;       // また回りたい率
-  femaleRate: number | null; genderN: number;     // 女性比率
-  avgAge: number | null; ageN: number;            // 平均年齢
-};
-
 // トップLPの「社会的証明」（募集中件数・直近1hログイン数）を実データから作る。
 // 失敗しても LP 本体は必ず描画する（各表示は呼び出し側で少数時に非表示）。
 async function getLpData(): Promise<{ openCount: number; activeNow: number; stats: LpStats }> {
   const now = Date.now();
   let openCount = 0;
   let activeNow = 0;
-  const stats: LpStats = { fillRate: null, fillN: 0, againRate: null, againN: 0, femaleRate: null, genderN: 0, avgAge: null, ageN: 0 };
+  const stats: LpStats = { ...EMPTY_LP_STATS };
   try {
     const { db } = await import('@/lib/db');
     const [open, official] = await Promise.all([
@@ -257,63 +246,15 @@ async function getLpData(): Promise<{ openCount: number; activeNow: number; stat
     }
   } catch { /* noop */ }
 
-  // 実績値（満員率・また回りたい率・男女比・平均年齢）
+  // 実績値（満員率・また回りたい率・男女比・平均年齢）。
+  // 失敗しても LP は出す（数字のセクションだけが消える）。
   try {
     const { getAdminDb } = await import('@/lib/firebase');
     const adb = getAdminDb() as any;
-    if (adb) {
-      const [rSnap, uSnap, revSnap, likeSnap] = await Promise.all([
-        adb.collection('rounds').limit(2000).get(),
-        adb.collection('users').limit(2000).get(),
-        adb.collection('reviews').limit(5000).get(),
-        adb.collection('_matchLikes').limit(8000).get(),
-      ]);
-
-      // 満員率＝完了した募集の「メンバー数 / 定員」の平均（飲み会は除く）
-      const membersOf = (r: any) => [r.hostId, ...(r.coHostIds || []), ...(r.applicantIds || [])].filter(Boolean);
-      const done = rSnap.docs.map((d: any) => d.data() || {})
-        .filter((r: any) => r.status === 'completed' && r.eventType !== 'drink');
-      stats.fillN = done.length;
-      if (done.length) {
-        const sum = done.reduce((a: number, r: any) => a + Math.min(1, membersOf(r).length / Math.max(1, r.maxSpots || 1)), 0);
-        stats.fillRate = Math.round((sum / done.length) * 100);
-      }
-
-      // また回りたい率＝「レビューをくれた人」のうち「また回りたい」を押した人の割合
-      const reviewersOf: Record<string, Set<string>> = {};
-      revSnap.docs.forEach((d: any) => {
-        const x = d.data() || {};
-        if (!x.revieweeId || !x.reviewerId) return;
-        (reviewersOf[x.revieweeId] = reviewersOf[x.revieweeId] || new Set()).add(x.reviewerId);
-      });
-      const againOf: Record<string, Set<string>> = {};
-      likeSnap.docs.forEach((d: any) => {
-        const x = d.data() || {};
-        if (x.kind !== 'again' || !x.from || !x.to) return;
-        (againOf[x.to] = againOf[x.to] || new Set()).add(x.from);
-      });
-      let ag = 0, pairs = 0;
-      Object.entries(reviewersOf).forEach(([to, revs]) => {
-        (revs as Set<string>).forEach((from) => { pairs++; if (againOf[to]?.has(from)) ag++; });
-      });
-      stats.againN = pairs;
-      if (pairs) stats.againRate = Math.round((ag / pairs) * 100);
-
-      // 会員の属性（テスト・システムは除外）
-      let male = 0, female = 0, ageSum = 0, ageN = 0;
-      uSnap.docs.forEach((d: any) => {
-        const u = d.data() || {};
-        if (u.isSystem || u.isTestAccount) return;
-        if (u.gender === 'male') male++; else if (u.gender === 'female') female++;
-        const age = Number(u.age || 0);
-        if (age >= 15 && age <= 90) { ageSum += age; ageN++; }
-      });
-      stats.genderN = male + female;
-      if (stats.genderN) stats.femaleRate = Math.round((female / stats.genderN) * 100);
-      stats.ageN = ageN;
-      if (ageN) stats.avgAge = Math.round(ageSum / ageN);
-    }
-  } catch { /* 数字が取れなくてもLPは出す */ }
+    if (adb) Object.assign(stats, await computeLpStats(adb));
+  } catch (e) {
+    console.error('[lp] stats failed', e);
+  }
 
   return { openCount, activeNow, stats };
 }

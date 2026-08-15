@@ -48,6 +48,8 @@ export async function GET(req: NextRequest) {
       docs = snap.docs.map((d: any) => d.data() || {}).filter((x: Row) => (x.ts || 0) >= from);
     }
     if (pageFilter) docs = docs.filter((d) => d.page === pageFilter);
+    // 疎通確認用の送信（visitorId が vtest_ で始まるもの）は数字に混ぜない。
+    docs = docs.filter((d) => !String(d.visitorId || '').startsWith('vtest_'));
 
     // ── ステップごとのユニーク訪問者 ──
     const STEPS = ['view', 'd25', 'd50', 'd75', 'd100', 'click', 'goal'] as const;
