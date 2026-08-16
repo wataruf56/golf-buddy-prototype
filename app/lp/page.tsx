@@ -428,7 +428,7 @@ export default async function LandingPage() {
           <p className="v-a">登録は無料。アプリのDLは不要。<br />まずはLINEログインだけ。</p>
           <p className="v-b">気になる募集があれば、その場で参加できます。<br />登録は無料・30秒。</p>
           <StartButton className="btn v-a" lp="cta_final">LINEで始める →</StartButton>
-          <a className="btn v-b" href={`${APP}/links/rounds`} data-lp="rounds_final_b">いまの募集を見てみる →</a>
+          <a className="btn v-b" href={`${APP}/links/rounds`} data-lp="rounds_final_b">募集を見てみる →</a>
           <span className="sub">無料 ・ LINEログインのみ ・ アプリDL不要</span>
         </div>
 
