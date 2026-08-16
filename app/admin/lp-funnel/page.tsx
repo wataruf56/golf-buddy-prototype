@@ -14,7 +14,8 @@ type EntryRow = { entry: string; view: number; d25: number; d50: number; d75: nu
 type PageRow = Omit<EntryRow, 'entry'> & { page: string };
 type Data = {
   generatedAt: number;
-  range: { days: number };
+  range: { days: number; from: number; to: number | null; fromYmd: string; toYmd: string; dataFrom: number; dataTo: number };
+  abStartedAt?: number;
   scanned: number;
   kpi: {
     visitors: number; sessions: number; goals: number; cvr: number;
@@ -73,6 +74,9 @@ function Inner() {
   const [loading, setLoading] = useState(false);
   const [days, setDays] = useState(30);
   const [page, setPage] = useState('');
+  // 期間指定（YYYY-MM-DD）。入っていれば days より優先。
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -88,12 +92,14 @@ function Inner() {
     })();
   }, [tokenFromUrl]);
 
-  async function load(t = token, d = days, p = page) {
+  async function load(t = token, d = days, p = page, f = from, u = to) {
     if (!t) return;
     setLoading(true); setErr('');
     try {
       const qs = new URLSearchParams({ token: t, days: String(d) });
       if (p) qs.set('page', p);
+      if (f) qs.set('from', f);
+      if (u) qs.set('to', u);
       const r = await fetch(`/api/admin/lp-funnel?${qs}`, { cache: 'no-store' });
       const j = await r.json();
       if (!r.ok) throw new Error(j?.error || `${r.status}`);
@@ -101,7 +107,7 @@ function Inner() {
     } catch (e) { setErr((e as Error).message); }
     finally { setLoading(false); }
   }
-  useEffect(() => { if (token) load(token, days, page); /* eslint-disable-next-line */ }, [token, days, page]);
+  useEffect(() => { if (token) load(token, days, page, from, to); /* eslint-disable-next-line */ }, [token, days, page, from, to]);
 
   if (!token) return <div className="min-h-screen bg-bg p-5 max-w-md mx-auto flex items-center justify-center text-sm text-muted">⚙️ 読み込み中...</div>;
 
@@ -131,6 +137,30 @@ function Inner() {
           </button>
         ))}
       </div>
+      {/* 期間の指定。入れると上の「7/30/90日」より優先される。 */}
+      <div className="bg-card rounded-xl shadow-card p-2.5 mb-2 flex flex-wrap items-end gap-2">
+        <div className="flex flex-col">
+          <span className="text-[9.5px] text-muted font-bold mb-0.5">開始日</span>
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
+            className="text-[12px] px-2 py-1 rounded-lg border border-border bg-bg" />
+        </div>
+        <div className="flex flex-col">
+          <span className="text-[9.5px] text-muted font-bold mb-0.5">終了日</span>
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
+            className="text-[12px] px-2 py-1 rounded-lg border border-border bg-bg" />
+        </div>
+        {(from || to) && (
+          <button onClick={() => { setFrom(''); setTo(''); }}
+            className="text-[11px] px-2.5 py-1.5 rounded-lg bg-bg border border-border font-bold">クリア</button>
+        )}
+        {data?.abStartedAt ? (
+          <button
+            onClick={() => { setFrom(new Date(data.abStartedAt! + 9 * 3600000).toISOString().slice(0, 10)); setTo(''); }}
+            className="text-[11px] px-2.5 py-1.5 rounded-lg bg-orange text-white font-bold ml-auto"
+          >🆎 A/B開始日から</button>
+        ) : null}
+      </div>
+
       <div className="flex gap-1.5 mb-3">
         {([['', 'すべてのLP'], ['top', '普通のLP'], ['mbti', 'MBTI診断'], ['links', 'リンクハブ']] as const).map(([v, label]) => (
           <button key={v} onClick={() => setPage(v)}
@@ -150,6 +180,9 @@ function Inner() {
 
       {data && data.scanned > 0 && k && (
         <>
+          <div className="text-[10.5px] text-muted mb-2">
+            対象期間：<b className="text-text">{fmtRange(data)}</b> ・ {data.scanned}件のイベント
+          </div>
           {/* 主要KPI */}
           <div className="grid grid-cols-2 gap-2 mb-3">
             <Kpi label="訪問した人" value={`${k.visitors}人`} sub={`${k.sessions}セッション`} accent="text-green" />
@@ -199,39 +232,76 @@ function Inner() {
           </Card>
 
           {/* A/Bテストの比較 */}
-          {(data.byVariant || []).length > 0 && (
-            <Card title="🆎 CTAのA/Bテスト" sub="A=現行（LINE登録が主役）/ B=新案（まず募集を見せる）。割り当ては人ごとに固定">
-              {(data.byVariant || []).map((r) => {
-                const cvr = r.view ? Math.round((r.goal / r.view) * 1000) / 10 : 0;
-                const label = r.variant === 'a' ? 'A：現行「LINEで無料ではじめる」' : 'B：新案「いまの募集を見てみる」';
-                return (
-                  <div key={r.variant} className="py-2 border-b border-border last:border-0">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className={'text-[12px] font-black ' + (r.variant === 'b' ? 'text-orange' : '')}>{label}</span>
-                      <span className="text-[12px] font-black flex-none">{cvr}%</span>
-                    </div>
-                    <div className="text-[10.5px] text-muted mt-0.5">
-                      到達 {r.view}人 → 完読 {r.d100}人 → 押した {r.click}人 → <b className="text-orange">LINE {r.goal}人</b>
-                    </div>
-                    <div className="h-2 bg-bg rounded overflow-hidden mt-1">
-                      <div className={'h-full rounded ' + (r.variant === 'b' ? 'bg-orange' : 'bg-green')} style={{ width: `${Math.min(100, cvr * 4)}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-              {(() => {
-                const rows = data.byVariant || [];
-                const min = Math.min(...rows.map((r) => r.view));
-                if (rows.length < 2) return <div className="text-[10.5px] text-muted mt-2">もう片方のデータが貯まると比較できます。</div>;
-                if (min < 100) return <div className="text-[10.5px] text-muted mt-2 leading-relaxed">※ まだ人数が少なく、差が出ていても偶然の可能性があります。片方が100人を超えたあたりから判断材料になります（現在の最小 {min}人）。</div>;
-                const a = rows.find((r) => r.variant === 'a'), b = rows.find((r) => r.variant === 'b');
-                if (!a || !b) return null;
-                const ca = a.view ? a.goal / a.view : 0, cb = b.view ? b.goal / b.view : 0;
-                const win = cb > ca ? 'B（新案）' : ca > cb ? 'A（現行）' : '互角';
-                return <div className="text-[11px] font-bold mt-2">いまのところ <span className="text-orange">{win}</span> が優勢です。</div>;
-              })()}
-            </Card>
-          )}
+          <Card
+            title="🆎 CTAのA/Bテスト"
+            sub="A=現行（LINE登録が主役）/ B=新案（まず募集を見せる）。割り当ては人ごとに固定"
+          >
+            {!data.abStartedAt ? (
+              <div className="text-[11.5px] leading-relaxed">
+                <b>まだ計測が始まっていません。</b><br />
+                A/Bテストはこの機能を入れた時点からの計測です。LPへのアクセスが発生すると、ここに案ごとの数字が出ます。
+              </div>
+            ) : (
+              <>
+                <div className="text-[10.5px] text-muted mb-2 leading-relaxed">
+                  計測開始：<b className="text-text">{new Date(data.abStartedAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</b>
+                  {' '}／ この表の対象：{fmtRange(data)}
+                </div>
+                {(data.byVariant || []).length === 0 ? (
+                  <div className="text-[11.5px] text-muted">この期間には、まだどちらの案のデータもありません。</div>
+                ) : (
+                  <>
+                    {(data.byVariant || []).map((r) => {
+                      const cvr = r.view ? Math.round((r.goal / r.view) * 1000) / 10 : 0;
+                      const label = r.variant === 'a' ? 'A：現行「LINEで無料ではじめる」' : 'B：新案「いまの募集を見てみる」';
+                      return (
+                        <div key={r.variant} className="py-2 border-b border-border last:border-0">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className={'text-[12px] font-black ' + (r.variant === 'b' ? 'text-orange' : '')}>{label}</span>
+                            <span className="text-[12px] font-black flex-none">{cvr}%</span>
+                          </div>
+                          <div className="text-[10.5px] text-muted mt-0.5">
+                            到達 {r.view}人 → 完読 {r.d100}人 → 押した {r.click}人 → <b className="text-orange">LINE {r.goal}人</b>
+                          </div>
+                          <div className="h-2 bg-bg rounded overflow-hidden mt-1">
+                            <div className={'h-full rounded ' + (r.variant === 'b' ? 'bg-orange' : 'bg-green')} style={{ width: `${Math.min(100, cvr * 4)}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {(() => {
+                      // 判断は母数が十分たまってから。少ないうちに「優勢」と言わない。
+                      const NEED = 100;
+                      const rows = data.byVariant || [];
+                      const a = rows.find((r) => r.variant === 'a');
+                      const b = rows.find((r) => r.variant === 'b');
+                      if (!a || !b) {
+                        return <div className="text-[11px] text-muted mt-2 leading-relaxed">まだ片方の案しかデータがありません。両方たまると比較できます。</div>;
+                      }
+                      const min = Math.min(a.view, b.view);
+                      if (min < NEED) {
+                        return (
+                          <div className="text-[11px] text-muted mt-2 leading-relaxed">
+                            ⏳ <b>まだ判断できません。</b>少ない人数だと、差が出ていても偶然のことがあります。
+                            それぞれ {NEED}人に達したら比べてください（いま少ない方で {min}人 ／ あと {NEED - min}人）。
+                          </div>
+                        );
+                      }
+                      const ca = a.goal / a.view, cb = b.goal / b.view;
+                      const diff = Math.abs(ca - cb) * 100;
+                      if (diff < 1) return <div className="text-[11px] font-bold mt-2">いまのところ差はほとんどありません（どちらも同程度）。</div>;
+                      const win = cb > ca ? 'B（新案）' : 'A（現行）';
+                      return (
+                        <div className="text-[11px] font-bold mt-2">
+                          いまのところ <span className="text-orange">{win}</span> の方が {diff.toFixed(1)}ポイント高いです。
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
+              </>
+            )}
+          </Card>
 
           {/* 入口別 */}
           <Card title="🚪 入口別のファネル" sub="どこから来た人が、どこまで進んだか（ユニーク）">
@@ -319,6 +389,18 @@ function Inner() {
       )}
     </div>
   );
+}
+
+// 「いつからいつまでのデータか」を1行で表す。
+function fmtRange(d: Data): string {
+  const f = (ms: number) => new Date(ms).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
+  if (d.range?.fromYmd || d.range?.toYmd) {
+    const a = d.range.fromYmd ? d.range.fromYmd.slice(5).replace('-', '/') : '最初';
+    const b = d.range.toYmd ? d.range.toYmd.slice(5).replace('-', '/') : '今';
+    return `${a} 〜 ${b}`;
+  }
+  if (d.range?.dataFrom && d.range?.dataTo) return `${f(d.range.dataFrom)} 〜 ${f(d.range.dataTo)}（直近${d.range.days}日）`;
+  return `直近${d.range?.days ?? 30}日`;
 }
 
 function Kpi({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {

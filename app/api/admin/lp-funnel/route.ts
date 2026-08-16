@@ -33,9 +33,21 @@ export async function GET(req: NextRequest) {
   if (!db) return NextResponse.json({ error: 'firestore not initialized' }, { status: 500, headers: noStore });
 
   const url = new URL(req.url);
-  const days = Math.min(180, Math.max(1, Number(url.searchParams.get('days') || 30)));
-  const pageFilter = url.searchParams.get('page') || '';   // top / mbti / links / ''(すべて)
-  const from = Date.now() - days * DAY;
+  const pageFilter = url.searchParams.get('page') || '';   // top / mbti / links / rounds / ''(すべて)
+
+  // 期間の指定。?from=YYYY-MM-DD&to=YYYY-MM-DD（JSTの日付）が優先。
+  // 無ければ ?days=N（既定30日）。境界はJSTの0:00と翌0:00。
+  const JST = 9 * 3600 * 1000;
+  const dayStart = (ymd: string): number | null => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
+    const t = Date.parse(`${ymd}T00:00:00+09:00`);
+    return isFinite(t) ? t : null;
+  };
+  const fromParam = dayStart(url.searchParams.get('from') || '');
+  const toParam = dayStart(url.searchParams.get('to') || '');
+  const days = Math.min(365, Math.max(1, Number(url.searchParams.get('days') || 30)));
+  const from = fromParam ?? (Date.now() - days * DAY);
+  const to = toParam != null ? toParam + DAY : Number.MAX_SAFE_INTEGER;   // 終了日はその日いっぱい
 
   try {
     let docs: Row[] = [];
@@ -47,6 +59,7 @@ export async function GET(req: NextRequest) {
       const snap = await db.collection('_lpTrack').orderBy('ts', 'desc').limit(30000).get();
       docs = snap.docs.map((d: any) => d.data() || {}).filter((x: Row) => (x.ts || 0) >= from);
     }
+    if (to !== Number.MAX_SAFE_INTEGER) docs = docs.filter((d) => (d.ts || 0) < to);
     if (pageFilter) docs = docs.filter((d) => d.page === pageFilter);
     // 疎通確認用の送信（visitorId が vtest_ で始まるもの）は数字に混ぜない。
     docs = docs.filter((d) => !String(d.visitorId || '').startsWith('vtest_'));
@@ -150,9 +163,34 @@ export async function GET(req: NextRequest) {
     const sortSet = (o: Record<string, Set<string>>) =>
       Object.entries(o).map(([k, v]) => ({ key: k, users: v.size })).sort((a, b) => b.users - a.users);
 
+    // A/Bテストがいつから動いているか（variant を持つ最古のイベント）。
+    // 期間で切られていても分かるよう、期間フィルタの前の全体から探す。
+    let abStartedAt = 0;
+    try {
+      const abSnap = await db.collection('_lpTrack').where('variant', 'in', ['a', 'b'])
+        .orderBy('ts', 'asc').limit(1).get();
+      if (!abSnap.empty) abStartedAt = Number(abSnap.docs[0].data()?.ts || 0);
+    } catch {
+      // インデックスが無い場合は、いま集計した中の最古で代用
+      const withV = docs.filter((d) => d.variant === 'a' || d.variant === 'b');
+      if (withV.length) abStartedAt = Math.min(...withV.map((d) => Number(d.ts || 0)));
+    }
+
+    // 実際に集計に入ったイベントの範囲（画面に「いつからいつまで」を出すため）
+    const tsList = docs.map((d) => Number(d.ts || 0)).filter(Boolean);
+    const dataFrom = tsList.length ? Math.min(...tsList) : 0;
+    const dataTo = tsList.length ? Math.max(...tsList) : 0;
+
     return NextResponse.json({
       generatedAt: Date.now(),
-      range: { days, from },
+      range: {
+        days, from,
+        to: to === Number.MAX_SAFE_INTEGER ? null : to,
+        fromYmd: url.searchParams.get('from') || '',
+        toYmd: url.searchParams.get('to') || '',
+        dataFrom, dataTo,
+      },
+      abStartedAt,
       scanned: docs.length,
       // ── ビジネスの基本指標（すべてユニーク） ──
       kpi: {
