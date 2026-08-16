@@ -25,13 +25,31 @@ export default function AdminDmPage() {
 
 function Inner() {
   const search = useSearchParams();
-  const token = search?.get('token') || '';
+  const tokenFromUrl = search?.get('token') || '';
+  // 他の管理画面と同じ取得パターンに揃える。URLに ?token= が無くても
+  // localStorage と /api/admin/init から拾えるようにしておかないと、
+  // この画面だけ直接開けず「トークンが必要です」で止まってしまう。
+  const [token, setToken] = useState('');
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [msgLoading, setMsgLoading] = useState(false);
   const [q, setQ] = useState('');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const cached = tokenFromUrl || localStorage.getItem('gb_admin_token') || '';
+    if (cached) setToken(cached);
+    (async () => {
+      try {
+        const r = await fetch('/api/admin/init', { cache: 'no-store' });
+        if (!r.ok) return;
+        const j = await r.json();
+        if (j?.token) { localStorage.setItem('gb_admin_token', j.token); setToken(j.token); }
+      } catch {}
+    })();
+  }, [tokenFromUrl]);
 
   useEffect(() => {
     if (!token) { setLoading(false); return; }
@@ -57,7 +75,8 @@ function Inner() {
   const filtered = threads.filter((t) =>
     !q.trim() || `${t.a.name} ${t.b.name} ${t.lastMessage}`.toLowerCase().includes(q.trim().toLowerCase()));
 
-  if (!token) return <div className="p-6 text-sub">アクセストークンが必要です（管理トップから開いてください）。</div>;
+  // トークンは /api/admin/init から非同期で入るので、それまでは読み込み中を出す。
+  if (!token) return <div className="p-6 text-sub text-sm">⚙️ 読み込み中...</div>;
 
   return (
     <div className="max-w-2xl mx-auto p-4 pb-20">
