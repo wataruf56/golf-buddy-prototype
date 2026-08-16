@@ -226,10 +226,12 @@ html[data-lpv="b"] .sv div.v-b,html[data-lpv="b"] .sv p.v-b{display:block !impor
 
 // トップLPの「社会的証明」（募集中件数・直近1hログイン数）を実データから作る。
 // 失敗しても LP 本体は必ず描画する（各表示は呼び出し側で少数時に非表示）。
-async function getLpData(): Promise<{ openCount: number; activeNow: number; stats: LpStats }> {
+async function getLpData(): Promise<{ openCount: number; activeNow: number; totalRounds: number; stats: LpStats }> {
   const now = Date.now();
   let openCount = 0;
   let activeNow = 0;
+  // これまでに投稿された募集の累計（満員・終了済みも含む）。CTAの件数表示に使う。
+  let totalRounds = 0;
   const stats: LpStats = { ...EMPTY_LP_STATS };
   try {
     const { db } = await import('@/lib/db');
@@ -259,12 +261,23 @@ async function getLpData(): Promise<{ openCount: number; activeNow: number; stat
   try {
     const { getAdminDb } = await import('@/lib/firebase');
     const adb = getAdminDb() as any;
-    if (adb) Object.assign(stats, await computeLpStats(adb));
+    if (adb) {
+      Object.assign(stats, await computeLpStats(adb));
+      // 累計の募集数（status を問わない＝満員・終了済みも含む）。
+      // 検証用アカウントの投稿と飲み会は除く。
+      const rs = await adb.collection('rounds').limit(3000).get();
+      rs.docs.forEach((d: any) => {
+        const r = d.data() || {};
+        if (String(r.hostId || '').startsWith('test_')) return;
+        if (r.eventType === 'drink') return;
+        totalRounds++;
+      });
+    }
   } catch (e) {
     console.error('[lp] stats failed', e);
   }
 
-  return { openCount, activeNow, stats };
+  return { openCount, activeNow, totalRounds, stats };
 }
 
 const JSON_LD = {
@@ -279,7 +292,7 @@ const JSON_LD = {
 };
 
 export default async function LandingPage() {
-  const { openCount, activeNow, stats } = await getLpData();
+  const { openCount, activeNow, totalRounds, stats } = await getLpData();
   // 数字は少ないと逆効果なので、十分あるときだけ出す（実データ・虚偽なし）。
   const showOpen = openCount >= 3;
   const showActive = activeNow >= 3;
@@ -360,7 +373,7 @@ export default async function LandingPage() {
           <a className="s v-a" href={`${APP}/links/rounds`} data-lp="rounds_top">⛳ 募集中のラウンドを見る</a>
           {/* B：まず中身を見せる（登録不要の募集一覧が主役） */}
           <a className="p v-b" href={`${APP}/links/rounds`} data-lp="rounds_top_b">
-            ⛳ いまの募集を見てみる{showOpen ? `（${openCount}件）` : ''}
+            ⛳ 募集を見てみる{totalRounds > 0 ? `（これまで${totalRounds}件）` : ''}
           </a>
           <div className="mc v-b">登録なしで見られます</div>
           <StartButton className="s v-b" lp="cta_top_b">💬 LINEで参加する（無料）</StartButton>
