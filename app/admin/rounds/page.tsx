@@ -4,6 +4,7 @@ import { confirmDialog, alertDialog } from '@/components/ConfirmDialog';
 
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { AdminTabs } from '@/components/AdminTabs';
 import { useSearchParams } from 'next/navigation';
 import { appRoundUrl } from '@/lib/adminLinks';
 
@@ -152,6 +153,7 @@ function Inner() {
         <div className="flex-1 text-center text-base font-black">🏆 ラウンド募集</div>
         <button onClick={load} className="text-blue text-sm font-bold">🔄</button>
       </div>
+        <AdminTabs token={token} group="rounds" current="/admin/rounds" />
 
       <div className="text-[11px] text-muted text-center mb-2">計 {items.length} 件 / 表示 {filtered.length}</div>
 

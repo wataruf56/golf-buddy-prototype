@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { AdminTabs } from '@/components/AdminTabs';
 import { useSearchParams } from 'next/navigation';
 
 type Verdict = 'again' | 'romantic' | 'never' | 'either';
@@ -115,6 +116,7 @@ function Inner() {
         <div className="flex-1 text-center text-base font-black">📝 レビュー</div>
         <button onClick={load} className="text-blue text-sm font-bold">🔄</button>
       </div>
+        <AdminTabs token={token} group="trust" current="/admin/reviews" />
 
       <div className="text-[11px] text-muted text-center mb-3">
         計 {reviews.length} 件 ／ {groups.length} ラウンド

@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { AdminTabs } from '@/components/AdminTabs';
 import { useSearchParams } from 'next/navigation';
 
 // 管理画面：ドタキャン等の報告を受けたときに、対象ユーザーを検索して評価を下げる。
@@ -122,6 +123,7 @@ function Inner() {
   return (
     <div className="min-h-screen bg-bg p-4 max-w-md mx-auto pb-16">
       <Link href={`/admin?token=${token}`} className="text-muted text-sm">‹ 管理</Link>
+      <AdminTabs token={token} group="trust" current="/admin/manner" />
       <div className="text-2xl font-black mb-1 mt-1">🙅 ドタキャン・マナー管理</div>
       <div className="text-[12px] text-muted mb-3">
         LINE等でドタキャンの報告を受けたとき、事実確認のうえ対象の人の評価を下げます。下げるとその人のプロフィールに「⚠️ 運営から注意あり」が表示されます。あとから取り消せます。

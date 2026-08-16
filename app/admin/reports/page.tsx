@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { AdminTabs } from '@/components/AdminTabs';
 import { useSearchParams } from 'next/navigation';
 import { appProfileUrl } from '@/lib/adminLinks';
 
@@ -98,6 +99,7 @@ function Inner() {
   return (
     <div className="min-h-screen bg-bg p-4 max-w-md mx-auto pb-16">
       <Link href={`/admin?token=${token}`} className="text-muted text-sm">‹ 管理</Link>
+      <AdminTabs token={token} group="trust" current="/admin/reports" />
       <div className="text-2xl font-black mb-1 mt-1">🚨 通報の管理</div>
       <div className="text-[12px] text-muted mb-3">未対応 {openCount} 件。事実確認のうえ「評価を下げる」や通報者とのチャットができます。</div>
 

@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { AdminTabs } from '@/components/AdminTabs';
 import { useSearchParams } from 'next/navigation';
 
 // 管理画面：LP流入ファネル。
@@ -112,6 +113,7 @@ function Inner() {
         <Link href={`/admin?token=${token}`} className="text-muted text-sm">‹ 管理</Link>
         <button onClick={() => load()} className="ml-auto text-[11px] px-2.5 py-1 rounded-full bg-card shadow-card font-bold">{loading ? '更新中…' : '↻ 更新'}</button>
       </div>
+        <AdminTabs token={token} group="lp" current="/admin/lp-funnel" />
       <div className="text-2xl font-black mb-1">🧭 LP流入ファネル</div>
       <div className="text-[11px] text-muted mb-3">
         どの入口から来た人が、どこまで進んで、どこで落ちたか。数字はすべて<b>ユニーク</b>（同じ人が何回来ても1人）。ゴールは<b>LINE公式へ進んだ</b>こと。

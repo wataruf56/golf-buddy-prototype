@@ -4,6 +4,7 @@ import { confirmDialog, alertDialog } from '@/components/ConfirmDialog';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { AdminTabs } from '@/components/AdminTabs';
 import { useSearchParams } from 'next/navigation';
 import { getGolmotiType } from '@/lib/golmoti';
 
@@ -164,6 +165,7 @@ function Inner() {
       <div className="flex items-center gap-2 mb-1">
         <Link href={`/admin?token=${token}`} className="text-muted text-sm">‹ 管理</Link>
       </div>
+      <AdminTabs token={token} group="lp" current="/admin/lp" />
       <div className="text-2xl font-black mb-1">📊 LP診断レポート</div>
       <div className="flex items-center justify-between mb-4">
         <div className="text-[11px] text-muted">

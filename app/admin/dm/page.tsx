@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { AdminTabs } from '@/components/AdminTabs';
 import { useSearchParams } from 'next/navigation';
 
 type Thread = {
@@ -63,6 +64,7 @@ function Inner() {
       <div className="flex items-center gap-2 mb-1">
         <Link href={`/admin?token=${encodeURIComponent(token)}`} className="text-sm text-blue font-semibold">← 管理トップ</Link>
       </div>
+        <AdminTabs token={token} group="messages" current="/admin/dm" />
       <h1 className="text-xl font-black mb-1">💬 DMログ</h1>
       <p className="text-[12px] text-sub mb-3">1対1のダイレクトメッセージ。誰が誰に送ったか（直近順）。行をタップすると本文を表示します。<b className="text-red">個人間のやり取りです。取り扱いに注意。</b></p>
 

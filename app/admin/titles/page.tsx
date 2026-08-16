@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { AdminTabs } from '@/components/AdminTabs';
 import { useSearchParams } from 'next/navigation';
 
 // 管理画面：ラウンド募集タイトルのプルダウン定型文を自由に編集する。
@@ -74,6 +75,7 @@ function Inner() {
         <b>1行＝1つのタイトル</b>。上から表示順になります（最大50件・各60文字まで）。<br />
         ※ ユーザーは引き続き「✏️ 自由入力」で任意のタイトルも入力できます。
       </div>
+      <AdminTabs token={token} group="rounds" current="/admin/titles" />
 
       {!loaded ? (
         <div className="text-sm text-muted">読み込み中...</div>

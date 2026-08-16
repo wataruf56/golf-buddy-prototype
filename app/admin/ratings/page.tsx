@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { AdminTabs } from '@/components/AdminTabs';
 import { useSearchParams } from 'next/navigation';
 import { appProfileUrl } from '@/lib/adminLinks';
 
@@ -95,6 +96,7 @@ function Inner() {
         <Link href={`/admin?token=${token}`} className="text-muted text-sm">‹ 管理</Link>
         <button onClick={() => load()} className="ml-auto text-[11px] px-2.5 py-1 rounded-full bg-card shadow-card font-bold">{loading ? '更新中…' : '↻ 更新'}</button>
       </div>
+        <AdminTabs token={token} group="trust" current="/admin/ratings" />
       <div className="text-2xl font-black mb-1">⭐ 評価の状況（全員）</div>
       <div className="text-[11px] text-muted mb-3">
         ★＝また回りたい率。レビューをくれた人のうち「ごめんなさい」が何人かで決まります。名前をタップすると、誰からどう評価されたかが開きます。

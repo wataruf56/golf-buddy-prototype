@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState, Fragment } from 'react';
 import Link from 'next/link';
+import { AdminTabs } from '@/components/AdminTabs';
 import { useSearchParams } from 'next/navigation';
 
 type UnreadUser = { userId: string; name: string; unread: number; chats: number; lastAt: number };
@@ -147,6 +148,7 @@ function Inner() {
       {!active ? (
         <>
           <Link href={`/admin?token=${token}`} className="text-muted text-sm">‹ 管理</Link>
+          <AdminTabs token={token} group="messages" current="/admin/unread" />
           <div className="text-2xl font-black mb-1 mt-1">📩 未読ユーザー</div>
           <div className="text-[12px] text-muted mb-3">DMに未読があるユーザー。タップすると「何が未読か」をMarkdownで確認できます。</div>
 
