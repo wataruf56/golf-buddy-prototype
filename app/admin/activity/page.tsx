@@ -230,6 +230,7 @@ function Inner() {
   }
   useEffect(() => { if (token) load(); }, [token]);
 
+
   return (
     <div className="min-h-screen bg-bg p-4 max-w-md mx-auto">
       <div className="flex items-center gap-2 mb-3">
@@ -459,6 +460,37 @@ type Fw = {
   note?: string; error?: string;
 };
 function Followers({ token }: { token: string }) {
+  // 誰が友だち追加していないかの一括判定。ここで完結させる（親のstateには持たせない）。
+  const [checking, setChecking] = useState(false);
+  const [checkMsg, setCheckMsg] = useState('');
+  const [notFollowedList, setNotFollowedList] = useState<{ id: string; name: string }[]>([]);
+
+  async function checkFollowers() {
+    if (checking || !token) return;
+    setChecking(true); setCheckMsg('');
+    try {
+      const r = await fetch(`/api/admin/check-followers?token=${encodeURIComponent(token)}`, { method: 'POST', cache: 'no-store' });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || `${r.status}`);
+      setNotFollowedList(j.notFollowedList || []);
+      setCheckMsg(`✅ ${j.checked}人を確認：友だち ${j.followed}人 / 未追加 ${j.notFollowed}人` + (j.errored ? ` / 判定できず ${j.errored}人` : ''));
+    } catch (e) { setCheckMsg('失敗: ' + (e as Error).message); }
+    finally { setChecking(false); }
+  }
+
+  // 前回の判定結果があれば最初から見せる
+  useEffect(() => {
+    if (!token) return;
+    fetch(`/api/admin/check-followers?token=${encodeURIComponent(token)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!j || !j.checkedAt) return;
+        if (Array.isArray(j.notFollowedList)) setNotFollowedList(j.notFollowedList);
+        setCheckMsg(`前回の判定：友だち ${j.followed}人 / 未追加 ${j.notFollowed}人（${new Date(j.checkedAt).toLocaleString('ja-JP')}）`);
+      })
+      .catch(() => {});
+  }, [token]);
+
   const [f, setF] = useState<Fw | null>(null);
   const [err, setErr] = useState('');
   useEffect(() => {
@@ -521,11 +553,35 @@ function Followers({ token }: { token: string }) {
               LINEログインは友だち追加を必須としないため、その差の人にはマッチ通知やリマインドが届きません。
             </div>
           )}
-          {f.followUnknownAll && (
-            <div className="text-[10.5px] text-muted bg-bg rounded-lg p-2 mb-2 leading-relaxed">
-              ※ 一人ずつの友だち状態（LIFFの getFriendship）は現在取得できていません。ログインチャネルに公式アカウントを連携すると個人単位で判定できます。それまでは上の「LINEが届かなかった人」（実際の送信結果）が確実な手がかりです。
+          {/* 誰が友だち追加していないかを、メッセージを送らずに割り出す。
+              LINEのプロフィール取得APIは友だちなら200・そうでなければ404を返すので、
+              それで一人ずつ判定できる（LIFFの getFriendship は連携設定がないと取れない）。 */}
+          <div className="bg-bg rounded-lg p-2.5 mb-2">
+            <div className="flex items-center gap-2">
+              <div className="text-[11px] font-bold flex-1">🔍 誰が友だち追加していないか調べる</div>
+              <button
+                onClick={checkFollowers}
+                disabled={checking}
+                className="text-[11px] px-2.5 py-1 rounded-lg bg-green text-white font-bold disabled:opacity-50 flex-none"
+              >{checking ? '判定中…' : '判定する'}</button>
             </div>
-          )}
+            <div className="text-[10px] text-muted mt-1 leading-relaxed">
+              メッセージは送りません。全員のLINE側の状態を1人ずつ確認します。
+            </div>
+            {checkMsg && <div className="text-[11px] font-bold mt-1.5">{checkMsg}</div>}
+            {notFollowedList.length > 0 && (
+              <details className="mt-1.5" open>
+                <summary className="text-[11px] font-bold text-red-700 cursor-pointer list-none">
+                  🚫 友だち追加していない人（{notFollowedList.length}人）▾
+                </summary>
+                <div className="mt-1">
+                  {notFollowedList.map((p) => (
+                    <div key={p.id} className="text-[11px] py-1 border-b border-border last:border-0 font-bold truncate">{p.name}</div>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
           {(f.pushFailList || []).length > 0 && (
             <details className="mb-2">
               <summary className="text-[11px] font-bold text-red-700 cursor-pointer list-none">🚫 LINEが届かなかった人（{f.pushFailList!.length}人） ▾</summary>

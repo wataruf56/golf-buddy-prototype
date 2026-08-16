@@ -121,7 +121,8 @@ export default async function middleware(req: NextRequest) {
       path.startsWith('/api/lp/') ||
       path.startsWith('/api/auth/') ||
       path === '/liff' || path.startsWith('/liff/') ||
-      path.startsWith('/icons/') || path === '/manifest.json' || path === '/favicon.ico'
+      path.startsWith('/icons/') || path === '/manifest.json' || path === '/favicon.ico' ||
+      path === '/apple-touch-icon.png' || path === '/icon-256.png'
     ) {
       // Pass the pathname into server components so the admin layout can
       // skip its auth check on /admin/login (avoid redirect loops).

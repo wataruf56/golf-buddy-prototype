@@ -17,6 +17,18 @@ export const metadata: Metadata = {
   title: 'ゴルトモ - ゴル友マッチング × AIスイング解析',
   description: 'ゴル友マッチングとAIスイング解析が一つになったLINEアプリ。ゴルフ版MBTIの16タイプ性格診断で同年代のゴルファーと一緒にラウンドを回ろう。',
   manifest: '/manifest.json',
+  // サイトアイコン（検索結果・タブ・ホーム画面）。インスタと同じ白クマのロゴ。
+  // これが無いと Google の検索結果に既定の地球儀アイコンが出てしまう。
+  // Google は 48px 以上・正方形・多倍数サイズを推奨するため .ico に複数サイズを束ねてある。
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icons/icon-192.png', type: 'image/png', sizes: '192x192' },
+      { url: '/icons/icon-512.png', type: 'image/png', sizes: '512x512' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
   appleWebApp: { capable: true, statusBarStyle: 'default', title: 'ゴルトモ' },
   verification: { google: 'wvbjf_-RpkgDVPZeiDYkIjvqAfvsFe9bQMEaiya3jN4' },
   openGraph: {
