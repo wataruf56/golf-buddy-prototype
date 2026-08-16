@@ -192,6 +192,7 @@ html body{background:#F4E8CE}
 .sv .nums{margin:22px 16px 0}
 .sv .nums .nh{font-size:15px;font-weight:900;text-align:center;margin-bottom:10px}
 .sv .nums .ng{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.sv .nums .nc:last-child:nth-child(odd){grid-column:1 / -1}
 .sv .nums .nc{background:var(--cream);border:2.5px solid var(--ink);border-radius:16px;
   padding:12px 8px;text-align:center;box-shadow:4px 4px 0 var(--ink)}
 .sv .nums .nv{font-size:26px;font-weight:900;color:var(--teal);line-height:1.1;letter-spacing:-.02em}
@@ -300,7 +301,16 @@ export default async function LandingPage() {
 
   // 「数字で見るゴルトモ」。母数が足りない項目は黙って落とす。
   const numbers: Array<{ value: string; label: string; sub: string }> = [];
-  if (stats.fillRate != null && stats.fillN >= 5) {
+  if (stats.totalPlayers >= 10) {
+    numbers.push({
+      value: `のべ${stats.totalPlayers}人`,
+      label: 'がラウンドに参加',
+      sub: `完了した${stats.fillN}件の参加者を合計（同じ人の重複を含む）`,
+    });
+  }
+  // 検証用アカウントの投稿を除いた結果、母数が4件になった。件数は必ず併記しているので
+  // 3件以上から出す（それ未満は平均としての意味が薄いので伏せる）。
+  if (stats.fillRate != null && stats.fillN >= 3) {
     numbers.push({ value: `${stats.fillRate}%`, label: '募集が満員に', sub: `完了した${stats.fillN}件の平均充足率` });
   }
   if (stats.againRate != null && stats.againN >= 20) {

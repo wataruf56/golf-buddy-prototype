@@ -6,13 +6,14 @@ import 'server-only';
 // LP本体（app/lp/page.tsx）と確認用API（/api/lp/stats）で同じ計算を使う。
 export type LpStats = {
   fillRate: number | null; fillN: number;         // 募集の満員率
+  totalPlayers: number;                            // のべ参加人数（同じ人の重複を含む）
   againRate: number | null; againN: number;       // また回りたい率
   femaleRate: number | null; genderN: number;     // 女性比率
   avgAge: number | null; ageN: number;            // 平均年齢
 };
 
 export const EMPTY_LP_STATS: LpStats = {
-  fillRate: null, fillN: 0, againRate: null, againN: 0,
+  fillRate: null, fillN: 0, totalPlayers: 0, againRate: null, againN: 0,
   femaleRate: null, genderN: 0, avgAge: null, ageN: 0,
 };
 
@@ -26,10 +27,11 @@ export async function computeLpStats(db: any): Promise<LpStats> {
     db.collection('_matchLikes').limit(8000).get(),
   ]);
 
-  // 満員率＝完了した募集の「メンバー数 / 定員」の平均（飲み会は除く）
+  // 完了した募集（飲み会と検証用アカウントの投稿は除く）。LPに出す実績はここから作る。
   const membersOf = (r: any) => [r.hostId, ...(r.coHostIds || []), ...(r.applicantIds || [])].filter(Boolean);
   const done = rSnap.docs.map((d: any) => d.data() || {})
-    .filter((r: any) => r.status === 'completed' && r.eventType !== 'drink');
+    .filter((r: any) => r.status === 'completed' && r.eventType !== 'drink'
+      && !String(r.hostId || '').startsWith('test_'));
   stats.fillN = done.length;
   if (done.length) {
     const sum = done.reduce(
@@ -38,6 +40,14 @@ export async function computeLpStats(db: any): Promise<LpStats> {
     );
     stats.fillRate = Math.round((sum / done.length) * 100);
   }
+
+  // のべ参加人数＝完了した募集ごとの参加者数を単純に足したもの。
+  // 同じ人が何回参加していても、その都度1人と数える（重複あり）。
+  // 当日来られなかった人（noShowIds）は数えない。
+  stats.totalPlayers = done.reduce((a: number, r: any) => {
+    const noShow = new Set<string>(r.noShowIds || []);
+    return a + membersOf(r).filter((m: string) => !noShow.has(m)).length;
+  }, 0);
 
   // また回りたい率＝「レビューをくれた人」のうち「また回りたい」を押した人の割合
   const reviewersOf: Record<string, Set<string>> = {};
