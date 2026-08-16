@@ -26,6 +26,7 @@ type Data = {
   worstDrop: { from: string; to: string; lost: number; rate: number } | null;
   byEntry: EntryRow[];
   byPage: PageRow[];
+  byVariant?: Array<Omit<EntryRow, 'entry'> & { variant: string }>;
   clickTargets: { key: string; users: number }[];
   goalTargets: { key: string; users: number }[];
   daily: { date: string; visitors: number; goals: number }[];
@@ -196,6 +197,41 @@ function Inner() {
               );
             })}
           </Card>
+
+          {/* A/Bテストの比較 */}
+          {(data.byVariant || []).length > 0 && (
+            <Card title="🆎 CTAのA/Bテスト" sub="A=現行（LINE登録が主役）/ B=新案（まず募集を見せる）。割り当ては人ごとに固定">
+              {(data.byVariant || []).map((r) => {
+                const cvr = r.view ? Math.round((r.goal / r.view) * 1000) / 10 : 0;
+                const label = r.variant === 'a' ? 'A：現行「LINEで無料ではじめる」' : 'B：新案「いまの募集を見てみる」';
+                return (
+                  <div key={r.variant} className="py-2 border-b border-border last:border-0">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className={'text-[12px] font-black ' + (r.variant === 'b' ? 'text-orange' : '')}>{label}</span>
+                      <span className="text-[12px] font-black flex-none">{cvr}%</span>
+                    </div>
+                    <div className="text-[10.5px] text-muted mt-0.5">
+                      到達 {r.view}人 → 完読 {r.d100}人 → 押した {r.click}人 → <b className="text-orange">LINE {r.goal}人</b>
+                    </div>
+                    <div className="h-2 bg-bg rounded overflow-hidden mt-1">
+                      <div className={'h-full rounded ' + (r.variant === 'b' ? 'bg-orange' : 'bg-green')} style={{ width: `${Math.min(100, cvr * 4)}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+              {(() => {
+                const rows = data.byVariant || [];
+                const min = Math.min(...rows.map((r) => r.view));
+                if (rows.length < 2) return <div className="text-[10.5px] text-muted mt-2">もう片方のデータが貯まると比較できます。</div>;
+                if (min < 100) return <div className="text-[10.5px] text-muted mt-2 leading-relaxed">※ まだ人数が少なく、差が出ていても偶然の可能性があります。片方が100人を超えたあたりから判断材料になります（現在の最小 {min}人）。</div>;
+                const a = rows.find((r) => r.variant === 'a'), b = rows.find((r) => r.variant === 'b');
+                if (!a || !b) return null;
+                const ca = a.view ? a.goal / a.view : 0, cb = b.view ? b.goal / b.view : 0;
+                const win = cb > ca ? 'B（新案）' : ca > cb ? 'A（現行）' : '互角';
+                return <div className="text-[11px] font-bold mt-2">いまのところ <span className="text-orange">{win}</span> が優勢です。</div>;
+              })()}
+            </Card>
+          )}
 
           {/* 入口別 */}
           <Card title="🚪 入口別のファネル" sub="どこから来た人が、どこまで進んだか（ユニーク）">

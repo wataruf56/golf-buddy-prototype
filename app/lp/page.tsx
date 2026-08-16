@@ -204,6 +204,14 @@ html body{background:#F4E8CE}
   text-wrap:pretty;overflow-wrap:anywhere;line-break:strict}
 .sv h1,.sv h2,.sv .tt,.sv .nh{text-wrap:balance;word-break:auto-phrase}
 .sv p,.sv .ds,.sv .qs{word-break:auto-phrase}
+/* A/Bテスト：<html data-lpv="a|b"> で出し分ける。
+   計測スクリプトが描画前に属性を付けるので、切り替えのチラつきは起きない。
+   属性が付く前（JS無効など）は A（現行）を見せる。 */
+/* .sv .cta2 a{display:flex} の方が詳細度が高く打ち消されるため !important で確実に隠す */
+.sv .v-b{display:none !important}
+html[data-lpv="b"] .sv .v-a{display:none !important}
+html[data-lpv="b"] .sv a.v-b{display:flex !important}
+html[data-lpv="b"] .sv div.v-b,html[data-lpv="b"] .sv p.v-b{display:block !important}
 .sv .bar{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;z-index:70;padding:11px 16px calc(11px + env(safe-area-inset-bottom));background:rgba(244,232,206,.96);backdrop-filter:blur(5px);border-top:2.5px solid var(--ink)}
 .sv .bar .b2{display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;background:var(--orange);color:var(--cream);font-weight:900;font-size:16px;padding:15px;border:3px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--ink)}
 .sv .wrap{padding-bottom:88px}
@@ -347,9 +355,16 @@ export default async function LandingPage() {
 
         {/* 上部CTA（ファーストビューで登録に進めるように） */}
         <div className="cta2">
-          <StartButton className="p" lp="cta_top">💬 LINEで無料ではじめる</StartButton>
-          <a className="s" href={`${APP}/links/rounds`} data-lp="rounds_top">⛳ 募集中のラウンドを見る</a>
-          <div className="mc">LINEログインのみ ・ 約30秒で完了 ・ アプリDL不要</div>
+          {/* A：現行（LINE登録が主役） */}
+          <StartButton className="p v-a" lp="cta_top">💬 LINEで無料ではじめる</StartButton>
+          <a className="s v-a" href={`${APP}/links/rounds`} data-lp="rounds_top">⛳ 募集中のラウンドを見る</a>
+          {/* B：まず中身を見せる（登録不要の募集一覧が主役） */}
+          <a className="p v-b" href={`${APP}/links/rounds`} data-lp="rounds_top_b">
+            ⛳ いまの募集を見てみる{showOpen ? `（${openCount}件）` : ''}
+          </a>
+          <div className="mc v-b">登録なしで見られます</div>
+          <StartButton className="s v-b" lp="cta_top_b">💬 LINEで参加する（無料）</StartButton>
+          <div className="mc v-a">LINEログインのみ ・ 約30秒で完了 ・ アプリDL不要</div>
         </div>
 
         {/* 社会的証明（実データ・十分あるときだけ表示） */}
@@ -397,8 +412,10 @@ export default async function LandingPage() {
         {/* CTA */}
         <div className="cta">
           <h2>ゴルフ友達を<br />見つけにいく</h2>
-          <p>登録は無料。アプリのDLは不要。<br />まずはLINEログインだけ。</p>
-          <StartButton className="btn" lp="cta_final">LINEで始める →</StartButton>
+          <p className="v-a">登録は無料。アプリのDLは不要。<br />まずはLINEログインだけ。</p>
+          <p className="v-b">気になる募集があれば、その場で参加できます。<br />登録は無料・30秒。</p>
+          <StartButton className="btn v-a" lp="cta_final">LINEで始める →</StartButton>
+          <a className="btn v-b" href={`${APP}/links/rounds`} data-lp="rounds_final_b">いまの募集を見てみる →</a>
           <span className="sub">無料 ・ LINEログインのみ ・ アプリDL不要</span>
         </div>
 

@@ -27,7 +27,7 @@ const cors = {
   'Cache-Control': 'no-store',
 };
 
-const PAGES = new Set(['top', 'mbti', 'links']);
+const PAGES = new Set(['top', 'mbti', 'links', 'rounds']);
 const EVENTS = new Set(['view', 'scroll', 'click', 'goal', 'exit']);
 const ENTRIES = new Set(['richmenu', 'instagram', 'search', 'line', 'internal', 'other', 'direct']);
 
@@ -67,6 +67,8 @@ export async function POST(req: NextRequest) {
     depth: num(body.depth),                // scroll: 25/50/75/100
     dwellMs: num(body.dwellMs),            // exit: 滞在時間
     maxScroll: num(body.maxScroll),        // exit: 最大スクロール%
+    // A/Bテストの割り当て（a=現行 / b=新案）。visitorId から決まり、同じ人には常に同じ面。
+    variant: ['a', 'b'].includes(s(body.variant, 4)) ? s(body.variant, 4) : '',
     isMobile: body.isMobile ? 1 : 0,
     returning: body.returning ? 1 : 0,     // 2回目以降の訪問か
     ts: Date.now(),

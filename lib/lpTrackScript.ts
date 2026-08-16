@@ -63,6 +63,25 @@ export const LP_TRACK_SCRIPT = `
   }
 
   var VID = id(), SID = sid(), ENTRY = entryOf();
+
+  // A/Bテストの割り当て。visitorId から決めるので同じ人には常に同じ面が出る。
+  // 決めた結果を <html data-lpv="a|b"> に載せ、CSSで出し分ける（描画後の差し替えが
+  // 無いのでチラつかない）。?lpv=a|b を付ければ手元で確認できる。
+  var VARIANT = '';
+  try {
+    var forced = (sp.get('lpv') || '').toLowerCase();
+    if (forced === 'a' || forced === 'b') { VARIANT = forced; lsSet('gb_lpv', forced); }
+    else {
+      VARIANT = ls('gb_lpv');
+      if (VARIANT !== 'a' && VARIANT !== 'b') {
+        var s = 0;
+        for (var i = 0; i < VID.length; i++) s = (s * 31 + VID.charCodeAt(i)) % 100000;
+        VARIANT = (s % 2 === 0) ? 'a' : 'b';
+        lsSet('gb_lpv', VARIANT);
+      }
+    }
+    document.documentElement.setAttribute('data-lpv', VARIANT);
+  } catch(e) { VARIANT = 'a'; }
   var RETURNING = ls('gb_seen') ? 1 : 0;
   lsSet('gb_seen', '1');
   var PAGE = window.__lpPage || 'top';
@@ -77,7 +96,7 @@ export const LP_TRACK_SCRIPT = `
       visitorId: VID, sessionId: SID, event: event, page: PAGE, entry: ENTRY,
       ref: ref, referrerHost: rHost, menu: menu,
       isMobile: /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) ? 1 : 0,
-      returning: RETURNING
+      returning: RETURNING, variant: VARIANT
     };
     if (extra) for (var k in extra) p[k] = extra[k];
     var body = JSON.stringify(p);

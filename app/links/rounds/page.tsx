@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { formatDate } from '@/lib/utils';
+import { LP_TRACK_SCRIPT } from '@/lib/lpTrackScript';
 
 // Instagram 経由（/links）から来た未ログインの人向けの、公開ラウンド募集一覧。
 // /api/rounds/open（公開・最小情報）を取得して並べ、各カードから /round/[id]（公開閲覧可）へ。
@@ -40,6 +41,9 @@ export default function PublicRoundsPage() {
       className="px-5 py-6"
     >
       <div className="w-full max-w-[480px] mx-auto">
+        {/* LP計測。ここはトップLPのB案から送られてくる着地点なので、
+            そこからLINE登録まで進んだかを追えるようにしておく。 */}
+        <script dangerouslySetInnerHTML={{ __html: `window.__lpPage="rounds";` + LP_TRACK_SCRIPT }} />
         <Link href="/links" className="text-[13px] font-bold" style={{ color: '#5A7A6D' }}>‹ もどる</Link>
         <h1 className="font-black tracking-tight mt-2 mb-1" style={{ color: INK, fontSize: '30px' }}>⛳ 募集中のラウンド</h1>
         <p className="text-[13px] font-bold mb-5" style={{ color: '#5A7A6D' }}>
@@ -67,6 +71,7 @@ export default function PublicRoundsPage() {
                 <a
                   key={r.id}
                   href={`/round/${r.id}`}
+                  data-lp="round_card"
                   className="block rounded-[22px] p-4 active:scale-[0.99] transition-transform"
                   style={{ background: CREAM, boxShadow: '5px 6px 0 rgba(30,58,48,0.15)' }}
                 >

@@ -59,6 +59,8 @@ export async function GET(req: NextRequest) {
     const all = mk();
     const byEntry: Record<string, ReturnType<typeof mk>> = {};
     const byPage: Record<string, ReturnType<typeof mk>> = {};
+    // A/Bテスト（a=現行 / b=新案）の比較。割り当ては visitorId 由来で固定。
+    const byVariant: Record<string, ReturnType<typeof mk>> = {};
     const clickTargets: Record<string, Set<string>> = {};
     const goalTargets: Record<string, Set<string>> = {};
     const sessions = new Set<string>();
@@ -79,9 +81,11 @@ export async function GET(req: NextRequest) {
       const page = String(d.page || 'top');
       byEntry[entry] = byEntry[entry] || mk();
       byPage[page] = byPage[page] || mk();
+      const variant = String(d.variant || '');
+      if (variant) byVariant[variant] = byVariant[variant] || mk();
       if (d.sessionId) sessions.add(String(d.sessionId));
 
-      const mark = (k: StepKey) => { addTo(all, k, vid); addTo(byEntry[entry], k, vid); addTo(byPage[page], k, vid); };
+      const mark = (k: StepKey) => { addTo(all, k, vid); addTo(byEntry[entry], k, vid); addTo(byPage[page], k, vid); if (variant) addTo(byVariant[variant], k, vid); };
 
       if (d.event === 'view') {
         mark('view');
@@ -175,6 +179,9 @@ export async function GET(req: NextRequest) {
       byPage: Object.entries(byPage)
         .map(([page, b]) => ({ page, ...toFunnel(b) }))
         .sort((a, b) => b.view - a.view),
+      byVariant: Object.entries(byVariant)
+        .map(([variant, b]) => ({ variant, ...toFunnel(b) }))
+        .sort((a, b) => a.variant.localeCompare(b.variant)),
       clickTargets: sortSet(clickTargets),
       goalTargets: sortSet(goalTargets),
       daily: Object.keys(dailyV).sort().map((date) => ({
