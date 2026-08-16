@@ -133,18 +133,25 @@ export async function GET(req: NextRequest) {
       created.push(post.id);
     }
 
+    // 毎日18時に走る。何も起きていない日は通知しない
+    // （毎日同じ文面が届くと、そのうち読まれなくなるため）。
     const ids = adminIds();
-    if (ids.length && (created.length || createdFull.length || needImage.length || staleImage.length)) {
-      const lines: string[] = ['📷 Instagram投稿の下書きができました'];
-      if (created.length) lines.push(`・募集 ${created.length}件`);
-      if (createdFull.length) lines.push(`・満員のお知らせ ${createdFull.length}件`);
-      if (needImage.length) {
-        lines.push(`・画像未登録 ${needImage.length}件`);
-        for (const n of needImage.slice(0, 5)) lines.push(`　- ${n.label}`);
+    const made = created.length + createdFull.length;
+    if (ids.length && (made || needImage.length || staleImage.length)) {
+      const lines: string[] = [];
+      if (made) {
+        lines.push(`📷 下書きが${made}件できました`);
+        if (created.length) lines.push(`・募集 ${created.length}件`);
+        if (createdFull.length) lines.push(`・満員 ${createdFull.length}件`);
+      } else {
+        lines.push('📷 今日は下書きを作れませんでした');
       }
-      if (staleImage.length) {
-        lines.push(`・画像が古い ${staleImage.length}件（作り直してください）`);
+      if (needImage.length || staleImage.length) {
+        lines.push('');
+        lines.push('画像を作り直してください');
+        for (const n of needImage.slice(0, 5)) lines.push(`　- ${n.label}（画像なし）`);
         for (const n of staleImage.slice(0, 5)) lines.push(`　- ${n.label}（${n.why}）`);
+        lines.push('　make_round_images.py --apply');
       }
       await pushToMany(ids, lines.join('\n'), `${baseUrl()}/admin/ig`, 'ig_propose');
     }
