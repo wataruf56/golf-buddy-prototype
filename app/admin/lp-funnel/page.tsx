@@ -17,6 +17,8 @@ type Data = {
   range: { days: number; from: number; to: number | null; fromYmd: string; toYmd: string; dataFrom: number; dataTo: number };
   abStartedAt?: number;
   scanned: number;
+  botExcluded?: number;
+  byDevice?: { key: string; users: number }[];
   kpi: {
     visitors: number; sessions: number; goals: number; cvr: number;
     bounced: number; bounceRate: number; readThroughRate: number; ctr: number;
@@ -182,6 +184,12 @@ function Inner() {
         <>
           <div className="text-[10.5px] text-muted mb-2">
             対象期間：<b className="text-text">{fmtRange(data)}</b> ・ {data.scanned}件のイベント
+            {(data.byDevice || []).length > 0 && (
+              <> ・ {(data.byDevice || []).map((d) => `${d.key} ${d.users}人`).join(' / ')}</>
+            )}
+            {(data.botExcluded ?? 0) > 0 && (
+              <span className="text-orange font-bold"> ・ 自動ブラウザ {data.botExcluded}人を除外</span>
+            )}
           </div>
           {/* 主要KPI */}
           <div className="grid grid-cols-2 gap-2 mb-3">

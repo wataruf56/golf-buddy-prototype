@@ -64,6 +64,27 @@ export async function GET(req: NextRequest) {
     // 疎通確認用の送信（visitorId が vtest_ で始まるもの）は数字に混ぜない。
     docs = docs.filter((d) => !String(d.visitorId || '').startsWith('vtest_'));
 
+    // 自動ブラウザ（開発時の動作確認・クローラ）を除外する。
+    // Playwright/Puppeteer は UA に HeadlessChrome を含むので、それで判別できる。
+    // 除外した人数は botExcluded として返し、何を落としたか分かるようにする。
+    const isBot = (ua: string) => /HeadlessChrome|Headless|bot|spider|crawler|Lighthouse|Chrome-Lighthouse/i.test(ua);
+    const botVisitors = new Set<string>();
+    docs.forEach((d) => { if (isBot(String(d.ua || ''))) botVisitors.add(String(d.visitorId || '')); });
+    // 同じ visitorId のイベントは丸ごと落とす（一部だけ残ると人数が合わなくなる）
+    docs = docs.filter((d) => !botVisitors.has(String(d.visitorId || '')));
+
+    // UAごとの内訳（混入の確認用）。人数のみ。
+    const uaAgg: Record<string, Set<string>> = {};
+    docs.forEach((d) => {
+      const ua = String(d.ua || '');
+      const key = /iPhone|iPad/i.test(ua) ? 'iPhone/iPad'
+        : /Android/i.test(ua) ? 'Android'
+        : /Macintosh/i.test(ua) ? 'Mac'
+        : /Windows/i.test(ua) ? 'Windows'
+        : ua ? 'その他' : '(不明)';
+      (uaAgg[key] = uaAgg[key] || new Set()).add(String(d.visitorId || ''));
+    });
+
     // ── ステップごとのユニーク訪問者 ──
     const STEPS = ['view', 'd25', 'd50', 'd75', 'd100', 'click', 'goal'] as const;
     type StepKey = typeof STEPS[number];
@@ -192,6 +213,9 @@ export async function GET(req: NextRequest) {
       },
       abStartedAt,
       scanned: docs.length,
+      // 自動ブラウザとして除外した人数（開発時の動作確認など）
+      botExcluded: botVisitors.size,
+      byDevice: Object.entries(uaAgg).map(([k, v]) => ({ key: k, users: v.size })).sort((a, b) => b.users - a.users),
       // ── ビジネスの基本指標（すべてユニーク） ──
       kpi: {
         visitors,                                                   // UU
