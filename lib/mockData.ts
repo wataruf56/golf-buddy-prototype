@@ -14,6 +14,15 @@ const now = Date.now();
 const day = 24 * 60 * 60 * 1000;
 
 export const mockRounds: Round[] = [
+  // 【一時】CompletionGate の検証用：開催日を過ぎたのに完了していない自分の募集
+  {
+    id: 'rTestOverdue', hostId: 'me', title: '検証用・期限切れラウンド',
+    type: 'confirmed', courseName: 'テストCC', area: '東京都',
+    dateType: 'fixed', date: new Date(Date.now() - 3 * 86400000 + 9 * 3600000).toISOString().slice(0, 10),
+    startTime: '8:00', maxSpots: 4, currentCount: 2, applicantIds: ['u1'],
+    price: '¥8,000', levelCondition: '不問', description: '検証用',
+    status: 'open', isCompetition: false, hostCohort: 'a', createdAt: Date.now() - 5 * 86400000,
+  },
   {
     id: 'r1', hostId: 'u3', title: '初心者歓迎！のんびりラウンド',
     type: 'confirmed', courseName: '湘南カントリークラブ', area: '神奈川県西部',

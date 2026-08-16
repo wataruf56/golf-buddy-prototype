@@ -29,6 +29,9 @@ function fmtDate(iso?: string): string {
   return `${mo}/${d}(${WD[wd]})`;
 }
 
+/** 参加確定メンバーの男女内訳。RoundCard と同じ数え方（主催者＋承認済み＋知り合い枠）。 */
+export type GenderMix = { male: number; female: number };
+
 export type CaptionInput = {
   round: Pick<Round, 'id' | 'title' | 'date' | 'startTime' | 'area' | 'courseName' | 'venue' | 'maxSpots' | 'currentCount'> & {
     isOfficial?: boolean;
@@ -36,6 +39,8 @@ export type CaptionInput = {
   /** 公式コンペのときだけ入れる補足（任意）。 */
   price?: string;
   womenPct?: number;
+  /** 参加者の男女内訳。埋まり具合を外から見えるようにするために出す。 */
+  mix?: GenderMix;
 };
 
 // 本文は短くする方針（2026-08-07 に約550字→約300字へ）。
@@ -59,6 +64,7 @@ export function buildCaption(input: CaptionInput): string {
     `📅 ${date}${start}`,
     `📍 ${place}${area}`.trimEnd(),
     `👥 定員${r.maxSpots}名 / 残り${rest}名`,
+    input.mix ? `　　いま男性${input.mix.male}名 ・ 女性${input.mix.female}名` : '',
     input.price ? `💰 ${input.price}` : '',
     '',
     '「上手い人ばかりだったらどうしよう」がいちばん多い不安なので、先に数字を。',
@@ -76,4 +82,39 @@ export function buildCaption(input: CaptionInput): string {
 /** 同じ状態の投稿を二重に提案しないための指紋。残枠が変われば別扱いになる。 */
 export function captionSignature(roundId: string, rest: number): string {
   return `${roundId}:rest${rest}`;
+}
+
+/** 満員のお知らせは1ラウンドにつき1回だけ。 */
+export function fullSignature(roundId: string): string {
+  return `${roundId}:full`;
+}
+
+// 満員になったラウンドのお知らせ。
+// 「埋まっている」ことが外から見えるようにするための投稿なので、
+// 募集はせず、次の募集へ誘導する。
+export function buildFullCaption(input: CaptionInput): string {
+  const r = input.round;
+  const place = r.courseName || r.venue || r.area || '未定';
+  const date = fmtDate(r.date);
+  const start = r.startTime ? ` ${r.startTime} START` : '';
+  const area = r.area ? `（${r.area}）` : '';
+
+  return [
+    `${date}${r.area ? ` ${r.area}` : ''}、満員になりました。`,
+    '',
+    'ありがとうございます。',
+    '',
+    `📅 ${date}${start}`,
+    `📍 ${place}${area}`.trimEnd(),
+    `👥 ${r.maxSpots}名 満員`,
+    input.mix ? `　　男性${input.mix.male}名 ・ 女性${input.mix.female}名` : '',
+    '',
+    '20代・30代だけの、気楽なラウンドです。',
+    'ほかの日程はまだ空きがあります。',
+    '',
+    'お申し込みはプロフィールのリンクから。質問だけでもDMどうぞ。',
+    '',
+    '※写真はイメージです',
+    HASHTAGS,
+  ].filter((l, i, a) => !(l === '' && a[i - 1] === '')).join('\n');
 }
