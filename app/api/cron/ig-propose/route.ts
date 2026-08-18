@@ -102,7 +102,8 @@ export async function GET(req: NextRequest) {
         const mix = await genderMix(r);
         const post = await createIgPost({
           roundId: r.id, imageUrl: img.fullImageUrl,
-          caption: buildFullCaption({ round: { ...r, isOfficial: !!r.isOfficial }, mix }),
+          caption: buildFullCaption({ round: { ...r, isOfficial: !!r.isOfficial }, mix,
+                                     note: img.note || undefined }),
           signature: sig,
         });
         createdFull.push(post.id);
@@ -127,7 +128,8 @@ export async function GET(req: NextRequest) {
       const mix = await genderMix(r);
       const post = await createIgPost({
         roundId: r.id, imageUrl: img.imageUrl,
-        caption: buildCaption({ round: { ...r, isOfficial: !!r.isOfficial }, mix }),
+        caption: buildCaption({ round: { ...r, isOfficial: !!r.isOfficial }, mix,
+                               note: img.note || undefined }),
         signature: sig,
       });
       created.push(post.id);

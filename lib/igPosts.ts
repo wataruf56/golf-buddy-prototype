@@ -230,6 +230,8 @@ export type RoundImage = {
   imageUrl: string;
   /** 満員のお知らせ用の画像（赤く「満員」と入ったもの）。 */
   fullImageUrl?: string | null;
+  /** そのラウンド固有の一言（「ナイター / 男女6:6で募集」など）。画像と本文の両方に出す。 */
+  note?: string | null;
   /** 画像に焼かれている日付（YYYY-MM-DD）。古い画像には無い。 */
   imageDate?: string | null;
   /** 画像に焼かれている残り枠。古い画像には無い。 */
@@ -245,6 +247,7 @@ export async function getRoundImage(roundId: string): Promise<RoundImage | null>
   return {
     imageUrl: String(d.imageUrl),
     fullImageUrl: d.fullImageUrl ? String(d.fullImageUrl) : null,
+    note: d.note ? String(d.note) : null,
     imageDate: typeof d.imageDate === 'string' ? d.imageDate : null,
     imageRest: typeof d.imageRest === 'number' ? d.imageRest : null,
   };

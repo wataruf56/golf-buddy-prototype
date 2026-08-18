@@ -41,6 +41,8 @@ export type CaptionInput = {
   womenPct?: number;
   /** 参加者の男女内訳。埋まり具合を外から見えるようにするために出す。 */
   mix?: GenderMix;
+  /** そのラウンド固有の一言（「ナイター」「男女6:6で募集」など）。 */
+  note?: string;
 };
 
 // 本文は短くする方針（2026-08-07 に約550字→約300字へ）。
@@ -65,6 +67,7 @@ export function buildCaption(input: CaptionInput): string {
     `📍 ${place}${area}`.trimEnd(),
     `👥 定員${r.maxSpots}名 / 残り${rest}名`,
     input.mix ? `　　いま男性${input.mix.male}名 ・ 女性${input.mix.female}名` : '',
+    input.note ? `✨ ${input.note}` : '',
     input.price ? `💰 ${input.price}` : '',
     '',
     '「上手い人ばかりだったらどうしよう」がいちばん多い不安なので、先に数字を。',
@@ -108,6 +111,7 @@ export function buildFullCaption(input: CaptionInput): string {
     `📍 ${place}${area}`.trimEnd(),
     `👥 ${r.maxSpots}名 満員`,
     input.mix ? `　　男性${input.mix.male}名 ・ 女性${input.mix.female}名` : '',
+    input.note ? `✨ ${input.note}` : '',
     '',
     '20代・30代だけの、気楽なラウンドです。',
     'ほかの日程はまだ空きがあります。',
