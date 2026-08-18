@@ -56,11 +56,25 @@ export default function TypeIndexPage() {
     })),
   };
 
+  // パンくずの構造化データ（可視パンくず「ゴルトモ › ゴルフ版MBTI 16タイプ」と同じ階層）。
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'ゴルトモ', item: `${SITE}/` },
+      { '@type': 'ListItem', position: 2, name: 'ゴルフ版MBTI 16タイプ', item: `${SITE}/type` },
+    ],
+  };
+
   return (
     <main className="min-h-screen bg-bg text-text">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
       />
 
       <nav aria-label="パンくず" className="max-w-3xl mx-auto px-5 pt-5 text-[12px] font-bold text-sub">

@@ -118,6 +118,18 @@ export default function TypePage({ params }: { params: { code: string } }) {
     mainEntityOfPage: `${SITE}/type/${code}`,
   };
 
+  // パンくずの構造化データ。上の可視パンくず（ゴルトモ › 16タイプ › タイプ名）と
+  // 同じ階層を機械可読にしておくと、検索結果でURLの代わりに階層が表示される。
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'ゴルトモ', item: `${SITE}/` },
+      { '@type': 'ListItem', position: 2, name: 'ゴルフ版MBTI 16タイプ', item: `${SITE}/type` },
+      { '@type': 'ListItem', position: 3, name: t.name, item: `${SITE}/type/${code}` },
+    ],
+  };
+
   const facts: { label: string; value: string }[] = [
     { label: '強み', value: d.strength },
     { label: '弱み', value: d.weakness },
@@ -131,6 +143,10 @@ export default function TypePage({ params }: { params: { code: string } }) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
       />
 
       {/* パンくず（内部リンクの導線も兼ねる） */}
