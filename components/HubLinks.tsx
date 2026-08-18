@@ -44,7 +44,7 @@ function rememberRef() {
   } catch { /* noop */ }
 }
 
-function hit(t: 'open' | 'line') {
+function hit(t: 'open' | 'line' | 'rounds') {
   try {
     const body = JSON.stringify({ t, v: visitorId() });
     if (typeof navigator !== 'undefined' && 'sendBeacon' in navigator) {
@@ -59,6 +59,25 @@ export function HubLinks() {
   useEffect(() => { rememberRef(); hit('open'); }, []);
   return (
     <div className="w-full mt-8 flex flex-col gap-4">
+      {/* 友だち追加をためらう人の受け皿。中身を見てから決めてもらう。
+          /links/rounds も個別のラウンド詳細も、ログインなしで読める。 */}
+      <a
+        href="/links/rounds"
+        onClick={() => hit('rounds')}
+        data-lp="rounds_hub"
+        className="block rounded-[26px] p-5 active:scale-[0.99] transition-transform"
+        style={{ background: '#FFFFFF', boxShadow: '7px 8px 0 ' + INK }}
+      >
+        <div className="flex items-center gap-4">
+          <div className="text-[44px] leading-none">⛳</div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[22px] font-black" style={{ color: INK }}>いま募集中のラウンド</div>
+            <div className="text-[13px] font-bold mt-0.5" style={{ color: '#5A7A6D' }}>登録なしで中身を見られます</div>
+          </div>
+          <div className="text-[22px]" style={{ color: INK }}>›</div>
+        </div>
+      </a>
+
       <a
         href={LINE_ADD_URL}
         onClick={() => hit('line')}

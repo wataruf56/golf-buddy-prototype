@@ -68,6 +68,13 @@ export default async function middleware(req: NextRequest) {
     // インスタのプロフィールリンクは「https://を含め30文字以内」制限があり、
     // /golmoti.html?ref=ig_bio (43字) は貼れないため、この24文字URLを経由させる。
     // 既定で ref=ig_bio を付与（インスタbio用）。?ref= 指定があればそちらを優先。
+    // 短縮URL: goltomo.com/rounds → 募集中のラウンド一覧（ログイン不要で中身が読める）。
+    // インスタのプロフィールに貼る用。リンクは「https://を含め30文字以内」の制限があり、
+    // app.goltomo.com/links/rounds（36字）は貼れないため、この26文字のURLを経由させる。
+    if (path === '/rounds') {
+      const ref = (url.searchParams.get('ref') || 'ig_rounds').toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 40) || 'ig_rounds';
+      return NextResponse.redirect(new URL(`https://app.goltomo.com/links/rounds?ref=${ref}`));
+    }
     if (path === '/mbti') {
       const ref = (url.searchParams.get('ref') || 'ig_bio').toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 40) || 'ig_bio';
       return NextResponse.redirect(new URL(`/golmoti.html?ref=${ref}`, req.url));
