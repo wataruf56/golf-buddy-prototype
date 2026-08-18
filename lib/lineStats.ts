@@ -31,6 +31,10 @@ export const LINE_KIND_LABEL: Record<string, string> = {
   signup: '新規登録（運営へ）',
   adminTest: 'テスト送信（運営）',
   adminOps: '運営オペレーション',
+  // インスタ運用の自動通知（すべて運営あて）
+  ig_propose: 'インスタ投稿案の提案（運営へ）',
+  ig_draft: 'インスタ下書きの追加（運営へ）',
+  ig_publish: 'インスタ投稿の完了（運営へ）',
   other: 'その他',
 };
 export const lineKindLabel = (k: string) => LINE_KIND_LABEL[k] || k;
