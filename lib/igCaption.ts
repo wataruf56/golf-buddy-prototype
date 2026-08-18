@@ -29,6 +29,12 @@ function fmtDate(iso?: string): string {
   return `${mo}/${d}(${WD[wd]})`;
 }
 
+/** 16時以降スタートはナイター。ラウンドの設定を増やさなくても判定できる。 */
+function isNight(start?: string): boolean {
+  const h = Number(String(start || '').split(':')[0]);
+  return Number.isFinite(h) && h >= 15;
+}
+
 /** 参加確定メンバーの男女内訳。RoundCard と同じ数え方（主催者＋承認済み＋知り合い枠）。 */
 export type GenderMix = { male: number; female: number };
 
@@ -55,7 +61,8 @@ export function buildCaption(input: CaptionInput): string {
   const place = r.courseName || r.venue || r.area || '未定';
   const rest = Math.max(0, (r.maxSpots || 0) - (r.currentCount || 0));
   const date = fmtDate(r.date);
-  const start = r.startTime ? ` ${r.startTime} START` : '';
+  const night = isNight(r.startTime) ? '🌙 ナイター ' : '';
+  const start = r.startTime ? ` ${night}${r.startTime} START` : '';
   const area = r.area ? `（${r.area}）` : '';
 
   return [
@@ -99,7 +106,8 @@ export function buildFullCaption(input: CaptionInput): string {
   const r = input.round;
   const place = r.courseName || r.venue || r.area || '未定';
   const date = fmtDate(r.date);
-  const start = r.startTime ? ` ${r.startTime} START` : '';
+  const night = isNight(r.startTime) ? '🌙 ナイター ' : '';
+  const start = r.startTime ? ` ${night}${r.startTime} START` : '';
   const area = r.area ? `（${r.area}）` : '';
 
   return [
