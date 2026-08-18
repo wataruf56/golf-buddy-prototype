@@ -217,6 +217,10 @@ html[data-lpv="b"] .sv div.v-b,html[data-lpv="b"] .sv p.v-b{display:block !impor
 .sv .bar .b2{display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;background:var(--orange);color:var(--cream);font-weight:900;font-size:16px;padding:15px;border:3px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--ink)}
 .sv .wrap{padding-bottom:88px}
 /* QRで共有（LPのURLを他の人に見せて読み取ってもらう） */
+/* QR共有はスマホでは意味がない（自分の画面のQRは自分で読めない）。
+   マウスがある環境＝PCでだけ出す。スマホでは丸ごと隠して縦を節約する。 */
+.sv .qrshare{display:none}
+@media (hover:hover) and (pointer:fine){.sv .qrshare{display:block}}
 .sv .qrshare{margin:30px 18px 0;background:var(--cream);border:2.5px solid var(--ink);border-radius:18px;box-shadow:5px 5px 0 var(--ink);padding:20px 18px;text-align:center}
 .sv .qrshare .qh{font-size:15px;font-weight:900;margin-bottom:3px}
 .sv .qrshare .qs{font-size:12px;font-weight:700;color:#6b5a44;margin-bottom:14px}
@@ -300,21 +304,14 @@ export default async function LandingPage() {
   const showProof = showOpen || showActive;
 
   // 「数字で見るゴルトモ」。母数が足りない項目は黙って落とす。
+  // 「数字で見るゴルトモ」。母数が足りない項目は黙って落とす。
+  // まだ規模が小さいので、件数や人数より「質」（また回りたい率・満員率）を先に見せる。
   const numbers: Array<{ value: string; label: string; sub: string }> = [];
-  if (stats.totalPlayers >= 10) {
-    numbers.push({
-      value: `のべ${stats.totalPlayers}人`,
-      label: 'がラウンドに参加',
-      sub: `完了した${stats.fillN}件の参加者を合計（同じ人の重複を含む）`,
-    });
+  if (stats.againRate != null && stats.againN >= 20) {
+    numbers.push({ value: `${stats.againRate}%`, label: 'また回りたい', sub: `一緒に回った後の評価${stats.againN}件より` });
   }
-  // 検証用アカウントの投稿を除いた結果、母数が4件になった。件数は必ず併記しているので
-  // 3件以上から出す（それ未満は平均としての意味が薄いので伏せる）。
   if (stats.fillRate != null && stats.fillN >= 3) {
     numbers.push({ value: `${stats.fillRate}%`, label: '募集が満員に', sub: `完了した${stats.fillN}件の平均充足率` });
-  }
-  if (stats.againRate != null && stats.againN >= 20) {
-    numbers.push({ value: `${stats.againRate}%`, label: 'また回りたい', sub: `一緒に回った後の評価${stats.againN}件` });
   }
   if (stats.avgAge != null && stats.ageN >= 20) {
     numbers.push({ value: `${stats.avgAge}歳`, label: '参加者の平均年齢', sub: '20〜30代限定コミュニティ' });
@@ -342,11 +339,11 @@ export default async function LandingPage() {
         {/* ヒーロー */}
         <header className="hero">
           <div className="sun" aria-hidden="true" />
-          <span className="lb">⛳ ゴルフ友達さがし</span>
+          <span className="lb">⛳ 20〜30代限定・ゴルフ友達さがし</span>
           <h1>一緒に回る<br /><span className="hl">ゴルフ友達</span>が<br />見つかる。</h1>
           <p>
             誘える人がいなくても大丈夫。<br />
-            一人で参加して、気の合う人と「ゴル友」に。
+            一人で参加して、また回りたい人（＝<b>ゴル友</b>）を見つける。
           </p>
         </header>
 
@@ -357,7 +354,12 @@ export default async function LandingPage() {
             <div>
               <h2 className="tt">初めましてでも、安心。</h2>
               <div className="ds">ラウンド後の相互レビューで、その人が“変な人”じゃないかが★で見えます。マナーの良い人が可視化されるので、知らない人と回るのが不安でも大丈夫。</div>
-              <div className="rev"><span className="st">★★★★☆</span><span className="lbl">また回りたい 12/14</span></div>
+              {stats.againRate != null && stats.againN >= 20 && (
+                <div className="rev">
+                  <span className="st">★★★★★</span>
+                  <span className="lbl">また回りたい {stats.againRate}%（実際の評価{stats.againN}件）</span>
+                </div>
+              )}
             </div>
           </div>
           <div className="b">
@@ -379,15 +381,15 @@ export default async function LandingPage() {
         {/* 上部CTA（ファーストビューで登録に進めるように） */}
         <div className="cta2">
           {/* A：現行（LINE登録が主役） */}
-          <StartButton className="p v-a" lp="cta_top">💬 LINEで無料ではじめる</StartButton>
-          <a className="s v-a" href={`${APP}/links/rounds`} data-lp="rounds_top">⛳ 募集中のラウンドを見る</a>
+          <StartButton className="p v-a" lp="cta_top">⛳ 一緒に回る人を探す（無料）</StartButton>
+          <a className="s v-a" href={`${APP}/links/rounds`} data-lp="rounds_top">👀 まず募集を見てみる（登録不要）</a>
           {/* B：まず中身を見せる（登録不要の募集一覧が主役） */}
           <a className="p v-b" href={`${APP}/links/rounds`} data-lp="rounds_top_b">
             ⛳ 募集を見てみる{totalRounds > 0 ? `（これまで${totalRounds}件）` : ''}
           </a>
           <div className="mc v-b">登録なしで見られます</div>
           <StartButton className="s v-b" lp="cta_top_b">💬 LINEで参加する（無料）</StartButton>
-          <div className="mc v-a">LINEログインのみ ・ 約30秒で完了 ・ アプリDL不要</div>
+          <div className="mc v-a">押すとLINEのログイン画面が開きます ・ 約30秒 ・ アプリDL不要</div>
         </div>
 
         {/* 社会的証明（実データ・十分あるときだけ表示） */}
@@ -420,12 +422,20 @@ export default async function LandingPage() {
         <div className="comp">
           <span className="pill">👩 女性も安心</span>
           <h2>ゴルトモ公式コンペは、<br />男女比とグループを配慮。</h2>
-          <p>主催コンペは男女比のバランスをとります。例えば<b>20人なら 男性12 : 女性8</b>。</p>
-          <div className="ratio">
-            <div className="rp m"><span className="n">12</span>👨 男性</div>
-            <div className="rp f"><span className="n">8</span>👩 女性</div>
-          </div>
-          <div className="rbar"><span className="rm" style={{ flex: 12 }} /><span className="rf" style={{ flex: 8 }} /></div>
+          <p>主催コンペは、どちらかに偏らないよう男女比を調整して募集します。</p>
+          {stats.femaleRate != null && stats.genderN >= 20 && (
+            <>
+              <p style={{ marginTop: 6, fontSize: 12, color: '#8a7256' }}>いまの会員の男女比はこのくらいです。</p>
+              <div className="ratio">
+                <div className="rp m"><span className="n">{100 - stats.femaleRate}%</span>👨 男性</div>
+                <div className="rp f"><span className="n">{stats.femaleRate}%</span>👩 女性</div>
+              </div>
+              <div className="rbar">
+                <span className="rm" style={{ flex: 100 - stats.femaleRate }} />
+                <span className="rf" style={{ flex: stats.femaleRate }} />
+              </div>
+            </>
+          )}
           <div className="note">
             <span>🤝</span>
             <span><b>女性が1組に1人きりにならないよう組み分けを配慮。</b>同性の友達もできるので、はじめてでも安心して参加できます。</span>
@@ -435,11 +445,11 @@ export default async function LandingPage() {
         {/* CTA */}
         <div className="cta">
           <h2>ゴルフ友達を<br />見つけにいく</h2>
-          <p className="v-a">登録は無料。アプリのDLは不要。<br />まずはLINEログインだけ。</p>
+          <p className="v-a">ここまで読んでくれたあなたへ。<br />合わなければ、使うのをやめるだけで大丈夫です。</p>
           <p className="v-b">気になる募集があれば、その場で参加できます。<br />登録は無料・30秒。</p>
-          <StartButton className="btn v-a" lp="cta_final">LINEで始める →</StartButton>
+          <StartButton className="btn v-a" lp="cta_final">まずは登録してみる →</StartButton>
           <a className="btn v-b" href={`${APP}/links/rounds`} data-lp="rounds_final_b">募集を見てみる →</a>
-          <span className="sub">無料 ・ LINEログインのみ ・ アプリDL不要</span>
+          <span className="sub">押すとLINEのログイン画面へ ・ 無料 ・ 退会はいつでも</span>
         </div>
 
         <div className="quiz">
@@ -466,7 +476,7 @@ export default async function LandingPage() {
 
         {/* 追従CTAバー（スクロール中も常に登録に進める） */}
         <div className="bar">
-          <StartButton className="b2" lp="cta_bar">💬 LINEで無料ではじめる</StartButton>
+        <div className="bar"><StartButton className="b2" lp="cta_bar">⛳ 無料ではじめる</StartButton></div>
         </div>
       </div>
     </div>
