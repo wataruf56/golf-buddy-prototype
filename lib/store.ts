@@ -127,10 +127,19 @@ export const store = {
     }
     try {
       if (!data) throw (lastErr || new Error('bootstrap failed'));
+      // users は他人に見せてよい項目だけに絞られている（safeUsers）。
+      // 自分の行だけは bootstrap の me（本人向けの全項目）で上書きしておく。
+      // これをしないと botFollowed のような本人だけが持つ値が
+      // getMe() から読めない。
+      const usersWithMe = data.me
+        ? data.users.map((u) => (u.id === data.meId ? { ...u, ...data.me } : u))
+        : data.users;
+      if (data.me && !data.users.some((u) => u.id === data.meId)) usersWithMe.push(data.me);
+
       setState({
         hydrated: true,
         meId: data.meId,
-        users: data.users,
+        users: usersWithMe,
         rounds: data.rounds,
         pendingReviews: data.pendingReviews,
         chats: data.chats,

@@ -117,13 +117,35 @@ export async function POST(req: NextRequest) {
     console.error('[liff auth] upsert failed', e);
   }
 
-  // 公式LINE友だち状態を保存（取得できた場合のみ）。新規・既存どちらも更新する。
-  if (friendFlag !== undefined) {
-    try {
-      await db.upsertUser({ id: userId, botFollowed: friendFlag, botFollowedAt: Date.now() } as any);
-    } catch (e) {
-      console.error('[liff auth] botFollowed update failed', e);
+  // 公式LINE友だち状態を保存（新規・既存どちらも更新する）。
+  //
+  // liff.getFriendship() は「ログインチャネルに公式アカウントを連携」しないと
+  // 取れず、実データでは全員 undefined だった。そこで取れなかったときは
+  // サーバー側で Messaging API のプロフィール取得を叩いて判定する
+  // （友だち=200 / 未追加=404。メッセージは送らない）。
+  // 判定できると、未追加の人にだけアプリ内で友だち追加をすすめられる。
+  try {
+    let follow: boolean | undefined = friendFlag;
+    if (follow === undefined) {
+      const existingUser = await db.getUser(userId).catch(() => null);
+      const lastCheck = Number((existingUser as any)?.botFollowedAt || 0);
+      // 判定が無い、または24時間以上前なら取り直す（毎回は叩かない）
+      if (Date.now() - lastCheck > 24 * 3600 * 1000) {
+        const token = process.env.LINE_CHANNEL_ACCESS_TOKEN || '';
+        if (token && userId.startsWith('U')) {
+          const r = await fetch(`https://api.line.me/v2/bot/profile/${encodeURIComponent(userId)}`, {
+            headers: { Authorization: `Bearer ${token}` }, cache: 'no-store',
+          });
+          if (r.ok) follow = true;
+          else if (r.status === 404) follow = false;
+        }
+      }
     }
+    if (follow !== undefined) {
+      await db.upsertUser({ id: userId, botFollowed: follow, botFollowedAt: Date.now() } as any);
+    }
+  } catch (e) {
+    console.error('[liff auth] botFollowed update failed', e);
   }
 
   // Notify admins on new signup (LINE push). Best-effort, never block login.

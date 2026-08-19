@@ -915,8 +915,11 @@ export default function RoundDetailPage() {
           </div>
         )}
 
-        {/* Invited users (everyone can see who's been invited) */}
-        {invitedUsers.length > 0 && (
+        {/* 招待中は主催者（＋共同管理者）だけに見せる。
+            まだ参加していない人なので、他の閲覧者には「参加者」と紛らわしく、
+            未ログインで募集を見に来た人にも無関係な人の名前が並んでしまう。
+            主催者には招待の取り消し操作が必要なので残す。 */}
+        {invitedUsers.length > 0 && isHost && (
           <div className="mb-4">
             <div className="text-[13px] font-bold mb-2">💌 招待中（{invitedUsers.length}名）</div>
             {invitedUsers.map((u) => (
