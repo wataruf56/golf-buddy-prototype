@@ -143,6 +143,17 @@
   .bigcta{display:flex;align-items:center;justify-content:center;gap:8px;margin:18px 0 4px;width:100%;background:var(--orange);color:var(--cream);font-weight:900;font-size:17px;padding:18px;border:3px solid var(--ink);border-radius:16px;box-shadow:5px 5px 0 var(--ink);text-decoration:none;transition:transform .1s,box-shadow .1s}
   .bigcta:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--ink)}
   /* 興味シグナル登録ブロック（結果ページ下部） */
+  /* CTAのA/Bテスト。<html data-lpv="a|b"> は計測スクリプトが描画前に付ける。
+     A=現行（LINEで通知を受け取る一本）／B=募集一覧を先に見せる二段構え。
+     属性が付く前（JS無効など）は A を見せる。 */
+  .v-b{display:none !important}
+  html[data-lpv="b"] .v-a{display:none !important}
+  html[data-lpv="b"] a.v-b{display:flex !important}
+  html[data-lpv="b"] div.v-b{display:block !important}
+  /* 募集一覧へのボタン（B案の主役）。LINE緑ではなく朱色で目立たせる。 */
+  .roundscta{display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;
+    background:var(--cream);color:var(--ink);font-weight:900;font-size:15.5px;padding:15px;
+    border:2.5px solid var(--ink);border-radius:14px;box-shadow:4px 4px 0 rgba(0,0,0,.25)}
   .sigbox{margin:18px 16px 0;background:var(--teal);border:2.5px solid var(--ink);border-radius:18px;padding:18px 16px;box-shadow:5px 5px 0 var(--ink);color:var(--cream)}
   .sigttl{font-weight:900;font-size:15px;line-height:1.5;text-align:center;margin-bottom:14px}
   .siglbl{font-weight:800;font-size:11.5px;opacity:.95;margin:10px 2px 6px}
@@ -1070,9 +1081,15 @@
           ${detailFieldsHTML(code)}
         </div>
         <div class="sigbox" id="sigbox">
-          <div class="sigttl">🔔 同じ【${nk.n}】と相性のいいゴルフ友達・ラウンドを探す</div>
-          <div class="signote" style="margin-top:0;margin-bottom:14px">行けるエリア・曜日・送迎を選んで、条件に合う相手が見つかったらLINEでお知らせ（無料）</div>
-          <a class="bigcta sigcta" id="findFromResult" href="#" style="margin-top:0">🏌️ ゴルフ友達を探す</a>
+          <div class="sigttl v-a">🔔 同じ【${nk.n}】と相性のいいゴルフ友達・ラウンドを探す</div>
+          <div class="signote v-a" style="margin-top:0;margin-bottom:14px">行けるエリア・曜日・送迎を選んで、条件に合う相手が見つかったらLINEでお知らせ（無料）</div>
+          <a class="bigcta sigcta v-a" id="findFromResult" href="#" style="margin-top:0">🏌️ ゴルフ友達を探す</a>
+
+          <div class="sigttl v-b">⛳ いま参加できるラウンド</div>
+          <a class="roundscta v-b" href="https://app.goltomo.com/links/rounds?ref=mbti_result"
+             data-lp="rounds_mbti_b">⛳ いま募集中のラウンドを見る</a>
+          <div class="signote v-b" style="margin-top:8px;margin-bottom:14px">登録なしで中身を見られます</div>
+          <a class="bigcta sigcta v-b" id="findFromResultB" href="#" style="margin-top:0">🔔 LINEで通知を受け取る</a>
         </div>
         <div class="share">
           <button class="sbtn" id="shareBtn">🔗 リンクをコピー</button>
@@ -1143,6 +1160,9 @@
     // 診断結果の「ゴルフ友達を探す」→ 条件選択画面(#sgScreen)を開く。診断タイプも渡す。
     const findBtn=document.getElementById('findFromResult');
     if(findBtn) findBtn.addEventListener('click',(e)=>{ e.preventDefault(); openSignalScreen('result', code); });
+    // B案の「条件に合う募集をLINEで受け取る」も同じ条件選択画面へ。
+    const findBtnB=document.getElementById('findFromResultB');
+    if(findBtnB) findBtnB.addEventListener('click',(e)=>{ e.preventDefault(); openSignalScreen('result_b', code); });
     const againBtn=document.getElementById('again');
     if(againBtn) againBtn.addEventListener('click',restartQuiz);
     bindCTA();
@@ -1570,14 +1590,14 @@
   }
 
   var sp = new URLSearchParams(location.search);
-  var rawRef = (sp.get('ref') || sp.get('utm_source') || sp.get('source') || '').toLowerCase().replace(/[^a-z0-9_\\-]/g,'').slice(0,40);
-  var menu = (sp.get('e') || '').toLowerCase().replace(/[^a-z0-9_\\-]/g,'').slice(0,40);
+  var rawRef = (sp.get('ref') || sp.get('utm_source') || sp.get('source') || '').toLowerCase().replace(/[^a-z0-9_\-]/g,'').slice(0,40);
+  var menu = (sp.get('e') || '').toLowerCase().replace(/[^a-z0-9_\-]/g,'').slice(0,40);
   // ?ref= は初回だけ記憶する（回遊しても最初の入口を保つ）
   if (rawRef && !ls('gb_ref')) { lsSet('gb_ref', rawRef); lsSet('gb_ref_at', String(Date.now())); }
   var ref = rawRef || ls('gb_ref') || '';
 
   var rHost = '';
-  try { rHost = document.referrer ? new URL(document.referrer).hostname.replace(/^www\\./,'') : ''; } catch(e){}
+  try { rHost = document.referrer ? new URL(document.referrer).hostname.replace(/^www\./,'') : ''; } catch(e){}
 
   // 入口の判定。?e=（リッチメニュー）→ ?ref= → referrer → direct の順に強い。
   function entryOf(){
@@ -1586,10 +1606,10 @@
     if (ref === 'share_img') return 'instagram';
     if (/^line(_|$)/.test(ref) || ref === 'richmenu') return 'richmenu';
     if (rHost) {
-      if (/instagram\\.com$/.test(rHost) || /^l\\.instagram/.test(rHost)) return 'instagram';
-      if (/(google|yahoo|bing|duckduckgo)\\./.test(rHost)) return 'search';
-      if (/(line\\.me|liff\\.line\\.me)$/.test(rHost)) return 'line';
-      if (/goltomo\\.com$/.test(rHost)) return 'internal';
+      if (/instagram\.com$/.test(rHost) || /^l\.instagram/.test(rHost)) return 'instagram';
+      if (/(google|yahoo|bing|duckduckgo)\./.test(rHost)) return 'search';
+      if (/(line\.me|liff\.line\.me)$/.test(rHost)) return 'line';
+      if (/goltomo\.com$/.test(rHost)) return 'internal';
       return 'other';
     }
     if (ref) return 'other';
@@ -1597,6 +1617,25 @@
   }
 
   var VID = id(), SID = sid(), ENTRY = entryOf();
+
+  // A/Bテストの割り当て。visitorId から決めるので同じ人には常に同じ面が出る。
+  // 決めた結果を <html data-lpv="a|b"> に載せ、CSSで出し分ける（描画後の差し替えが
+  // 無いのでチラつかない）。?lpv=a|b を付ければ手元で確認できる。
+  var VARIANT = '';
+  try {
+    var forced = (sp.get('lpv') || '').toLowerCase();
+    if (forced === 'a' || forced === 'b') { VARIANT = forced; lsSet('gb_lpv', forced); }
+    else {
+      VARIANT = ls('gb_lpv');
+      if (VARIANT !== 'a' && VARIANT !== 'b') {
+        var s = 0;
+        for (var i = 0; i < VID.length; i++) s = (s * 31 + VID.charCodeAt(i)) % 100000;
+        VARIANT = (s % 2 === 0) ? 'a' : 'b';
+        lsSet('gb_lpv', VARIANT);
+      }
+    }
+    document.documentElement.setAttribute('data-lpv', VARIANT);
+  } catch(e) { VARIANT = 'a'; }
   var RETURNING = ls('gb_seen') ? 1 : 0;
   lsSet('gb_seen', '1');
   var PAGE = window.__lpPage || 'top';
@@ -1611,7 +1650,7 @@
       visitorId: VID, sessionId: SID, event: event, page: PAGE, entry: ENTRY,
       ref: ref, referrerHost: rHost, menu: menu,
       isMobile: /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) ? 1 : 0,
-      returning: RETURNING
+      returning: RETURNING, variant: VARIANT
     };
     if (extra) for (var k in extra) p[k] = extra[k];
     var body = JSON.stringify(p);
