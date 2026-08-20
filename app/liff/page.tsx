@@ -19,6 +19,36 @@ export default function LiffEntryPage() {
   );
 }
 
+// LINEへ飛んだ後、どこで人が落ちているかを測る。
+// LPの goal（LINEへ遷移）から先は今まで真っ暗で、「LINEに飛んだのに
+// 会員が増えない」の原因（友だち追加で止まる／ログイン画面で止まる／
+// 登録まで到達）が分からなかった。
+//   liff_open   … LIFFの起動画面に到達（＝友だち追加は越えている）
+//   liff_login  … LINEログインへ転送された（ここで戻らない人が「ログイン画面で離脱」）
+//   liff_signup … セッション発行まで完了（＝実質の登録完了）
+//   liff_error  … 途中で失敗
+function liffTrack(event: string, extra?: Record<string, unknown>) {
+  try {
+    const body = JSON.stringify({
+      visitorId: (() => {
+        try {
+          let v = localStorage.getItem('gb_vid');
+          if (!v) { v = 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); localStorage.setItem('gb_vid', v); }
+          return v;
+        } catch { return 'v_' + Math.random().toString(36).slice(2, 10); }
+      })(),
+      event: 'step', page: 'liff', entry: 'line', step: event,
+      isMobile: /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) ? 1 : 0,
+      ...(extra || {}),
+    });
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon('https://app.goltomo.com/api/lp/track', new Blob([body], { type: 'text/plain' }));
+    } else {
+      fetch('https://app.goltomo.com/api/lp/track', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body, keepalive: true, mode: 'no-cors' }).catch(() => {});
+    }
+  } catch { /* 計測でログインを止めない */ }
+}
+
 function LiffEntryInner() {
   const router = useRouter();
   const search = useSearchParams();
@@ -43,6 +73,7 @@ function LiffEntryInner() {
     let cancelled = false;
     (async () => {
       try {
+        liffTrack('liff_open');
         setStatus('LIFF SDK 読み込み中...');
         const liff = (await import('@line/liff')).default;
         await liff.init({ liffId });
@@ -53,6 +84,7 @@ function LiffEntryInner() {
             throw new Error('LINE ログインに失敗しました。LINE アプリを再起動してからもう一度お試しください。');
           }
           setStatus('LINE ログインへ転送...');
+          liffTrack('liff_login');
           liff.login({ redirectUri: buildRetryRedirect() });
           return;
         }
@@ -114,10 +146,12 @@ function LiffEntryInner() {
           if (e) track('menu_entry', { menu: e });
         } catch {}
 
+        liffTrack('liff_signup');
         setStatus('完了。ホームへ移動します...');
         router.replace(to);
       } catch (e) {
         if (cancelled) return;
+        liffTrack('liff_error', { note: (e as Error).message.slice(0, 60) });
         setErrorMsg((e as Error).message);
       }
     })();

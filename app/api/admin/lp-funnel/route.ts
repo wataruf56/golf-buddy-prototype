@@ -95,6 +95,8 @@ export async function GET(req: NextRequest) {
     const byPage: Record<string, ReturnType<typeof mk>> = {};
     // A/Bテスト（a=現行 / b=新案）の比較。割り当ては visitorId 由来で固定。
     const byVariant: Record<string, ReturnType<typeof mk>> = {};
+    // LINEへ飛んだ後の段階別（liff_open / liff_login / liff_signup / liff_error）
+    const liffSteps: Record<string, Set<string>> = {};
     const clickTargets: Record<string, Set<string>> = {};
     const goalTargets: Record<string, Set<string>> = {};
     const sessions = new Set<string>();
@@ -144,6 +146,9 @@ export async function GET(req: NextRequest) {
         (goalTargets[t] = goalTargets[t] || new Set()).add(vid);
         const day = new Date((d.ts || 0) + 9 * 3600000).toISOString().slice(0, 10);
         (dailyGoal[day] = dailyGoal[day] || new Set()).add(vid);
+      } else if (d.event === 'step') {
+        const st = String(d.step || '');
+        if (st) (liffSteps[st] = liffSteps[st] || new Set()).add(vid);
       } else if (d.event === 'exit') {
         if (typeof d.dwellMs === 'number' && d.dwellMs > 0 && d.dwellMs < 3600000) { dwellSum += d.dwellMs; dwellN++; }
         if (typeof d.maxScroll === 'number') {
@@ -244,6 +249,13 @@ export async function GET(req: NextRequest) {
       byVariant: Object.entries(byVariant)
         .map(([variant, b]) => ({ variant, ...toFunnel(b) }))
         .sort((a, b) => a.variant.localeCompare(b.variant)),
+      // LINE遷移後のファネル（どこで落ちているか）
+      liffFunnel: {
+        open: (liffSteps['liff_open'] || new Set()).size,
+        login: (liffSteps['liff_login'] || new Set()).size,
+        signup: (liffSteps['liff_signup'] || new Set()).size,
+        error: (liffSteps['liff_error'] || new Set()).size,
+      },
       clickTargets: sortSet(clickTargets),
       goalTargets: sortSet(goalTargets),
       daily: Object.keys(dailyV).sort().map((date) => ({

@@ -27,8 +27,9 @@ const cors = {
   'Cache-Control': 'no-store',
 };
 
-const PAGES = new Set(['top', 'mbti', 'links', 'rounds']);
-const EVENTS = new Set(['view', 'scroll', 'click', 'goal', 'exit']);
+const PAGES = new Set(['top', 'mbti', 'links', 'rounds', 'liff']);
+// step は LINEへ飛んだ後の段階（liff_open / liff_login / liff_signup / liff_error）
+const EVENTS = new Set(['view', 'scroll', 'click', 'goal', 'exit', 'step']);
 const ENTRIES = new Set(['richmenu', 'instagram', 'search', 'line', 'internal', 'other', 'direct']);
 
 const s = (v: any, n = 80) => (v == null ? '' : String(v).slice(0, n));
@@ -64,6 +65,8 @@ export async function POST(req: NextRequest) {
     referrerHost: s(body.referrerHost, 80),
     menu: s(body.menu, 40),                // ?e=（リッチメニューのボタン名）
     target: s(body.target, 40),            // click: どのボタンか
+    step: s(body.step, 30),                // step: LINE遷移後のどの段階か
+    note: s(body.note, 80),                // step: 失敗理由など
     depth: num(body.depth),                // scroll: 25/50/75/100
     dwellMs: num(body.dwellMs),            // exit: 滞在時間
     maxScroll: num(body.maxScroll),        // exit: 最大スクロール%

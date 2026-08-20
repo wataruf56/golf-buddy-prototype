@@ -30,6 +30,7 @@ type Data = {
   byEntry: EntryRow[];
   byPage: PageRow[];
   byVariant?: Array<Omit<EntryRow, 'entry'> & { variant: string }>;
+  liffFunnel?: { open: number; login: number; signup: number; error: number };
   clickTargets: { key: string; users: number }[];
   goalTargets: { key: string; users: number }[];
   daily: { date: string; visitors: number; goals: number }[];
@@ -238,6 +239,56 @@ function Inner() {
               );
             })}
           </Card>
+
+          {/* LINEへ飛んだ後、どこで落ちたか */}
+          {data.liffFunnel && (data.liffFunnel.open > 0 || data.liffFunnel.signup > 0) && (
+            <Card
+              title="🔻 LINEへ飛んだ後、どこで落ちたか"
+              sub="LPの「LINEへ進んだ」から先。友だち追加・ログイン画面・登録完了のどこで止まっているか"
+            >
+              {(() => {
+                const f = data.liffFunnel!;
+                const goal = data.funnel.find((x) => x.key === 'goal')?.n || 0;
+                const rows = [
+                  { label: 'LPで「LINEへ」を押した', n: goal, note: 'ここまではLPの計測' },
+                  { label: 'アプリの起動画面まで来た', n: f.open, note: '友だち追加は越えている' },
+                  { label: 'LINEログインへ進んだ', n: f.login, note: 'ここで戻ると登録されない' },
+                  { label: '登録が完了した', n: f.signup, note: '会員になった人' },
+                ];
+                const max = Math.max(...rows.map((r) => r.n), 1);
+                return (
+                  <>
+                    {rows.map((r, i) => (
+                      <div key={r.label} className="py-1.5 border-b border-border last:border-0">
+                        <div className="flex items-baseline justify-between gap-2 mb-1">
+                          <span className={'text-[12.5px] font-bold ' + (i === 3 ? 'text-green' : '')}>{r.label}</span>
+                          <span className="text-[12px] font-black flex-none">{r.n}<span className="text-[10px] text-muted font-normal">人</span></span>
+                        </div>
+                        <div className="h-2.5 bg-bg rounded overflow-hidden">
+                          <div className={'h-full rounded ' + (i === 3 ? 'bg-green' : 'bg-orange')} style={{ width: `${Math.max(2, Math.round((r.n / max) * 100))}%` }} />
+                        </div>
+                        <div className="text-[10px] text-muted mt-0.5">{r.note}</div>
+                      </div>
+                    ))}
+                    {f.error > 0 && (
+                      <div className="text-[11px] text-red-700 mt-2 font-bold">⚠️ 途中で失敗した人：{f.error}人</div>
+                    )}
+                    {(() => {
+                      const lost = f.open - f.signup;
+                      if (f.open === 0) return <div className="text-[11px] text-muted mt-2 leading-relaxed">まだデータがありません。この計測を入れた時点から貯まります。</div>;
+                      if (lost <= 0) return <div className="text-[11px] font-bold mt-2 text-green">起動画面まで来た人は全員が登録まで進んでいます。</div>;
+                      return (
+                        <div className="text-[11px] mt-2 leading-relaxed bg-red-50 border border-red-200 rounded-lg p-2">
+                          <b className="text-red-700">起動画面まで来た {f.open}人のうち {lost}人が登録に至っていません。</b><br />
+                          LINEログイン画面での離脱が疑われます。
+                        </div>
+                      );
+                    })()}
+                  </>
+                );
+              })()}
+            </Card>
+          )}
 
           {/* A/Bテストの比較 */}
           <Card
