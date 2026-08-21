@@ -11,5 +11,16 @@ Disallow: /chat
 # 流入計測の中継ページ（すぐLINEへ転送するだけ）。検索結果に出す意味がない。
 Disallow: /go
 Disallow: /links
+# ログイン不要で開ける個人ページ・調整ページ（app.goltomo.com）。
+# 中身は個々のユーザーの情報で検索需要が無いうえ、これらは page 側で title を
+# 持たず layout.tsx のサイト共通文言を継承する＝指名検索「ゴルトモ」で
+# 同じタイトルのページが無数に競合してしまう。
+Disallow: /profile
+Disallow: /poll
+Disallow: /qr
+Disallow: /add-friend
+# 末尾スラッシュ付き＝アプリ内の /rounds/past・/rounds/upcoming だけを対象にし、
+# インスタbio用の短縮URL goltomo.com/rounds は塞がない。
+Disallow: /rounds/
 
 Sitemap: https://goltomo.com/sitemap.xml
