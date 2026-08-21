@@ -66,6 +66,9 @@ html body{background:#F4E8CE}
 .ar .cta .btn{display:block;background:var(--cream);color:var(--ink);text-decoration:none;
   font-weight:900;font-size:15.5px;padding:15px;border:2.5px solid var(--ink);border-radius:14px}
 .ar .cta .sub{display:block;font-size:11.5px;font-weight:800;margin-top:10px}
+/* 記事の2つめのCTA（LINE登録）。1つめ（登録不要で募集を見る）より控えめにする。 */
+.ar .cta .sub2{display:block;margin-top:12px;color:var(--cream);text-decoration:none;
+  font-weight:900;font-size:13.5px;padding:12px;border:2.5px solid var(--cream);border-radius:13px}
 
 /* 関連記事 */
 .ar .rel{margin-top:34px}

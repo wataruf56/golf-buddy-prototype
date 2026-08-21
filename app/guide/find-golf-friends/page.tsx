@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { ArticleShell } from '@/components/site/ArticleShell';
-import { computeLpStats, EMPTY_LP_STATS, type LpStats } from '@/lib/lpStats';
+import { StartButton } from '@/components/StartButton';
+import { getGuideStats } from '@/lib/guideStats';
 
 // 「ゴルフ友達 探す／作り方」で上位を狙う主力記事。
 //
@@ -30,21 +31,6 @@ export const metadata: Metadata = {
   },
 };
 
-async function getStats(): Promise<LpStats & { openCount: number }> {
-  let stats: LpStats = { ...EMPTY_LP_STATS };
-  let openCount = 0;
-  try {
-    const { getAdminDb } = await import('@/lib/firebase');
-    const adb = getAdminDb() as any;
-    if (adb) stats = await computeLpStats(adb);
-  } catch { /* 数字が出せなくても記事は表示する */ }
-  try {
-    const { db } = await import('@/lib/db');
-    const open = await db.listRounds({ status: 'open' });
-    openCount = open.filter((r: any) => !String(r.hostId || '').startsWith('test_')).length;
-  } catch { /* noop */ }
-  return { ...stats, openCount };
-}
 
 const METHODS = [
   {
@@ -104,7 +90,7 @@ const FAQ = [
 ];
 
 export default async function Page() {
-  const s = await getStats();
+  const s = await getGuideStats();
   const showData = s.fillRate != null && s.fillN >= 3;
   const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '/');
 
@@ -299,6 +285,7 @@ export default async function Page() {
           ⛳ いまの募集を見てみる
         </a>
         <span className="sub">登録なしで中身を見られます</span>
+        <StartButton className="sub2" lp="cta_guide_friends">💬 LINEではじめる（無料・約30秒）</StartButton>
       </div>
 
       <div className="rel">

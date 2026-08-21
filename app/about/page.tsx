@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { ArticleShell } from '@/components/site/ArticleShell';
 import { StartButton } from '@/components/StartButton';
-import { computeLpStats, EMPTY_LP_STATS, type LpStats } from '@/lib/lpStats';
+import { getGuideStats } from '@/lib/guideStats';
 
 // 「ゴルトモとは」。サイト内リンクの起点であり、ブランド名で検索した人の受け皿。
 //
@@ -32,21 +32,6 @@ export const metadata: Metadata = {
   },
 };
 
-async function getStats(): Promise<LpStats & { openCount: number }> {
-  let stats: LpStats = { ...EMPTY_LP_STATS };
-  let openCount = 0;
-  try {
-    const { getAdminDb } = await import('@/lib/firebase');
-    const adb = getAdminDb() as any;
-    if (adb) stats = await computeLpStats(adb);
-  } catch { /* 数字が出せなくてもページは表示する */ }
-  try {
-    const { db } = await import('@/lib/db');
-    const open = await db.listRounds({ status: 'open' });
-    openCount = open.filter((r: any) => !String(r.hostId || '').startsWith('test_')).length;
-  } catch { /* noop */ }
-  return { ...stats, openCount };
-}
 
 const FAQ: { q: string; a: string }[] = [
   {
@@ -80,7 +65,7 @@ const FAQ: { q: string; a: string }[] = [
 ];
 
 export default async function AboutPage() {
-  const s = await getStats();
+  const s = await getGuideStats();
   const showData = s.fillRate != null && s.fillN >= 3;
 
   const ld = {
