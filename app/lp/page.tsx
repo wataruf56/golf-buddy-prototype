@@ -78,14 +78,18 @@ html body{background:#F4E8CE}
   display:grid;place-items:center;font-size:17px;border:2.5px solid var(--ink)}
 .sv .free{background:var(--mustard);font-weight:900;font-size:12px;padding:7px 13px;border-radius:999px;border:2.5px solid var(--ink)}
 
-.sv .hero{padding:14px 22px 34px;text-align:center;position:relative}
-.sv .sun{position:absolute;top:-10px;right:-60px;width:190px;height:190px;border-radius:50%;
-  background:repeating-conic-gradient(var(--mustard) 0 12deg,transparent 12deg 24deg);opacity:.36;z-index:0}
+.sv .hero{padding:0 0 30px;text-align:center;position:relative}
+/* 写真を見せるための帯。ここには何も置かず、背景写真だけを見せる。 */
+.sv .phsp{height:186px}
+/* 見出しは半透明のカードに載せる。写真の上でも読めて、写真も透けて見える。 */
+.sv .hcard{position:relative;z-index:1;margin:0 15px;padding:17px 17px 19px;
+  background:rgba(247,240,224,.84);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  border:3px solid var(--ink);border-radius:22px;box-shadow:5px 5px 0 var(--ink)}
 .sv .hero .lb{position:relative;z-index:1;display:inline-block;background:var(--teal);color:var(--cream);
   font-weight:900;font-size:12.5px;padding:7px 16px;border-radius:999px;border:2.5px solid var(--ink)}
-.sv h1{position:relative;z-index:1;font-size:33px;font-weight:900;line-height:1.3;margin:16px 0 0;letter-spacing:-.01em}
+.sv h1{position:relative;z-index:1;font-size:33px;font-weight:900;line-height:1.3;margin:14px 0 0;letter-spacing:-.01em}
 .sv h1 .hl{background:linear-gradient(transparent 62%,var(--mustard) 62%)}
-.sv .hero p{position:relative;z-index:1;font-size:14px;font-weight:700;margin:16px 0 0;color:#6b5a44}
+.sv .hero p{position:relative;z-index:1;font-size:13.5px;font-weight:700;margin:13px 0 0;color:#5c4c38}
 
 /* 前提バッジ（DL不要・LINE完結・年代） */
 .sv .badges{display:grid;gap:9px;padding:0 18px;margin-top:4px}
@@ -121,12 +125,17 @@ html body{background:#F4E8CE}
    ブランドの紙色・太枠は保ったまま、情景だけを足すのが狙い。
    画像は自前のAI生成素材（他所から拾った写真は権利の問題があるので使わない）。 */
 
-/* ヒーロー：写真を敷き、下へ向かって紙色に溶かす。文字は今まで通り黒のまま読める。 */
+/* ヒーロー：写真をそのまま見せる。
+   前の版は上端まで写真を伸ばしてヘッダーに顔が切られ、さらに紙色を濃くかけすぎて
+   「うっすら模様の入った紙」にしか見えなかった。ヘッダーの下から写真を始めて顔を
+   切らないようにし、上半分は写真をほぼ素のまま見せる。文字は半透明カード(.hcard)が守る。 */
 .sv .hero{position:relative;isolation:isolate}
-.sv .hero::before{content:"";position:absolute;inset:-60px 0 0;z-index:-2;
-  background:url('/lp/bg-hero.jpg') center 18% / cover no-repeat}
-.sv .hero::after{content:"";position:absolute;inset:-60px 0 0;z-index:-1;
-  background:linear-gradient(180deg,rgba(244,232,206,.62) 0%,rgba(244,232,206,.80) 42%,rgba(244,232,206,.96) 78%,var(--paper) 100%)}
+.sv .hero::before{content:"";position:absolute;left:0;right:0;top:0;height:452px;z-index:-2;
+  background:url('/lp/bg-hero.jpg') center 4% / cover no-repeat}
+.sv .hero::after{content:"";position:absolute;left:0;right:0;top:0;height:452px;z-index:-1;
+  background:linear-gradient(180deg,
+    rgba(244,232,206,.40) 0%,rgba(244,232,206,.06) 9%,rgba(244,232,206,0) 30%,
+    rgba(244,232,206,.18) 52%,rgba(244,232,206,.70) 76%,rgba(244,232,206,.95) 90%,var(--paper) 100%)}
 
 /* 写真の上に白抜きで載せるセクション（数字・最終CTA）。
    暗いオーバーレイを重ねてコントラストを確保する。 */
@@ -412,13 +421,16 @@ export default async function LandingPage() {
 
         {/* ヒーロー */}
         <header className="hero">
-          <div className="sun" aria-hidden="true" />
-          <span className="lb">⛳ 20〜30代限定・ゴルフ友達さがし</span>
-          <h1>一緒に回る<br /><span className="hl">ゴルフ友達</span>が<br />見つかる。</h1>
-          <p>
-            誘える人がいなくても大丈夫。<br />
-            一人で参加して、また回りたい人（＝<b>ゴル友</b>）を見つける。
-          </p>
+          {/* 写真を見せるための帯（背景写真だけが見える） */}
+          <div className="phsp" aria-hidden="true" />
+          <div className="hcard">
+            <span className="lb">⛳ 20〜30代限定・ゴルフ友達さがし</span>
+            <h1>一緒に回る<br /><span className="hl">ゴルフ友達</span>が<br />見つかる。</h1>
+            <p>
+              誘える人がいなくても大丈夫。<br />
+              一人で参加して、また回りたい人（＝<b>ゴル友</b>）を見つける。
+            </p>
+          </div>
         </header>
 
         {/* 3大メリット（一目で伝える） */}

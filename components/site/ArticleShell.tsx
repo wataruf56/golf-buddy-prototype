@@ -29,7 +29,8 @@ html body{background:#F4E8CE}
 .ar .toc{background:var(--cream);border:2.5px solid var(--ink);border-radius:16px;
   box-shadow:4px 4px 0 var(--ink);padding:16px 18px;margin:0 0 28px}
 .ar .toc .t{font-weight:900;font-size:14px;margin-bottom:8px}
-.ar .toc ol{margin:0;padding-left:20px;font-size:13.5px;font-weight:700;line-height:2}
+.ar .toc ol{margin:0;padding-left:22px;font-size:13.5px;font-weight:700;line-height:2;list-style:decimal outside}
+.ar .toc li{list-style:decimal outside}
 .ar .toc a{text-decoration:none}
 
 /* 実データの箱。記事の核なので目立たせる */

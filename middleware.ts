@@ -94,10 +94,17 @@ export default async function middleware(req: NextRequest) {
         .toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 40);
       // リッチメニューの入口タグ（?e=）も引き継ぐ（どのボタンから入ったか計測用）。
       const e = (url.searchParams.get('e') || '').toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 40);
+      // LPで採番した visitorId。これを引き継がないと LP側の計測と LIFF側の計測が
+      // 別人として記録され、「LINEへ進んだ人のうち何人が登録まで来たか」を人単位で
+      // 追えない（localStorage はオリジンをまたげない）。
+      const v = (url.searchParams.get('v') || '').replace(/[^A-Za-z0-9_\-]/g, '').slice(0, 40);
       const qs = new URLSearchParams();
       if (to) qs.set('to', to);
       if (ref) qs.set('ref', ref);
       if (e) qs.set('e', e);
+      if (v) qs.set('v', v);
+      const lp = (url.searchParams.get('lp') || '').replace(/[^a-z]/g, '').slice(0, 20);
+      if (lp) qs.set('lp', lp);
       const q = qs.toString();
       const target = `https://liff.line.me/${liffId}${q ? `?${q}` : ''}`;
       return NextResponse.redirect(target);

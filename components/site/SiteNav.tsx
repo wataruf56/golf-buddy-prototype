@@ -9,7 +9,7 @@ import { useState } from 'react';
 //  ② 検索エンジンに、サイト内のページ同士のつながり（内部リンク）を示す
 //     ── LP1枚だけでは拾えるキーワードが限られるため、記事へ確実にリンクを通す
 export const NAV_LINKS: Array<{ href: string; label: string; note?: string }> = [
-  { href: '/', label: 'ゴルトモとは', note: 'サービスの概要' },
+  { href: '/about', label: 'ゴルトモとは', note: 'サービスの概要' },
   { href: '/guide/find-golf-friends', label: 'ゴルフ友達の探し方', note: '7つの方法を比較' },
   { href: '/guide/solo-round', label: '一人でゴルフに行くには', note: '一人参加の実際' },
   { href: '/guide/round-debut', label: 'ラウンドデビューの進め方', note: '初めての人へ' },

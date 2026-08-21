@@ -166,7 +166,9 @@ export async function POST(req: NextRequest) {
   }
 
   const token = makeSessionToken(userId, secret);
-  const res = NextResponse.json({ ok: true, userId });
+  // isNewUser を返すのは計測のため。これが無いと、クライアントは「セッション発行に
+  // 成功した」ことしか分からず、既存会員の再ログインまで「登録完了」に数えてしまう。
+  const res = NextResponse.json({ ok: true, userId, isNewUser });
   // Host-only cookie — matches pre-domain-migration behaviour. Admin uses its
   // own gb_admin_session cookie now (lib/adminSession.ts), so we no longer
   // need to scope this to the parent .goltomo.com domain.

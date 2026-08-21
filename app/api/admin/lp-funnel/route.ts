@@ -26,6 +26,7 @@ function authed(req: NextRequest): boolean {
 
 type Row = Record<string, any>;
 const uniq = (s: Set<string>) => s.size;
+const sz = (s?: Set<string>) => (s ? s.size : 0);
 
 export async function GET(req: NextRequest) {
   if (!authed(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
@@ -95,8 +96,11 @@ export async function GET(req: NextRequest) {
     const byPage: Record<string, ReturnType<typeof mk>> = {};
     // A/Bテスト（a=現行 / b=新案）の比較。割り当ては visitorId 由来で固定。
     const byVariant: Record<string, ReturnType<typeof mk>> = {};
-    // LINEへ飛んだ後の段階別（liff_open / liff_login / liff_signup / liff_error）
+    // LINEへ飛んだ後の段階別。入口（どのLPから来たか）ごとにも分ける。
     const liffSteps: Record<string, Set<string>> = {};
+    const liffByEntry: Record<string, Record<string, Set<string>>> = {};
+    // 出発したLP別（top=普通のLP / mbti=診断LP / links=リンクハブ / ''=LINE内から直接）
+    const liffByLp: Record<string, Record<string, Set<string>>> = {};
     const clickTargets: Record<string, Set<string>> = {};
     const goalTargets: Record<string, Set<string>> = {};
     const sessions = new Set<string>();
@@ -148,7 +152,14 @@ export async function GET(req: NextRequest) {
         (dailyGoal[day] = dailyGoal[day] || new Set()).add(vid);
       } else if (d.event === 'step') {
         const st = String(d.step || '');
-        if (st) (liffSteps[st] = liffSteps[st] || new Set()).add(vid);
+        if (st) {
+          (liffSteps[st] = liffSteps[st] || new Set()).add(vid);
+          const be = (liffByEntry[entry] = liffByEntry[entry] || {});
+          (be[st] = be[st] || new Set()).add(vid);
+          const lp = String(d.fromLp || '') || 'line';
+          const bl = (liffByLp[lp] = liffByLp[lp] || {});
+          (bl[st] = bl[st] || new Set()).add(vid);
+        }
       } else if (d.event === 'exit') {
         if (typeof d.dwellMs === 'number' && d.dwellMs > 0 && d.dwellMs < 3600000) { dwellSum += d.dwellMs; dwellN++; }
         if (typeof d.maxScroll === 'number') {
@@ -157,6 +168,25 @@ export async function GET(req: NextRequest) {
         }
       }
     }
+
+    // --- サーバー側の実測：期間内に実際に作られた会員 ---
+    // クライアント計測（liff_new）と突き合わせるための「答え」。
+    // acquisitionAt が無い古いユーザーは createdAt で拾う。
+    const signups = { total: 0, byEntry: [] as { entry: string; n: number }[], missingAt: 0 };
+    try {
+      const usnap = await db.collection('users').limit(5000).get();
+      const bySrc: Record<string, number> = {};
+      usnap.docs.forEach((u: any) => {
+        const x = u.data() || {};
+        const at = Number(x.acquisitionAt || x.createdAt || 0);
+        if (!at) { signups.missingAt++; return; }
+        if (at < from || at >= to) return;
+        signups.total++;
+        const src = String(x.acquisitionSource || 'unknown').toLowerCase() || 'unknown';
+        bySrc[src] = (bySrc[src] || 0) + 1;
+      });
+      signups.byEntry = Object.entries(bySrc).map(([entry, n]) => ({ entry, n })).sort((a, b) => b.n - a.n);
+    } catch { /* 取れなくてもファネルは返す */ }
 
     const toFunnel = (b: ReturnType<typeof mk>) => ({
       view: uniq(b.view), d25: uniq(b.d25), d50: uniq(b.d50), d75: uniq(b.d75),
@@ -249,13 +279,39 @@ export async function GET(req: NextRequest) {
       byVariant: Object.entries(byVariant)
         .map(([variant, b]) => ({ variant, ...toFunnel(b) }))
         .sort((a, b) => a.variant.localeCompare(b.variant)),
-      // LINE遷移後のファネル（どこで落ちているか）
+      // LINE遷移後のファネル（どこで落ちているか）。
+      // signup は旧イベント名（新規/既存を区別していなかった）。互換のため残すが、
+      // 「登録完了」として読むべきなのは newUser の方。
       liffFunnel: {
-        open: (liffSteps['liff_open'] || new Set()).size,
-        login: (liffSteps['liff_login'] || new Set()).size,
-        signup: (liffSteps['liff_signup'] || new Set()).size,
-        error: (liffSteps['liff_error'] || new Set()).size,
+        open: sz(liffSteps['liff_open']),
+        sdk: sz(liffSteps['liff_sdk']),
+        login: sz(liffSteps['liff_login']),
+        back: sz(liffSteps['liff_back']),
+        auth: sz(liffSteps['liff_auth']),
+        newUser: sz(liffSteps['liff_new']),
+        returning: sz(liffSteps['liff_return']),
+        signup: sz(liffSteps['liff_signup']),   // 旧イベント（新規＋既存の合算）
+        error: sz(liffSteps['liff_error']),
       },
+      liffByLp: Object.entries(liffByLp)
+        .map(([lp, m]) => ({
+          lp,
+          open: sz(m['liff_open']), login: sz(m['liff_login']), back: sz(m['liff_back']),
+          auth: sz(m['liff_auth']), newUser: sz(m['liff_new']), returning: sz(m['liff_return']),
+          signup: sz(m['liff_signup']), error: sz(m['liff_error']),
+        }))
+        .sort((a, b) => b.open - a.open),
+      liffByEntry: Object.entries(liffByEntry)
+        .map(([entry, m]) => ({
+          entry,
+          open: sz(m['liff_open']), login: sz(m['liff_login']), back: sz(m['liff_back']),
+          auth: sz(m['liff_auth']), newUser: sz(m['liff_new']), returning: sz(m['liff_return']),
+          signup: sz(m['liff_signup']), error: sz(m['liff_error']),
+        }))
+        .sort((a, b) => b.open - a.open),
+      // サーバー側の実測（＝答え合わせ）。クライアント計測が漏れても、
+      // 実際に会員ドキュメントが作られた数はここで必ず分かる。
+      signups,
       clickTargets: sortSet(clickTargets),
       goalTargets: sortSet(goalTargets),
       daily: Object.keys(dailyV).sort().map((date) => ({

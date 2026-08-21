@@ -28,7 +28,10 @@ const cors = {
 };
 
 const PAGES = new Set(['top', 'mbti', 'links', 'rounds', 'liff']);
-// step は LINEへ飛んだ後の段階（liff_open / liff_login / liff_signup / liff_error）
+// step は LINEへ飛んだ後の段階。
+//   liff_open / liff_sdk / liff_login / liff_back / liff_auth / liff_new / liff_return / liff_error
+// fromLp は「どのLPから LINE へ飛んだか」（top / mbti / links / rounds）。
+// これが無いと、LIFFまで来た人がどのLP由来か分からない。
 const EVENTS = new Set(['view', 'scroll', 'click', 'goal', 'exit', 'step']);
 const ENTRIES = new Set(['richmenu', 'instagram', 'search', 'line', 'internal', 'other', 'direct']);
 
@@ -66,6 +69,7 @@ export async function POST(req: NextRequest) {
     menu: s(body.menu, 40),                // ?e=（リッチメニューのボタン名）
     target: s(body.target, 40),            // click: どのボタンか
     step: s(body.step, 30),                // step: LINE遷移後のどの段階か
+    fromLp: PAGES.has(s(body.fromLp, 20)) ? s(body.fromLp, 20) : '',   // step: 出発したLP
     note: s(body.note, 80),                // step: 失敗理由など
     depth: num(body.depth),                // scroll: 25/50/75/100
     dwellMs: num(body.dwellMs),            // exit: 滞在時間

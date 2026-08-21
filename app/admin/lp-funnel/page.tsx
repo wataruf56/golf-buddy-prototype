@@ -30,7 +30,12 @@ type Data = {
   byEntry: EntryRow[];
   byPage: PageRow[];
   byVariant?: Array<Omit<EntryRow, 'entry'> & { variant: string }>;
-  liffFunnel?: { open: number; login: number; signup: number; error: number };
+  liffFunnel?: {
+    open: number; sdk: number; login: number; back: number; auth: number;
+    newUser: number; returning: number; signup: number; error: number;
+  };
+  liffByLp?: Array<{ lp: string; open: number; login: number; back: number; auth: number; newUser: number; returning: number; signup: number; error: number }>;
+  signups?: { total: number; byEntry: { entry: string; n: number }[]; missingAt: number };
   clickTargets: { key: string; users: number }[];
   goalTargets: { key: string; users: number }[];
   daily: { date: string; visitors: number; goals: number }[];
@@ -50,6 +55,14 @@ const PAGE_LABEL: Record<string, string> = {
   top: '🏠 普通のLP（goltomo.com）',
   mbti: '⛳ ゴルフMBTI診断LP',
   links: '📸 インスタのリンクハブ',
+};
+// LINEへ飛ぶ前にいたLP。'line' は LP を経由せず LINE 内から直接来た人。
+const LP_LABEL: Record<string, string> = {
+  top: '🏠 普通のLP',
+  mbti: '⛳ 診断LP',
+  links: '📸 リンクハブ',
+  rounds: '⛳ 募集一覧',
+  line: '💬 LINE内から直接',
 };
 const TARGET_LABEL: Record<string, string> = {
   cta_top: '上部「LINEで無料ではじめる」',
@@ -241,31 +254,41 @@ function Inner() {
           </Card>
 
           {/* LINEへ飛んだ後、どこで落ちたか */}
-          {data.liffFunnel && (data.liffFunnel.open > 0 || data.liffFunnel.signup > 0) && (
+          {data.liffFunnel && (data.liffFunnel.open > 0 || data.liffFunnel.signup > 0 || (data.signups?.total || 0) > 0) && (
             <Card
               title="🔻 LINEへ飛んだ後、どこで落ちたか"
-              sub="LPの「LINEへ進んだ」から先。友だち追加・ログイン画面・登録完了のどこで止まっているか"
+              sub="LPの「LINEへ進んだ」から先を1人ずつ追跡。最後の「新しく会員になった」だけが本当の登録"
             >
               {(() => {
                 const f = data.liffFunnel!;
                 const goal = data.funnel.find((x) => x.key === 'goal')?.n || 0;
-                const rows = [
-                  { label: 'LPで「LINEへ」を押した', n: goal, note: 'ここまではLPの計測' },
-                  { label: 'アプリの起動画面まで来た', n: f.open, note: '友だち追加は越えている' },
-                  { label: 'LINEログインへ進んだ', n: f.login, note: 'ここで戻ると登録されない' },
-                  { label: '登録が完了した', n: f.signup, note: '会員になった人' },
+                // 旧イベント(liff_signup)しか無い期間は、新規と既存を分けられない。
+                const legacyOnly = f.newUser === 0 && f.returning === 0 && f.signup > 0;
+                const rows: { label: string; n: number; note: string; kind?: 'goal' | 'sub' }[] = [
+                  { label: 'LPで「LINEへ」を押した', n: goal, note: 'ここまではLP側の計測' },
+                  { label: 'アプリの起動画面まで来た', n: f.open, note: 'LINEアプリの中で開けた＝友だち追加は越えている' },
+                  { label: 'LINEログインへ進んだ', n: f.login, note: 'ログインが必要だった人（ログイン済みの人はここを通らない）' },
+                  { label: 'ログインから戻ってきた', n: f.back, note: '上との差が「ログイン画面で消えた人」' },
+                  { label: 'サーバー認証が通った', n: f.auth, note: 'セッション発行に成功' },
                 ];
+                if (legacyOnly) {
+                  rows.push({ label: 'セッション発行まで到達（旧計測）', n: f.signup, note: '新規と既存を区別していない古い計測値', kind: 'sub' });
+                } else {
+                  rows.push({ label: '🆕 新しく会員になった', n: f.newUser, note: 'これが本当の登録完了', kind: 'goal' });
+                  rows.push({ label: '既存会員の再ログイン', n: f.returning, note: '登録数には数えない（自分のテストもここ）', kind: 'sub' });
+                }
                 const max = Math.max(...rows.map((r) => r.n), 1);
                 return (
                   <>
-                    {rows.map((r, i) => (
+                    {rows.map((r) => (
                       <div key={r.label} className="py-1.5 border-b border-border last:border-0">
                         <div className="flex items-baseline justify-between gap-2 mb-1">
-                          <span className={'text-[12.5px] font-bold ' + (i === 3 ? 'text-green' : '')}>{r.label}</span>
+                          <span className={'text-[12.5px] font-bold ' + (r.kind === 'goal' ? 'text-green' : r.kind === 'sub' ? 'text-muted' : '')}>{r.label}</span>
                           <span className="text-[12px] font-black flex-none">{r.n}<span className="text-[10px] text-muted font-normal">人</span></span>
                         </div>
                         <div className="h-2.5 bg-bg rounded overflow-hidden">
-                          <div className={'h-full rounded ' + (i === 3 ? 'bg-green' : 'bg-orange')} style={{ width: `${Math.max(2, Math.round((r.n / max) * 100))}%` }} />
+                          <div className={'h-full rounded ' + (r.kind === 'goal' ? 'bg-green' : r.kind === 'sub' ? 'bg-border' : 'bg-orange')}
+                            style={{ width: `${Math.max(2, Math.round((r.n / max) * 100))}%` }} />
                         </div>
                         <div className="text-[10px] text-muted mt-0.5">{r.note}</div>
                       </div>
@@ -273,17 +296,81 @@ function Inner() {
                     {f.error > 0 && (
                       <div className="text-[11px] text-red-700 mt-2 font-bold">⚠️ 途中で失敗した人：{f.error}人</div>
                     )}
+
+                    {/* サーバー実測との答え合わせ */}
+                    {data.signups && (
+                      <div className="mt-3 rounded-lg border border-border bg-bg p-2.5">
+                        <div className="text-[11px] font-black mb-1">✅ 答え合わせ（サーバーの実測）</div>
+                        <div className="text-[11.5px] leading-relaxed">
+                          この期間に実際に作られた会員：<b className="text-green text-[13px]">{data.signups.total}人</b>
+                          {legacyOnly && (
+                            <><br /><span className="text-muted">上の「セッション発行」{f.signup}人との差が、既存会員の再ログインです。</span></>
+                          )}
+                          {!legacyOnly && f.newUser !== data.signups.total && (
+                            <><br /><span className="text-muted">
+                              画面計測の「新しく会員になった」{f.newUser}人とズレています。計測が届かなかった分（通信の失敗・別経路からの登録）と考えられます。実測の方が正しい数字です。
+                            </span></>
+                          )}
+                        </div>
+                        {data.signups.byEntry.length > 0 && (
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {data.signups.byEntry.map((x) => (
+                              <span key={x.entry} className="text-[10.5px] font-bold bg-card border border-border rounded px-1.5 py-0.5">
+                                {x.entry}：{x.n}人
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 離脱の読み解き */}
                     {(() => {
-                      const lost = f.open - f.signup;
                       if (f.open === 0) return <div className="text-[11px] text-muted mt-2 leading-relaxed">まだデータがありません。この計測を入れた時点から貯まります。</div>;
-                      if (lost <= 0) return <div className="text-[11px] font-bold mt-2 text-green">起動画面まで来た人は全員が登録まで進んでいます。</div>;
+                      const lostAtLogin = Math.max(0, f.login - f.back);
+                      const lostBefore = Math.max(0, goal - f.open);
+                      const parts: string[] = [];
+                      if (lostBefore > 0) parts.push(`LPで押したのに起動画面まで来なかった人が${lostBefore}人（友だち追加の画面などで止まっている可能性）`);
+                      if (lostAtLogin > 0) parts.push(`LINEログイン画面から戻って来なかった人が${lostAtLogin}人`);
+                      if (!parts.length) return <div className="text-[11px] font-bold mt-2 text-green">目立った離脱はありません。</div>;
                       return (
                         <div className="text-[11px] mt-2 leading-relaxed bg-red-50 border border-red-200 rounded-lg p-2">
-                          <b className="text-red-700">起動画面まで来た {f.open}人のうち {lost}人が登録に至っていません。</b><br />
-                          LINEログイン画面での離脱が疑われます。
+                          <b className="text-red-700">落ちている場所</b><br />
+                          {parts.map((t, i) => <span key={i}>・{t}<br /></span>)}
                         </div>
                       );
                     })()}
+
+                    {/* 出発したLP別 */}
+                    {data.liffByLp && data.liffByLp.length > 0 && (
+                      <div className="mt-3">
+                        <div className="text-[11px] font-black mb-1">どのLPから飛んだ人か</div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-[11px]">
+                            <thead>
+                              <tr className="text-muted">
+                                <th className="text-left font-bold py-1">出発</th>
+                                <th className="text-right font-bold py-1">起動</th>
+                                <th className="text-right font-bold py-1">認証</th>
+                                <th className="text-right font-bold py-1">新規</th>
+                                <th className="text-right font-bold py-1">既存</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {data.liffByLp.map((r) => (
+                                <tr key={r.lp} className="border-t border-border">
+                                  <td className="py-1 font-bold">{LP_LABEL[r.lp] || r.lp}</td>
+                                  <td className="py-1 text-right">{r.open}</td>
+                                  <td className="py-1 text-right">{r.auth}</td>
+                                  <td className="py-1 text-right font-black text-green">{r.newUser}</td>
+                                  <td className="py-1 text-right text-muted">{r.returning}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
                   </>
                 );
               })()}
