@@ -132,7 +132,7 @@ export default async function Page() {
   ];
 
   return (
-    <ArticleShell current="/guide/find-golf-friends">
+    <ArticleShell current="/guide/find-golf-friends" page="guide">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       <h1>ゴルフ友達の探し方7つ<br />一人でもラウンドに行ける方法</h1>

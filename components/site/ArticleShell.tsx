@@ -1,5 +1,6 @@
 import { SiteNav } from './SiteNav';
 import { SITE_NAV_CSS } from './navCss';
+import { LP_TRACK_SCRIPT } from '@/lib/lpTrackScript';
 
 // 記事ページの共通の器。LPと同じ配色・書体で、読み物として読める幅に整える。
 // 記事はSEOの主戦場なので、見出し構造（h1→h2→h3）を素直に保つ。
@@ -78,10 +79,13 @@ html body{background:#F4E8CE}
   text-align:center;font-size:11.5px;color:#8a7256;font-weight:700}
 ` + SITE_NAV_CSS;
 
-export function ArticleShell({ current, children }: { current?: string; children: React.ReactNode }) {
+// page は計測上の面の名前。'about'（ゴルトモとは）/ 'guide'（記事）。
+// これが無いと、検索から記事に来た人がどこで離脱したかが一切見えない。
+export function ArticleShell({ current, page = 'guide', children }: { current?: string; page?: 'about' | 'guide'; children: React.ReactNode }) {
   return (
     <div className="ar">
       <style dangerouslySetInnerHTML={{ __html: ARTICLE_CSS }} />
+      <script dangerouslySetInnerHTML={{ __html: `window.__lpPage=${JSON.stringify(page)};` + LP_TRACK_SCRIPT }} />
       <div className="wrap">
         <div className="top">
           <a className="logo" href="/"><span className="m">⛳</span>ゴルトモ</a>

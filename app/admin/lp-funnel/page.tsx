@@ -55,6 +55,9 @@ const PAGE_LABEL: Record<string, string> = {
   top: '🏠 普通のLP（goltomo.com）',
   mbti: '⛳ ゴルフMBTI診断LP',
   links: '📸 インスタのリンクハブ',
+  about: '📖 ゴルトモとは',
+  guide: '📝 SEO記事',
+  rounds: '⛳ 募集一覧',
 };
 // LINEへ飛ぶ前にいたLP。'line' は LP を経由せず LINE 内から直接来た人。
 const LP_LABEL: Record<string, string> = {
@@ -62,6 +65,8 @@ const LP_LABEL: Record<string, string> = {
   mbti: '⛳ 診断LP',
   links: '📸 リンクハブ',
   rounds: '⛳ 募集一覧',
+  about: '📖 ゴルトモとは',
+  guide: '📝 SEO記事',
   line: '💬 LINE内から直接',
 };
 const TARGET_LABEL: Record<string, string> = {

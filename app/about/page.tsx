@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { ArticleShell } from '@/components/site/ArticleShell';
+import { StartButton } from '@/components/StartButton';
 import { computeLpStats, EMPTY_LP_STATS, type LpStats } from '@/lib/lpStats';
 
 // 「ゴルトモとは」。サイト内リンクの起点であり、ブランド名で検索した人の受け皿。
@@ -124,7 +125,7 @@ export default async function AboutPage() {
   };
 
   return (
-    <ArticleShell current="/about">
+    <ArticleShell current="/about" page="about">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }} />
 
       <h1>ゴルトモとは</h1>
@@ -307,9 +308,9 @@ export default async function AboutPage() {
           登録は無料・約30秒。合わなければ使うのをやめるだけです。
           {s.openCount > 0 && <><br />いま募集中のラウンドは{s.openCount}件あります。</>}
         </p>
-        <a className="btn" href="/app?ref=about" data-lp="cta_about" data-lp-goal="1">
-          ⛳ LINEではじめる（無料）
-        </a>
+        {/* StartButton にすることで visitorId と出発ページがLIFFまで運ばれる
+            （素の <a> だと、この人がLINEの先で登録したかどうかを追えない）。 */}
+        <StartButton className="btn" lp="cta_about">⛳ LINEではじめる（無料）</StartButton>
         <a className="sub" href="https://app.goltomo.com/links/rounds" data-lp="rounds_about"
           style={{ color: '#FBF3E0' }}>
           👀 先に募集だけ見る（登録不要）

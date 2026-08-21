@@ -17,6 +17,7 @@ import { getAdminDb } from '@/lib/firebase';
 //
 // 面（page）と入口（entry）は別軸で持つ：
 //   page  … top（普通のLP） / mbti（ゴルフMBTI診断LP） / links（インスタのリンクハブ）
+//           about（ゴルトモとは） / guide（SEO記事） / rounds（募集一覧） / liff（LINE遷移後）
 //   entry … richmenu / instagram / search / line / internal / other / direct
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +28,7 @@ const cors = {
   'Cache-Control': 'no-store',
 };
 
-const PAGES = new Set(['top', 'mbti', 'links', 'rounds', 'liff']);
+const PAGES = new Set(['top', 'mbti', 'links', 'rounds', 'liff', 'about', 'guide']);
 // step は LINEへ飛んだ後の段階。
 //   liff_open / liff_sdk / liff_login / liff_back / liff_auth / liff_new / liff_return / liff_error
 // fromLp は「どのLPから LINE へ飛んだか」（top / mbti / links / rounds）。
