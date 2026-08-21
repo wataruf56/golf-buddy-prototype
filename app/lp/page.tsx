@@ -16,6 +16,8 @@ import { RefCapture } from '@/components/RefCapture';
 import { StartButton } from '@/components/StartButton';
 import { LP_TRACK_SCRIPT } from '@/lib/lpTrackScript';
 import { computeLpStats, EMPTY_LP_STATS, type LpStats } from '@/lib/lpStats';
+import { SiteNav } from '@/components/site/SiteNav';
+import { SITE_NAV_CSS } from '@/components/site/navCss';
 
 const SITE = 'https://goltomo.com';
 const DIAGNOSIS_URL = '/golmoti.html';
@@ -392,7 +394,7 @@ export default async function LandingPage() {
   const APP = 'https://app.goltomo.com';
   return (
     <div className="sv">
-      <style dangerouslySetInnerHTML={{ __html: CSS }} />
+      <style dangerouslySetInnerHTML={{ __html: CSS + SITE_NAV_CSS }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
       {/* LP計測（到達→スクロール→クリック→LINE遷移）。ユニークは visitorId 基準。 */}
       <script dangerouslySetInnerHTML={{ __html: `window.__lpPage="top";` + LP_TRACK_SCRIPT }} />
@@ -402,7 +404,10 @@ export default async function LandingPage() {
       <div className="wrap">
         <div className="top">
           <div className="logo"><span className="m">⛳</span>ゴルトモ</div>
-          <span className="free">無料</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="free">無料</span>
+            <SiteNav current="/" />
+          </div>
         </div>
 
         {/* ヒーロー */}
