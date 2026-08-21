@@ -69,7 +69,8 @@ html body{background:#F4E8CE}
   pointer-events:none;opacity:.45;mix-blend-mode:multiply;
   background-image:radial-gradient(circle,rgba(51,39,27,.16) 1px,transparent 1.4px);background-size:7px 7px}
 
-.sv .top{display:flex;align-items:center;justify-content:space-between;padding:16px 20px}
+.sv .top{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;
+  position:relative;z-index:2}   /* ヒーローの背景写真が上へはみ出すので前面に出す */
 .sv .logo{display:flex;align-items:center;gap:8px;font-weight:900;font-size:19px}
 .sv .logo .m{width:34px;height:34px;background:var(--orange);color:var(--cream);border-radius:50%;
   display:grid;place-items:center;font-size:17px;border:2.5px solid var(--ink)}
@@ -113,17 +114,31 @@ html body{background:#F4E8CE}
 .sv .comp .rbar .rf{background:var(--pink)}
 .sv .comp .note{display:flex;gap:9px;align-items:flex-start;background:var(--paper);border:2.5px dashed var(--ink);border-radius:14px;padding:12px 13px;font-size:12.5px;font-weight:700;margin-top:6px}
 
-/* 写真の帯。文字ばかりの画面に間を作り、実際の様子を見せる。
-   画像は自前のAI生成素材（02_マーケ・リサーチ/SNS運用/インスタ/AI人物ストック）。
-   他所から拾った写真は権利の問題があるので使わない。 */
-.sv .ph{position:relative;margin:20px 18px 0;border:2.5px solid var(--ink);border-radius:18px;
-  overflow:hidden;box-shadow:5px 5px 0 var(--ink);background:var(--cream)}
-.sv .ph img{display:block;width:100%;height:auto}
-.sv .ph .cap{position:absolute;left:0;right:0;bottom:0;padding:22px 14px 11px;
-  background:linear-gradient(transparent,rgba(51,39,27,.82));
-  color:var(--cream);font-size:12.5px;font-weight:900;text-align:center;line-height:1.5}
-/* ヒーロー直下の1枚は左右いっぱいに敷いて情景から入る */
-.sv .phhero{margin:0 0 4px;border-left:0;border-right:0;border-radius:0;box-shadow:none}
+/* ── 写真を「背景」として敷く ───────────────────────────────
+   画像を帯で挟むのではなく、セクションの下に敷いてその上に文字を置く。
+   ブランドの紙色・太枠は保ったまま、情景だけを足すのが狙い。
+   画像は自前のAI生成素材（他所から拾った写真は権利の問題があるので使わない）。 */
+
+/* ヒーロー：写真を敷き、下へ向かって紙色に溶かす。文字は今まで通り黒のまま読める。 */
+.sv .hero{position:relative;isolation:isolate}
+.sv .hero::before{content:"";position:absolute;inset:-60px 0 0;z-index:-2;
+  background:url('/lp/bg-hero.jpg') center 18% / cover no-repeat}
+.sv .hero::after{content:"";position:absolute;inset:-60px 0 0;z-index:-1;
+  background:linear-gradient(180deg,rgba(244,232,206,.62) 0%,rgba(244,232,206,.80) 42%,rgba(244,232,206,.96) 78%,var(--paper) 100%)}
+
+/* 写真の上に白抜きで載せるセクション（数字・最終CTA）。
+   暗いオーバーレイを重ねてコントラストを確保する。 */
+.sv .onphoto{position:relative;isolation:isolate;overflow:hidden}
+.sv .onphoto::before{content:"";position:absolute;inset:0;z-index:-2;background-size:cover;background-position:center}
+.sv .onphoto::after{content:"";position:absolute;inset:0;z-index:-1}
+.sv .bgnums::before{background-image:url('/lp/bg-nums.jpg')}
+.sv .bgnums::after{background:linear-gradient(180deg,rgba(30,45,38,.86),rgba(30,45,38,.74))}
+.sv .bgcta::before{background-image:url('/lp/bg-cta.jpg');background-position:center 20%}
+.sv .bgcta::before{filter:saturate(.9) contrast(1.06)}
+.sv .bgcta::after{background:linear-gradient(180deg,rgba(232,100,60,.94) 0%,rgba(232,100,60,.88) 38%,rgba(190,66,32,.62) 100%)}
+/* 公式コンペ：うっすら敷いて、白カードの背景に奥行きを出す */
+/* 公式コンペは写真を敷くと文字が読みづらく、薄めると汚れに見えたので敷かない */
+
 .sv .chap{display:flex;align-items:center;gap:12px;padding:0 22px;margin:52px 0 14px}
 .sv .chap .no{width:44px;height:44px;flex:none;background:var(--cream);border:2.5px solid var(--ink);border-radius:50%;
   display:grid;place-items:center;font-size:20px;box-shadow:3px 3px 0 var(--ink)}
@@ -202,7 +217,9 @@ html body{background:#F4E8CE}
 .sv .rc .tag.g{background:var(--teal);color:var(--cream)}.sv .rc .tag.o{background:var(--mustard)}
 /* 追従バー（fixedで中央480px幅・.sv::before と同じ方式。コンテンツは wrap の下余白で逃がす） */
 /* 数字で見るゴルトモ（実データ） */
-.sv .nums{margin:22px 16px 0}
+.sv .nums{margin:22px 0 0;padding:22px 16px 20px}
+.sv .nums.onphoto .nh{color:var(--cream)}
+.sv .nums.onphoto .nf{color:rgba(251,243,224,.75)}
 .sv .nums .nh{font-size:15px;font-weight:900;text-align:center;margin-bottom:10px}
 .sv .nums .ng{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .sv .nums .nc:last-child:nth-child(odd){grid-column:1 / -1}
@@ -399,13 +416,6 @@ export default async function LandingPage() {
           </p>
         </header>
 
-        {/* 情景の写真。文字だけの画面が続くので、最初に「どんな場か」を見せる。 */}
-        <div className="ph phhero">
-          <img src="/lp/hero.jpg" alt="ゴルフ場のティーグラウンドで談笑する4人のゴルファー"
-               width={960} height={620} loading="eager" />
-          <div className="cap">はじめまして同士でも、回り終わる頃には友達に</div>
-        </div>
-
         {/* 3大メリット（一目で伝える） */}
         <div className="big3">
           <div className="b">
@@ -459,15 +469,9 @@ export default async function LandingPage() {
           </div>
         )}
 
-        <div className="ph">
-          <img src="/lp/friends.jpg" alt="ミスショットに笑い合う男女のゴルファー"
-               width={960} height={640} loading="lazy" />
-          <div className="cap">スコアより、一緒に回る人。</div>
-        </div>
-
         {/* 数字（すべて実データ。母数が少ない項目は出さない） */}
         {numbers.length > 0 && (
-          <section className="nums">
+          <section className="nums onphoto bgnums">
             <h2 className="nh">数字で見るゴルトモ</h2>
             <div className="ng">
               {numbers.map((n) => (
@@ -482,12 +486,6 @@ export default async function LandingPage() {
           </section>
         )}
 
-
-        <div className="ph">
-          <img src="/lp/compe.jpg" alt="クラブハウス前で集合写真を撮るゴルトモ公式コンペの参加者"
-               width={960} height={560} loading="lazy" />
-          <div className="cap">ゴルトモ公式コンペのようす</div>
-        </div>
 
         {/* 公式コンペの男女比配慮（女性が孤立しないよう組み分け） */}
         <div className="comp">
@@ -514,7 +512,7 @@ export default async function LandingPage() {
         </div>
 
         {/* CTA */}
-        <div className="cta">
+        <div className="cta onphoto bgcta">
           <h2>ゴルフ友達を<br />見つけにいく</h2>
           <p className="v-a">ここまで読んでくれたあなたへ。<br />合わなければ、使うのをやめるだけで大丈夫です。</p>
           <p className="v-b">気になる募集があれば、その場で参加できます。<br />登録は無料・30秒。</p>
