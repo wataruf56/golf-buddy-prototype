@@ -21,14 +21,16 @@ const SITE = 'https://goltomo.com';
 const DIAGNOSIS_URL = '/golmoti.html';
 
 export const metadata: Metadata = {
-  title: 'ゴルトモ｜ゴルフ友達を探す・作るなら。20〜30代のゴル友マッチング',
+  title: 'ゴルトモ｜ゴルフ友達を探す・作るなら。20〜30代のゴルフ友達マッチング',
   description:
     '一緒に回るゴルフ友達が見つかる。誘える人がいなくても、一人で参加して気の合う「ゴル友」を作れます。ゴルフ初心者もOK、スコア帯は「ラウンド未経験」から選べます。車がなくても送迎（ピックアップ）の調整がアプリの中で完結。20〜30代限定・ラウンド後の相互レビューで安心。LINEで完結、アプリのダウンロード不要。',
   keywords: [
-    'ゴルトモ', 'ゴルフ 友達', 'ゴルフ友達 作り方', 'ゴル友', 'ゴルフ 仲間',
+    'ゴルトモ', 'ゴルフ 友達', 'ゴルフ友達 作り方', 'ゴルフ友達 探し', 'ゴル友', 'ゴルフ 仲間',
+    'ラウンド募集', 'ゴルフ ラウンド募集', 'ラウンド 募集 サイト', 'ゴルフ 募集',
     'ゴルフ マッチング', 'ゴルフ 一人参加', 'ゴルフ 初心者 ラウンド',
     'ラウンドデビュー', 'ゴルフ 初心者 募集', 'ゴルフ 未経験',
     'ゴルフ 車なし', 'ゴルフ 送迎', 'ゴルフ 相乗り',
+    'ゴルフ 20代', 'ゴルフ 30代', 'ゴルフ 同世代',
   ],
   alternates: { canonical: `${SITE}/` },
   openGraph: {
@@ -111,6 +113,17 @@ html body{background:#F4E8CE}
 .sv .comp .rbar .rf{background:var(--pink)}
 .sv .comp .note{display:flex;gap:9px;align-items:flex-start;background:var(--paper);border:2.5px dashed var(--ink);border-radius:14px;padding:12px 13px;font-size:12.5px;font-weight:700;margin-top:6px}
 
+/* 写真の帯。文字ばかりの画面に間を作り、実際の様子を見せる。
+   画像は自前のAI生成素材（02_マーケ・リサーチ/SNS運用/インスタ/AI人物ストック）。
+   他所から拾った写真は権利の問題があるので使わない。 */
+.sv .ph{position:relative;margin:20px 18px 0;border:2.5px solid var(--ink);border-radius:18px;
+  overflow:hidden;box-shadow:5px 5px 0 var(--ink);background:var(--cream)}
+.sv .ph img{display:block;width:100%;height:auto}
+.sv .ph .cap{position:absolute;left:0;right:0;bottom:0;padding:22px 14px 11px;
+  background:linear-gradient(transparent,rgba(51,39,27,.82));
+  color:var(--cream);font-size:12.5px;font-weight:900;text-align:center;line-height:1.5}
+/* ヒーロー直下の1枚は左右いっぱいに敷いて情景から入る */
+.sv .phhero{margin:0 0 4px;border-left:0;border-right:0;border-radius:0;box-shadow:none}
 .sv .chap{display:flex;align-items:center;gap:12px;padding:0 22px;margin:52px 0 14px}
 .sv .chap .no{width:44px;height:44px;flex:none;background:var(--cream);border:2.5px solid var(--ink);border-radius:50%;
   display:grid;place-items:center;font-size:20px;box-shadow:3px 3px 0 var(--ink)}
@@ -285,16 +298,55 @@ async function getLpData(): Promise<{ openCount: number; activeNow: number; tota
   return { openCount, activeNow, totalRounds, stats };
 }
 
-const JSON_LD = {
-  '@context': 'https://schema.org',
-  '@type': 'WebSite',
-  name: 'ゴルトモ',
-  alternateName: ['GOLTOMO', 'ゴルフMBTI診断'],
-  url: `${SITE}/`,
-  description:
-    '一緒に回るゴルフ友達が見つかるLINEアプリ。20〜30代限定。ラウンド募集と相互レビューで、気の合う「ゴル友」とつながれる。',
-  publisher: { '@type': 'Organization', name: '合同会社シクミヤ', url: `${SITE}/` },
-};
+const INSTAGRAM_URL = 'https://www.instagram.com/goltomo.golf/';
+
+// 構造化データ。WebSite と Organization を分けて出す。
+// sameAs に公式SNSを並べると、検索エンジンが「ゴルトモ＝このインスタ」と
+// 結び付けられる（ブランド検索でインスタが出やすくなる）。
+const JSON_LD = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'ゴルトモ',
+    alternateName: ['GOLTOMO', 'ゴルトモ ゴルフ友達マッチング', 'ゴルフMBTI診断'],
+    url: `${SITE}/`,
+    inLanguage: 'ja',
+    description:
+      '一緒に回るゴルフ友達が見つかるLINEアプリ。20〜30代限定。ラウンド募集と相互レビューで、気の合う「ゴル友」とつながれる。',
+    publisher: { '@type': 'Organization', name: '合同会社シクミヤ', url: `${SITE}/` },
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'ゴルトモ',
+    alternateName: 'GOLTOMO',
+    url: `${SITE}/`,
+    logo: `${SITE}/icons/icon-512.png`,
+    description: '20〜30代限定のゴルフ友達マッチング。ラウンド募集に一人でも参加できる。',
+    sameAs: [INSTAGRAM_URL],
+    parentOrganization: { '@type': 'Organization', name: '合同会社シクミヤ' },
+  },
+  // 「ラウンド募集」「ゴルフ友達探し」で何ができるサービスかを明示する。
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: 'ゴルトモ',
+    url: `${SITE}/`,
+    applicationCategory: 'LifestyleApplication',
+    operatingSystem: 'Web (LINE)',
+    description:
+      'ゴルフのラウンド募集に一人で参加できるLINEアプリ。ゴルフ友達を探す・作る、ラウンド募集を立てる、送迎の調整まで完結。',
+    featureList: [
+      'ラウンド募集を探す・参加する',
+      'ラウンド募集を立てて仲間を集める',
+      'ゴルフ友達（ゴル友）を作る',
+      '送迎（ピックアップ）の調整',
+      'ラウンド後の相互レビュー',
+    ],
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'JPY' },
+    sameAs: [INSTAGRAM_URL],
+  },
+];
 
 export default async function LandingPage() {
   const { openCount, activeNow, totalRounds, stats } = await getLpData();
@@ -346,6 +398,13 @@ export default async function LandingPage() {
             一人で参加して、また回りたい人（＝<b>ゴル友</b>）を見つける。
           </p>
         </header>
+
+        {/* 情景の写真。文字だけの画面が続くので、最初に「どんな場か」を見せる。 */}
+        <div className="ph phhero">
+          <img src="/lp/hero.jpg" alt="ゴルフ場のティーグラウンドで談笑する4人のゴルファー"
+               width={960} height={620} loading="eager" />
+          <div className="cap">はじめまして同士でも、回り終わる頃には友達に</div>
+        </div>
 
         {/* 3大メリット（一目で伝える） */}
         <div className="big3">
@@ -400,6 +459,12 @@ export default async function LandingPage() {
           </div>
         )}
 
+        <div className="ph">
+          <img src="/lp/friends.jpg" alt="ミスショットに笑い合う男女のゴルファー"
+               width={960} height={640} loading="lazy" />
+          <div className="cap">スコアより、一緒に回る人。</div>
+        </div>
+
         {/* 数字（すべて実データ。母数が少ない項目は出さない） */}
         {numbers.length > 0 && (
           <section className="nums">
@@ -417,6 +482,12 @@ export default async function LandingPage() {
           </section>
         )}
 
+
+        <div className="ph">
+          <img src="/lp/compe.jpg" alt="クラブハウス前で集合写真を撮るゴルトモ公式コンペの参加者"
+               width={960} height={560} loading="lazy" />
+          <div className="cap">ゴルトモ公式コンペのようす</div>
+        </div>
 
         {/* 公式コンペの男女比配慮（女性が孤立しないよう組み分け） */}
         <div className="comp">
@@ -471,6 +542,12 @@ export default async function LandingPage() {
         <footer>
           <div className="fl">⛳ ゴルトモ</div>
           <div style={{ fontSize: 11, color: '#8a7256', marginBottom: 6 }}>※ 20〜30代限定のサービスです</div>
+          <div style={{ marginBottom: 8 }}>
+            <a href={INSTAGRAM_URL} target="_blank" rel="me noopener" data-lp="instagram_footer"
+               style={{ fontSize: 12, fontWeight: 800, color: '#8a7256', textDecoration: 'underline' }}>
+              📷 公式Instagram（@goltomo.golf）
+            </a>
+          </div>
           © 2026 Goltomo（合同会社シクミヤ）
         </footer>
 

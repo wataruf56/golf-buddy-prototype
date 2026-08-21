@@ -14,8 +14,8 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://goltomo.com'),
-  title: 'ゴルトモ - ゴル友マッチング × AIスイング解析',
-  description: 'ゴル友マッチングとAIスイング解析が一つになったLINEアプリ。ゴルフ版MBTIの16タイプ性格診断で同年代のゴルファーと一緒にラウンドを回ろう。',
+  title: 'ゴルトモ - ゴルフ友達マッチング × AIスイング解析',
+  description: 'ゴルフ友達マッチングとAIスイング解析が一つになったLINEアプリ。ゴルフ版MBTIの16タイプ性格診断で同年代のゴルファーと一緒にラウンドを回ろう。',
   manifest: '/manifest.json',
   // サイトアイコン（検索結果・タブ・ホーム画面）。インスタと同じ白クマのロゴ。
   // これが無いと Google の検索結果に既定の地球儀アイコンが出てしまう。
