@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { ArticleShell } from '@/components/site/ArticleShell';
+import { articleJsonLd } from '@/lib/articleMeta';
 import { StartButton } from '@/components/StartButton';
 import { getGuideStats, hasFillData, hasAgainData } from '@/lib/guideStats';
 
@@ -81,22 +82,11 @@ export default async function Page() {
   const s = await getGuideStats();
   const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '/');
 
-  const jsonLd = [
-    {
-      '@context': 'https://schema.org', '@type': 'Article',
-      headline: TITLE, description: DESC, mainEntityOfPage: PAGE_URL, inLanguage: 'ja',
-      author: { '@type': 'Organization', name: 'ゴルトモ', url: `${SITE}/` },
-      publisher: { '@type': 'Organization', name: '合同会社シクミヤ', url: `${SITE}/` },
-      image: `${SITE}/ogp-golmoti.png`,
-    },
-    {
-      '@context': 'https://schema.org', '@type': 'FAQPage',
-      mainEntity: FAQ.map((f) => ({
-        '@type': 'Question', name: f.q,
-        acceptedAnswer: { '@type': 'Answer', text: f.a },
-      })),
-    },
-  ];
+  // 構造化データは lib/articleMeta.ts で共通化（日付・著者・publisher を必ず入れる）。
+  const jsonLd = articleJsonLd(
+    { path: '/guide/solo-round', title: TITLE, description: DESC, published: '2026-08-21', modified: '2026-08-22' },
+    FAQ,
+  );
 
   return (
     <ArticleShell current="/guide/solo-round" page="guide">
@@ -109,6 +99,17 @@ export default async function Page() {
         「浮かないか」「迷惑をかけないか」という不安への具体的な答えをまとめます。
       </p>
       <p className="meta">最終更新：{today}</p>
+
+      {/* 結論を先に出す。AIに引用されるための箱でもある。 */}
+      <div className="answer">
+        <span className="at">結論</span>
+        <p>
+          <b>一人でゴルフに行く方法は2つあります。</b>ゴルフ場が空き枠に一人客を組み合わせる<b>「1人予約」</b>と、
+              誰かが出した募集に申し込む<b>「一人参加OKの募集」</b>です。違いは<b>同伴者が事前に分かるかどうか</b>で、
+              1人予約は当日まで分かりません。所要は朝から夕方までのほぼ丸一日、費用は平日で1万円前後です。
+              浮かないために効くのは、技術ではなく<b>スコアを正直に申告する・30分前に着く・人のプレーを褒める</b>の3つです。
+        </p>
+      </div>
 
       <div className="toc">
         <div className="t">この記事の内容</div>

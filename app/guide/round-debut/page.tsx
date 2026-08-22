@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { ArticleShell } from '@/components/site/ArticleShell';
+import { articleJsonLd } from '@/lib/articleMeta';
 import { StartButton } from '@/components/StartButton';
 import { getGuideStats, hasFillData, hasAgainData } from '@/lib/guideStats';
 
@@ -72,34 +73,11 @@ export default async function Page() {
   const s = await getGuideStats();
   const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '/');
 
-  const jsonLd = [
-    {
-      '@context': 'https://schema.org', '@type': 'Article',
-      headline: TITLE, description: DESC, mainEntityOfPage: PAGE_URL, inLanguage: 'ja',
-      author: { '@type': 'Organization', name: 'ゴルトモ', url: `${SITE}/` },
-      publisher: { '@type': 'Organization', name: '合同会社シクミヤ', url: `${SITE}/` },
-      image: `${SITE}/ogp-golmoti.png`,
-    },
-    {
-      '@context': 'https://schema.org', '@type': 'FAQPage',
-      mainEntity: FAQ.map((f) => ({
-        '@type': 'Question', name: f.q,
-        acceptedAnswer: { '@type': 'Answer', text: f.a },
-      })),
-    },
-    {
-      '@context': 'https://schema.org', '@type': 'HowTo',
-      name: 'ラウンドデビューの進め方',
-      description: DESC,
-      step: [
-        { '@type': 'HowToStep', name: '練習場で目安に届くまで打つ', text: '7番アイアンが10球中3球ほど前に飛べば十分です。' },
-        { '@type': 'HowToStep', name: '一緒に行く人を決める', text: '経験者が1人いる組を選びます。初心者だけは避けます。' },
-        { '@type': 'HowToStep', name: '平日の空いているコースを予約する', text: '土日より安く、進行のプレッシャーも小さくなります。' },
-        { '@type': 'HowToStep', name: '持ち物を前日にそろえる', text: 'クラブ・シューズ・グローブ・ボール1ダース・襟付きシャツ。' },
-        { '@type': 'HowToStep', name: '当日は30分前に着く', text: '受付と着替えで15分かかります。' },
-      ],
-    },
-  ];
+  // 構造化データは lib/articleMeta.ts で共通化（日付・著者・publisher を必ず入れる）。
+  const jsonLd = articleJsonLd(
+    { path: '/guide/round-debut', title: TITLE, description: DESC, published: '2026-08-21', modified: '2026-08-22' },
+    FAQ,
+  );
 
   return (
     <ArticleShell current="/guide/round-debut" page="guide">
@@ -113,6 +91,17 @@ export default async function Page() {
         この記事はその2つに具体的な答えを出します。
       </p>
       <p className="meta">最終更新：{today}</p>
+
+      {/* 結論を先に出す。AIに引用されるための箱でもある。 */}
+      <div className="answer">
+        <span className="at">結論</span>
+        <p>
+          <b>ラウンドデビューの目安は「7番アイアンが10球中3球ほど前に飛ぶこと」</b>です。まっすぐでなくて構いません。
+              練習場に5〜10回通えば届きます。<b>初心者だけで行くのは避け、経験者が1人いる組</b>を選んでください。
+              費用は平日で1万円前後、土日で1万5千円前後（プレー費・交通費・レンタルクラブ・ボール込み）。
+              初回のスコアは130〜150が普通で、目標はスコアではなく<b>前の組に遅れずに回りきること</b>です。
+        </p>
+      </div>
 
       <div className="toc">
         <div className="t">この記事の内容</div>

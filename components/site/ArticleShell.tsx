@@ -26,6 +26,15 @@ html body{background:#F4E8CE}
 .ar strong{font-weight:900}
 .ar a{color:var(--teal);font-weight:800}
 
+/* 冒頭の「結論」。AI（ChatGPT・Perplexity・AI Overviews 等）が答えとして
+   そのまま引用できるよう、記事の要点を最初に2〜3文で置く箱。
+   人間の読者にとっても、読む価値があるかを最初に判断できる。 */
+.ar .answer{background:var(--cream);border:3px solid var(--teal);border-radius:16px;
+  box-shadow:4px 4px 0 var(--teal);padding:15px 17px;margin:0 0 26px}
+.ar .answer .at{display:inline-block;background:var(--teal);color:var(--cream);font-weight:900;
+  font-size:11px;letter-spacing:.08em;padding:4px 10px;border-radius:999px;margin-bottom:9px}
+.ar .answer p{font-size:14px;font-weight:700;margin:0;line-height:1.85}
+
 /* 目次 */
 .ar .toc{background:var(--cream);border:2.5px solid var(--ink);border-radius:16px;
   box-shadow:4px 4px 0 var(--ink);padding:16px 18px;margin:0 0 28px}

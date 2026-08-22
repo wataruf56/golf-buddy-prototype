@@ -14,6 +14,7 @@ export const NAV_LINKS: Array<{ href: string; label: string; note?: string }> = 
   { href: '/guide/solo-round', label: '一人でゴルフに行くには', note: '一人参加の実際' },
   { href: '/guide/round-debut', label: 'ラウンドデビューの進め方', note: '初めての人へ' },
   { href: '/guide/golf-without-car', label: '車がなくてもゴルフに行く', note: '送迎・相乗り' },
+  { href: '/data', label: '実データを見る', note: '満員率・年齢・男女比' },
   { href: '/golmoti.html', label: 'ゴルフ版MBTI診断', note: '16タイプ・無料' },
   { href: '/type', label: '16タイプ一覧', note: 'タイプ別の解説' },
 ];

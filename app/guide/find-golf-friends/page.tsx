@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { ArticleShell } from '@/components/site/ArticleShell';
+import { articleJsonLd } from '@/lib/articleMeta';
 import { StartButton } from '@/components/StartButton';
 import { getGuideStats } from '@/lib/guideStats';
 
@@ -12,11 +13,12 @@ export const dynamic = 'force-dynamic';
 
 const SITE = 'https://goltomo.com';
 const PAGE_URL = `${SITE}/guide/find-golf-friends`;
+const TITLE = 'ゴルフ友達の探し方7つ｜一人でもラウンドに行ける方法を実データで比較';
 const DESC =
   'ゴルフ友達がいなくてもラウンドに行く方法を7つ比較。職場・スクール・練習場・サークル・SNS・1人予約・マッチングを、費用/すぐ行けるか/気まずさで整理しました。実際の募集がどれくらい集まるかも運用データで公開します。';
 
 export const metadata: Metadata = {
-  title: 'ゴルフ友達の探し方7つ｜一人でもラウンドに行ける方法を実データで比較',
+  title: TITLE,
   description: DESC,
   keywords: [
     'ゴルフ友達 探す', 'ゴルフ友達 作り方', 'ゴルフ仲間 探し方', 'ゴル友 探し',
@@ -94,28 +96,11 @@ export default async function Page() {
   const showData = s.fillRate != null && s.fillN >= 3;
   const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '/');
 
-  const jsonLd = [
-    {
-      '@context': 'https://schema.org',
-      '@type': 'Article',
-      headline: 'ゴルフ友達の探し方7つ｜一人でもラウンドに行ける方法を実データで比較',
-      description: DESC,
-      mainEntityOfPage: PAGE_URL,
-      inLanguage: 'ja',
-      author: { '@type': 'Organization', name: 'ゴルトモ', url: `${SITE}/` },
-      publisher: { '@type': 'Organization', name: '合同会社シクミヤ', url: `${SITE}/` },
-      image: `${SITE}/ogp-golmoti.png`,
-    },
-    {
-      '@context': 'https://schema.org',
-      '@type': 'FAQPage',
-      mainEntity: FAQ.map((f) => ({
-        '@type': 'Question',
-        name: f.q,
-        acceptedAnswer: { '@type': 'Answer', text: f.a },
-      })),
-    },
-  ];
+  // 構造化データは lib/articleMeta.ts で共通化（日付・著者・publisher を必ず入れる）。
+  const jsonLd = articleJsonLd(
+    { path: '/guide/find-golf-friends', title: TITLE, description: DESC, published: '2026-08-21', modified: '2026-08-22' },
+    FAQ,
+  );
 
   return (
     <ArticleShell current="/guide/find-golf-friends" page="guide">
@@ -128,6 +113,17 @@ export default async function Page() {
         <strong>費用・すぐ行けるか・気まずさ</strong>で比較します。
       </p>
       <p className="meta">最終更新：{today}</p>
+
+      {/* 結論を先に出す。AIに引用されるための箱でもある。 */}
+      <div className="answer">
+        <span className="at">結論</span>
+        <p>
+          <b>ゴルフ友達の探し方は主に7つ</b>——職場のつて／ゴルフスクール／練習場/ゴルフサークル／SNSで募集／
+              1人予約／マッチングサービス。<b>「今すぐ回りたい」なら1人予約かマッチング、「長く付き合える人を作りたい」なら
+              スクールかマッチング</b>です。1人予約は手軽ですがその日限りで関係が続きません。
+              判断の軸は<b>費用・すぐ行けるか・気まずさ・関係が続くか</b>の4つです。
+        </p>
+      </div>
 
       <div className="toc">
         <div className="t">この記事の内容</div>

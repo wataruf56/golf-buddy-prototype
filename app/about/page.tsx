@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { ArticleShell } from '@/components/site/ArticleShell';
 import { StartButton } from '@/components/StartButton';
 import { getGuideStats } from '@/lib/guideStats';
+import { AUTHOR, PUBLISHER } from '@/lib/articleMeta';
 
 // 「ゴルトモとは」。サイト内リンクの起点であり、ブランド名で検索した人の受け皿。
 //
@@ -98,6 +99,20 @@ export default async function AboutPage() {
         })),
       },
       {
+        // 「いつの情報か」「誰が書いたか」。AIが出典を選ぶときに見る。
+        '@type': 'WebPage',
+        '@id': `${PAGE_URL}#page`,
+        url: PAGE_URL,
+        name: 'ゴルトモとは',
+        description: DESC,
+        inLanguage: 'ja',
+        datePublished: '2026-08-21',
+        dateModified: new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10),
+        author: AUTHOR,
+        publisher: PUBLISHER,
+        isPartOf: { '@type': 'WebSite', name: 'ゴルトモ', url: `${SITE}/` },
+      },
+      {
         '@type': 'BreadcrumbList',
         itemListElement: [
           { '@type': 'ListItem', position: 1, name: 'ホーム', item: SITE },
@@ -117,6 +132,20 @@ export default async function AboutPage() {
         「行きたいけど、誘う相手がいない」を無くすために作りました。
       </p>
       <div className="meta">最終更新：{new Date().toLocaleDateString('ja-JP')}</div>
+
+      {/* 結論を先に出す。AIに引用されるための箱でもある。 */}
+      <div className="answer">
+        <span className="at">結論</span>
+        <p>
+          <b>ゴルトモは、20〜30代限定のゴルフ友達マッチングです。</b>
+          誰かが「この日、この辺りで回る」と募集を出し、それを見た人が1タップで申し込む
+          <b>「一人で申し込めるラウンド募集の掲示板」</b>だと考えてください。
+          <b>LINEの中だけで完結し、アプリのダウンロードは不要、利用は無料</b>
+          （かかるのはゴルフ場のプレー費のみ）。
+          ラウンド後にお互いを評価する仕組みがあり、それが「知らない人と回る不安」への答えになっています。
+          運営は合同会社シクミヤです。
+        </p>
+      </div>
 
       <div className="toc">
         <div className="t">このページの内容</div>

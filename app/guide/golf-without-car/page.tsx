@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { ArticleShell } from '@/components/site/ArticleShell';
+import { articleJsonLd } from '@/lib/articleMeta';
 import { StartButton } from '@/components/StartButton';
 import { getGuideStats } from '@/lib/guideStats';
 
@@ -81,22 +82,11 @@ export default async function Page() {
   const s = await getGuideStats();
   const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '/');
 
-  const jsonLd = [
-    {
-      '@context': 'https://schema.org', '@type': 'Article',
-      headline: TITLE, description: DESC, mainEntityOfPage: PAGE_URL, inLanguage: 'ja',
-      author: { '@type': 'Organization', name: 'ゴルトモ', url: `${SITE}/` },
-      publisher: { '@type': 'Organization', name: '合同会社シクミヤ', url: `${SITE}/` },
-      image: `${SITE}/ogp-golmoti.png`,
-    },
-    {
-      '@context': 'https://schema.org', '@type': 'FAQPage',
-      mainEntity: FAQ.map((f) => ({
-        '@type': 'Question', name: f.q,
-        acceptedAnswer: { '@type': 'Answer', text: f.a },
-      })),
-    },
-  ];
+  // 構造化データは lib/articleMeta.ts で共通化（日付・著者・publisher を必ず入れる）。
+  const jsonLd = articleJsonLd(
+    { path: '/guide/golf-without-car', title: TITLE, description: DESC, published: '2026-08-21', modified: '2026-08-22' },
+    FAQ,
+  );
 
   return (
     <ArticleShell current="/guide/golf-without-car" page="guide">
@@ -109,6 +99,17 @@ export default async function Page() {
         しかしこれは、方法を知っていれば越えられます。手段は3つあります。
       </p>
       <p className="meta">最終更新：{today}</p>
+
+      {/* 結論を先に出す。AIに引用されるための箱でもある。 */}
+      <div className="answer">
+        <span className="at">結論</span>
+        <p>
+          <b>車がなくてもゴルフには行けます。方法は3つ</b>——①同じ組の誰かに駅で拾ってもらう（送迎・ピックアップ）、
+              ②電車＋クラブハウスバス、③駅からタクシー。<b>続けるなら①がいちばん楽</b>で、費用はガソリン代と高速代の割り勘、
+              都心から1時間半のコースで<b>1人あたり1,500〜2,500円</b>が目安です。頼むときは当日ではなく
+              <b>申し込みの時点で先に伝える</b>のが要点。クラブは10kg前後あるので、電車なら宅配便かレンタルを前提にしてください。
+        </p>
+      </div>
 
       <div className="toc">
         <div className="t">この記事の内容</div>
