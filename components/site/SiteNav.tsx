@@ -31,8 +31,15 @@ export function SiteNav({ current }: { current?: string }) {
         <span /><span /><span />
       </button>
 
-      {open && (
-        <div className="snov" onClick={() => setOpen(false)}>
+      {/* 閉じているときも DOM に残し、CSS で隠すだけにする。
+          {open && …} の条件描画だと、クロール時のHTMLにこのリンクが1本も
+          含まれず、内部リンクとして機能しなかった（クローラーはハンバーガーを
+          押さないため）。表示・動作は従来どおり。 */}
+      <div
+        className={open ? 'snov' : 'snov snhide'}
+        onClick={() => setOpen(false)}
+        aria-hidden={open ? undefined : true}
+      >
           <nav className="snpanel" onClick={(e) => e.stopPropagation()} aria-label="サイト内のページ">
             <div className="snhead">
               <span className="sntitle">メニュー</span>
@@ -50,7 +57,6 @@ export function SiteNav({ current }: { current?: string }) {
             </ul>
           </nav>
         </div>
-      )}
     </>
   );
 }

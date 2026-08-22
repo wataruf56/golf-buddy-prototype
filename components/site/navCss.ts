@@ -8,6 +8,8 @@ export const SITE_NAV_CSS = `
 .snbtn:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
 .snov{position:fixed;inset:0;z-index:120;background:rgba(51,39,27,.55);backdrop-filter:blur(2px);
   display:flex;justify-content:center;align-items:flex-start}
+/* 閉じている状態。DOMにはリンクを残したまま（内部リンクとして機能させる）非表示にする。 */
+.snov.snhide{display:none}
 .snpanel{width:100%;max-width:480px;background:var(--paper);border-bottom:3px solid var(--ink);
   padding:14px 16px 18px;max-height:88vh;overflow:auto}
 .snhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}

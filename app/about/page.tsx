@@ -81,15 +81,13 @@ export default async function AboutPage() {
         operatingSystem: 'LINE (iOS / Android / Web)',
         description: DESC,
         offers: { '@type': 'Offer', price: '0', priceCurrency: 'JPY' },
-        ...(s.againRate != null && s.againN >= 20
-          ? {
-              aggregateRating: {
-                '@type': 'AggregateRating',
-                ratingValue: (Math.round((s.againRate / 20) * 10) / 10).toFixed(1),
-                bestRating: '5', ratingCount: String(s.againN),
-              },
-            }
-          : {}),
+        // aggregateRating は意図的に出さない。
+        // 「また回りたい率(%)」を5段階に割り戻した値であって、利用者がサービスに
+        // 付けた星ではないうえ、ページ上にも星として表示していない。Googleの
+        // レビュースニペットのガイドラインは「ページ上で利用者に見えている、
+        // 利用者由来の評価」を要求しており、外れると spammy structured markup の
+        // 手動対策で FAQ/Article/パンくずのリッチリザルトごと失う。
+        // 実績は本文の「実際のデータ」ブロック（母数つき）で見せる方針。
       },
       {
         '@type': 'FAQPage',
