@@ -132,6 +132,10 @@ export default async function middleware(req: NextRequest) {
     if (
       path.startsWith('/admin') ||
       path.startsWith('/api/admin') ||
+      // 運営が立てる枠の管理は /admin/official から /api/official を叩く。
+      // ここに入れないと middleware が 404（本文はJSONでない）を返し、
+      // 画面側は JSON parse に失敗して意味の分からないエラーを出す。
+      path === '/api/official' || path.startsWith('/api/official/') ||
       path.startsWith('/api/lp/') ||
       path.startsWith('/api/auth/') ||
       path === '/liff' || path.startsWith('/liff/') ||

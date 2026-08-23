@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { appRoundUrl } from '@/lib/adminLinks';
 
 // 運営が代理で立てる募集（公式スレッド）の管理。
 //
@@ -57,12 +58,12 @@ function Inner() {
     const q = `token=${encodeURIComponent(token)}`;
     try {
       const [a, b] = await Promise.all([
-        fetch(`/api/official?all=1&${q}`, { cache: 'no-store' }).then((r) => r.json()),
-        fetch(`/api/official/settings?${q}`, { cache: 'no-store' }).then((r) => r.json()),
+        fetch(`/api/official?all=1&${q}`, { cache: 'no-store' }).then(asJson),
+        fetch(`/api/official/settings?${q}`, { cache: 'no-store' }).then(asJson),
       ]);
       setThreads(a?.threads || []);
       setS(b?.settings || null);
-    } catch { /* noop */ }
+    } catch (e) { setMsg('❌ 読み込めませんでした（' + (e as Error).message + '）'); }
   }, [token]);
   useEffect(() => { load(); }, [load]);
 
@@ -77,7 +78,7 @@ function Inner() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pattern, meetPlace: pattern === 'meetup' ? place : undefined, expireDays: Number(expireDays) || 14 }),
       });
-      const j = await r.json();
+      const j = await asJson(r);
       if (!j.ok) throw new Error(j?.message || '作れませんでした');
       setMsg(`✅ 「${j.title}」を立てました`);
       await load();
@@ -92,7 +93,7 @@ function Inner() {
     setBusy(true); setMsg('');
     try {
       const r = await fetch(`/api/official/${t.id}${q}`, { method: mode === 'delete' ? 'DELETE' : 'POST' });
-      const j = await r.json();
+      const j = await asJson(r);
       if (!j.ok) throw new Error(j?.message || 'できませんでした');
       setMsg(mode === 'delete' ? '🗑 削除しました' : '✅ 閉じました');
       await load();
@@ -107,7 +108,7 @@ function Inner() {
       const r = await fetch(`/api/official/settings?token=${encodeURIComponent(token)}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s),
       });
-      const j = await r.json();
+      const j = await asJson(r);
       if (!j.ok) throw new Error('保存できませんでした');
       setMsg('✅ 保存しました');
     } catch (e) { setMsg('❌ ' + (e as Error).message); }
@@ -131,7 +132,7 @@ function Inner() {
       <div className="bg-card rounded-xl shadow-card p-4 mb-3">
         <div className="text-[13px] font-black mb-2">いま動いている枠</div>
         {active ? (
-          <Link href={`/round/${active.id}`} className="block border-2 border-orange bg-orange-light rounded-xl p-3">
+          <a href={appRoundUrl(active.id)} className="block border-2 border-orange bg-orange-light rounded-xl p-3">
             <div className="text-[14px] font-black">{active.title}</div>
             <div className="text-[11.5px] font-bold text-sub mt-1">
               {STAGE_LABEL[active.official.stage]} ・ {active.taken}/{active.total}人 ・ 締切 {fmt(active.official.expiresAt)}
@@ -141,7 +142,7 @@ function Inner() {
                 ⛳ {active.official.decide?.course || '未入力'} / 📅 {active.official.decide?.date || '未入力'} / 💰 {active.official.decide?.price || '未入力'}
               </div>
             )}
-          </Link>
+          </a>
         ) : (
           <div className="text-[12px] text-muted font-bold py-2">ありません。下から立てられます。</div>
         )}
@@ -227,18 +228,30 @@ function Inner() {
       <div className="bg-card rounded-xl shadow-card p-4">
         <div className="text-[13px] font-black mb-2">これまでの枠（{threads.length}）</div>
         {threads.filter((t) => t.id !== active?.id).map((t) => (
-          <Link key={t.id} href={`/round/${t.id}`} className="block border-b border-hair py-2.5 last:border-0">
+          <a key={t.id} href={appRoundUrl(t.id)} className="block border-b border-hair py-2.5 last:border-0">
             <div className="text-[13px] font-black">{t.title}</div>
             <div className="text-[11px] font-bold text-sub mt-0.5">
               {fmt(t.createdAt)} ・ {STAGE_LABEL[t.official.stage] || t.official.stage} ・ {t.taken}/{t.total}人
             </div>
-          </Link>
+          </a>
         ))}
         {threads.length === 0 && <div className="text-[12px] text-muted font-bold">まだありません</div>}
       </div>
       <div className="h-8" />
     </div>
   );
+}
+
+// 応答が JSON とは限らない（middleware の 404 など）。素の parse 例外を
+// そのまま画面に出すと「The string did not match the expected pattern.」の
+// ような、原因の分からない文言になる。
+async function asJson(r: Response): Promise<any> {
+  const text = await r.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`${r.status} ${text.slice(0, 80) || '(空の応答)'}`);
+  }
 }
 
 function Text({ label, v, on }: { label: string; v: string; on: (v: string) => void }) {
