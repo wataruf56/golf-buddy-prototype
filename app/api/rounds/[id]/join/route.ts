@@ -37,6 +37,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const existing = await db.getRound(params.id);
   if (!existing) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
+  // 運営が立てた枠は、性別と車の条件を枠ごとに見る必要がある。
+  // 通常の参加申込では枠を選べないので、専用の入口だけに通す。
+  if ((existing as any).official) {
+    return NextResponse.json(
+      { error: 'official_thread', message: 'この募集は枠を選んで参加してください' },
+      { status: 400 },
+    );
+  }
+
   // 部分制限：参加申込の全面禁止／特定主催者のラウンドへの申込禁止。
   try {
     const { getRestriction } = await import('@/lib/banAccess');

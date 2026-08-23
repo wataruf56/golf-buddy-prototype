@@ -119,7 +119,7 @@ export async function PUT(_req: NextRequest, { params }: { params: { id: string 
     type: 'confirmed',
     dateType: 'fixed',
     date: d.date,
-    dateRange: undefined,
+    dateRange: '', // updateRound は undefined を捨てるので、消したいときは空文字
     startTime: d.startTime || undefined,
     courseName: d.course,
     price: d.price ? `${Number(d.price).toLocaleString()}円` : undefined,
