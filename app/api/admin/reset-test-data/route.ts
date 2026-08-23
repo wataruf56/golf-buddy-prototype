@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   const db = getAdminDb() as any;
   if (!db) return NextResponse.json({ error: 'firestore not initialized' }, { status: 500, headers: noStore });
 
-  const result = { roundsDeleted: 0, chatMsgsDeleted: 0, notifsDeleted: 0, likesDeleted: 0, reviewsDeleted: 0, namesReset: 0 };
+  const result: Record<string, number> = { roundsDeleted: 0, chatMsgsDeleted: 0, notifsDeleted: 0, likesDeleted: 0, reviewsDeleted: 0, namesReset: 0, reqsDeleted: 0, locksDeleted: 0, qrPendingDeleted: 0, directReviewsDeleted: 0, friendRefsCleaned: 0 };
 
   try {
     // 1) test_ がホストのラウンド + そのグループチャットを削除
@@ -75,16 +75,57 @@ export async function POST(req: NextRequest) {
       if (result.reviewsDeleted) await b.commit();
     } catch {}
 
-    // 4) テスト垢の表示名を再設定＋カウンタ（ラウンド回数等）を0にリセット
+    // 3.6) 友達申請まわり（申請・24時間ロック・QRの確認まち・直接レビュー）を削除。
+    //      test_ が片方でも絡むものが対象。docId は `${from}__${to}` 形式。
+    for (const [coll, key] of [
+      ['friendRequests', 'reqsDeleted'],
+      ['_friendReqLocks', 'locksDeleted'],
+      ['qrPending', 'qrPendingDeleted'],
+      ['directReviews', 'directReviewsDeleted'],
+    ] as const) {
+      try {
+        const snap = await db.collection(coll).limit(3000).get();
+        const b = db.batch();
+        let n = 0;
+        snap.docs.forEach((d: any) => {
+          const [a, z] = String(d.id).split('__');
+          if (isTest(a) || isTest(z)) { b.delete(d.ref); n++; }
+        });
+        if (n) await b.commit();
+        (result as any)[key] = n;
+      } catch { /* noop */ }
+    }
+
+    // 4) テスト垢の表示名を再設定＋カウンタ（ラウンド回数等）を0にリセット。
+    //    友達関係（friendIds）も空に戻す——残っているとDM可否や申請の可否が
+    //    前回のテストに引きずられる。
     for (const u of TEST_USERS) {
       try {
         const us = await db.collection('users').doc(u.id).get();
         if (us.exists) {
-          await us.ref.set({ displayName: u.displayName, roundCount: 0, buddyCount: 0, reviewCount: 0, reviewAvg: 0 }, { merge: true });
+          await us.ref.set({
+            displayName: u.displayName, roundCount: 0, buddyCount: 0, reviewCount: 0, reviewAvg: 0,
+            friendIds: [],
+          }, { merge: true });
           result.namesReset++;
         }
       } catch {}
     }
+
+    // 4.5) test_ 以外の人が持っている「test_ への友達参照」も外す。
+    try {
+      const us = await db.collection('users').limit(3000).get();
+      const b = db.batch();
+      let n = 0;
+      us.docs.forEach((d: any) => {
+        if (isTest(d.id)) return;
+        const ids: string[] = d.data()?.friendIds || [];
+        const kept = ids.filter((x) => !isTest(x));
+        if (kept.length !== ids.length) { b.set(d.ref, { friendIds: kept }, { merge: true }); n++; }
+      });
+      if (n) await b.commit();
+      (result as any).friendRefsCleaned = n;
+    } catch { /* noop */ }
 
     return NextResponse.json({ ok: true, ...result }, { headers: noStore });
   } catch (e) {
