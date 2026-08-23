@@ -44,8 +44,15 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   try {
     (await db.listUsers(round.applicantIds || [])).forEach((u: any) => { if (u) users[u.id] = slim(u); });
   } catch { /* noop */ }
+  // 車代の分け方は「決めること」の画面で見せる。金額を入れる、まさにその場で要る。
+  let showFareCard = true;
+  try {
+    const { getSettings } = await import('@/lib/officialSettings');
+    showFareCard = (await getSettings()).showFareCard;
+  } catch { /* 既定で出す */ }
+
   return NextResponse.json({
-    id: round.id, title: round.title, stage: o.stage,
+    id: round.id, title: round.title, stage: o.stage, pattern: o.pattern, showFareCard,
     decide: o.decide || {}, members: (round.applicantIds || []).map((id: string) => users[id]).filter(Boolean),
   }, { headers: noStore });
 }

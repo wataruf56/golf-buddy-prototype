@@ -16,7 +16,8 @@ type Decide = {
   date?: string; startTime?: string; dateBy?: string; dateAt?: number;
   price?: string; priceBy?: string; priceAt?: number;
 };
-type Data = { id: string; title: string; stage: string; decide: Decide; members: Member[] };
+type Data = { id: string; title: string; stage: string; pattern: 'women' | 'meetup';
+  showFareCard: boolean; decide: Decide; members: Member[] };
 
 const fmtAt = (ms?: number) => ms
   ? new Date(ms).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -121,6 +122,8 @@ export default function Page() {
             </div>
           </Field>
 
+          {d.showFareCard && <FareCard n={d.members.length} />}
+
           {confirmed ? (
             <div className="mt-4 bg-green-light border-2 border-green rounded-xl p-3 text-[13px] font-black text-green text-center">
               ✅ 確定しました
@@ -157,10 +160,11 @@ export default function Page() {
               <div>⛳ {d.decide.course}</div>
               <div>📅 {String(d.decide.date).replace(/-/g, '/')}{d.decide.startTime ? ` ${d.decide.startTime}` : ''}</div>
               <div>💰 {Number(d.decide.price).toLocaleString()}円</div>
-              <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-                <span>👥</span>{d.members.map((m) => (
-                  <span key={m.id} className="text-[12px]">{m.displayName}</span>
+              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                {d.members.map((m) => (
+                  <Avatar key={m.id} user={m as any} size={28} emojiSize={14} />
                 ))}
+                <span className="text-[11.5px] font-bold text-sub">{d.members.length}人</span>
               </div>
             </div>
             <div className="bg-yellow-light border-2 border-dashed border-border rounded-xl p-2.5 mt-3 text-[12px] font-black text-center leading-relaxed">
@@ -193,6 +197,28 @@ function Field({ label, by, at, req, children }: {
       </div>
       {children}
       {by && <div className="text-[10.5px] font-bold text-muted mt-1.5">{by}さんが入力（{fmtAt(at)}）</div>}
+    </div>
+  );
+}
+
+// 車を出す人の負担をどう見るか。運営が決めるものではないので、
+// あくまで「例」として置く。ここを言い出しにくくて揉める、を先回りする。
+function FareCard({ n }: { n: number }) {
+  const total = 9000;
+  const even = Math.round(total / Math.max(1, n));
+  const rider = Math.ceil((total - 1500) / Math.max(1, n - 1) / 100) * 100;
+  return (
+    <div className="mt-4 border-2 border-dashed border-border rounded-xl bg-bg p-3">
+      <div className="text-[12.5px] font-black">🚗 車を出す人がいるとき</div>
+      <div className="text-[11.5px] font-bold text-sub mt-1 leading-relaxed">
+        運転する人を少し安くするのがおすすめです。<br />
+        <b className="text-text">あくまで参考なので、みなさんで決めてください。</b>
+      </div>
+      <div className="bg-white border-2 border-border rounded-lg p-2.5 mt-2 text-[11.5px] font-bold leading-relaxed">
+        高速代＋ガソリン代 = {total.toLocaleString()}円 の場合<br />
+        <span className="text-muted">わり算だと {n}人で1人{even.toLocaleString()}円ですが——</span><br />
+        <b className="text-text">乗る人 {Math.max(1, n - 1)}人 × {rider.toLocaleString()}円 ／ 運転する人 1,500円</b>
+      </div>
     </div>
   );
 }
