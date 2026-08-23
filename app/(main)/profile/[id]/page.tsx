@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useStore, getMe } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
+import { FriendRequestButton } from '@/components/FriendRequestButton';
 import { GolmotiBadge } from '@/components/GolmotiBadge';
 import { GolfBallRating } from '@/components/GolfBallRating';
 import { toast } from '@/components/Toast';
@@ -249,9 +250,16 @@ export default function ProfilePage() {
               <span className="text-lg">💬</span> {user.displayName}さんにメッセージを送る
             </Link>
           ) : dmAllowed === false ? (
-            <div className="text-center py-3 px-4 bg-bg rounded-xl text-[11px] text-sub leading-relaxed">
-              💬 メッセージを送れるのは「ゴル友」「一緒にラウンド・コンペを回った人」「参加申請・招待中の相手」「募集中ラウンドの主催者」のみです
-            </div>
+            <>
+              <div className="text-center py-3 px-4 bg-bg rounded-xl text-[11px] text-sub leading-relaxed">
+                💬 メッセージを送れるのは「ゴル友」「一緒にラウンド・コンペを回った人」「参加申請・招待中の相手」「募集中ラウンドの主催者」のみです
+              </div>
+              {/* 一緒に回ったのに接点が記録されていない相手のための入口。
+                  承認されるとDMも解禁される。 */}
+              <div className="mt-3">
+                <FriendRequestButton toUserId={user.id} toName={user.displayName} />
+              </div>
+            </>
           ) : null}
         </div>
       </div>

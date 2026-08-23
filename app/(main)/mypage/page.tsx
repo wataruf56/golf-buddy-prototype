@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { getMe, store, useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
+import { FriendTodoBanner } from '@/components/FriendTodoBanner';
 import { GolmotiBadge } from '@/components/GolmotiBadge';
 import { GolfBallRating } from '@/components/GolfBallRating';
 import { NotifySettings } from '@/components/NotifySettings';
@@ -134,6 +135,9 @@ export default function MyPage() {
             </div>
           </div>
         )}
+
+        {/* 友達申請・QRの「同じ組？」・評価のやり残し */}
+        <FriendTodoBanner variant="row" />
 
         {/* SNS風プロフィールヘッダー */}
         <div className="bg-card rounded-card shadow-card overflow-hidden mb-4">

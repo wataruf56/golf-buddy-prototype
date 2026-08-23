@@ -84,6 +84,15 @@ export async function GET(req: NextRequest) {
     results.unreadDigest = { error: (e as Error).message };
   }
 
+  // 友達申請の承認／QRで「同じ組」と答えた相手へのレビュー依頼（翌朝に届く）。
+  try {
+    const { GET: directReviews } = await import('../direct-review-reminders/route');
+    const res = await directReviews(req);
+    results.directReviewReminders = await res.json().catch(() => ({ ok: res.ok }));
+  } catch (e) {
+    results.directReviewReminders = { error: (e as Error).message };
+  }
+
   // 参加者ゼロのまま開催が近づいた募集の掘り起こし（1募集につき1回だけ通知）。
   try {
     const { GET: emptyRoundBoost } = await import('../empty-round-boost/route');

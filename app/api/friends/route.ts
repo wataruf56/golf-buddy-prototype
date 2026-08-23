@@ -36,6 +36,14 @@ export async function POST(req: NextRequest) {
     db.updateUser(otherId, { friendIds: Array.from(theirFriends) } as any),
   ]);
 
+  // QRでつながった相手には「同じ組で回ったか」の確認を残す。
+  // ここでは聞かない——複数人でまとめて交換するので、読み取るたびに質問が出ると
+  // 交換のテンポが崩れる。確認画面であとからまとめて答えてもらう。
+  try {
+    const { addQrPending } = await import('@/lib/friendLink');
+    await addQrPending(meId, otherId);
+  } catch (e) { console.error('[friends] addQrPending failed (non-fatal)', e); }
+
   // 相手にお知らせ（新規のときだけ）。
   if (!already) {
     try {

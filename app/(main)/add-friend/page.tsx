@@ -87,10 +87,14 @@ function Inner() {
         {isSelf ? (
           <div className="py-4 text-sub text-sm">これはあなた自身のQRコードです。</div>
         ) : done ? (
+          /* ここでは「同じ組で回ったか」を聞かない。QRは複数人でまとめて交換するので、
+             読み取るたびに質問が出ると交換のテンポが崩れる。
+             「閉じる」で確認画面へ移り、あとからまとめて答えてもらう。 */
           <div className="space-y-2">
             <div className="py-3 bg-green-light text-green rounded-xl text-sm font-black">🤝 友達になりました</div>
-            <Link href={`/chat/${chatIdFor(meId, target.id)}?other=${target.id}`} className="block w-full py-3 bg-blue text-white rounded-xl text-sm font-black">💬 メッセージを送る</Link>
-            <Link href="/buddies" className="block w-full py-2.5 text-sub text-xs font-bold">ゴル友一覧を見る</Link>
+            <Link href="/qr?mode=scan" className="block w-full py-3.5 bg-orange text-white rounded-xl text-[15px] font-black border-2 border-border">📷 続けて読み取る</Link>
+            <Link href="/friends/confirm?tab=qr" className="block w-full py-3 bg-white border-2 border-hair text-muted rounded-xl text-[13px] font-bold">閉じる</Link>
+            <Link href={`/chat/${chatIdFor(meId, target.id)}?other=${target.id}`} className="block w-full py-2.5 text-sub text-xs font-bold">💬 メッセージを送る</Link>
           </div>
         ) : (
           <>

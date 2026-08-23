@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import { useStore, getMe } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
@@ -15,11 +15,21 @@ const APP_BASE = 'https://app.goltomo.com';
 const LIFF_ID = process.env.NEXT_PUBLIC_LIFF_ID || '2009973733-P5UdNex9';
 
 export default function QrPage() {
+  // useSearchParams は Suspense 境界の内側で使う（Nextのビルド要件）。
+  return <Suspense fallback={null}><QrInner /></Suspense>;
+}
+
+function QrInner() {
   const router = useRouter();
   const meId = useStore((s) => s.meId);
   const me = useStore(getMe);
   const hydrated = useStore((s) => s.hydrated);
-  const [mode, setMode] = useState<'mine' | 'scan'>('mine');
+  // 確認画面（/friends/confirm）から「続けて読み取る」で戻ってきたときに
+  // いきなり読み取りタブを開けるよう ?mode= を受ける。
+  const search = useSearchParams();
+  const [mode, setMode] = useState<'mine' | 'scan'>(
+    search?.get('mode') === 'scan' ? 'scan' : 'mine',
+  );
   const [scanning, setScanning] = useState(false);
 
   const addUrl = meId ? `${APP_BASE}/add-friend?u=${encodeURIComponent(meId)}` : '';

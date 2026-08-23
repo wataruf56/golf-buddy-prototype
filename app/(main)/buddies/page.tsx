@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore, getMe } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
+import { FriendTodoBanner } from '@/components/FriendTodoBanner';
 import { toast } from '@/components/Toast';
 import { chatIdFor, formatDate } from '@/lib/utils';
 import { ADMIN_MANAGER_ID, ADMIN_MANAGER_NAME } from '@/lib/adminManagerId';
@@ -135,6 +136,9 @@ function Inner() {
       <div className="px-5 pb-3 text-[13px] text-sub">
         QRでつながった友達／また回りたい・気になる・一緒に回った人／メッセージした相手が集まります。<b className="text-text">ログインが新しい順</b>に表示。タップでプロフィール、💬でメッセージ。
       </div>
+
+      {/* 友達申請・QRの「同じ組？」・評価のやり残し（既存のタブ構成には触らない） */}
+      <div className="px-5"><FriendTodoBanner variant="banner" /></div>
 
       {/* タブ切替：友達リスト / 過去に同じコンペに参加した人 */}
       <div className="px-5 pb-3 flex gap-2">
