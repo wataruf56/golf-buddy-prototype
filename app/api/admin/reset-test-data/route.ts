@@ -32,7 +32,14 @@ export async function POST(req: NextRequest) {
     // 1) test_ がホストのラウンド + そのグループチャットを削除
     const rs = await db.collection('rounds').limit(1000).get();
     for (const doc of rs.docs) {
-      if (!isTest(doc.data().hostId)) continue;
+      const d = doc.data() || {};
+      // 運営が立てた枠（公式スレッド）は hostId が運営なので上の条件に入らない。
+      // テストで作ったものだけを消したいので、「手を挙げたのが test_ だけ」を条件にする。
+      // 空の枠は本番の生きた枠かもしれないので残す（管理画面から閉じる）。
+      const testOfficial = !!d.official
+        && Array.isArray(d.applicantIds) && d.applicantIds.length > 0
+        && d.applicantIds.every((x: any) => isTest(x));
+      if (!isTest(d.hostId) && !testOfficial) continue;
       try {
         const msgs = await db.collection('roundChats').doc(doc.id).collection('messages').limit(1000).get();
         const b = db.batch();

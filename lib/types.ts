@@ -252,6 +252,10 @@ export type Round = {
   upcomingRemindersSent?: Record<string, number>;
   // 「参加者ゼロのまま開催が近い」募集の掘り起こし通知を送った時刻。1募集につき1回だけ送る。
   emptyBoostSentAt?: number;
+  // 運営が代理で立てた「公式スレッド」の情報。日付もコースも決めずに枠だけを出し、
+  // 集まってから決める。詳細と型は lib/officialShared.ts。
+  // これが入っているラウンドは、主催者(運営)を参加者に数えない。
+  official?: import('./officialShared').OfficialInfo;
   // この募集の元になった日程調整（調整さん）ポールのID。ポール→募集の順で作った場合に入る。
   schedulePollId?: string;
 };

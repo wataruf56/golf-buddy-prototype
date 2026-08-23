@@ -7,6 +7,7 @@ import { getMe, store, useStore } from '@/lib/store';
 import { RoundCard } from '@/components/RoundCard';
 import { Avatar } from '@/components/Avatar';
 import { HomeUpdateCard } from '@/components/HomeUpdateCard';
+import { OfficialHomeCard } from '@/components/OfficialHomeCard';
 import { toast } from '@/components/Toast';
 import { RESTRICTION_MSG } from '@/lib/restrictions';
 import { isRoundHost } from '@/lib/roundHost';
@@ -284,6 +285,8 @@ export default function HomePage() {
       )}
 
       <HomeUpdateCard />
+
+      <OfficialHomeCard />
 
 
       {myInvites.length > 0 && (

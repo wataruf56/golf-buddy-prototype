@@ -11,6 +11,7 @@ import { track } from '@/lib/telemetry';
 import { chatIdFor, formatDate, revisitRatingLabel, carLabel, priceLabelForGender, isSplitPrice, timeAgo } from '@/lib/utils';
 import { levelConditionLabel } from '@/lib/roundEligibility';
 import { isRoundHost } from '@/lib/roundHost';
+import { OfficialThreadPanel } from '@/components/OfficialThreadPanel';
 import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
 import { GroupAssignment } from '@/components/GroupAssignment';
 import { GroupPrefs } from '@/components/GroupPrefs';
@@ -232,6 +233,11 @@ export default function RoundDetailPage() {
   const applicants = round.applicantIds.filter((id) => !coHostIds.includes(id)).map((id) => users.find((u) => u.id === id)).filter(Boolean);
   const pendingApplicants = (round.pendingApplicantIds || []).map((id) => users.find((u) => u.id === id)).filter(Boolean);
   const isHost = isRoundHost(round, meId);
+  // 運営が代理で立てた枠（公式スレッド）。主催者がいない企画なので、
+  // 募集中〜日程調整中のあいだは参加まわりの操作を専用パネルに寄せる。
+  const officialStage = ((round as any).official?.stage as string | undefined);
+  const isOfficialThread = !!officialStage;
+  const officialActive = officialStage === 'recruiting' || officialStage === 'deciding';
   const isApproved = round.applicantIds.includes(meId);
   const isPending = (round.pendingApplicantIds || []).includes(meId);
   // 参加者同士のDMは「主催者/共同管理者 or 承認済み参加者」だけに開放する。未参加の閲覧者は
@@ -579,6 +585,8 @@ export default function RoundDetailPage() {
           <div className="mb-4 p-3 bg-bg rounded-xl text-[13px] text-text leading-relaxed whitespace-pre-wrap">{round.description}</div>
         )}
 
+        {officialActive && <OfficialThreadPanel roundId={round.id} />}
+
         <div className="grid grid-cols-2 gap-2.5 mb-4">
           <Cell label="日時">{dateLabel} {round.startTime || ''}</Cell>
           {isDrink ? (
@@ -685,7 +693,7 @@ export default function RoundDetailPage() {
           </div>
         )}
 
-        {isHost ? (
+        {officialActive && !isHost ? null : isHost ? (
           <div className="space-y-2 mb-4">
             {round.status === 'open' && (
               <button onClick={() => setInviteOpen(true)} className="w-full py-3 bg-green text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2">
@@ -782,7 +790,7 @@ export default function RoundDetailPage() {
           <>
         {/* Host — official rounds show the branded ゴルトモ公式 identity instead
             of the admin's personal profile. */}
-        {round.isOfficial ? (
+        {isOfficialThread ? null : round.isOfficial ? (
           <div className="mb-4">
             <div className="text-[13px] font-bold mb-2">主催者</div>
             <div className="flex items-center gap-2.5 p-3 bg-green-light rounded-xl">

@@ -93,6 +93,15 @@ export async function GET(req: NextRequest) {
     results.directReviewReminders = { error: (e as Error).message };
   }
 
+  // 締め切りを過ぎた「運営が立てた枠」を閉じる（同時1本なので、閉じないと次が出せない）。
+  try {
+    const { GET: officialExpire } = await import('../official-expire/route');
+    const res = await officialExpire(req);
+    results.officialExpire = await res.json().catch(() => ({ ok: res.ok }));
+  } catch (e) {
+    results.officialExpire = { error: (e as Error).message };
+  }
+
   // 参加者ゼロのまま開催が近づいた募集の掘り起こし（1募集につき1回だけ通知）。
   try {
     const { GET: emptyRoundBoost } = await import('../empty-round-boost/route');

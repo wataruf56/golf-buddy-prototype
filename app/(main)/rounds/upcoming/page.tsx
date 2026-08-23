@@ -18,10 +18,15 @@ export default function UpcomingRoundsPage() {
       (r.pendingApplicantIds || []).includes(s.meId)
     )
   );
+  // 運営が代理で立てた枠は日付がまだない。日程未定として末尾に落とすと
+  // 「決めること」に戻れなくなるので、調整中のものだけ先頭に上げる。
+  const stageOf = (r: { official?: { stage?: string } }) => r.official?.stage;
   const upcomingRounds = myRounds
     .filter((r) => r.status !== 'completed')
     .slice()
     .sort((a, b) => {
+      const rank = (r: typeof a) => (stageOf(r) === 'deciding' ? 0 : stageOf(r) === 'recruiting' ? 1 : 2);
+      if (rank(a) !== rank(b)) return rank(a) - rank(b);
       const am = a.date ? new Date(a.date).getTime() : Infinity;
       const bm = b.date ? new Date(b.date).getTime() : Infinity;
       return am - bm;
@@ -47,20 +52,32 @@ export default function UpcomingRoundsPage() {
         ) : (
           <div className="flex flex-col gap-1.5">
             {upcomingRounds.map((r) => {
-              const role = r.hostId === me.id
-                ? '主催'
-                : r.applicantIds.includes(me.id) ? '参加確定'
-                : (r.pendingApplicantIds || []).includes(me.id) ? '承認待ち'
-                : '参加';
+              const stage = stageOf(r);
+              const role = stage === 'deciding'
+                ? '日程・コースを決めています'
+                : stage === 'recruiting'
+                  ? '仲間を待っています'
+                  : r.hostId === me.id
+                    ? '主催'
+                    : r.applicantIds.includes(me.id) ? '参加確定'
+                    : (r.pendingApplicantIds || []).includes(me.id) ? '承認待ち'
+                    : '参加';
+              const href = stage === 'deciding' ? `/round/${r.id}/decide` : `/round/${r.id}`;
               return (
-                <Link href={`/round/${r.id}`} key={r.id} className="flex justify-between items-center p-3.5 bg-card rounded-card shadow-card">
+                <Link href={href} key={r.id} className={'flex justify-between items-center p-3.5 rounded-card shadow-card ' + (stage === 'deciding' ? 'bg-orange-light border-2 border-orange' : 'bg-card')}>
                   <div className="min-w-0 flex-1">
                     <div className="text-[14px] font-bold truncate">{r.title}</div>
-                    <div className="text-[11px] text-muted mt-0.5">{formatDate(r.date) || r.dateRange || '日程未定'} ・ {role}</div>
+                    <div className="text-[11px] text-muted mt-0.5">
+                      {stage ? role : `${formatDate(r.date) || r.dateRange || '日程未定'} ・ ${role}`}
+                    </div>
                   </div>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ml-2 flex-shrink-0 ${r.status === 'open' ? 'bg-green-light text-green' : r.status === 'completed' ? 'bg-blue-light text-blue' : 'bg-bg text-sub'}`}>
-                    {r.status === 'open' ? '募集中' : r.status === 'completed' ? '完了' : '締切'}
-                  </span>
+                  {stage === 'deciding' ? (
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full ml-2 flex-shrink-0 bg-orange text-white">📝 決めること</span>
+                  ) : (
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ml-2 flex-shrink-0 ${r.status === 'open' ? 'bg-green-light text-green' : r.status === 'completed' ? 'bg-blue-light text-blue' : 'bg-bg text-sub'}`}>
+                      {r.status === 'open' ? '募集中' : r.status === 'completed' ? '完了' : '締切'}
+                    </span>
+                  )}
                 </Link>
               );
             })}
