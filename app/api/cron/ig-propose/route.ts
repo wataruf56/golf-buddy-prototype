@@ -90,6 +90,9 @@ export async function GET(req: NextRequest) {
 
       // 終わった日程は出さない。
       if (roundDate && roundDate < today) { skipped.push({ id: r.id, why: '日程が過ぎている' }); continue; }
+      // 日程調整中（dateType='range'）は日付が決まっていないので画像が作れない。
+      // 毎日「画像なし」と通知しても直しようがないため、静かに飛ばす。
+      if (!roundDate) { skipped.push({ id: r.id, why: '日程未定' }); continue; }
 
       const img = await getRoundImage(r.id);
       if (!img) { needImage.push({ id: r.id, label }); continue; }
