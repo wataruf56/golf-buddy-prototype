@@ -51,6 +51,42 @@ export default async function middleware(req: NextRequest) {
   const host = (req.headers.get('x-forwarded-host') || req.headers.get('host') || '').toLowerCase();
   const path = url.pathname;
 
+  // -------- 検索エンジンに見せるホストを1つに絞る --------
+  // 同じページが goltomo.com / app.goltomo.com のほかに
+  //   golf-buddy-d2305.web.app / .firebaseapp.com / *.run.app
+  // でも**一字一句同じ内容**で配信されている（Firebase と Cloud Run の既定ドメイン）。
+  // canonical は goltomo.com を指しているが、それでも Google は重複として扱い、
+  // 実際に Search Console で「重複しています。ユーザーにより、正規ページとして
+  // 選択されていません」が出て、無関係な外部サイトが正規URLに選ばれていた。
+  //
+  // robots.txt は静的ファイルなのでホスト別に出し分けられない。だから
+  // **正規のホスト以外には noindex ヘッダを付ける**。動作は何も変えない。
+  const CANONICAL_HOSTS = new Set([
+    'goltomo.com', 'www.goltomo.com', 'app.goltomo.com', 'admin.goltomo.com',
+  ]);
+  const isCanonicalHost = CANONICAL_HOSTS.has(host)
+    || host.startsWith('localhost') || host.startsWith('127.0.0.1');
+  const noIndex = (res: NextResponse) => {
+    if (!isCanonicalHost) res.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    return res;
+  };
+  if (!isCanonicalHost) {
+    // 既定ドメインで来たアクセスは正規のホストへ寄せる（人にも優しい）。
+    // ただし次は寄せない：API と LIFF（cron や内部の呼び出しが run.app を
+    // 使っている可能性があり、リダイレクトで壊すわけにいかない）、静的アセット、
+    // そして vercel.app（旧環境。生きている経路を勝手に潰さない）。
+    const isMachinePath = path.startsWith('/api/')
+      || path === '/liff' || path.startsWith('/liff/')
+      || path.startsWith('/_next/')
+      || /\.[a-z0-9]{2,5}$/i.test(path);
+    const isLegacy = host.endsWith('.vercel.app');
+    if (!isMachinePath && !isLegacy) {
+      return noIndex(NextResponse.redirect(new URL(`https://goltomo.com${path}${url.search}`), 308));
+    }
+    // 寄せないものは、そのまま通したうえで索引には入れさせない。
+    return noIndex(NextResponse.next());
+  }
+
   // -------- LP host (goltomo.com / www.goltomo.com) --------
   if (LP_HOSTS.has(host)) {
     // 静的アセット（画像・CSS・JS・フォント等）は public/ からそのまま配信。
