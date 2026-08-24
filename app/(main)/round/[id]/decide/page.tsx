@@ -76,6 +76,9 @@ export default function Page() {
 
   if (!d) return <div className="p-6 text-sm text-sub">読み込み中...</div>;
 
+  // 女性だけの枠は桜色。募集で見たときと同じ色にして、続きだと分かるようにする。
+  const women = d.pattern === 'women';
+  const edge = women ? 'border-sakura' : 'border-border';
   const nameOf = (uid?: string) => d.members.find((m) => m.id === uid)?.displayName || '';
   const done = !!d.decide.course && !!d.decide.date && !!d.decide.price;
   const confirmed = d.stage === 'confirmed';
@@ -84,7 +87,7 @@ export default function Page() {
     <div className="pb-24">
       <div className="px-5 pt-2 pb-1 flex items-center gap-2">
         <button onClick={() => router.back()} className="text-lg" aria-label="戻る">←</button>
-        <span className="text-2xl font-black tracking-tight">決めること</span>
+        <span className="text-2xl font-black tracking-tight">{women ? '🌸 ' : ''}決めること</span>
       </div>
       <div className="px-5 text-[12.5px] text-sub font-bold mb-3 leading-relaxed">
         <b className="text-text">参加している{d.members.length}人の誰でも入力できます。</b>
@@ -92,7 +95,7 @@ export default function Page() {
       </div>
 
       <div className="px-5">
-        <div className="bg-card border-2 border-border rounded-card shadow-card p-4">
+        <div className={'bg-card border-2 rounded-card shadow-card p-4 ' + edge}>
           <Field label="⛳ ゴルフ場" by={nameOf(d.decide.courseBy)} at={d.decide.courseAt} req>
             <input value={course} onChange={(e) => setCourse(e.target.value)} disabled={confirmed}
               onBlur={() => course !== (d.decide.course || '') && save({ course })}

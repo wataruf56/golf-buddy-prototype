@@ -38,6 +38,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       show: true, id: round.id, title: s.popupTitle, body: s.popupBody,
+      // 声かけの見た目も企画で変える（女性だけの枠は桜色）
+      pattern: o.pattern,
       left: total - taken, total, snoozeDays: s.snoozeDays,
     }, { headers: noStore });
   }

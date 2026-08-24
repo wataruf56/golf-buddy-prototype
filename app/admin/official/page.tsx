@@ -169,8 +169,10 @@ function Inner() {
           {([['women', '女性だけで、のんびりラウンド', '女性4人。免許を聞きます'],
              ['meetup', '駅に集まってラウンド', '女性2＋男性2。男性の1人は車あり']] as const).map(([k, t, d]) => (
             <button key={k} onClick={() => setPattern(k)} disabled={!!active}
-              className={'w-full text-left p-3 rounded-xl border-2 ' + (pattern === k ? 'border-green bg-green-light' : 'border-border bg-white')}>
-              <div className="text-[13px] font-black">{pattern === k ? '✓ ' : ''}{t}</div>
+              className={'w-full text-left p-3 rounded-xl border-2 ' + (pattern === k
+                ? (k === 'women' ? 'border-sakura bg-sakura-light' : 'border-orange bg-orange-light')
+                : 'border-border bg-white')}>
+              <div className="text-[13px] font-black">{pattern === k ? '✓ ' : ''}{k === 'women' ? '🌸 ' : '🚉 '}{t}</div>
               <div className="text-[11px] font-bold text-sub mt-0.5">{d}</div>
             </button>
           ))}

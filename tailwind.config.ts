@@ -25,6 +25,9 @@ const config: Config = {
         orange: { DEFAULT: '#E8643C', light: '#FCE6DD' },
         red: { DEFAULT: '#E74C3C', light: '#FDEDEC' },
         yellow: { DEFAULT: '#E8A93C', light: '#FBF0D6' },
+        // 女性向けの企画（運営が立てる「女性だけの枠」など）で使う。
+        // Tailwind 既定の pink-* は他所で使っているので上書きせず別名にする。
+        sakura: { DEFAULT: '#D9508A', light: '#FDE7F0', dark: '#B23C6E' },
       },
       fontFamily: {
         // モックC：本文は丸ゴシック、数字・アクセントは Baloo 2

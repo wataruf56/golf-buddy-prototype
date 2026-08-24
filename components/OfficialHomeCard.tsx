@@ -12,8 +12,10 @@ import { useRouter } from 'next/navigation';
 // アプリを閉じてもチャットに戻れるように、参加中の人には必ずカードを出す。
 const SNOOZE_KEY = 'gb_official_snooze';
 
-type Prompt = { show: boolean; id?: string; title?: string; body?: string; left?: number; total?: number; snoozeDays?: number };
-type Mine = { id: string; title: string; stage: string; taken: number; total: number } | null;
+type Prompt = { show: boolean; id?: string; title?: string; body?: string; pattern?: 'women' | 'meetup';
+  left?: number; total?: number; snoozeDays?: number };
+type Mine = { id: string; title: string; stage: string; taken: number; total: number;
+  pattern?: 'women' | 'meetup' } | null;
 
 export function OfficialHomeCard() {
   const router = useRouter();
@@ -32,7 +34,8 @@ export function OfficialHomeCard() {
         if (dead) return;
         const t = b?.thread;
         if (t?.joined) {
-          setMine({ id: t.id, title: t.title, stage: t.official?.stage, taken: t.taken, total: t.total });
+          setMine({ id: t.id, title: t.title, stage: t.official?.stage, pattern: t.official?.pattern,
+            taken: t.taken, total: t.total });
           return; // 参加済みの人に声かけは出さない
         }
         if (a?.show) {
@@ -55,11 +58,12 @@ export function OfficialHomeCard() {
   // 参加済み：戻り道
   if (mine) {
     const deciding = mine.stage === 'deciding';
+    const warm = mine.pattern === 'women' ? 'bg-sakura-light border-sakura' : 'bg-orange-light border-orange';
     return (
       <div className="px-5 pb-3">
         <button onClick={() => router.push(deciding ? `/round/${mine.id}/decide` : `/round/${mine.id}`)}
           className={'block w-full text-left border-2 rounded-card p-4 ' +
-            (deciding ? 'bg-orange-light border-orange' : 'bg-card border-border shadow-card')}>
+            (deciding ? warm : 'bg-card border-border shadow-card')}>
           <div className="flex items-center gap-3">
             <span className="text-2xl">{deciding ? '📝' : '⏳'}</span>
             <div className="flex-1 min-w-0">
@@ -79,20 +83,28 @@ export function OfficialHomeCard() {
 
   if (!p?.show) return null;
 
+  // 女性だけの枠は桜色、駅に集まる枠は朱色。詳細画面と同じ色で出して、
+  // 「さっき見たあれだ」と分かるようにする。
+  const women = p.pattern === 'women';
+  const face = women ? '🌸' : '📣';
+  const c = women
+    ? { soft: 'bg-sakura-light border-sakura', ink: 'text-sakura', btn: 'bg-sakura border-sakura' }
+    : { soft: 'bg-orange-light border-orange', ink: 'text-orange', btn: 'bg-orange border-orange' };
+
   return (
     <>
       <div className="px-5 pb-3">
         <button onClick={() => router.push(`/round/${p.id}`)}
-          className="block w-full text-left bg-orange-light border-2 border-orange rounded-card p-4">
+          className={'block w-full text-left border-2 rounded-card p-4 ' + c.soft}>
           <div className="flex items-center gap-3">
-            <span className="text-2xl">📣</span>
+            <span className="text-2xl">{face}</span>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-black text-orange">{p.title}</div>
+              <div className={'text-sm font-black ' + c.ink}>{p.title}</div>
               <div className="text-[11px] text-sub font-bold mt-0.5">
                 運営が立てた枠・あと{p.left}人
               </div>
             </div>
-            <span className="text-orange">›</span>
+            <span className={c.ink}>›</span>
           </div>
         </button>
       </div>
@@ -101,16 +113,16 @@ export function OfficialHomeCard() {
         <div className="fixed inset-0 bg-black/45 z-[150] flex items-center justify-center p-5" onClick={snooze}>
           <div className="bg-card border-[3px] border-border rounded-card shadow-lg p-5 w-full max-w-[330px]"
             onClick={(e) => e.stopPropagation()}>
-            <div className="text-center text-[34px] leading-none">📣</div>
+            <div className="text-center text-[34px] leading-none">{face}</div>
             <div className="text-[18px] font-black text-center mt-2 leading-snug">{p.title}</div>
             <div className="text-[12.5px] font-bold text-sub text-center mt-2 leading-relaxed whitespace-pre-wrap">{p.body}</div>
             <div className="bg-white border-2 border-border rounded-xl p-3 mt-3.5 text-[12.5px] font-black text-center leading-relaxed">
               運営が枠だけ用意しています<br />
-              <span className="text-orange">あと{p.left}人</span>
+              <span className={c.ink}>あと{p.left}人</span>
               <span className="font-bold text-sub">（{p.total}人集まったら始まります）</span>
             </div>
             <button onClick={() => { setPopup(false); router.push(`/round/${p.id}`); }}
-              className="w-full mt-3.5 py-3.5 rounded-xl text-[15px] font-black border-2 bg-orange text-white border-orange">
+              className={'w-full mt-3.5 py-3.5 rounded-xl text-[15px] font-black border-2 text-white ' + c.btn}>
               くわしく見る
             </button>
             <button onClick={snooze}

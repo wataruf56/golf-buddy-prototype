@@ -81,21 +81,41 @@ export function OfficialThreadPanel({ roundId }: { roundId: string }) {
   }
 
   const recruiting = t.official.stage === 'recruiting';
+  // 女性だけの枠は桜色、駅に集まる枠は朱色。企画の性格を色で分ける。
+  // 台紙はクリームのまま（アプリの他のカードと同じ）にして、色は縁と印にだけ乗せる。
+  // 全面をピンクで塗ると、この画面だけ別のサービスに見えてしまう。
+  const women = t.official.pattern === 'women';
+  const c = women
+    ? { edge: 'border-sakura', chip: 'bg-sakura', btn: 'bg-sakura border-sakura',
+        soft: 'bg-sakura-light', pick: 'border-sakura bg-sakura-light' }
+    : { edge: 'border-orange', chip: 'bg-orange', btn: 'bg-orange border-orange',
+        soft: 'bg-orange-light', pick: 'border-green bg-green-light' };
 
   return (
-    <div className="bg-orange-light border-2 border-orange rounded-card p-4 mb-4">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="text-[11px] font-black bg-orange text-white border-[1.5px] border-border rounded-full px-2.5 py-0.5">
+    <div className={'bg-card border-2 rounded-card shadow-card p-4 mb-4 ' + c.edge}>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className={'text-[11px] font-black text-white border-[1.5px] border-border rounded-full px-2.5 py-0.5 ' + c.chip}>
           運営が立てた枠
         </span>
+        {women && (
+          <span className="text-[11px] font-black bg-white text-sakura border-[1.5px] border-sakura rounded-full px-2.5 py-0.5">
+            🌸 女性だけ
+          </span>
+        )}
         {!recruiting && (
           <span className="text-[11px] font-black bg-green-light text-green border-[1.5px] border-green rounded-full px-2.5 py-0.5">
             人がそろいました
           </span>
         )}
       </div>
-      <div className="text-[12px] text-sub font-bold leading-relaxed mt-2">
-        日程もコースも決まっていません。<b className="text-text">集まった{t.total}人で決めます。</b>
+
+      <div className={'mt-2.5 border-2 rounded-xl px-3 py-2.5 text-[12px] font-bold leading-relaxed ' + c.soft + ' ' + c.edge}>
+        {women ? (
+          <>🌸 <b className="text-text">車がなくても大丈夫です。</b>移動は集まってから決めます。</>
+        ) : (
+          <>🚉 <b className="text-text">{t.official.meetPlace}に集合。</b>車を出す方に乗せてもらいます。</>
+        )}
+        <br />日程もコースも、<b className="text-text">集まった{t.total}人で決めます。</b>
       </div>
 
       {/* 枠 */}
@@ -106,14 +126,15 @@ export function OfficialThreadPanel({ roundId }: { roundId: string }) {
           return (
             <div key={s.id}
               className={'border-2 rounded-xl p-3 ' +
-                (picked ? 'border-green bg-green-light'
-                  : blocked ? 'border-border bg-white opacity-50'
-                  : s.gender === 'female' ? 'border-pink-500 bg-pink-50'
-                  : s.gender === 'male' ? 'border-blue bg-blue-light' : 'border-border bg-white')}
+                (picked ? c.pick
+                  : blocked ? 'border-hair bg-white opacity-60'
+                  : s.gender === 'female' ? 'border-sakura bg-white'
+                  : s.gender === 'male' ? 'border-blue bg-white' : 'border-border bg-white')}
             >
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[14px] font-black">{GENDER_LABEL[s.gender]} ×{s.count}</span>
-                <span className="text-[11px] font-black bg-white border border-border rounded-full px-2 py-0.5">
+                <span className={'text-[11px] font-black border rounded-full px-2 py-0.5 '
+                  + (s.left > 0 ? 'bg-white border-border' : 'bg-bg border-hair text-muted')}>
                   {s.left > 0 ? `あと${s.left}` : '満席'}
                 </span>
               </div>
@@ -122,9 +143,15 @@ export function OfficialThreadPanel({ roundId }: { roundId: string }) {
                 {Array.from({ length: s.count }).map((_, i) => {
                   const uid = s.taken[i];
                   const u = uid ? membersById[uid] : null;
-                  return u
-                    ? <Avatar key={i} user={u as any} size={30} emojiSize={15} />
-                    : <div key={i} className="w-[30px] h-[30px] rounded-full border-2 border-dashed border-muted grid place-items-center text-[13px] text-muted">＋</div>;
+                  if (u) return <Avatar key={i} user={u as any} size={30} emojiSize={15} />;
+                  // 空席。女性枠は桜色の点線にして「ここに入れる」を柔らかく見せる。
+                  return (
+                    <div key={i}
+                      className={'w-[30px] h-[30px] rounded-full border-2 border-dashed grid place-items-center text-[13px] '
+                        + (s.gender === 'female' ? 'border-sakura text-sakura' : 'border-muted text-muted')}>
+                      ＋
+                    </div>
+                  );
                 })}
               </div>
               {/* 車ありが1人入って、残りが車不問に緩んだことを伝える */}
@@ -138,8 +165,8 @@ export function OfficialThreadPanel({ roundId }: { roundId: string }) {
                 blocked
                   ? <div className="mt-2 text-center text-[11.5px] font-bold text-muted py-2">{blocked}</div>
                   : <button onClick={() => setPickedSlot(picked ? null : s.id)}
-                      className={'w-full mt-2 py-2.5 rounded-xl text-[13px] font-black border-2 ' +
-                        (picked ? 'bg-green text-white border-green' : 'bg-white border-border')}>
+                      className={'w-full mt-2 py-2.5 rounded-xl text-[13px] font-black border-2 '
+                        + (picked ? c.btn + ' text-white' : 'bg-white border-border')}>
                       {picked ? '✓ この枠を選びました' : 'この枠で参加する'}
                     </button>
               )}
@@ -158,8 +185,8 @@ export function OfficialThreadPanel({ roundId }: { roundId: string }) {
               <div className="space-y-2 mt-2">
                 {LIC.map((k) => (
                   <button key={k} onClick={() => setLicense(k)}
-                    className={'w-full py-3 rounded-xl text-[13.5px] font-black border-2 ' +
-                      (license === k ? 'bg-green text-white border-green' : 'bg-white border-border')}>
+                    className={'w-full py-3 rounded-xl text-[13.5px] font-black border-2 '
+                      + (license === k ? c.btn + ' text-white' : 'bg-white border-border')}>
                     {license === k ? '✓ ' : ''}{LICENSE_LABEL[k]}
                   </button>
                 ))}
@@ -168,9 +195,9 @@ export function OfficialThreadPanel({ roundId }: { roundId: string }) {
           )}
 
           {/* 移動の見通し。A は移動手段が未定のまま募集するので、先に伝えておく。 */}
-          {t.official.pattern === 'women' ? (
-            <div className="mt-3 border-2 border-orange rounded-xl bg-white p-3">
-              <div className="text-[13px] font-black text-orange">🚗 移動はどうなりますか？</div>
+          {women ? (
+            <div className="mt-3 border-2 border-sakura rounded-xl bg-white p-3">
+              <div className="text-[13px] font-black text-sakura">🚗 移動はどうなりますか？</div>
               <div className="text-[11px] font-bold text-sub mt-0.5">集まったメンバーで決めます</div>
               <Row k="車がある人がいれば" v="その車で行きます。ガソリン代と高速代を割り勘" />
               <Row k="全員 車なし＋免許あり" v={<><b>レンタカーになります</b><br />1日8,000円前後 ÷ {t.total}人＝<b>1人{Math.round(8000 / Math.max(1, t.total) / 100) * 100}円前後</b></>} />
@@ -187,7 +214,7 @@ export function OfficialThreadPanel({ roundId }: { roundId: string }) {
           )}
 
           <button disabled={busy} onClick={join}
-            className="w-full mt-3 py-3.5 rounded-xl text-[15px] font-black border-2 bg-orange text-white border-orange disabled:opacity-50">
+            className={'w-full mt-3 py-3.5 rounded-xl text-[15px] font-black border-2 text-white disabled:opacity-50 ' + c.btn}>
             {busy ? '送信中...' : '承知のうえで参加する'}
           </button>
         </div>
@@ -218,8 +245,8 @@ function NowLine({ members }: { members: Member[] }) {
   const noCar = members.filter((m) => m.car !== 'have').length;
   const allNoCar = noCar === members.length;
   return (
-    <div className="mt-2.5 bg-orange-light border-2 border-orange rounded-xl px-2.5 py-2 text-[11.5px] font-black leading-relaxed">
-      いま参加中の{members.length}人は{allNoCar ? <>どちらも<b>車なし</b>です。<br />このままだと<b>レンタカー</b>になりそうです。</>
+    <div className="mt-2.5 bg-sakura-light border-2 border-sakura rounded-xl px-2.5 py-2 text-[11.5px] font-black leading-relaxed">
+      いま参加中の{members.length}人は{allNoCar ? <>全員<b>車なし</b>です。<br />このままだと<b>レンタカー</b>になりそうです。</>
         : <>うち{members.length - noCar}人が<b>車あり</b>です。</>}
     </div>
   );
