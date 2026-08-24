@@ -10,6 +10,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import { getGolmotiDeep } from '@/lib/golmotiDeep';
 import {
   GOLMOTI_TYPES,
   getGolmotiType,
@@ -58,7 +59,7 @@ export function generateMetadata({ params }: { params: { code: string } }): Meta
 
   const axes = axisLabels(code).join('・');
   const title = `${t.name}（${code}）｜ゴルフ版MBTI 16タイプ性格診断 - ゴルトモ`;
-  const description = `${t.name}（${code}／${t.animal}タイプ）は${d.tagline}。${axes}のゴルファー。強み・弱み・あるある・おすすめの回り方まで解説します。あなたのゴルフ人格は？無料のゴルフ性格診断でチェック。`;
+  const description = `${t.name}（${code}／${t.animal}タイプ）は${d.tagline}。${axes}のゴルファー。強み・弱み・当日のあるある・向いているコースの選び方まで解説します。あなたのゴルフ人格は？無料のゴルフ性格診断でチェック。`;
 
   return {
     title,
@@ -93,6 +94,10 @@ export default function TypePage({ params }: { params: { code: string } }) {
   const t = getGolmotiType(code);
   const d = getGolmotiDetail(code);
   if (!t || !d) notFound();
+
+  // タイプ固有の読み物（コース選びの基準・当日のあるある4場面）。
+  // 16ページが定型文だけだと重複ページ扱いになるため、ここで差をつける。
+  const deep = getGolmotiDeep(code);
 
   const poles = polesOf(code);
   const goodCode = matchGood(code);
@@ -232,6 +237,16 @@ export default function TypePage({ params }: { params: { code: string } }) {
         <h2 className="text-lg font-black mb-2">{t.name}のラウンド当日</h2>
         <div className="bg-card border-2 border-border rounded-card shadow-card p-5">
           <p className="text-[14.5px] leading-relaxed">{d.scene}</p>
+          {!!deep && (
+            <ul className="mt-4 pt-4 border-t-2 border-hair space-y-3">
+              {deep.scenes.map((sc) => (
+                <li key={sc.at} className="flex gap-3">
+                  <span className="text-[12px] font-black text-sub w-[86px] flex-none pt-0.5">{sc.at}</span>
+                  <span className="text-[14px] leading-relaxed flex-1">{sc.text}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </section>
 
@@ -282,6 +297,20 @@ export default function TypePage({ params }: { params: { code: string } }) {
         <h2 className="text-lg font-black mb-2">{t.name}に向いているコース・募集</h2>
         <div className="bg-card border-2 border-border rounded-card shadow-card p-5">
           <p className="text-[14.5px] leading-relaxed">{d.course}</p>
+          {!!deep && (
+            <div className="mt-4 pt-4 border-t-2 border-hair space-y-3.5">
+              <div className="text-[12.5px] font-black text-sub">コースを選ぶときの3つの基準</div>
+              {deep.courseTips.map((c, i) => (
+                <div key={c.title}>
+                  <div className="text-[14px] font-black flex gap-2">
+                    <span className="text-orange flex-none">{i + 1}.</span>
+                    <span>{c.title}</span>
+                  </div>
+                  <p className="text-[13.5px] leading-relaxed text-sub mt-1 pl-6">{c.body}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
