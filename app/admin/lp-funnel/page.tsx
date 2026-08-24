@@ -72,6 +72,7 @@ const ENTRY_LABEL: Record<string, string> = {
   direct: '❓ 直接・不明',
 };
 const PAGE_LABEL: Record<string, string> = {
+  liff: '📲 LINEアプリの起動画面',
   top: '🏠 普通のLP（goltomo.com）',
   mbti: '⛳ ゴルフMBTI診断LP',
   links: '📸 インスタのリンクハブ',
@@ -97,10 +98,39 @@ const TARGET_LABEL: Record<string, string> = {
   cta_line_hub: 'リンクハブ「LINEで友だち追加」',
   cta_findbar: '診断LP 追従バー「ゴルフ友達を探す」',
   cta_signal: '診断LP「LINEで通知を受け取る」',
+  cta_about: '「ゴルトモとは」内のLINEボタン',
   rounds_top: '「募集中のラウンドを見る」',
+  rounds_final: '最終「募集中のラウンドを見る」',
+  rounds_hub: 'リンクハブ「募集一覧を見る」',
   mbti_link: '「ゴルフ版MBTI診断をしてみる」',
+  round_card: '募集カードをタップ',
+  nav_open: 'メニューを開いた',
+  instagram_footer: 'フッターのインスタへのリンク',
 };
-const tl = (k: string) => TARGET_LABEL[k] || k;
+// 押された場所の名前。データ側は英語のキーなので、画面には必ず日本語で出す。
+//   末尾 _b … A/BテストのB案のボタン
+//   nav_/◯◯ … ハンバーガーメニューから各ページへ
+const NAV_PAGE: Record<string, string> = {
+  '/about': 'ゴルトモとは',
+  '/data': '実データ',
+  '/type': '16タイプ一覧',
+  '/guide/solo-round': '記事：一人でゴルフ',
+  '/guide/round-debut': '記事：ラウンドデビュー',
+  '/guide/golf-without-car': '記事：車なしゴルフ',
+  '/guide/find-golf-friends': '記事：ゴルフ友達の探し方',
+};
+function tl(k: string): string {
+  if (TARGET_LABEL[k]) return TARGET_LABEL[k];
+  if (k.startsWith('nav_/')) {
+    const path = k.slice(4);
+    return `メニュー →「${NAV_PAGE[path] || path}」`;
+  }
+  if (k.endsWith('_b')) {
+    const base = k.slice(0, -2);
+    return `${TARGET_LABEL[base] || base}（B案）`;
+  }
+  return k;
+}
 
 export default function AdminLpFunnelPage() {
   return <Suspense fallback={null}><Inner /></Suspense>;
@@ -248,19 +278,31 @@ function Inner() {
           {(() => {
             const g = (k: string) => data.funnel.find((x) => x.key === k)?.n ?? 0;
             const lp = data.liffOrigin?.fromLp;
+            // 段の名前は「何が起きたか」、段のあいだは「なぜ消えたか」を書く。
+            // 数字だけだと、どこを直せばいいのかが分からない。
             const stages: FunnelStage[] = [
-              { key: 'view', label: 'LPに来た', n: g('view'), note: '広告・検索・SNSから' },
-              { key: 'd100', label: '最後まで読んだ', n: g('d100') },
-              { key: 'click', label: 'ボタンを押した', n: g('click') },
-              { key: 'goal', label: 'LINEへ進んだ', n: g('goal'), note: 'LPを出た' },
+              { key: 'view', label: 'LPに来た', n: g('view'), note: '広告・検索・SNSから',
+                lostNote: '途中で読むのをやめた' },
+              { key: 'd100', label: 'LPを最後まで読んだ', n: g('d100'),
+                lostNote: '読んだけどボタンを押さなかった' },
+              { key: 'click', label: 'LINEのボタンを押した', n: g('click'),
+                lostNote: '押したのにLINEアプリに切り替わらなかった' },
+              { key: 'goal', label: 'LINEアプリに移った', n: g('goal'), note: 'LPを出た' },
             ];
             // LIFF側の計測がある期間だけ、その先も1本につなげる
             if (lp && (lp.open > 0 || lp.newUser > 0)) {
-              stages.push({ key: 'open', label: 'アプリが開いた', n: lp.open, note: '友だち追加を越えた' });
+              // ここが分かりにくかった箇所。LINEに移ったあと、まだ友だちでない人には
+              // 「友だち追加」の画面が出る。それを越えて初めてゴルトモの画面が開く。
+              stages[stages.length - 1].lostNote = '友だち追加の画面で止まった・LINEを閉じた';
+              stages.push({
+                key: 'open', label: 'ゴルトモの画面が開いた', n: lp.open,
+                note: '友だち追加まで済んだ人',
+                lostNote: '画面は開いたが登録の途中でやめた',
+              });
               stages.push({ key: 'new', label: '🆕 会員になった', n: lp.newUser, goal: true });
             }
             return (
-              <Card title="🔻 入口から会員まで" sub="上が入口、下へ行くほど絞られます。段のあいだの赤字がそこで消えた人数">
+              <Card title="🔻 入口から会員まで" sub="上が入口、下へ行くほど絞られます。赤字は「そこで何人が、なぜ消えたか」">
                 <FunnelChart stages={stages} />
                 {!lp && (
                   <div className="text-[10.5px] text-muted mt-1 leading-relaxed">

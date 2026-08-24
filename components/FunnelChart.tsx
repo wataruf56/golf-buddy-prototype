@@ -15,11 +15,13 @@ export type FunnelStage = {
   note?: string;
   /** 最終ゴール（濃く塗る） */
   goal?: boolean;
+  /** この段と次の段のあいだで「何が起きて消えたのか」。人数だけだと理由が分からない。 */
+  lostNote?: string;
 };
 
 const W = 320;          // 図の幅
 const H = 46;           // 1段の高さ
-const GAP = 26;         // 段のあいだ（脱落の表示スペース）
+const GAP = 42;         // 段のあいだ（人数＋その理由の2行を置く）
 const MIN_W = 30;       // 0人でも線が見えるようにする最小幅（大きすぎると小さい段どうしが同じ幅に見える）
 
 export function FunnelChart({ stages, unit = '人' }: { stages: FunnelStage[]; unit?: string }) {
@@ -65,18 +67,20 @@ export function FunnelChart({ stages, unit = '人' }: { stages: FunnelStage[]; u
                   {s.note}
                 </text>
               )}
-              {/* 脱落 */}
-              {lost > 0 && (
-                <text x={cx} y={y + H + GAP / 2 + 3} textAnchor="middle"
-                  fontSize={11} fontWeight={900} fill="#E74C3C">
-                  ▼ {lost}{unit}が消えた（{rate}%）
-                </text>
-              )}
-              {lost === 0 && i + 1 < rows.length && (
-                <text x={cx} y={y + H + GAP / 2 + 3} textAnchor="middle"
-                  fontSize={10.5} fontWeight={700} fill="#9DB3A8">
-                  ▼ 全員が次へ
-                </text>
+              {/* 脱落。人数の下に「何が起きたのか」を必ず添える。 */}
+              {i + 1 < rows.length && (
+                <>
+                  <text x={cx} y={y + H + 15} textAnchor="middle"
+                    fontSize={11} fontWeight={900} fill={lost > 0 ? '#E74C3C' : '#9DB3A8'}>
+                    {lost > 0 ? `▼ ${lost}${unit}が消えた（${rate}%）` : '▼ 全員が次へ'}
+                  </text>
+                  {!!s.lostNote && (
+                    <text x={cx} y={y + H + 30} textAnchor="middle"
+                      fontSize={9.5} fontWeight={700} fill="#5E7A6C">
+                      {s.lostNote}
+                    </text>
+                  )}
+                </>
               )}
             </g>
           );
