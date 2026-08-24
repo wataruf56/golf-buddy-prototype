@@ -17,7 +17,7 @@ function Inner() {
   const search = useSearchParams();
   const tokenFromUrl = search?.get('token') || '';
   const [token, setToken] = useState('');
-  const [stats, setStats] = useState<{ users: number; swingAllowed: number } | null>(null);
+  const [stats, setStats] = useState<{ users: number; swingAllowed: number; testCount?: number } | null>(null);
   // 「気になる系」通知を全員OFFにする移行（1回限り）。
   const [migrating, setMigrating] = useState(false);
   const [migrateMsg, setMigrateMsg] = useState('');
@@ -66,7 +66,7 @@ function Inner() {
         const r = await fetch(`/api/admin/users?token=${encodeURIComponent(token)}`, { cache: 'no-store' });
         if (!r.ok) return;
         const d = await r.json();
-        setStats({ users: d.count, swingAllowed: d.allowedCount });
+        setStats({ users: d.count, swingAllowed: d.allowedCount, testCount: d.testCount });
       } catch {}
     })();
   }, [token]);
@@ -104,7 +104,9 @@ function Inner() {
       <div className="text-2xl font-black mb-1">⚙️ 管理画面</div>
       {stats && (
         <div className="text-[11px] text-muted mb-4">
-          総ユーザー <b className="text-text">{stats.users}</b> / Swing許可 <b className="text-text">{stats.swingAllowed}</b>
+          総ユーザー <b className="text-text">{stats.users}</b>
+          {!!stats.testCount && <span>（+ 動作確認用 {stats.testCount}）</span>}
+          {' '}/ Swing許可 <b className="text-text">{stats.swingAllowed}</b>
         </div>
       )}
 

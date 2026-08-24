@@ -99,8 +99,21 @@ export async function GET(req: NextRequest) {
     // LINEへ飛んだ後の段階別。入口（どのLPから来たか）ごとにも分ける。
     const liffSteps: Record<string, Set<string>> = {};
     const liffByEntry: Record<string, Record<string, Set<string>>> = {};
-    // 出発したLP別（top=普通のLP / mbti=診断LP / links=リンクハブ / ''=LINE内から直接）
+    // 出発したLP別（top=普通のLP / mbti=診断LP / links=リンクハブ / line=LINE内から直接）
+    //
+    // 1人を1つのLPにだけ数える。同じ人がLPから1回・リッチメニューから1回開くと
+    // 両方に入ってしまい、LP別の合計が全体を上回っていた（実際に open で
+    // 39 vs 34 のズレが出ていた）。**その人が最初に来たLP**に寄せて数える。
     const liffByLp: Record<string, Record<string, Set<string>>> = {};
+    const firstLpOf: Record<string, { lp: string; ts: number }> = {};
+    for (const d of docs) {
+      if (d.event !== 'step') continue;
+      const vid = String(d.visitorId || ''); if (!vid) continue;
+      const ts = Number(d.ts || 0);
+      const lp = String(d.fromLp || '') || 'line';
+      const cur = firstLpOf[vid];
+      if (!cur || ts < cur.ts) firstLpOf[vid] = { lp, ts };
+    }
     const clickTargets: Record<string, Set<string>> = {};
     const goalTargets: Record<string, Set<string>> = {};
     const sessions = new Set<string>();
@@ -156,7 +169,7 @@ export async function GET(req: NextRequest) {
           (liffSteps[st] = liffSteps[st] || new Set()).add(vid);
           const be = (liffByEntry[entry] = liffByEntry[entry] || {});
           (be[st] = be[st] || new Set()).add(vid);
-          const lp = String(d.fromLp || '') || 'line';
+          const lp = firstLpOf[vid]?.lp || String(d.fromLp || '') || 'line';
           const bl = (liffByLp[lp] = liffByLp[lp] || {});
           (bl[st] = bl[st] || new Set()).add(vid);
         }
@@ -172,20 +185,55 @@ export async function GET(req: NextRequest) {
     // --- サーバー側の実測：期間内に実際に作られた会員 ---
     // クライアント計測（liff_new）と突き合わせるための「答え」。
     // acquisitionAt が無い古いユーザーは createdAt で拾う。
-    const signups = { total: 0, byEntry: [] as { entry: string; n: number }[], missingAt: 0 };
+    //
+    // 注意点が2つある。
+    //  ① test_ で始まるアカウントは動作確認用。会員数に混ぜない（実際に11件あり、
+    //     54人と出ていたうちの11人がこれだった）。
+    //  ② 画面計測（liff_new）は 2026-08-21 に入れたもので、それ以前の登録は
+    //     どうやっても数えられない。全期間の実測と並べると「大きくズレている」
+    //     ように見えるだけなので、**計測開始以降**の実測も一緒に返して、
+    //     同じ土俵で比べられるようにする。
+    const signups = {
+      total: 0,                     // 実ユーザーのみ（test_ を除く）
+      testExcluded: 0,
+      byEntry: [] as { entry: string; n: number }[],
+      missingAt: 0,
+      sinceTracking: { from: 0, n: 0 },
+    };
+
+    // 画面計測（LIFFの段階）がいつから貯まっているか
+    let trackFrom = 0;
+    try {
+      const tSnap = await db.collection('_lpTrack').where('event', '==', 'step')
+        .orderBy('ts', 'asc').limit(1).get();
+      if (!tSnap.empty) trackFrom = Number(tSnap.docs[0].data()?.ts || 0);
+    } catch {
+      const steps = docs.filter((d) => d.event === 'step').map((d) => Number(d.ts || 0)).filter(Boolean);
+      if (steps.length) trackFrom = Math.min(...steps);
+    }
+    signups.sinceTracking.from = Math.max(trackFrom, from);
+
     try {
       const usnap = await db.collection('users').limit(5000).get();
       const bySrc: Record<string, number> = {};
       usnap.docs.forEach((u: any) => {
         const x = u.data() || {};
+        const id = String(x.id || u.id || '');
         const at = Number(x.acquisitionAt || x.createdAt || 0);
+        if (id.startsWith('test_')) {
+          if (at >= from && at < to) signups.testExcluded++;
+          return;
+        }
         if (!at) { signups.missingAt++; return; }
         if (at < from || at >= to) return;
         signups.total++;
+        if (trackFrom && at >= signups.sinceTracking.from) signups.sinceTracking.n++;
         const src = String(x.acquisitionSource || 'unknown').toLowerCase() || 'unknown';
         bySrc[src] = (bySrc[src] || 0) + 1;
       });
-      signups.byEntry = Object.entries(bySrc).map(([entry, n]) => ({ entry, n })).sort((a, b) => b.n - a.n);
+      // 流入元が全部 unknown のときは並べても意味がないので出さない
+      const entries = Object.entries(bySrc).map(([entry, n]) => ({ entry, n })).sort((a, b) => b.n - a.n);
+      signups.byEntry = entries.length === 1 && entries[0].entry === 'unknown' ? [] : entries;
     } catch { /* 取れなくてもファネルは返す */ }
 
     const toFunnel = (b: ReturnType<typeof mk>) => ({
@@ -293,6 +341,32 @@ export async function GET(req: NextRequest) {
         signup: sz(liffSteps['liff_signup']),   // 旧イベント（新規＋既存の合算）
         error: sz(liffSteps['liff_error']),
       },
+      // 画面計測（LIFFの段階）が貯まり始めた時刻。これ以前の登録は計測できない。
+      trackFrom,
+      // 「LPから飛んできた人」と「LINEの中から直接開いた人」を分ける。
+      //
+      // ひとつのファネルに混ぜると、LPで押した人(11) より 起動した人(34) の方が
+      // 多くなって話が通らない。34人のうち大半は**リッチメニューなどLINEの中から
+      // 開いた人**で、LPを通っていないため。別々に見せる。
+      liffOrigin: (() => {
+        const KEYS = ['liff_open', 'liff_login', 'liff_back', 'liff_auth', 'liff_new', 'liff_return', 'liff_error'] as const;
+        const pick = (want: 'lp' | 'line') => {
+          const o: Record<string, number> = {};
+          for (const k of KEYS) {
+            const set = new Set<string>();
+            for (const [lp, m] of Object.entries(liffByLp)) {
+              if ((want === 'line') !== (lp === 'line')) continue;
+              (m[k] || new Set<string>()).forEach((v) => set.add(v));
+            }
+            o[k] = set.size;
+          }
+          return {
+            open: o.liff_open, login: o.liff_login, back: o.liff_back, auth: o.liff_auth,
+            newUser: o.liff_new, returning: o.liff_return, error: o.liff_error,
+          };
+        };
+        return { fromLp: pick('lp'), fromLine: pick('line') };
+      })(),
       liffByLp: Object.entries(liffByLp)
         .map(([lp, m]) => ({
           lp,

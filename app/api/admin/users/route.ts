@@ -50,7 +50,15 @@ export async function GET(req: NextRequest) {
       if (aReal !== bReal) return bReal - aReal;
       return (a.id || '').localeCompare(b.id || '');
     });
-    return NextResponse.json({ count: users.length, users, allowedCount: allowedSet.size }, { headers: noStore });
+    // 動作確認用の test_ アカウントは「総ユーザー」に混ぜない（一覧には残す）。
+    const testCount = users.filter((u: any) => String(u.id || '').startsWith('test_')).length;
+    return NextResponse.json({
+      count: users.length - testCount,   // 実ユーザー数
+      totalWithTest: users.length,
+      testCount,
+      users,
+      allowedCount: allowedSet.size,
+    }, { headers: noStore });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
   }

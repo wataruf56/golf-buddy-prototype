@@ -35,7 +35,15 @@ type Data = {
     newUser: number; returning: number; signup: number; error: number;
   };
   liffByLp?: Array<{ lp: string; open: number; login: number; back: number; auth: number; newUser: number; returning: number; signup: number; error: number }>;
-  signups?: { total: number; byEntry: { entry: string; n: number }[]; missingAt: number };
+  liffOrigin?: {
+    fromLp: { open: number; login: number; back: number; auth: number; newUser: number; returning: number; error: number };
+    fromLine: { open: number; login: number; back: number; auth: number; newUser: number; returning: number; error: number };
+  };
+  trackFrom?: number;
+  signups?: {
+    total: number; testExcluded: number; byEntry: { entry: string; n: number }[];
+    missingAt: number; sinceTracking: { from: number; n: number };
+  };
   clickTargets: { key: string; users: number }[];
   goalTargets: { key: string; users: number }[];
   daily: { date: string; visitors: number; goals: number }[];
@@ -262,13 +270,18 @@ function Inner() {
           {data.liffFunnel && (data.liffFunnel.open > 0 || data.liffFunnel.signup > 0 || (data.signups?.total || 0) > 0) && (
             <Card
               title="🔻 LINEへ飛んだ後、どこで落ちたか"
-              sub="LPの「LINEへ進んだ」から先を1人ずつ追跡。最後の「新しく会員になった」だけが本当の登録"
+              sub="LPから飛んだ人だけを1人ずつ追跡。最後の「新しく会員になった」だけが本当の登録"
             >
               {(() => {
-                const f = data.liffFunnel!;
+                const all = data.liffFunnel!;
+                // このファネルは「LPから飛んできた人」だけで組む。
+                // リッチメニューなどLINEの中から直接開いた人を混ぜると、
+                // LPで押した人より起動した人の方が多くなって話が通らなくなる。
+                const f = data.liffOrigin ? { ...data.liffOrigin.fromLp, signup: 0 } : all;
+                const line = data.liffOrigin?.fromLine;
                 const goal = data.funnel.find((x) => x.key === 'goal')?.n || 0;
                 // 旧イベント(liff_signup)しか無い期間は、新規と既存を分けられない。
-                const legacyOnly = f.newUser === 0 && f.returning === 0 && f.signup > 0;
+                const legacyOnly = f.newUser === 0 && f.returning === 0 && all.signup > 0;
                 const rows: { label: string; n: number; note: string; kind?: 'goal' | 'sub' }[] = [
                   { label: 'LPで「LINEへ」を押した', n: goal, note: 'ここまではLP側の計測' },
                   { label: 'アプリの起動画面まで来た', n: f.open, note: 'LINEアプリの中で開けた＝友だち追加は越えている' },
@@ -277,7 +290,7 @@ function Inner() {
                   { label: 'サーバー認証が通った', n: f.auth, note: 'セッション発行に成功' },
                 ];
                 if (legacyOnly) {
-                  rows.push({ label: 'セッション発行まで到達（旧計測）', n: f.signup, note: '新規と既存を区別していない古い計測値', kind: 'sub' });
+                  rows.push({ label: 'セッション発行まで到達（旧計測）', n: all.signup, note: '新規と既存を区別していない古い計測値', kind: 'sub' });
                 } else {
                   rows.push({ label: '🆕 新しく会員になった', n: f.newUser, note: 'これが本当の登録完了', kind: 'goal' });
                   rows.push({ label: '既存会員の再ログイン', n: f.returning, note: '登録数には数えない（自分のテストもここ）', kind: 'sub' });
@@ -302,32 +315,61 @@ function Inner() {
                       <div className="text-[11px] text-red-700 mt-2 font-bold">⚠️ 途中で失敗した人：{f.error}人</div>
                     )}
 
-                    {/* サーバー実測との答え合わせ */}
-                    {data.signups && (
+                    {/* LINEの中から直接開いた人（LPを通っていない） */}
+                    {!!line && line.open > 0 && (
                       <div className="mt-3 rounded-lg border border-border bg-bg p-2.5">
-                        <div className="text-[11px] font-black mb-1">✅ 答え合わせ（サーバーの実測）</div>
+                        <div className="text-[11px] font-black mb-1">📱 LINEの中から直接開いた人（上のファネルとは別）</div>
                         <div className="text-[11.5px] leading-relaxed">
-                          この期間に実際に作られた会員：<b className="text-green text-[13px]">{data.signups.total}人</b>
-                          {legacyOnly && (
-                            <><br /><span className="text-muted">上の「セッション発行」{f.signup}人との差が、既存会員の再ログインです。</span></>
-                          )}
-                          {!legacyOnly && f.newUser !== data.signups.total && (
-                            <><br /><span className="text-muted">
-                              画面計測の「新しく会員になった」{f.newUser}人とズレています。計測が届かなかった分（通信の失敗・別経路からの登録）と考えられます。実測の方が正しい数字です。
-                            </span></>
-                          )}
+                          リッチメニュー・あいさつメッセージ・過去の通知などから開いた人：
+                          <b className="text-[13px]">{line.open}人</b>
+                          <span className="text-muted">（うち 新規 {line.newUser}人 / 再ログイン {line.returning}人）</span>
+                          <br /><span className="text-muted">LPを通っていないので、LPの改善効果には数えません。</span>
                         </div>
-                        {data.signups.byEntry.length > 0 && (
-                          <div className="mt-1.5 flex flex-wrap gap-1.5">
-                            {data.signups.byEntry.map((x) => (
-                              <span key={x.entry} className="text-[10.5px] font-bold bg-card border border-border rounded px-1.5 py-0.5">
-                                {x.entry}：{x.n}人
-                              </span>
-                            ))}
-                          </div>
-                        )}
                       </div>
                     )}
+
+                    {/* サーバー実測との答え合わせ */}
+                    {data.signups && (() => {
+                      const su = data.signups!;
+                      const tf = su.sinceTracking?.from || 0;
+                      const fromYmd = tf ? new Date(tf).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) : '';
+                      // 画面計測は全経路の合計と比べる（LP経由＋LINE内から）
+                      const trackedNew = all.newUser;
+                      const comparable = su.sinceTracking?.n ?? su.total;
+                      return (
+                        <div className="mt-3 rounded-lg border border-border bg-bg p-2.5">
+                          <div className="text-[11px] font-black mb-1">✅ 答え合わせ（サーバーの実測）</div>
+                          <div className="text-[11.5px] leading-relaxed">
+                            この期間に実際に作られた会員：<b className="text-green text-[13px]">{su.total}人</b>
+                            {su.testExcluded > 0 && (
+                              <span className="text-muted">（動作確認用の test_ アカウント {su.testExcluded}件は除いています）</span>
+                            )}
+                            {legacyOnly ? (
+                              <><br /><span className="text-muted">上の「セッション発行」{all.signup}人との差が、既存会員の再ログインです。</span></>
+                            ) : tf ? (
+                              <>
+                                <br />
+                                <span className="text-muted">
+                                  画面計測（LIFFの段階）は<b className="text-text">{fromYmd}から</b>しか貯まっていません。
+                                  同じ期間で比べると<b className="text-text"> 実測{comparable}人 ／ 画面計測{trackedNew}人</b>
+                                  {comparable === trackedNew ? '（一致）' : `（差 ${Math.abs(comparable - trackedNew)}人）`}。
+                                  {su.total !== comparable && <>それ以前の{su.total - comparable}人は計測を入れる前の登録です。</>}
+                                </span>
+                              </>
+                            ) : null}
+                          </div>
+                          {su.byEntry.length > 0 && (
+                            <div className="mt-1.5 flex flex-wrap gap-1.5">
+                              {su.byEntry.map((x) => (
+                                <span key={x.entry} className="text-[10.5px] font-bold bg-card border border-border rounded px-1.5 py-0.5">
+                                  {x.entry}：{x.n}人
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {/* 離脱の読み解き */}
                     {(() => {
@@ -350,6 +392,9 @@ function Inner() {
                     {data.liffByLp && data.liffByLp.length > 0 && (
                       <div className="mt-3">
                         <div className="text-[11px] font-black mb-1">どのLPから飛んだ人か</div>
+                        <div className="text-[10px] text-muted mb-1 leading-relaxed">
+                          1人を1つの行にだけ数えます（最初に来たLP）。だから縦に足すと上の全体と合います。
+                        </div>
                         <div className="overflow-x-auto">
                           <table className="w-full text-[11px]">
                             <thead>
