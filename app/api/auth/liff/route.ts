@@ -19,6 +19,20 @@ export async function POST(req: NextRequest) {
   // 流入経路（新規登録時のみ保存）。?ref= 等をクライアントが正規化して渡す。
   const acqRef = String(body?.ref || '').trim().toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 40);
   const acqReferrer = String(body?.referrer || '').slice(0, 200);
+  // ?ref= が付いていない人（検索・直リンク・友だち追加から直接）でも、
+  // 「どのLPを踏んだか」「リッチメニューのどのボタンか」は分かる。
+  const acqLp = String(body?.lp || '').toLowerCase().replace(/[^a-z]/g, '').slice(0, 20);
+  const acqMenu = String(body?.menu || '').toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 40);
+  // 流入経路の決め方。上から順に、分かる範囲でいちばん細かいものを採る。
+  //   1. ?ref=          … instagram / share_img など、こちらが撒いたタグ
+  //   2. lp:◯◯          … タグは無いがLPは踏んでいる（検索・直リンクでLPに来た人）
+  //   3. richmenu:◯◯    … LINEの中のリッチメニューから
+  //   4. line            … LINEの中から、印なしで開いた（友だち追加の直後など）
+  // 'unknown' は「本当に何も分からなかった」ときだけに残す。
+  const acquisitionSource = acqRef
+    || (acqLp ? `lp:${acqLp}` : '')
+    || (acqMenu ? `richmenu:${acqMenu}` : '')
+    || 'line';
 
   // Verify with LINE
   const params = new URLSearchParams();
@@ -77,8 +91,11 @@ export async function POST(req: NextRequest) {
         roundCount: 0,
         buddyCount: 0,
         lineId: userId,
-        // 流入経路（登録時のみ）。タグ無しは 'unknown' として記録。
-        acquisitionSource: acqRef || 'unknown',
+        // 流入経路（登録時のみ）。判定は上の acquisitionSource を参照。
+        acquisitionSource,
+        acquisitionRef: acqRef || undefined,
+        acquisitionLp: acqLp || undefined,
+        acquisitionMenu: acqMenu || undefined,
         acquisitionReferrer: acqReferrer || undefined,
         acquisitionAt: Date.now(),
       } as any);

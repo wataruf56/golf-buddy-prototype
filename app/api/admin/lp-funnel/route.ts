@@ -227,13 +227,17 @@ export async function GET(req: NextRequest) {
         if (!at) { signups.missingAt++; return; }
         if (at < from || at >= to) return;
         signups.total++;
-        if (trackFrom && at >= signups.sinceTracking.from) signups.sinceTracking.n++;
-        const src = String(x.acquisitionSource || 'unknown').toLowerCase() || 'unknown';
+        const tracked = !!trackFrom && at >= signups.sinceTracking.from;
+        if (tracked) signups.sinceTracking.n++;
+        // 流入経路の記録を入れる前に登録した人は、あとから調べようがない。
+        // 'unknown'（＝記録したが分からなかった）と混ぜず、'_pre' として分けておく。
+        // 混ぜると「計測が効いていない」のか「昔の人」なのかが判別できなくなる。
+        const src = tracked
+          ? (String(x.acquisitionSource || 'unknown').toLowerCase() || 'unknown')
+          : '_pre';
         bySrc[src] = (bySrc[src] || 0) + 1;
       });
-      // 流入元が全部 unknown のときは並べても意味がないので出さない
-      const entries = Object.entries(bySrc).map(([entry, n]) => ({ entry, n })).sort((a, b) => b.n - a.n);
-      signups.byEntry = entries.length === 1 && entries[0].entry === 'unknown' ? [] : entries;
+      signups.byEntry = Object.entries(bySrc).map(([entry, n]) => ({ entry, n })).sort((a, b) => b.n - a.n);
     } catch { /* 取れなくてもファネルは返す */ }
 
     const toFunnel = (b: ReturnType<typeof mk>) => ({

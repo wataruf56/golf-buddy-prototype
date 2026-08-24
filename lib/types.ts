@@ -87,9 +87,14 @@ export type User = {
   // システムアカウント（例：「管理人」）。検索・招待・マッチング等の一般ユーザー一覧からは
   // 除外し、DM（サポート窓口）としてのみ振る舞う。
   isSystem?: boolean;
-  // 流入経路（登録時のみ記録）。着地URLの ?ref= / ?utm_source= から取得（例: 'instagram'）。
-  // タグ無しで来た人は未設定（＝unknown）。referrer は補助情報。
+  // 流入経路（登録時のみ記録）。決め方は app/api/auth/liff/route.ts を参照。
+  //   'instagram' 等 … 撒いたタグ(?ref=)  /  'lp:top' … タグ無しでLPを踏んだ
+  //   'richmenu:◯◯'  … リッチメニュー     /  'line'   … LINE内から印なし
   acquisitionSource?: string;
+  /** 内訳（分析用）。source の材料をそのまま残す。 */
+  acquisitionRef?: string;
+  acquisitionLp?: string;
+  acquisitionMenu?: string;
   acquisitionReferrer?: string;
   acquisitionAt?: number;
 };

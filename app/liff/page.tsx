@@ -171,7 +171,10 @@ function LiffEntryInner() {
         const res = await fetch('/api/auth/liff', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ idToken, friendFlag, ref, referrer }),
+          // ?ref= が無い人（検索・直リンクなど）でも「どこから来たか」は分かる。
+          // どのLPを踏んだか(lp)と、リッチメニューのどのボタンか(e)を一緒に送り、
+          // サーバー側で流入経路を組み立てる。これが無いと全員 unknown になる。
+          body: JSON.stringify({ idToken, friendFlag, ref, referrer, lp: ctx.fromLp, menu: urlMenu }),
           cache: 'no-store',
           credentials: 'include',
         });

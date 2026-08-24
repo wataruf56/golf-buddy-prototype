@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AdminTabs } from '@/components/AdminTabs';
+import { FunnelChart, type FunnelStage } from '@/components/FunnelChart';
 import { useSearchParams } from 'next/navigation';
 
 // 管理画面：LP流入ファネル。
@@ -49,6 +50,17 @@ type Data = {
   daily: { date: string; visitors: number; goals: number }[];
   byHour: number[];
 };
+
+// 流入経路（users.acquisitionSource）の見せ方。
+// 'lp:◯◯'（タグ無しでLPを踏んだ）と 'richmenu:◯◯' は前半で判定する。
+function srcLabel(k: string): string {
+  if (k === '_pre') return '計測を入れる前の登録';
+  if (k === 'line') return 'LINEの中から（印なし）';
+  if (k === 'unknown') return '不明';
+  if (k.startsWith('lp:')) return `${LP_LABEL[k.slice(3)] || k.slice(3)}（タグ無し）`;
+  if (k.startsWith('richmenu:')) return `リッチメニュー ${k.slice(9)}`;
+  return k;
+}
 
 const ENTRY_LABEL: Record<string, string> = {
   richmenu: '📱 LINEリッチメニュー',
@@ -232,6 +244,33 @@ function Inner() {
             <Kpi label="スマホ / PC" value={`${k.mobile} / ${k.desktop}`} sub="人" />
           </div>
 
+          {/* 入口から会員までを1本の逆三角形で。ここだけ見れば全体が分かるようにする。 */}
+          {(() => {
+            const g = (k: string) => data.funnel.find((x) => x.key === k)?.n ?? 0;
+            const lp = data.liffOrigin?.fromLp;
+            const stages: FunnelStage[] = [
+              { key: 'view', label: 'LPに来た', n: g('view'), note: '広告・検索・SNSから' },
+              { key: 'd100', label: '最後まで読んだ', n: g('d100') },
+              { key: 'click', label: 'ボタンを押した', n: g('click') },
+              { key: 'goal', label: 'LINEへ進んだ', n: g('goal'), note: 'LPを出た' },
+            ];
+            // LIFF側の計測がある期間だけ、その先も1本につなげる
+            if (lp && (lp.open > 0 || lp.newUser > 0)) {
+              stages.push({ key: 'open', label: 'アプリが開いた', n: lp.open, note: '友だち追加を越えた' });
+              stages.push({ key: 'new', label: '🆕 会員になった', n: lp.newUser, goal: true });
+            }
+            return (
+              <Card title="🔻 入口から会員まで" sub="上が入口、下へ行くほど絞られます。段のあいだの赤字がそこで消えた人数">
+                <FunnelChart stages={stages} />
+                {!lp && (
+                  <div className="text-[10.5px] text-muted mt-1 leading-relaxed">
+                    ※ LINEへ進んだ先（アプリ起動〜登録）の計測は 2026-08-21 からです。
+                  </div>
+                )}
+              </Card>
+            );
+          })()}
+
           {/* いちばん落ちている場所 */}
           {data.worstDrop && data.worstDrop.lost > 0 && (
             <div className="bg-red-50 border-2 border-red-200 rounded-xl p-3 mb-3">
@@ -359,12 +398,21 @@ function Inner() {
                             ) : null}
                           </div>
                           {su.byEntry.length > 0 && (
-                            <div className="mt-1.5 flex flex-wrap gap-1.5">
-                              {su.byEntry.map((x) => (
-                                <span key={x.entry} className="text-[10.5px] font-bold bg-card border border-border rounded px-1.5 py-0.5">
-                                  {x.entry}：{x.n}人
-                                </span>
-                              ))}
+                            <div className="mt-2">
+                              <div className="text-[10.5px] font-black mb-1">会員になった人の流入経路</div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {su.byEntry.map((x) => (
+                                  <span key={x.entry}
+                                    className={'text-[10.5px] font-bold border rounded px-1.5 py-0.5 '
+                                      + (x.entry === '_pre' ? 'bg-bg border-hair text-muted' : 'bg-card border-border')}>
+                                    {srcLabel(x.entry)}：{x.n}人
+                                  </span>
+                                ))}
+                              </div>
+                              <div className="text-[10px] text-muted mt-1 leading-relaxed">
+                                「計測を入れる前の登録」は後から調べようがありません。これから登録する人には、
+                                タグが無くても「どのLPを踏んだか」「リッチメニューのどこから来たか」が残ります。
+                              </div>
                             </div>
                           )}
                         </div>
