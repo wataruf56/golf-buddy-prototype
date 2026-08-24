@@ -351,7 +351,7 @@ function Inner() {
           {data.liffFunnel && (data.liffFunnel.open > 0 || data.liffFunnel.signup > 0 || (data.signups?.total || 0) > 0) && (
             <Card
               title="🔻 LINEへ飛んだ後、どこで落ちたか"
-              sub="LPから飛んだ人だけを1人ずつ追跡。最後の「新しく会員になった」だけが本当の登録"
+              sub="上の図のうち、LINEに移ってから先だけを細かく見た図。LPから飛んだ人だけを1人ずつ追跡しています"
             >
               {(() => {
                 const all = data.liffFunnel!;
@@ -363,38 +363,54 @@ function Inner() {
                 const goal = data.funnel.find((x) => x.key === 'goal')?.n || 0;
                 // 旧イベント(liff_signup)しか無い期間は、新規と既存を分けられない。
                 const legacyOnly = f.newUser === 0 && f.returning === 0 && all.signup > 0;
-                const rows: { label: string; n: number; note: string; kind?: 'goal' | 'sub' }[] = [
-                  { label: 'LPで「LINEへ」を押した', n: goal, note: 'ここまではLP側の計測' },
-                  { label: 'アプリの起動画面まで来た', n: f.open, note: 'LINEアプリの中で開けた＝友だち追加は越えている' },
-                  { label: 'LINEログインへ進んだ', n: f.login, note: 'ログインが必要だった人（ログイン済みの人はここを通らない）' },
-                  { label: 'ログインから戻ってきた', n: f.back, note: '上との差が「ログイン画面で消えた人」' },
-                  { label: 'サーバー認証が通った', n: f.auth, note: 'セッション発行に成功' },
-                ];
-                if (legacyOnly) {
-                  rows.push({ label: 'セッション発行まで到達（旧計測）', n: all.signup, note: '新規と既存を区別していない古い計測値', kind: 'sub' });
-                } else {
-                  rows.push({ label: '🆕 新しく会員になった', n: f.newUser, note: 'これが本当の登録完了', kind: 'goal' });
-                  rows.push({ label: '既存会員の再ログイン', n: f.returning, note: '登録数には数えない（自分のテストもここ）', kind: 'sub' });
-                }
-                const max = Math.max(...rows.map((r) => r.n), 1);
+                // ここも逆三角形に統一する。
+                // 以前は棒グラフで7項目を縦に並べていたが、「LINEログインへ進んだ1人 →
+                // ログインから戻ってきた0人 → サーバー認証が通った7人」のように
+                // 増えたり減ったりして、ファネルとして読めなかった。
+                // ログインは**全員が通る段ではなく枝道**（ログイン済みの人は通らない）なので、
+                // 段には入れず下の「補足」に出す。
+                const stages: FunnelStage[] = legacyOnly
+                  ? [
+                      { key: 'goal', label: 'LPで「LINEへ」を押した', n: goal, note: 'ここまではLP側の計測',
+                        lostNote: '友だち追加の画面で止まった・LINEを閉じた' },
+                      { key: 'open', label: 'ゴルトモの画面が開いた', n: f.open, note: '友だち追加まで済んだ人',
+                        lostNote: '画面は開いたが先へ進まなかった' },
+                      { key: 'legacy', label: 'セッション発行まで到達（旧計測）', n: all.signup,
+                        note: '新規と既存を区別していない古い値', goal: true },
+                    ]
+                  : [
+                      { key: 'goal', label: 'LPで「LINEへ」を押した', n: goal, note: 'ここまではLP側の計測',
+                        lostNote: '友だち追加の画面で止まった・LINEを閉じた' },
+                      { key: 'open', label: 'ゴルトモの画面が開いた', n: f.open, note: '友だち追加まで済んだ人',
+                        lostNote: 'ログイン画面などで戻ってしまった' },
+                      { key: 'auth', label: 'ログインが通った', n: f.auth, note: 'アプリの中に入れた',
+                        lostNote: '入れたが新規登録ではなかった（既存会員の再ログイン）' },
+                      { key: 'new', label: '🆕 新しく会員になった', n: f.newUser, note: 'これが本当の登録完了', goal: true },
+                    ];
                 return (
                   <>
-                    {rows.map((r) => (
-                      <div key={r.label} className="py-1.5 border-b border-border last:border-0">
-                        <div className="flex items-baseline justify-between gap-2 mb-1">
-                          <span className={'text-[12.5px] font-bold ' + (r.kind === 'goal' ? 'text-green' : r.kind === 'sub' ? 'text-muted' : '')}>{r.label}</span>
-                          <span className="text-[12px] font-black flex-none">{r.n}<span className="text-[10px] text-muted font-normal">人</span></span>
-                        </div>
-                        <div className="h-2.5 bg-bg rounded overflow-hidden">
-                          <div className={'h-full rounded ' + (r.kind === 'goal' ? 'bg-green' : r.kind === 'sub' ? 'bg-border' : 'bg-orange')}
-                            style={{ width: `${Math.max(2, Math.round((r.n / max) * 100))}%` }} />
-                        </div>
-                        <div className="text-[10px] text-muted mt-0.5">{r.note}</div>
-                      </div>
-                    ))}
-                    {f.error > 0 && (
-                      <div className="text-[11px] text-red-700 mt-2 font-bold">⚠️ 途中で失敗した人：{f.error}人</div>
-                    )}
+                    <FunnelChart stages={stages} />
+
+                    {/* ファネルの段ではないもの。混ぜると数字が increase して読めなくなる。 */}
+                    <div className="mt-3 rounded-lg border border-border bg-bg p-2.5">
+                      <div className="text-[11px] font-black mb-1">📌 段には数えない内訳</div>
+                      <ul className="text-[11.5px] leading-relaxed space-y-0.5">
+                        <li>
+                          ・<b>LINEログインが必要だった人：{f.login}人</b>
+                          <span className="text-muted">（そのうち戻ってきた {f.back}人）
+                            — ログイン済みの人はこの画面を通りません</span>
+                        </li>
+                        {!legacyOnly && (
+                          <li>
+                            ・<b>既存会員の再ログイン：{f.returning}人</b>
+                            <span className="text-muted"> — 登録数には数えません（自分のテストもここ）</span>
+                          </li>
+                        )}
+                        {f.error > 0 && (
+                          <li className="text-red-700">・<b>途中で失敗した人：{f.error}人</b></li>
+                        )}
+                      </ul>
+                    </div>
 
                     {/* LINEの中から直接開いた人（LPを通っていない） */}
                     {!!line && line.open > 0 && (
