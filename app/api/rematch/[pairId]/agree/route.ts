@@ -47,8 +47,8 @@ export async function POST(req: NextRequest, { params }: { params: { pairId: str
     renderNotif('rematchAgreed', { '相手の名前': ua?.displayName || '相手', '日付': label }),
   ]);
   await Promise.all([
-    notifyRematch(s.userA, nA, link),
-    notifyRematch(s.userB, nB, link),
+    notifyRematch(s.userA, nA, link, { partnerId: s.userB, kind: s.matchKind, why: '日程が決まったお知らせ' }),
+    notifyRematch(s.userB, nB, link, { partnerId: s.userA, kind: s.matchKind, why: '日程が決まったお知らせ' }),
   ]);
 
   return NextResponse.json({ ok: true, agreedDate: date }, { headers: noStore });

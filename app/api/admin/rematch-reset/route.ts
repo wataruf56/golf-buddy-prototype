@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase';
 import { invalidateRematchConfigCache } from '@/lib/rematchConfig';
+import { audit, adminActor, AUDIT_ACTION } from '@/lib/auditLog';
 
 // 管理者用：再会エンジンのテストデータ（セッション＋計測イベント）を全削除。
 // テストで作った「決定済み」等のセッションをまっさらに戻して再テストするため。
@@ -36,6 +37,11 @@ export async function POST(req: NextRequest) {
     const sessions = await wipe('_rematch');
     const events = await wipe('_rematchEvents');
     invalidateRematchConfigCache();
+    await audit({
+      ...(await adminActor(null)),
+      action: AUDIT_ACTION.rematchReset, targetKind: 'config',
+      summary: `再会エンジンのデータを消した（セッション${sessions}件 / イベント${events}件）`,
+    }, req);
     return NextResponse.json({ ok: true, deletedSessions: sessions, deletedEvents: events }, { headers: noStore });
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500, headers: noStore });

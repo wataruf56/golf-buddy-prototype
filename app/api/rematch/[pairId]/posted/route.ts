@@ -33,7 +33,7 @@ export async function POST(req: NextRequest, { params }: { params: { pairId: str
         joined = true;
         const { renderNotif } = await import('@/lib/notificationTemplateStore');
         const n = await renderNotif('rematchJoined', {});
-        notifyRematch(partnerId, n, `/round/${roundId}`).catch(() => {});
+        notifyRematch(partnerId, n, `/round/${roundId}`, { partnerId: meId, why: 'ラウンドが投稿されたお知らせ' }).catch(() => {});
       }
     } catch { /* 参加確定の失敗は記録処理を妨げない */ }
   }

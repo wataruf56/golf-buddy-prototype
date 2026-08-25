@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAdminDb } from '@/lib/firebase';
+import { audit, adminActor, AUDIT_ACTION } from '@/lib/auditLog';
 
 // 管理画面：ユーザーを完全削除（テストアカウントの後始末用）。
 // 誤削除防止のため、呼び出し側は confirmName に「表示名」を渡し、対象ドキュメントの
@@ -37,6 +38,14 @@ export async function POST(req: NextRequest) {
   if ((user.displayName || '') !== confirmName) {
     return NextResponse.json({ error: 'name_mismatch', message: `表示名が一致しません（実際: 「${user.displayName || ''}」）` }, { status: 409, headers: noStore });
   }
+
+  // 取り返しのつかない操作なので、実行する前に台帳へ残す。
+  await audit({
+    ...(await adminActor(null)),
+    action: AUDIT_ACTION.userDelete,
+    targetKind: 'user', targetId: userId, targetName: user.displayName || '',
+    summary: `会員「${user.displayName || userId}」を削除した`,
+  }, req);
 
   const summary: Record<string, number> = { rounds_hosted_deleted: 0, rounds_left: 0, chats_deleted: 0, chat_messages_deleted: 0, reviews_deleted: 0, pendingReviews_deleted: 0, matchLikes_deleted: 0, reports_deleted: 0, notifications_deleted: 0, friend_refs_cleaned: 0 };
 

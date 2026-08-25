@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { setBanned, listBanned } from '@/lib/banAccess';
+import { audit, adminActor, AUDIT_ACTION } from '@/lib/auditLog';
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 
@@ -26,6 +27,14 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400, headers: noStore });
   try {
     await setBanned(userId, banned);
+    const { db } = await import('@/lib/db');
+    const name = (await db.getUser(userId))?.displayName || '';
+    await audit({
+      ...(await adminActor(null)),
+      action: banned ? AUDIT_ACTION.userBan : AUDIT_ACTION.userUnban,
+      targetKind: 'user', targetId: userId, targetName: name,
+      summary: `会員「${name || userId}」を${banned ? '利用停止にした' : '利用停止から戻した'}`,
+    }, req);
     return NextResponse.json({ ok: true, userId, banned }, { headers: noStore });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });

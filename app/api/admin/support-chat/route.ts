@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { chatIdFor } from '@/lib/utils';
 import { ADMIN_MANAGER_ID, ensureAdminManager } from '@/lib/adminManager';
+import { audit, adminActor, AUDIT_ACTION } from '@/lib/auditLog';
 
 // 管理画面：運営（管理人）とユーザーのDM（サポート窓口）。
 //   GET  ?token=..            → 管理人チャット一覧（相手ユーザー・最終メッセージ・未読）
@@ -84,6 +85,17 @@ export async function POST(req: NextRequest) {
       const { webPushText } = await import('@/lib/webPush');
       webPushText(userId, '管理人', text.slice(0, 80), link, `support-${userId}`).catch(() => {});
     } catch {}
+    try {
+      const { db } = await import('@/lib/db');
+      const name = (await db.getUser(userId))?.displayName || '';
+      await audit({
+        ...(await adminActor(null)),
+        action: AUDIT_ACTION.supportSend,
+        targetKind: 'user', targetId: userId, targetName: name,
+        summary: `「${name || userId}」さんに管理人としてメッセージを送った`,
+        detail: { 本文: String(text).slice(0, 120) },
+      }, req);
+    } catch { /* noop */ }
     return NextResponse.json({ ok: true, message }, { headers: noStore });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });

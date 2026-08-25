@@ -29,16 +29,38 @@ function mdLabel(d?: string): string {
   return m ? `${Number(m[2])}/${Number(m[3])}` : d;
 }
 
-async function notifyOne(recipientId: string, recipient: any, otherName: string, course: string, date: string, link: string) {
+async function notifyOne(
+  recipientId: string, recipient: any, otherName: string, course: string, date: string, link: string,
+  ctx?: { partnerId: string; kind: string; round: string; nth: number },
+) {
   const when = mdLabel(date);
   const { renderNotif } = await import('@/lib/notificationTemplateStore');
   const n = await renderNotif('rematchInvite', { 'いつに': when ? when + 'に' : '', 'コース': course, '相手の名前': otherName });
   const { addNotification } = await import('@/lib/notifications');
   if (n.inApp) addNotification(recipientId, 'rematch', n.inApp, link).catch(() => {});
-  if (isNotifyEnabled(recipient as any, 'rematch')) {
+  const lineSent = isNotifyEnabled(recipient as any, 'rematch');
+  if (lineSent) {
     pushTo(recipientId, n.line, liffUrl(link), 'rematch').catch(() => {});
     webPushText(recipientId, n.webTitle, n.webBody, link, `rematch-${link}`).catch(() => {});
   }
+
+  // 誰に・誰との件で・何回目を送ったのかを操作ログに残す。
+  // ここは人が押していない自動送信なので、残さないと後から一切たどれない。
+  try {
+    const { audit, systemActor, AUDIT_ACTION } = await import('@/lib/auditLog');
+    await audit({
+      ...systemActor('rematch'),
+      action: AUDIT_ACTION.rematchNotify,
+      targetKind: 'user', targetId: recipientId, targetName: recipient?.displayName || '',
+      summary: `「${recipient?.displayName || recipientId}」さんに、${otherName}さんとの再会の誘い`
+        + `（${ctx?.nth || 1}回目）を送った`,
+      detail: {
+        partnerId: ctx?.partnerId, partnerName: otherName, matchKind: ctx?.kind,
+        前回のラウンド: `${course}${date ? ` / ${date}` : ''}`, roundId: ctx?.round,
+        line: lineSent ? '送信' : 'LINEはOFF（アプリ内のみ）', link,
+      },
+    });
+  } catch { /* ログは落ちても通知は止めない */ }
 }
 
 // 再会通知の実処理。管理画面の「今すぐ実行」からも呼べるよう関数化。
@@ -87,8 +109,11 @@ export async function runRematchNotifier(limit = MAX_PER_TICK): Promise<{ ok: bo
       const [ua, ub] = await Promise.all([db.getUser(a), db.getUser(b)]);
       const course = r.courseName || r.title || 'ゴルフ';
       const link = `/rematch/${pairId}`;
-      await notifyOne(a, ua, ub?.displayName || 'あの人', course, r.date || '', link);
-      await notifyOne(b, ub, ua?.displayName || 'あの人', course, r.date || '', link);
+      const nth = notifyCount + 1;
+      await notifyOne(a, ua, ub?.displayName || 'あの人', course, r.date || '', link,
+        { partnerId: b, kind, round: r.id, nth });
+      await notifyOne(b, ub, ua?.displayName || 'あの人', course, r.date || '', link,
+        { partnerId: a, kind, round: r.id, nth });
 
       const [lo, hi] = a < b ? [a, b] : [b, a];
       await saveSession(pairId, {

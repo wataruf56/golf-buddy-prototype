@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { setSwingAllowed, listSwingAllowed } from '@/lib/swingAccess';
+import { audit, adminActor, AUDIT_ACTION } from '@/lib/auditLog';
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 
@@ -27,6 +28,14 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400, headers: noStore });
   try {
     await setSwingAllowed(userId, allowed);
+    const { db } = await import('@/lib/db');
+    const name = (await db.getUser(userId))?.displayName || '';
+    await audit({
+      ...(await adminActor(null)),
+      action: AUDIT_ACTION.swingAllow,
+      targetKind: 'user', targetId: userId, targetName: name,
+      summary: `会員「${name || userId}」のスイング解析を${allowed ? '許可した' : '不許可にした'}`,
+    }, req);
     return NextResponse.json({ ok: true, userId, allowed }, { headers: noStore });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });

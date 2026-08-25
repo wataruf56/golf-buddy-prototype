@@ -13,6 +13,22 @@ export default function AdminRematchPage() {
   return <Suspense fallback={null}><Inner /></Suspense>;
 }
 
+type Sess = {
+  pairId: string; userA: string; userB: string; nameA: string; nameB: string;
+  status: string; matchKind: string; notifyCount: number;
+  firstNotifyAt: number; lastNotifyAt: number;
+  courseName: string; roundDate: string;
+  agreedDate: string | null; postedRoundId: string | null;
+  candidatesA: number; candidatesB: number; optedOutBy: string[];
+};
+const STATUS_LABEL: Record<string, string> = {
+  notified: '📨 通知した', inputting: '✍️ 候補日を入力中', agreed: '✅ 日程が決まった',
+  posted: '⛳ ラウンドを投稿した', optedout: '🚫 断られた',
+};
+const fmtAt = (ms: number) => ms
+  ? new Date(ms).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  : '—';
+
 type Cfg = { intervalDays: number; maxCycles: number; candidateWindowDays: number; enabled: boolean; testMode: boolean };
 const FUNNEL_LABELS: { key: string; label: string }[] = [
   { key: 'rematch_notify_open', label: '① 通知タップ' },
@@ -31,6 +47,8 @@ function Inner() {
   // 必ず初期値(0など)に戻る／先頭の0が消えない（例: 030）不具合が出るため。保存時に数値へ変換・clamp。
   const [draft, setDraft] = useState({ intervalDays: '', maxCycles: '', candidateWindowDays: '' });
   const [funnel, setFunnel] = useState<Record<string, number>>({});
+  // 「誰と誰のペアに、何回送ったか」の明細。件数だけでは追えないので足した。
+  const [sessions, setSessions] = useState<Sess[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
@@ -63,6 +81,7 @@ function Inner() {
           candidateWindowDays: String(j.config?.candidateWindowDays ?? ''),
         });
         setFunnel(j.funnel || {});
+        setSessions(j.sessions || []);
       }
     } catch {}
     setLoaded(true);
@@ -201,6 +220,47 @@ function Inner() {
               ))}
             </div>
             <div className="text-[10px] text-muted mt-2">※ ①は通知を開いた回数。④「日程確定」が本機能の成功指標。</div>
+          </div>
+
+          {/* 誰と誰に何をしたか。件数のファネルだけでは、止まっているペアが特定できない。 */}
+          <div className="bg-card rounded-xl shadow-card p-4 mt-3">
+            <div className="text-[13px] font-black mb-1">🔁 いま動いている再会（{sessions.length}件）</div>
+            <div className="text-[10.5px] text-muted mb-2 leading-relaxed">
+              誰と誰のペアに、何回・いつ送ったか。1件ごとの送信の記録は
+              <a href={`/admin/audit?token=${token}&action=rematch.notify`} className="text-blue underline font-bold">操作ログ</a>
+              にも残ります。
+            </div>
+            {sessions.length === 0 ? (
+              <div className="text-[12px] text-muted">まだありません。</div>
+            ) : (
+              <div className="space-y-2">
+                {sessions.map((x) => (
+                  <div key={x.pairId} className="border-[1.5px] border-border rounded-lg p-2.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[13px] font-black">{x.nameA} ↔ {x.nameB}</span>
+                      <span className="text-[10px] font-black bg-bg border border-border rounded-full px-1.5 py-0.5">
+                        {x.matchKind === 'romantic' ? '💘 気になる' : '⛳ また回りたい'}
+                      </span>
+                    </div>
+                    <div className="text-[11.5px] font-bold mt-1">
+                      {STATUS_LABEL[x.status] || x.status}
+                      <span className="text-muted"> ・ 通知{x.notifyCount}回 ・ 最後 {fmtAt(x.lastNotifyAt)}</span>
+                    </div>
+                    <div className="text-[10.5px] text-muted mt-0.5 leading-relaxed">
+                      前回：{x.courseName || '—'}{x.roundDate ? ` / ${x.roundDate}` : ''}
+                      <br />
+                      候補日の入力：{x.nameA} {x.candidatesA}日 ・ {x.nameB} {x.candidatesB}日
+                      {x.agreedDate && <> ／ 確定 {x.agreedDate}</>}
+                      {x.optedOutBy.length > 0 && <> ／ <span className="text-red">断り {x.optedOutBy.length}人</span></>}
+                    </div>
+                    <a href={`/admin/audit?token=${token}&targetId=${x.userA}`}
+                      className="text-[11px] font-black text-blue underline mt-1 inline-block">
+                      {x.nameA}さんへの操作履歴
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </>
       )}

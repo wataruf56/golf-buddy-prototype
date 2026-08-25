@@ -53,7 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: { pairId: str
   const myName = me?.displayName || '相手';
   const { renderNotif } = await import('@/lib/notificationTemplateStore');
   const n = await renderNotif('rematchCandidate', { '名前': myName });
-  await notifyRematch(otherId, n, `/rematch/${pairId}`);
+  await notifyRematch(otherId, n, `/rematch/${pairId}`, { partnerId: meId, why: '相手が候補日を入れたお知らせ' });
 
   return NextResponse.json({ ok: true, myCandidates: dates, overlap: overlapDates(dates, theirs) }, { headers: noStore });
 }

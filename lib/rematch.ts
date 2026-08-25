@@ -102,16 +102,40 @@ export async function notifyRematch(
   recipientId: string,
   n: { inApp: string | null; line: string; webTitle: string; webBody: string },
   link: string,
+  /** 操作ログ用の文脈。誰との再会の件で送ったのかを残す。 */
+  ctx?: { partnerId?: string; kind?: string; why?: string },
 ): Promise<void> {
   const [{ addNotification }, { pushTo, liffUrl }, { webPushText }, { isNotifyEnabled }, { db }] = await Promise.all([
     import('./notifications'), import('./linePush'), import('./webPush'), import('./notifyPrefs'), import('./db'),
   ]);
   if (n.inApp) addNotification(recipientId, 'rematch', n.inApp, link).catch(() => {});
   const u = await db.getUser(recipientId);
-  if (isNotifyEnabled(u as any, 'rematch')) {
+  const lineSent = isNotifyEnabled(u as any, 'rematch');
+  if (lineSent) {
     pushTo(recipientId, n.line, liffUrl(link), 'rematch').catch(() => {});
     webPushText(recipientId, n.webTitle, n.webBody, link, `rematch-${link}`).catch(() => {});
   }
+
+  // 再会エンジンは人が押していないのに**ユーザーへ通知を送る**。
+  // 受け取った側から見れば「運営から何か来た」ので、人の操作と同じ台帳に残す。
+  try {
+    const { audit, systemActor, AUDIT_ACTION } = await import('./auditLog');
+    const partner = ctx?.partnerId ? await db.getUser(ctx.partnerId) : null;
+    const me = u?.displayName || recipientId;
+    const you = partner?.displayName || ctx?.partnerId || '';
+    await audit({
+      ...systemActor('rematch'),
+      action: AUDIT_ACTION.rematchNotify,
+      targetKind: 'user', targetId: recipientId, targetName: u?.displayName || '',
+      summary: you
+        ? `「${me}」さんに、${you}さんとの再会の${ctx?.why || 'お知らせ'}を送った`
+        : `「${me}」さんに再会の${ctx?.why || 'お知らせ'}を送った`,
+      detail: {
+        partnerId: ctx?.partnerId, partnerName: partner?.displayName || '',
+        matchKind: ctx?.kind, link, line: lineSent ? '送信' : 'LINEはOFF（アプリ内のみ）',
+      },
+    });
+  } catch { /* ログは落ちても通知は止めない */ }
 }
 
 // 重なり（両者が行ける日）。
