@@ -148,11 +148,22 @@ export async function GET(req: NextRequest) {
     // --- Resolve display names for every referenced user ---
     // 「操作した人」だけでなく「操作の相手」(DMの宛先・閲覧されたプロフィールの本人)も
     // 名前解決の対象に含める。含めないと管理画面で「→ (未登録)」になってしまう。
+    // 再会エンジンのURLは /rematch/{userA}__{userB} で、**相手のIDがパスに入っている**。
+    // 名前解決の対象に入れておかないと、画面に生のIDが並ぶ（実際そうなっていた）。
+    const pairIdsIn = (page: string): string[] => {
+      const m = String(page || '').split('?')[0].match(/^\/rematch\/([^/]+)/);
+      if (!m) return [];
+      let raw = m[1];
+      try { raw = decodeURIComponent(raw); } catch { /* そのまま */ }
+      return raw.split('__').filter(Boolean);
+    };
     const ids = Array.from(new Set([
       ...Object.keys(perUser),
       ...Object.keys(swingPerUser),
       ...recentActions.map((a: any) => a.to).filter(Boolean),
       ...Object.values(perUser).map((v: any) => v.lastTo).filter(Boolean),
+      ...recentActions.flatMap((a: any) => pairIdsIn(a.page)),
+      ...Object.values(perUser).flatMap((v: any) => pairIdsIn(v.lastPage || '')),
     ]));
     const names: Record<string, string> = {};
     for (let i = 0; i < ids.length; i += 30) {
@@ -191,11 +202,22 @@ export async function GET(req: NextRequest) {
     }
     const roundTitleOf = (page: string) => roundTitles[roundIdOf(page)] || '';
 
+    // 「誰との再会か」。見ている本人を除いた**相手の名前**を返す。
+    // 本人がペアに含まれないとき（管理者が覗いた等）は両方の名前を出す。
+    const rematchWith = (page: string, viewerId: string): string => {
+      const [a, b] = pairIdsIn(page);
+      if (!a || !b) return '';
+      if (viewerId === a) return nameOf(b);
+      if (viewerId === b) return nameOf(a);
+      return `${nameOf(a)} ↔ ${nameOf(b)}`;
+    };
+
     // --- Assemble ---
     const activeUsers = Object.entries(perUser)
       .map(([id, v]) => ({ userId: id, name: nameOf(id), ...v, lastPageNorm: normPage(v.lastPage || ''),
         lastToName: (v as any).lastTo ? nameOf((v as any).lastTo) : '',
-        lastRoundTitle: roundTitleOf(v.lastPage || '') }))
+        lastRoundTitle: roundTitleOf(v.lastPage || ''),
+        lastRematchWith: rematchWith(v.lastPage || '', id) }))
       .sort((a, b) => b.lastTs - a.lastTs);
     const active24h = activeUsers.filter((u) => now - u.lastTs <= DAY).length;
     const active7d = activeUsers.filter((u) => now - u.lastTs <= 7 * DAY).length;
@@ -329,7 +351,11 @@ export async function GET(req: NextRequest) {
       popularPages,
       acquisition,
       menuEntries,
-      recentActions: recentActions.map((a: any) => ({ ...a, name: nameOf(a.userId), toName: a.to ? nameOf(a.to) : '', roundTitle: roundTitleOf(a.page) })),
+      recentActions: recentActions.map((a: any) => ({
+        ...a, name: nameOf(a.userId), toName: a.to ? nameOf(a.to) : '',
+        roundTitle: roundTitleOf(a.page),
+        rematchWith: rematchWith(a.page, a.userId),
+      })),
       swingUsers,
       recentSwings,
     }, { headers: noStore });

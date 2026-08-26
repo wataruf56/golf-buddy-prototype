@@ -10,7 +10,7 @@ type Report = {
   // 上部KPI（事業のボトルネックが見える4つ）
   kpi?: { monthPlayers: number; monthRounds: number; monthHosts: number; fillRate: number; active30d: number };
   summary: { active24h: number; active7d: number; totalUsersSeen: number; totalSwingUsers: number; totalSwings: number; logsScanned: number };
-  activeUsers: { userId: string; name: string; count: number; lastTs: number; lastPage: string; lastPageNorm?: string; lastActionTs: number; lastActionEvent: string; lastActionPage: string; lastToName?: string; lastRoundTitle?: string }[];
+  activeUsers: { userId: string; name: string; count: number; lastTs: number; lastPage: string; lastPageNorm?: string; lastActionTs: number; lastActionEvent: string; lastActionPage: string; lastToName?: string; lastRoundTitle?: string; lastRematchWith?: string }[];
   popularPages?: { page: string; views: number; users: number; lastTs: number }[];
   acquisition?: {
     total: number; tagged: number;
@@ -19,7 +19,7 @@ type Report = {
     byChannel?: { channel: string; count: number; tags: { source: string; count: number }[] }[];
   };
   menuEntries?: { menu: string; count: number }[];
-  recentActions: { userId: string; name: string; event: string; page: string; pageNorm?: string; ts: number; to?: string; toName?: string; roundTitle?: string }[];
+  recentActions: { userId: string; name: string; event: string; page: string; pageNorm?: string; ts: number; to?: string; toName?: string; roundTitle?: string; rematchWith?: string }[];
   swingUsers: { userId: string; name: string; total: number; done: number; lastAt: number }[];
   recentSwings: { userId: string; name: string; mode: string; status: string; createdAt: number }[];
 };
@@ -395,6 +395,9 @@ function Inner() {
                     <div className="text-[10px] text-muted break-words leading-snug">
                       {what}{u.lastToName && <span className="text-green font-bold"> → {u.lastToName}</span>}
                       {!u.lastToName && u.lastRoundTitle && <span className="text-blue font-bold"> → {u.lastRoundTitle}</span>}
+                      {!u.lastToName && !u.lastRoundTitle && u.lastRematchWith && (
+                        <span className="text-pink-600 font-bold"> → {u.lastRematchWith}さんとの再会</span>
+                      )}
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0 ml-2">
@@ -417,8 +420,14 @@ function Inner() {
                             {a.event === 'page_view' ? `📱 ${pageLabel(a.pageNorm || a.page)}を開いた` : eventJa(a.event)}
                             {a.toName && <span className="text-green font-bold"> → {a.toName}</span>}
                             {!a.toName && a.roundTitle && <span className="text-blue font-bold"> → {a.roundTitle}</span>}
+                            {/* 再会エンジンはURLにペアIDが入るだけなので、相手の名前に置き換える */}
+                            {!a.toName && !a.roundTitle && a.rematchWith && (
+                              <span className="text-pink-600 font-bold"> → {a.rematchWith}さんとの再会</span>
+                            )}
                           </div>
-                          {!a.toName && !a.roundTitle && <div className="text-[9px] text-muted break-all">{a.page}</div>}
+                          {!a.toName && !a.roundTitle && !a.rematchWith && (
+                            <div className="text-[9px] text-muted break-all">{a.page}</div>
+                          )}
                         </div>
                         <div className="text-[10px] text-muted flex-shrink-0 whitespace-nowrap">{ago(a.ts)}</div>
                       </div>
