@@ -130,7 +130,7 @@ const EVENT_LABEL: Record<string, string> = {
   dm_send: '💬 DMを送信',
   round_chat_send: '💬 ラウンドチャット送信',
   interest_toggle: '❤️ 気になるを操作',
-  match_select: '💘 マッチ選択（また回りたい/気になる）',
+  match_select: '🤝 マッチ選択（また回りたい/気になる）',
   invite_send: '💌 招待した',
   approve_applicant: '✅ 参加を承認',
   block_user: '🚫 ブロック',
@@ -163,7 +163,7 @@ const SCREEN_LABEL: Record<string, string> = {
   '/round/[id]/edit': '✏️ ラウンド編集',
   '/profile/[id]': '👤 他の人のプロフィール',
   '/poll/[id]': '📅 日程調整',
-  '/rematch/[id]': '💘 再会',
+  '/rematch/[id]': '🔁 再会',
   '/swing/[id]': '📊 スイング詳細',
   '/guide': '📖 ガイド',
 };
@@ -396,7 +396,7 @@ function Inner() {
                       {what}{u.lastToName && <span className="text-green font-bold"> → {u.lastToName}</span>}
                       {!u.lastToName && u.lastRoundTitle && <span className="text-blue font-bold"> → {u.lastRoundTitle}</span>}
                       {!u.lastToName && !u.lastRoundTitle && u.lastRematchWith && (
-                        <span className="text-pink-600 font-bold"> → {u.lastRematchWith}さんとの再会</span>
+                        <span className="text-blue font-bold"> → {u.lastRematchWith}さんとの再会</span>
                       )}
                     </div>
                   </div>
@@ -422,7 +422,7 @@ function Inner() {
                             {!a.toName && a.roundTitle && <span className="text-blue font-bold"> → {a.roundTitle}</span>}
                             {/* 再会エンジンはURLにペアIDが入るだけなので、相手の名前に置き換える */}
                             {!a.toName && !a.roundTitle && a.rematchWith && (
-                              <span className="text-pink-600 font-bold"> → {a.rematchWith}さんとの再会</span>
+                              <span className="text-blue font-bold"> → {a.rematchWith}さんとの再会</span>
                             )}
                           </div>
                           {!a.toName && !a.roundTitle && !a.rematchWith && (
