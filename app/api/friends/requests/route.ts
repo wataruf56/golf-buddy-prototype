@@ -65,6 +65,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'bad_request', message: '相手が正しくありません' }, { status: 400, headers: noStore });
   }
 
+  // どちらかが「ごめんなさい」を選んでいるペアは、友達申請でも繋がせない。
+  // ここを開けておくと、遮断した相手から申請が届いて連絡が再開してしまう。
+  // 断られた側に理由は返さない（「知られることはありません」の約束）。
+  try {
+    const { isBlocked } = await import('@/lib/dmBlock');
+    if (await isBlocked(meId, toId)) {
+      return NextResponse.json(
+        { error: 'not_allowed', message: 'この方には申請できません' },
+        { status: 403, headers: noStore },
+      );
+    }
+  } catch { /* 判定できなければ通常フローへ */ }
+
   // 「どちらでもない」で送信 → 申請は作らず、この相手への申請を24時間ロックする。
   // ラジオを選んだ時点では何も起きない（送信を押して初めてここに来る）。
   if (claim === 'none') {

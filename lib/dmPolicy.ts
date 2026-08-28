@@ -1,20 +1,32 @@
 import { db as appDb } from './db';
 import { getAdminDb } from './firebase';
 import { ADMIN_MANAGER_ID } from './adminManagerId';
+import { isSameGroup } from './groups';
 import type { Round } from './types';
 
-// DM（1対1メッセージ）を送れる相手の全社ルール（2026-08-09 確定仕様）。
-// サーバーの送信ゲート(/api/messages POST)・can-dm API・ホームの直近ログイングリッドの
-// すべてがこの1ファイルを使う。UI側の出し分けもここの結果に従うこと（個別実装しない）。
+// DM（1対1メッセージ）を送れる相手の全社ルール（2026-08-28 改定）。
+// サーバーの送信ゲート(/api/messages POST)・can-dm API・UIの出し分けは
+// すべてこの1ファイルを使う（個別実装しないこと）。
+//
+// 【この改定でやったこと】
+// 以前は「一度でも同じラウンドにいれば送れる」だった。コンペの参加者は
+// 別の組でも全員が対象になり、一度回っただけの相手からずっとDMが届いた。
+// 変更後は **お互いが望んだ相手だけ** に絞る。
 //
 // 送れる相手:
-//   1. QRコード等でつながったゴル友（User.friendIds — /api/friends が相互に書き込む）
-//   2. 同じラウンドを回った/回る人（主催者・共同管理者・参加確定に両者が含まれる。
-//      完了済み=過去に一緒にラウンド／コンペ、募集中・進行中=現在の同組メンバー。コンペも含む）
-//   3. 参加申請・招待の関係（片方が主催者/共同管理者、もう片方が申請中(pending)か招待中(invited)）
-//   4. 募集中(open)ラウンドの主催者・共同管理者（＝問い合わせ先として誰でも送れる）
-//   5. 管理人（サポート窓口 ADMIN_MANAGER_ID）とは常に相互に送れる
-//   6. 既存スレッドで相手から受信済みなら返信できる（canDm に chatId を渡した場合のみ判定）
+//   1. ゴル友（User.friendIds — QR / 友達申請の承認で相互に入る）
+//   2. **お互いが「また回りたい／気になる」を選んだ相手（＝マッチ）**
+//      片側だけでは不可。片側だけ許すと、選んでいない人が
+//      「返信できないDM」を受け取ることになるため。
+//   3. これから／いま一緒に回るラウンドの**同じ組**の人（当日の連絡に要る）
+//      完了したラウンドはここに入らない ＝ 過去の同組は 2. が要る。
+//      コンペで別の組の人は、開催前でも入らない（組が違えば当日の連絡も要らない）。
+//   4. 参加申請・招待の関係（主催者 ↔ 申請中/招待中）
+//   5. 募集中(open)ラウンドの主催者・共同管理者（問い合わせ先）
+//   6. 管理人（ADMIN_MANAGER_ID）とは常に相互に送れる
+//   7. 既存スレッドで相手から受信済みなら返信できる（canDm に chatId を渡した場合）
+//
+// ただし **「ごめんなさい」で遮断されたペアは、上のどれに当てはまっても送れない**。
 
 const memberSet = (r: Round) => new Set([r.hostId, ...(r.coHostIds || []), ...(r.applicantIds || [])].filter(Boolean));
 const hostSet = (r: Round) => new Set([r.hostId, ...(r.coHostIds || [])].filter(Boolean));
@@ -24,7 +36,6 @@ const seekSet = (r: Round) => new Set([...(r.pendingApplicantIds || []), ...(r.i
 async function listMyRounds(meId: string): Promise<Round[]> {
   const adb = getAdminDb() as any;
   if (!adb) {
-    // デモ/メモリ環境: 全件から抽出
     const all = await appDb.listRounds();
     return all.filter((r) => memberSet(r).has(meId) || seekSet(r).has(meId));
   }
@@ -54,42 +65,62 @@ export async function dmAllowedSet(meId: string, candidateIds: string[]): Promis
   const cands = Array.from(new Set(candidateIds.filter((id) => id && id !== meId)));
   if (!meId || !cands.length) return allowed;
 
-  // 管理人は常に相互OK
+  // 管理人は常に相互OK（遮断の対象にもしない）
   if (meId === ADMIN_MANAGER_ID) { cands.forEach((id) => allowed.add(id)); return allowed; }
   for (const id of cands) if (id === ADMIN_MANAGER_ID) allowed.add(id);
 
-  // 1. ゴル友（/api/friends は相互書き込みなので自分側だけ見れば足りる）
-  const me = await appDb.getUser(meId);
+  const [me, matched, blocked] = await Promise.all([
+    appDb.getUser(meId),
+    (async () => { const { mutualMatchSet } = await import('./matchPairs'); return mutualMatchSet(meId); })(),
+    (async () => { const { blockedSetOf } = await import('./dmBlock'); return blockedSetOf(meId); })(),
+  ]);
+
+  // 1. ゴル友（/api/friends は相互に書き込むので自分側だけ見れば足りる）
   const friends = new Set(me?.friendIds || []);
   for (const id of cands) if (friends.has(id)) allowed.add(id);
-  if (allowed.size === cands.length) return allowed;
 
-  // 4. 募集中ラウンドの主催者/共同管理者
-  const openHosts = new Set<string>();
-  try {
-    const open = await appDb.listRounds({ status: 'open' });
-    for (const r of open) { openHosts.add(r.hostId); for (const c of r.coHostIds || []) openHosts.add(c); }
-  } catch { /* best-effort */ }
+  // 2. マッチ（お互いが選び合った相手）
+  for (const id of cands) if (matched.has(id)) allowed.add(id);
 
-  // 2/3. 自分の関わるラウンドとの関係
-  const myRounds = await listMyRounds(meId);
-  for (const id of cands) {
-    if (allowed.has(id)) continue;
-    if (openHosts.has(id)) { allowed.add(id); continue; }
-    for (const r of myRounds) {
-      const m = memberSet(r), h = hostSet(r), s = seekSet(r);
-      if ((m.has(meId) && m.has(id)) || (h.has(meId) && s.has(id)) || (h.has(id) && s.has(meId))) {
-        allowed.add(id);
-        break;
+  if (allowed.size < cands.length) {
+    // 5. 募集中ラウンドの主催者/共同管理者
+    const openHosts = new Set<string>();
+    try {
+      const open = await appDb.listRounds({ status: 'open' });
+      for (const r of open) { openHosts.add(r.hostId); for (const c of r.coHostIds || []) openHosts.add(c); }
+    } catch { /* best-effort */ }
+
+    // 3/4. 自分の関わるラウンドとの関係
+    const myRounds = await listMyRounds(meId);
+    for (const id of cands) {
+      if (allowed.has(id)) continue;
+      if (openHosts.has(id)) { allowed.add(id); continue; }
+      for (const r of myRounds) {
+        const m = memberSet(r), h = hostSet(r), s = seekSet(r);
+        // 4. 申請・招待でやり取り中
+        if ((h.has(meId) && s.has(id)) || (h.has(id) && s.has(meId))) { allowed.add(id); break; }
+        // 3. これから／いま回るラウンドの同じ組
+        //    完了済みは対象外。過去に一緒だっただけではもう送れない。
+        if (r.status !== 'completed' && m.has(meId) && m.has(id) && isSameGroup(r, meId, id)) {
+          allowed.add(id); break;
+        }
       }
     }
   }
+
+  // 「ごめんなさい」の遮断は最後に効かせる（どの条件にも優先する）
+  blocked.forEach((id) => allowed.delete(id));
   return allowed;
 }
 
 // 単体判定。chatId を渡すと「相手から受信済みスレッドへの返信」も許可する。
 export async function canDm(meId: string, otherId: string, chatId?: string): Promise<boolean> {
   if (!meId || !otherId || meId === otherId) return false;
+  // 遮断は返信の許可よりも強い。ここで先に落とす。
+  if (meId !== ADMIN_MANAGER_ID && otherId !== ADMIN_MANAGER_ID) {
+    const { isBlocked } = await import('./dmBlock');
+    if (await isBlocked(meId, otherId)) return false;
+  }
   const set = await dmAllowedSet(meId, [otherId]);
   if (set.has(otherId)) return true;
   if (chatId) {
@@ -103,4 +134,4 @@ export async function canDm(meId: string, otherId: string, chatId?: string): Pro
 }
 
 // UI表示用の説明文（送れない理由の案内）。クライアントでそのまま出す。
-export const DM_POLICY_MSG = 'メッセージを送れるのは「ゴル友（QRでつながった人）」「一緒にラウンド・コンペを回った人（予定含む）」「参加申請・招待でやり取り中の相手」「募集中ラウンドの主催者」のみです';
+export const DM_POLICY_MSG = 'メッセージを送れるのは「ゴル友（QR・友達申請でつながった人）」「お互いに『また回りたい』を選んだ相手」「これから一緒に回る同じ組の人」「参加申請・招待でやり取り中の相手」「募集中ラウンドの主催者」のみです';

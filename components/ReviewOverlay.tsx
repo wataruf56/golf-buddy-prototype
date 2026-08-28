@@ -218,6 +218,15 @@ export function ReviewOverlay() {
                   {r.verdict === 'romantic' && (
                     <div className="text-[10px] text-pink-600 font-bold mt-1 text-center">「また一緒に回りたい」も自動で含まれます</div>
                   )}
+                  {/* 「ごめんなさい」はDMも閉じる。押す前に必ず伝える。
+                      「相手からも来なくなる」ことが、選ぶ人がいちばん気にする点。 */}
+                  {r.verdict === 'never' && (
+                    <div className="mt-1.5 bg-red-50 border-[1.5px] border-[#C0392B] rounded-[10px] p-2 text-[10.5px] font-bold text-[#C0392B] leading-relaxed">
+                      この人とは<b>メッセージのやり取りができなくなります</b>。
+                      そのあと<b>相手からDMが来ることもありません</b>。<br />
+                      相手に知られることはありません。
+                    </div>
+                  )}
                 </div>
               </div>
             );

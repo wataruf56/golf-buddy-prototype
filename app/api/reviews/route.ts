@@ -59,6 +59,16 @@ export async function POST(req: NextRequest) {
       ...(v ? { verdict: v } : {}),
       createdAt: Date.now(), isAnonymous: true,
     });
+    // 「ごめんなさい」はDMも双方向で閉じる。逆に別の答えに変わったら解く
+    // （また一緒に回って選び直したときの復活）。
+    if (v === 'never') {
+      try { const { blockDm } = await import('@/lib/dmBlock'); await blockDm(meId, revieweeId, roundId); }
+      catch (e) { console.error('[reviews] blockDm failed (non-fatal)', e); }
+    } else if (v) {
+      try { const { unblockDm } = await import('@/lib/dmBlock'); await unblockDm(meId, revieweeId); }
+      catch (e) { console.error('[reviews] unblockDm failed (non-fatal)', e); }
+    }
+
     if (pendingId) {
       try { await db.completePendingReview(pendingId, { roundId, reviewerId: meId, revieweeId }); }
       catch (e) { console.error('[completePendingReview] failed (non-fatal)', e); }

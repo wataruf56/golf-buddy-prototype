@@ -8,6 +8,7 @@ import { store, useStore } from '@/lib/store';
 import { chatIdFor } from '@/lib/utils';
 import { resizeImage } from '@/lib/resizeImage';
 import { MEET_OPTIONS, meetLabelOf } from '@/lib/meetOptions';
+import { FeelingBox } from '@/components/FeelingBox';
 
 // 再会エンジンの画面：候補日カレンダー → 3色重なり → この日で決定 → ラウンド投稿へ。
 type Data = {
@@ -35,7 +36,7 @@ type Data = {
 const DOW = ['日', '月', '火', '水', '木', '金', '土'];
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const mdLabel = (s: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s); return m ? `${Number(m[2])}/${Number(m[3])}` : s; };
-const SIZE_LABEL: Record<string, string> = { '2': '2サム', '3': '3サム', '4': 'フォーサム' };
+const SIZE_LABEL: Record<string, string> = { '2': '2サム', '3': '3サム', '4': '4サム' };
 const partyLabel = (sizes?: string[]) => {
   const s = sizes || [];
   const l = ['2', '3', '4'].filter((k) => s.includes(k)).map((k) => SIZE_LABEL[k]).join('・');
@@ -64,10 +65,14 @@ export default function RematchPage() {
   const [meetSel, setMeetSel] = useState<Set<string>>(new Set());
   const [meetBusy, setMeetBusy] = useState(false);
   const meetSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 「どっちでもいい」「ごめんなさい」を選んだ直後の完了表示。
+  const [endedBy, setEndedBy] = useState<'either' | 'never' | null>(null);
   const [chatText, setChatText] = useState('');
   const [chatSending, setChatSending] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const chatFileRef = useRef<HTMLInputElement>(null);
+
+  const pairId = params.pairId;
 
   const load = useCallback(async () => {
     try {
@@ -240,6 +245,29 @@ export default function RematchPage() {
     } catch { toast('失敗しました', 'error'); }
   }
 
+  // 自分で終わらせたときは、この画面はここで終わり。
+  if (endedBy) {
+    return (
+      <div className="px-5 py-3 pb-10">
+        <button onClick={() => router.push('/home')} className="text-sm text-blue font-semibold mb-3">← 戻る</button>
+        <div className="bg-card border-2 border-border rounded-card shadow-card p-5">
+          <div className="bg-green-light border-2 border-green rounded-xl p-3 text-center text-[13px] font-black text-green leading-relaxed">
+            {endedBy === 'never' ? '🙇 「ごめんなさい」にしました' : '🤷 「どっちでもいい」にしました'}
+          </div>
+          <div className="mt-3 bg-blue-light border-[1.5px] border-blue rounded-xl p-3 text-[11.5px] font-bold leading-relaxed">
+            <b className="text-blue">気が変わったら</b><br />
+            またこの人と一緒に回ったあとに「また回りたい」を選べば、
+            再会{endedBy === 'never' ? 'もメッセージも' : 'は'}元に戻ります。
+          </div>
+          <button onClick={() => router.push('/search')}
+            className="w-full mt-3 py-3 rounded-xl text-[13.5px] font-black border-2 border-border bg-card">
+            ほかの募集をさがす →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="px-5 py-3 pb-10">
       <div className="flex items-start justify-between mb-3 gap-2">
@@ -250,7 +278,6 @@ export default function RematchPage() {
               🔔 次の通知: {data.nextNotifyAt <= Date.now() ? 'まもなく' : (() => { const d = new Date(data.nextNotifyAt!); return `${d.getMonth() + 1}/${d.getDate()}`; })()}
             </div>
           )}
-          <button onClick={optout} className="text-[11px] text-muted underline whitespace-nowrap">この再会通知を止める</button>
         </div>
       </div>
 
@@ -267,6 +294,18 @@ export default function RematchPage() {
           </div>
         </div>
       </div>
+
+      {/* いまの気持ちの確認。1ヶ月前の「また回りたい」がいまも同じとは限らないので、
+          日程を入れる前にここで聞き直す。選び直すと過去のレビューとマッチが
+          その場で書き換わり、「ごめんなさい」ならDMも双方向で閉じる。
+          （以前あった右上の「この再会通知を止める」はこれに一本化して撤去した） */}
+      <FeelingBox
+        pairId={pairId}
+        isRomantic={isRomantic}
+        otherName={other.displayName || 'この方'}
+        roundDate={data.roundDate ? mdLabel(data.roundDate) : ''}
+        onChanged={(f) => { if (f === 'either' || f === 'never') setEndedBy(f); else load(); }}
+      />
 
       {/* romanticマッチ：会い方の複数選択。それ以外：希望人数（2/3/4サム）。
           どちらもボタン直タップで設定（複数可）。相手にも共有＆通知される。 */}
@@ -319,7 +358,7 @@ export default function RematchPage() {
         </div>
       ) : (
         <div className="bg-card rounded-card p-3.5 shadow-card mb-4">
-          <div className="text-[12px] font-black mb-1">🏌️ 希望人数（何人で回りたい・複数OK）</div>
+          <div className="text-[12px] font-black mb-1 leading-relaxed">🏌️ この人とだったら、どういう形でならまたラウンド回ってもいいですか？</div>
           <div className="text-[11px] text-sub mb-2.5 leading-relaxed">
             希望を選んで下の「送信」を押すと相手に共有されます。<b className="text-text">グレー</b>は相手が選んでいるもの、<b className="text-green">緑🤝</b>はお互いOK。
           </div>
@@ -347,7 +386,7 @@ export default function RematchPage() {
             })}
           </div>
           <button onClick={savePartySizes} disabled={partyBusy} className="w-full py-2.5 bg-green text-white rounded-xl text-[13px] font-black disabled:opacity-50">
-            {partyBusy ? '送信中…' : `この希望人数で送信（${partySel.size}件）`}
+            {partyBusy ? '送信中…' : `この希望で送信（${partySel.size}件）`}
           </button>
         </div>
       )}
@@ -368,7 +407,7 @@ export default function RematchPage() {
 
       {/* 候補日カレンダー（決定後も表示したまま。決定後は閲覧のみ） */}
       <>
-          <div className="text-[13px] font-black mb-1">📅 {agreed ? '入力した候補日（決定済み）' : '行ける日をタップ'}</div>
+          <div className="text-[13px] font-black mb-1">📅 {agreed ? '入力した候補日（決定済み）' : '行ける日を複数タップしてください'}</div>
           <div className="text-[11px] text-sub mb-2">{agreed ? '決まった日は緑、あなたの候補は黄で表示。候補日はそのまま残しています。' : 'お互いに行ける日を出し合うと、重なった日が青で表示されます。左右で月を切り替え。'}</div>
 
           {/* 過去に入力した候補日を最初から反映済み（未決定時のみ・案内） */}

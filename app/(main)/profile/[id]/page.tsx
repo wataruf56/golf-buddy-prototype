@@ -26,6 +26,10 @@ export default function ProfilePage() {
   const isBlocked = (me.blockedUserIds || []).includes(params.id || '');
   const isMe = meId === params.id;
   const [dmAllowed, setDmAllowed] = useState<boolean | null>(null); // null=判定中（ボタン非表示）
+  // 「ごめんなさい」で閉じている相手。友達申請の導線も出さない（連絡が再開できてしまうため）。
+  // declinedByMe のときだけ、断った本人に理由を出す。
+  const [declined, setDeclined] = useState(false);
+  const [declinedByMe, setDeclinedByMe] = useState(false);
 
   const [user, setUser] = useState<User | undefined>(cachedUser);
   const [notFound, setNotFound] = useState(false);
@@ -61,7 +65,12 @@ export default function ProfilePage() {
     const cid = chatIdFor(meId, params.id);
     fetch(`/api/me/can-dm?userId=${encodeURIComponent(params.id)}&chatId=${encodeURIComponent(cid)}`, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (!cancelled && d) setDmAllowed(!!d.allowed); })
+      .then((d) => {
+        if (cancelled || !d) return;
+        setDmAllowed(!!d.allowed);
+        setDeclined(!!d.declined);
+        setDeclinedByMe(!!d.declinedByMe);
+      })
       .catch(() => { /* 判定失敗時はボタンを出さない（サーバー側でも弾かれる） */ });
     return () => { cancelled = true; };
   }, [params.id, meId]);
@@ -252,13 +261,23 @@ export default function ProfilePage() {
           ) : dmAllowed === false ? (
             <>
               <div className="text-center py-3 px-4 bg-bg rounded-xl text-[11px] text-sub leading-relaxed">
-                💬 メッセージを送れるのは「ゴル友」「一緒にラウンド・コンペを回った人」「参加申請・招待中の相手」「募集中ラウンドの主催者」のみです
+                💬 メッセージを送れるのは「ゴル友（QR・友達申請）」「お互いに『また回りたい』を選んだ相手」「これから一緒に回る同じ組の人」「参加申請・招待中の相手」「募集中ラウンドの主催者」のみです
               </div>
+              {/* 断った本人にだけ理由を出す。自分の操作の結果だと分からないと
+                  「なぜ送れないのか」で混乱するため。相手には出さない。 */}
+              {declinedByMe && (
+                <div className="mt-2 text-center py-2.5 px-4 bg-yellow-light border-[1.5px] border-yellow rounded-xl text-[11.5px] font-black">
+                  あなたが「ごめんなさい」を選んでいます
+                </div>
+              )}
               {/* 一緒に回ったのに接点が記録されていない相手のための入口。
-                  承認されるとDMも解禁される。 */}
-              <div className="mt-3">
-                <FriendRequestButton toUserId={user.id} toName={user.displayName} />
-              </div>
+                  承認されるとDMも解禁される。
+                  ただし「ごめんなさい」で閉じている相手には出さない。 */}
+              {!declined && (
+                <div className="mt-3">
+                  <FriendRequestButton toUserId={user.id} toName={user.displayName} />
+                </div>
+              )}
             </>
           ) : null}
         </div>
