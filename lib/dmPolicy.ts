@@ -25,6 +25,10 @@ import type { Round } from './types';
 //   5. 募集中(open)ラウンドの主催者・共同管理者（問い合わせ先）
 //   6. 管理人（ADMIN_MANAGER_ID）とは常に相互に送れる
 //   7. 既存スレッドで相手から受信済みなら返信できる（canDm に chatId を渡した場合）
+//   8. **すでにDMのやり取りが始まっている相手**
+//      条件を絞ったせいで、進行中の会話が途中で切れてしまうのを防ぐための例外。
+//      新しい会話はこの例外では始められない（送るには 1〜7 のどれかが要る）ので、
+//      抜け道にはならない。
 //
 // ただし **「ごめんなさい」で遮断されたペアは、上のどれに当てはまっても送れない**。
 
@@ -108,6 +112,20 @@ export async function dmAllowedSet(meId: string, candidateIds: string[]): Promis
     }
   }
 
+  // 8. すでに会話が始まっている相手は維持する。
+  //    条件を絞った日をまたいで、進行中のやり取りが急に途切れないようにする。
+  if (allowed.size < cands.length) {
+    try {
+      const chats = await appDb.listChatsForUser(meId);
+      for (const c of chats) {
+        if (!c.lastMessageAt) continue;   // 部屋だけあって1通も無いものは対象外
+        for (const p of c.participants || []) {
+          if (p !== meId && cands.includes(p)) allowed.add(p);
+        }
+      }
+    } catch { /* 取れなければ他の条件だけで判定される */ }
+  }
+
   // 「ごめんなさい」の遮断は最後に効かせる（どの条件にも優先する）
   blocked.forEach((id) => allowed.delete(id));
   return allowed;
@@ -134,4 +152,4 @@ export async function canDm(meId: string, otherId: string, chatId?: string): Pro
 }
 
 // UI表示用の説明文（送れない理由の案内）。クライアントでそのまま出す。
-export const DM_POLICY_MSG = 'メッセージを送れるのは「ゴル友（QR・友達申請でつながった人）」「お互いに『また回りたい』を選んだ相手」「これから一緒に回る同じ組の人」「参加申請・招待でやり取り中の相手」「募集中ラウンドの主催者」のみです';
+export const DM_POLICY_MSG = 'メッセージを送れるのは「ゴル友（QR・友達申請でつながった人）」「お互いに『また回りたい』を選んだ相手」「これから一緒に回る同じ組の人」「参加申請・招待でやり取り中の相手」「募集中ラウンドの主催者」、それとすでにやり取りのある相手のみです';
