@@ -644,18 +644,30 @@ export default function RoundDetailPage() {
         {/* 募集の性別内訳（ターゲット枠）は詳細画面では非表示。主催者の編集画面でのみ扱う
             （ぱっと見で「実際の参加内訳」と混同して分かりにくいため）。 */}
 
-        {/* 参加状況。飲み会は定員なしなので人数だけ、ゴルフは「何人中何人」＋バー。 */}
-        <div className="mb-4">
-          <div className="flex justify-between items-baseline mb-1.5">
-            <span className="text-xs font-semibold text-sub">参加状況</span>
-            <span className="text-sm font-black text-orange">{isDrink ? `🍻 ${round.currentCount}人 参加中` : `${round.currentCount}/${round.maxSpots}人 参加中`}</span>
-          </div>
-          {!isDrink && (
-            <div className="w-full h-2 bg-bg rounded overflow-hidden">
-              <div className="h-full bg-orange rounded" style={{ width: `${Math.round((round.currentCount / Math.max(1, round.maxSpots)) * 100)}%` }} />
+        {/* 参加状況。飲み会は定員なしなので人数だけ、ゴルフは「何人中何人」＋バー。
+            参加ボタンをオレンジにしたので、ここは主役を譲って落ち着いた色にする。
+            並べて同じ色にすると、どちらを押せばいいのか分からなくなる。
+            ただし満員が近いときだけはオレンジに戻す（そこは急ぐ情報のため）。 */}
+        {(() => {
+          const rate = round.currentCount / Math.max(1, round.maxSpots);
+          const urgent = !isDrink && rate >= 0.75;
+          return (
+            <div className="mb-4">
+              <div className="flex justify-between items-baseline mb-1.5">
+                <span className="text-xs font-semibold text-sub">参加状況</span>
+                <span className={'text-sm font-black ' + (urgent ? 'text-orange' : 'text-sub')}>
+                  {isDrink ? `🍻 ${round.currentCount}人 参加中` : `${round.currentCount}/${round.maxSpots}人 参加中`}
+                </span>
+              </div>
+              {!isDrink && (
+                <div className="w-full h-2 bg-bg rounded overflow-hidden">
+                  <div className={'h-full rounded ' + (urgent ? 'bg-orange' : 'bg-muted')}
+                    style={{ width: `${Math.round(rate * 100)}%` }} />
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          );
+        })()}
 
         {/* コミュニケーション導線（常時表示） */}
         {canChatGroup && (
