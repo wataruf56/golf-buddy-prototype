@@ -17,6 +17,15 @@ export type FunnelStage = {
   goal?: boolean;
   /** この段と次の段のあいだで「何が起きて消えたのか」。人数だけだと理由が分からない。 */
   lostNote?: string;
+  /** 「これはどの画面のこと？」を開いて確かめられるようにする。
+   *  数字だけ見ても、直す場所が分からないため。 */
+  detail?: {
+    screen: string;          // 画面の名前
+    url?: string;            // 実際に開けるURL（ログイン不要のものだけ）
+    what: string;            // その画面で何が起きているか
+    why?: string;            // ここで止まる理由
+    fix?: string;            // 打ち手
+  };
 };
 
 const W = 320;          // 図の幅
@@ -86,6 +95,39 @@ export function FunnelChart({ stages, unit = '人' }: { stages: FunnelStage[]; u
           );
         })}
       </svg>
+
+      {/* 「どの画面のこと？」を開けるようにする。図だけでは直す場所に結びつかない。 */}
+      {rows.some((r) => r.detail) && (
+        <div className="mt-3 space-y-1.5">
+          {rows.filter((r) => r.detail).map((r) => (
+            <details key={r.key} className="bg-bg border-[1.5px] border-border rounded-lg">
+              <summary className="cursor-pointer list-none px-2.5 py-2 text-[11.5px] font-black flex items-center gap-1.5">
+                <span className="text-muted">▸</span>
+                <span className="flex-1 min-w-0">{r.label}</span>
+                <span className="text-[11px] font-black flex-none">{r.n}{unit}</span>
+              </summary>
+              <div className="px-2.5 pb-2.5 pt-0.5 text-[11px] font-bold leading-relaxed">
+                <div className="text-sub">📱 {r.detail!.screen}</div>
+                {r.detail!.url && (
+                  <a href={r.detail!.url} target="_blank" rel="noreferrer"
+                    className="text-blue underline break-all">{r.detail!.url}</a>
+                )}
+                <div className="mt-1.5">{r.detail!.what}</div>
+                {r.detail!.why && (
+                  <div className="mt-1.5 bg-red-50 border border-red-200 rounded p-1.5">
+                    <b className="text-red-700">止まる理由</b>：{r.detail!.why}
+                  </div>
+                )}
+                {r.detail!.fix && (
+                  <div className="mt-1.5 bg-green-light border border-green rounded p-1.5">
+                    <b className="text-green">打ち手</b>：{r.detail!.fix}
+                  </div>
+                )}
+              </div>
+            </details>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

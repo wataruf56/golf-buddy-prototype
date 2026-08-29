@@ -282,27 +282,63 @@ function Inner() {
             // 数字だけだと、どこを直せばいいのかが分からない。
             const stages: FunnelStage[] = [
               { key: 'view', label: 'LPに来た', n: g('view'), note: '広告・検索・SNSから',
-                lostNote: '途中で読むのをやめた' },
+                lostNote: '途中で読むのをやめた',
+                detail: { screen: 'トップLP（goltomo.com）', url: 'https://goltomo.com/',
+                  what: '広告・検索・インスタから最初に着く画面。ここに来た人が母数になります。',
+                  why: '見出しと写真で「自分向けか」が伝わらないと、そのまま閉じられます。',
+                  fix: 'ヒーローの写真と見出しを見直す。読み込みの速さも効きます。' } },
               { key: 'd100', label: 'LPを最後まで読んだ', n: g('d100'),
-                lostNote: '読んだけどボタンを押さなかった' },
+                lostNote: '読んだけどボタンを押さなかった',
+                detail: { screen: 'トップLPの下部（CTAのあるところ）', url: 'https://goltomo.com/#cta',
+                  what: '最後まで読んだのに、LINEのボタンを押さなかった人がここで落ちます。',
+                  why: '「LINEに飛ぶ」ことへの警戒、料金や強制されないかが分からない不安。',
+                  fix: 'ボタンの近くに「無料」「まずは見るだけでOK」を置く。' } },
               { key: 'click', label: 'LINEのボタンを押した', n: g('click'),
-                lostNote: '押したのにLINEアプリに切り替わらなかった' },
+                lostNote: '押したのにLINEアプリに切り替わらなかった',
+                detail: { screen: 'ブラウザ → LINEアプリへの受け渡し',
+                  what: 'ボタンを押すと /app → LIFFのURLへ転送され、LINEアプリが開きます。',
+                  why: 'PCで見ている・LINEが入っていない・ブラウザが転送を止める、など。',
+                  fix: 'PCから来た人にはQRを出す。転送が失敗したときの案内を出す。' } },
               { key: 'goal', label: 'LINEアプリに移った', n: g('goal'), note: 'LPを出た' },
             ];
-            // LIFF側の計測がある期間だけ、その先も1本につなげる
+            // LIFF側の計測がある期間だけ、その先も**同じ1本**につなげる。
+            // 以前は「入口から会員まで」と「LINEへ飛んだ後」で図が2つに割れていて、
+            // 同じ段（LINEへ進んだ人）が両方に出てきて分かりにくかった。
             if (lp && (lp.open > 0 || lp.newUser > 0)) {
-              // ここが分かりにくかった箇所。LINEに移ったあと、まだ友だちでない人には
-              // 「友だち追加」の画面が出る。それを越えて初めてゴルトモの画面が開く。
               stages[stages.length - 1].lostNote = '友だち追加の画面で止まった・LINEを閉じた';
+              stages[stages.length - 1].detail = {
+                screen: 'LINEの「友だち追加」画面',
+                what: 'まだ友だちでない人には、ゴルトモを追加する画面が先に出ます。',
+                why: 'ここで「追加」を押さずに閉じると、アプリまで届きません。',
+                fix: 'LPで「LINEの友だち追加が必要です」と先に伝えておく。',
+              };
               stages.push({
                 key: 'open', label: 'ゴルトモの画面が開いた', n: lp.open,
                 note: '友だち追加まで済んだ人',
-                lostNote: '画面は開いたが登録の途中でやめた',
+                lostNote: 'ログイン画面などで戻ってしまった',
+                detail: { screen: 'アプリの起動画面（/liff）',
+                  what: 'LINEの中でゴルトモが開き、ログイン処理が走っています。',
+                  why: 'ログインが必要な人はLINEのログイン画面へ飛び、そこで戻ってしまうことがあります。',
+                  fix: '起動が遅いと離脱するので、起動画面の待ち時間を短くする。' },
               });
-              stages.push({ key: 'new', label: '🆕 会員になった', n: lp.newUser, goal: true });
+              stages.push({
+                key: 'auth', label: 'ログインが通った', n: lp.auth, note: 'アプリの中に入れた',
+                lostNote: '入れたが新規登録ではなかった（既存会員の再ログイン）',
+                detail: { screen: 'ホーム（/home）',
+                  what: 'ここまで来た人はアプリの中に入れています。',
+                  why: 'すでに会員の人はここで「再ログイン」に数えられ、新規には入りません。',
+                  fix: '新規と再ログインの差が大きいときは、既存会員の再訪が多いということ。' },
+              });
+              stages.push({
+                key: 'new', label: '🆕 会員になった', n: lp.newUser, goal: true,
+                detail: { screen: '会員データが作られた時点',
+                  what: 'users にドキュメントが作られた＝本当の登録完了です。',
+                  fix: 'この数字だけが「増えた会員」。ほかの段はすべて途中経過です。' },
+              });
             }
             return (
-              <Card title="🔻 入口から会員まで" sub="上が入口、下へ行くほど絞られます。赤字は「そこで何人が、なぜ消えたか」">
+              <Card title="🔻 入口から会員まで（1本）"
+                sub="上が入口、下へ行くほど絞られます。赤字は「そこで何人が、なぜ消えたか」。段をタップすると、それがどの画面のことか開きます">
                 <FunnelChart stages={stages} />
                 {!lp && (
                   <div className="text-[10.5px] text-muted mt-1 leading-relaxed">
@@ -350,8 +386,8 @@ function Inner() {
           {/* LINEへ飛んだ後、どこで落ちたか */}
           {data.liffFunnel && (data.liffFunnel.open > 0 || data.liffFunnel.signup > 0 || (data.signups?.total || 0) > 0) && (
             <Card
-              title="🔻 LINEへ飛んだ後、どこで落ちたか"
-              sub="上の図のうち、LINEに移ってから先だけを細かく見た図。LPから飛んだ人だけを1人ずつ追跡しています"
+              title="📌 上の図の補足"
+              sub="ファネルの段には数えないもの（枝道・既存会員・失敗）と、サーバー実測との答え合わせ"
             >
               {(() => {
                 const all = data.liffFunnel!;
@@ -363,35 +399,10 @@ function Inner() {
                 const goal = data.funnel.find((x) => x.key === 'goal')?.n || 0;
                 // 旧イベント(liff_signup)しか無い期間は、新規と既存を分けられない。
                 const legacyOnly = f.newUser === 0 && f.returning === 0 && all.signup > 0;
-                // ここも逆三角形に統一する。
-                // 以前は棒グラフで7項目を縦に並べていたが、「LINEログインへ進んだ1人 →
-                // ログインから戻ってきた0人 → サーバー認証が通った7人」のように
-                // 増えたり減ったりして、ファネルとして読めなかった。
-                // ログインは**全員が通る段ではなく枝道**（ログイン済みの人は通らない）なので、
-                // 段には入れず下の「補足」に出す。
-                const stages: FunnelStage[] = legacyOnly
-                  ? [
-                      { key: 'goal', label: 'LPで「LINEへ」を押した', n: goal, note: 'ここまではLP側の計測',
-                        lostNote: '友だち追加の画面で止まった・LINEを閉じた' },
-                      { key: 'open', label: 'ゴルトモの画面が開いた', n: f.open, note: '友だち追加まで済んだ人',
-                        lostNote: '画面は開いたが先へ進まなかった' },
-                      { key: 'legacy', label: 'セッション発行まで到達（旧計測）', n: all.signup,
-                        note: '新規と既存を区別していない古い値', goal: true },
-                    ]
-                  : [
-                      { key: 'goal', label: 'LPで「LINEへ」を押した', n: goal, note: 'ここまではLP側の計測',
-                        lostNote: '友だち追加の画面で止まった・LINEを閉じた' },
-                      { key: 'open', label: 'ゴルトモの画面が開いた', n: f.open, note: '友だち追加まで済んだ人',
-                        lostNote: 'ログイン画面などで戻ってしまった' },
-                      { key: 'auth', label: 'ログインが通った', n: f.auth, note: 'アプリの中に入れた',
-                        lostNote: '入れたが新規登録ではなかった（既存会員の再ログイン）' },
-                      { key: 'new', label: '🆕 新しく会員になった', n: f.newUser, note: 'これが本当の登録完了', goal: true },
-                    ];
                 return (
                   <>
-                    <FunnelChart stages={stages} />
-
-                    {/* ファネルの段ではないもの。混ぜると数字が increase して読めなくなる。 */}
+                    {/* ファネルの段ではないもの。混ぜると数字が増えたり減ったりして読めなくなる。
+                        図そのものは上の「入口から会員まで」に統合した。 */}
                     <div className="mt-3 rounded-lg border border-border bg-bg p-2.5">
                       <div className="text-[11px] font-black mb-1">📌 段には数えない内訳</div>
                       <ul className="text-[11.5px] leading-relaxed space-y-0.5">

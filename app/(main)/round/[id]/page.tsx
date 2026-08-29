@@ -248,6 +248,10 @@ export default function RoundDetailPage() {
   const canDmHost = round.status === 'open' || canDmMembers || isPending || (round.invitedIds || []).includes(meId);
   // 飲み会（eventType='drink'）: 定員なし・ゴルフ場/組み分け/送迎/レビュー無し。
   const isDrink = round.eventType === 'drink';
+  // 画面下に貼りつく参加ボタンを出すか。
+  // 募集を読んでいるうちにボタンが画面外へ消えてしまい、戻ってこない人がいた
+  // （実測：ボタンが出ている状態で開いた14人のうち押したのは4人）。
+  // インラインのボタンはそのまま残し、常に押せる導線を下に足す。
   const isFull = !isDrink && round.currentCount >= round.maxSpots;
   const remaining = round.maxSpots - round.currentCount;
   const isComp = !isDrink && round.maxSpots >= 5;
@@ -722,29 +726,43 @@ export default function RoundDetailPage() {
           <div className="text-center py-3 bg-bg text-muted rounded-xl text-sm font-bold mb-4">満員のため受付終了</div>
         ) : (
           <div className="mb-4">
-            <button onClick={join} className="w-full py-4 bg-green text-white rounded-xl text-[15px] font-bold">
+            {/* ボタンは画面でいちばん強い色にする。以前は濃いティールで、
+                周りのカードもティール系だったため背景に溶けていた。
+                文言も「◯◯を登録して参加する」をやめる。参加の前に“作業”を
+                置くと、そこで止まってしまう（名前の登録は押したあとに聞く）。 */}
+            <button onClick={join}
+              className="w-full py-4 rounded-xl text-[16px] font-black text-white bg-orange border-2 border-[#C24E2C] shadow-[0_3px_0_#C24E2C]">
               {(() => {
-                // 飲み会は定員なしなので「残り◯枠」を出さない。
                 const slots = isDrink ? '' : `（残り${remaining}枠）`;
                 return !meId
-                  ? `LINEログインして参加する${slots}`
-                  : joinReady
-                    ? (isInvited ? `招待を承認して参加する${slots}` : `参加を申請する${slots}`)
-                    : !profileReady
-                      ? `プロフィール登録して参加する${slots}`
-                      : `お名前を登録して参加する${slots}`;
+                  ? `LINEで参加する${slots}`
+                  : isInvited ? `招待を承認して参加する${slots}` : `この募集に参加する${slots}`;
               })()}
             </button>
+            {/* 押す前にいちばん気になること（確定するのか・取り消せるのか・
+                お金がかかるのか）を先に潰す。 */}
+            <div className="flex flex-wrap gap-1.5 justify-center mt-2.5">
+              {(!meId
+                ? ['まずは閲覧だけでもOK', '参加するときだけログイン']
+                : isInvited
+                  ? ['承認するとすぐ参加確定']
+                  : ['主催者の承認制', 'あとで取り消せます', 'いま費用はかかりません']
+              ).map((t) => (
+                <span key={t} className="text-[10.5px] font-black bg-card border-[1.5px] border-hair rounded-full px-2.5 py-1 text-sub">
+                  {t}
+                </span>
+              ))}
+            </div>
             <div className="text-[11px] text-muted text-center mt-2">
               {!meId
-                ? 'まずは中身を自由に閲覧できます。参加する時だけログインが必要です'
+                ? '参加する時だけLINEログインが必要です'
                 : joinReady
                   ? (isInvited
                       ? '招待されています。承認するとすぐに参加確定になります'
-                      : isDrink ? '「参加を申請する」を押すと主催者に申請が届きます' : '参加申請の前に、送迎（ピックアップ）についてうかがいます')
+                      : isDrink ? '押すと主催者に申請が届きます' : '押したあと、送迎（ピックアップ）についてうかがいます')
                   : !profileReady
-                    ? '次の画面でプロフィールを登録すると、戻ってきて参加できます'
-                    : isDrink ? 'お名前（漢字フルネーム）の登録が必要です' : 'ゴルフ場への届出用に、お名前（漢字フルネーム）の登録が必要です'}
+                    ? '押したあとにプロフィールを登録すると、戻ってきて参加できます'
+                    : 'ゴルフ場に出す名簿に使うお名前を、押したあとにうかがいます'}
             </div>
           </div>
         )}
@@ -1029,6 +1047,29 @@ export default function RoundDetailPage() {
 
       {pickupOpen && (
         <PickupJoinModal me={me} onClose={() => setPickupOpen(false)} onSubmit={submitJoin} />
+      )}
+
+      {/* 画面下に貼りつく参加ボタン。スクロールしても押せる状態を保つ。
+          .screen が唯一のスクロール領域で、タブバーはその外にあるため
+          sticky bottom-0 でタブバーのすぐ上に止まる。 */}
+      {round.status === 'open' && !officialActive && !isHost && !isApproved && !isPending && !isFull && (
+        <div className="sticky bottom-0 -mx-5 mt-4 px-4 pt-2.5 pb-3 bg-card border-t-2 border-border">
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-[11.5px] font-black leading-tight truncate">
+                {dateLabel}{round.startTime ? ` ${round.startTime}` : ''}
+                {!isDrink && <span className="text-orange"> ・残り{remaining}枠</span>}
+              </div>
+              <div className="text-[10px] font-bold text-sub mt-0.5">
+                {joinReady ? 'あとで取り消せます' : '登録はすぐ終わります'}
+              </div>
+            </div>
+            <button onClick={join}
+              className="flex-none px-5 py-3 rounded-xl text-[14.5px] font-black text-white bg-orange border-2 border-[#C24E2C] shadow-[0_3px_0_#C24E2C]">
+              {!meId ? 'LINEで参加' : joinReady ? (isInvited ? '招待を承認' : '参加する') : '参加する'}
+            </button>
+          </div>
+        </div>
       )}
 
       {shareOpen && (
