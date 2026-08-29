@@ -175,8 +175,10 @@ export default async function middleware(req: NextRequest) {
       path.startsWith('/api/lp/') ||
       path.startsWith('/api/auth/') ||
       path === '/liff' || path.startsWith('/liff/') ||
-      path.startsWith('/icons/') || path === '/manifest.json' || path === '/favicon.ico' ||
-      path === '/apple-touch-icon.png' || path === '/icon-256.png'
+      // 静的ファイルは拡張子でまとめて通す。ここを1つずつ列挙していたせいで、
+      // 画像を1枚足すたびに管理画面だけ404になっていた（funnel-shots で再発）。
+      /\.(png|jpe?g|webp|svg|gif|ico|css|js|mjs|map|woff2?|ttf|otf|json|txt|xml)$/i.test(path) ||
+      path.startsWith('/icons/') || path === '/manifest.json'
     ) {
       // Pass the pathname into server components so the admin layout can
       // skip its auth check on /admin/login (avoid redirect loops).
