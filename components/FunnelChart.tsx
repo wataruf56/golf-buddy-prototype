@@ -23,6 +23,8 @@ export type FunnelStage = {
     screen: string;          // 画面の名前
     url?: string;            // 実際に開けるURL（ログイン不要のものだけ）
     what: string;            // その画面で何が起きているか
+    image?: string;          // 実際のスクショ（public/funnel-shots/*.jpg）
+    noImage?: string;        // 撮れない画面の理由（LINEアプリ内など）
     why?: string;            // ここで止まる理由
     fix?: string;            // 打ち手
   };
@@ -111,6 +113,17 @@ export function FunnelChart({ stages, unit = '人' }: { stages: FunnelStage[]; u
                 {r.detail!.url && (
                   <a href={r.detail!.url} target="_blank" rel="noreferrer"
                     className="text-blue underline break-all">{r.detail!.url}</a>
+                )}
+                {/* 実画面のスクショ。数字と画面が結びつかないと直せない。 */}
+                {r.detail!.image && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={r.detail!.image} alt={r.detail!.screen} loading="lazy"
+                    className="w-full max-w-[190px] mt-2 rounded-lg border-[1.5px] border-border" />
+                )}
+                {r.detail!.noImage && (
+                  <div className="mt-2 bg-bg border border-dashed border-hair rounded p-1.5 text-[10.5px] text-muted">
+                    📷 {r.detail!.noImage}
+                  </div>
                 )}
                 <div className="mt-1.5">{r.detail!.what}</div>
                 {r.detail!.why && (

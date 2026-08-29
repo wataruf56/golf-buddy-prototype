@@ -284,21 +284,25 @@ function Inner() {
               { key: 'view', label: 'LPに来た', n: g('view'), note: '広告・検索・SNSから',
                 lostNote: '途中で読むのをやめた',
                 detail: { screen: 'トップLP（goltomo.com）', url: 'https://goltomo.com/',
+                  image: '/funnel-shots/lp-top.jpg',
                   what: '広告・検索・インスタから最初に着く画面。ここに来た人が母数になります。',
                   why: '見出しと写真で「自分向けか」が伝わらないと、そのまま閉じられます。',
                   fix: 'ヒーローの写真と見出しを見直す。読み込みの速さも効きます。' } },
               { key: 'd100', label: 'LPを最後まで読んだ', n: g('d100'),
                 lostNote: '読んだけどボタンを押さなかった',
-                detail: { screen: 'トップLPの下部（CTAのあるところ）', url: 'https://goltomo.com/#cta',
-                  what: '最後まで読んだのに、LINEのボタンを押さなかった人がここで落ちます。',
+                detail: { screen: 'トップLPの下部（読み終わったところ）', url: 'https://goltomo.com/',
+                  image: '/funnel-shots/lp-cta.jpg',
+                  what: '最後まで読んだ人が見ている画面。下に「無料ではじめる」が貼りついています。',
                   why: '「LINEに飛ぶ」ことへの警戒、料金や強制されないかが分からない不安。',
                   fix: 'ボタンの近くに「無料」「まずは見るだけでOK」を置く。' } },
               { key: 'click', label: 'LINEのボタンを押した', n: g('click'),
                 lostNote: '押したのにLINEアプリに切り替わらなかった',
                 detail: { screen: 'ブラウザ → LINEアプリへの受け渡し',
+                  noImage: '画面ではなく転送処理なので、写せる絵がありません。',
                   what: 'ボタンを押すと /app → LIFFのURLへ転送され、LINEアプリが開きます。',
-                  why: 'PCで見ている・LINEが入っていない・ブラウザが転送を止める、など。',
-                  fix: 'PCから来た人にはQRを出す。転送が失敗したときの案内を出す。' } },
+                  why: 'PCで見ている・LINEが入っていない、など。実際にPCのブラウザから開くと'
+                    + '「ログインできませんでした」の赤いLINEログイン画面に着きます（確認済み）。',
+                  fix: 'PCから来た人にはQRを出す。ここが全段でいちばん落ちているので最優先。' } },
               { key: 'goal', label: 'LINEアプリに移った', n: g('goal'), note: 'LPを出た' },
             ];
             // LIFF側の計測がある期間だけ、その先も**同じ1本**につなげる。
@@ -308,6 +312,7 @@ function Inner() {
               stages[stages.length - 1].lostNote = '友だち追加の画面で止まった・LINEを閉じた';
               stages[stages.length - 1].detail = {
                 screen: 'LINEの「友だち追加」画面',
+                noImage: 'LINEアプリが出す画面なので、こちらでは写せません。',
                 what: 'まだ友だちでない人には、ゴルトモを追加する画面が先に出ます。',
                 why: 'ここで「追加」を押さずに閉じると、アプリまで届きません。',
                 fix: 'LPで「LINEの友だち追加が必要です」と先に伝えておく。',
@@ -317,6 +322,7 @@ function Inner() {
                 note: '友だち追加まで済んだ人',
                 lostNote: 'ログイン画面などで戻ってしまった',
                 detail: { screen: 'アプリの起動画面（/liff）',
+                  noImage: 'LINEの中でしか正しく開かない画面のため、写せません。',
                   what: 'LINEの中でゴルトモが開き、ログイン処理が走っています。',
                   why: 'ログインが必要な人はLINEのログイン画面へ飛び、そこで戻ってしまうことがあります。',
                   fix: '起動が遅いと離脱するので、起動画面の待ち時間を短くする。' },
@@ -325,6 +331,7 @@ function Inner() {
                 key: 'auth', label: 'ログインが通った', n: lp.auth, note: 'アプリの中に入れた',
                 lostNote: '入れたが新規登録ではなかった（既存会員の再ログイン）',
                 detail: { screen: 'ホーム（/home）',
+                  image: '/funnel-shots/home.jpg',
                   what: 'ここまで来た人はアプリの中に入れています。',
                   why: 'すでに会員の人はここで「再ログイン」に数えられ、新規には入りません。',
                   fix: '新規と再ログインの差が大きいときは、既存会員の再訪が多いということ。' },
@@ -332,6 +339,7 @@ function Inner() {
               stages.push({
                 key: 'new', label: '🆕 会員になった', n: lp.newUser, goal: true,
                 detail: { screen: '会員データが作られた時点',
+                  noImage: '画面ではなくデータの出来事なので、絵はありません。',
                   what: 'users にドキュメントが作られた＝本当の登録完了です。',
                   fix: 'この数字だけが「増えた会員」。ほかの段はすべて途中経過です。' },
               });
