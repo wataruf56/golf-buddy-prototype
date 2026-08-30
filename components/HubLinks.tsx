@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { rememberLpOrigin } from '@/lib/lpOrigin';
 
 // /links（インスタのlink-in-bio）のCTA。表示（open）とクリック（line）を /api/lp/hit に
 // 計測する。beaconなのでナビゲーションを妨げない。
@@ -56,7 +57,14 @@ function hit(t: 'open' | 'line' | 'rounds') {
 }
 
 export function HubLinks() {
-  useEffect(() => { rememberRef(); hit('open'); }, []);
+  useEffect(() => {
+    rememberRef();
+    // LINEの友だち追加URLにはパラメータを載せられないため、「リンクハブから来た」
+    // ことを同一オリジンの localStorage に残す。あとで /liff が読んで、
+    // 「LINEアプリに移った」から先の段につなげる。
+    rememberLpOrigin('links');
+    hit('open');
+  }, []);
   return (
     <div className="w-full mt-8 flex flex-col gap-4">
       {/* 友だち追加をためらう人の受け皿。中身を見てから決めてもらう。

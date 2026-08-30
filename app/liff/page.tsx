@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { track } from '@/lib/telemetry';
+import { takeLpOrigin } from '@/lib/lpOrigin';
 
 // LIFF entry: initialize SDK → ensure logged in → exchange idToken for our cookie → redirect.
 // Default redirect target is /home, override with ?to=/round/xxx etc.
@@ -110,7 +111,9 @@ function LiffEntryInner() {
       ref: urlRefRaw,
       // どのLPから飛んできたか（top=普通のLP / mbti=診断LP / links=リンクハブ）。
       // LPのCTAが ?lp= を付けてくれる。リッチメニュー等から直接来た場合は空。
-      fromLp: (search?.get('lp') || '').replace(/[^a-z]/g, '').slice(0, 20),
+      // ただし /links（インスタのリンクハブ）はLINEの友だち追加URLへ直接飛ばすため
+      // パラメータを運べない。同一オリジンに残した記憶をここで拾う（一度きり）。
+      fromLp: (search?.get('lp') || '').replace(/[^a-z]/g, '').slice(0, 20) || takeLpOrigin(),
     };
 
     let cancelled = false;

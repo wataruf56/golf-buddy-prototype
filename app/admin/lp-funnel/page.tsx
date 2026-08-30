@@ -518,7 +518,10 @@ function Inner() {
                       <div className="mt-3">
                         <div className="text-[11px] font-black mb-1">どのLPから飛んだ人か</div>
                         <div className="text-[10px] text-muted mb-1 leading-relaxed">
-                          1人を1つの行にだけ数えます（最初に来たLP）。だから縦に足すと上の全体と合います。
+                          1人を1つの行にだけ数えます（最初に来たLP）。だから縦に足すと上の全体と合います。<br />
+                          <b className="text-text">📸 リンクハブ・募集一覧は 2026-08-30 から</b>ここに出ます。
+                          それ以前は、LINEの友だち追加URLへ直接飛ばしていて経路を運べず、
+                          「LINE内から直接」に混ざっていました。
                         </div>
                         <div className="overflow-x-auto">
                           <table className="w-full text-[11px]">

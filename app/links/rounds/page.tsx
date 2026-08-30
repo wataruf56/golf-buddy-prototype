@@ -43,7 +43,7 @@ export default function PublicRoundsPage() {
       <div className="w-full max-w-[480px] mx-auto">
         {/* LP計測。ここはトップLPのB案から送られてくる着地点なので、
             そこからLINE登録まで進んだかを追えるようにしておく。 */}
-        <script dangerouslySetInnerHTML={{ __html: `window.__lpPage="rounds";` + LP_TRACK_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: `window.__lpPage="rounds";try{if(!localStorage.getItem('gb_from_lp')){localStorage.setItem('gb_from_lp','rounds');localStorage.setItem('gb_from_lp_at',String(Date.now()))}}catch(e){}` + LP_TRACK_SCRIPT }} />
         <Link href="/links" className="text-[13px] font-bold" style={{ color: '#5A7A6D' }}>‹ もどる</Link>
         <h1 className="font-black tracking-tight mt-2 mb-1" style={{ color: INK, fontSize: '30px' }}>⛳ 募集中のラウンド</h1>
         <p className="text-[13px] font-bold mb-5" style={{ color: '#5A7A6D' }}>
