@@ -305,10 +305,11 @@ function Inner() {
                   fix: 'PCから来た人にはQRを出す。ここが全段でいちばん落ちているので最優先。' } },
               { key: 'goal', label: 'LINEアプリに移った', n: g('goal'), note: 'LPを出た' },
             ];
-            // LIFF側の計測がある期間だけ、その先も**同じ1本**につなげる。
-            // 以前は「入口から会員まで」と「LINEへ飛んだ後」で図が2つに割れていて、
-            // 同じ段（LINEへ進んだ人）が両方に出てきて分かりにくかった。
-            if (lp && (lp.open > 0 || lp.newUser > 0)) {
+            // 段は**いつも同じ7段**を出す。
+            // 以前は「その期間にLIFFの記録があるときだけ」後半3段を足していたため、
+            // 期間を変えるたびに図の段数が増えたり減ったりして、
+            // 同じ画面を見ているのに別物に見えた。0人でも段は残す。
+            {
               stages[stages.length - 1].lostNote = '友だち追加の画面で止まった・LINEを閉じた';
               stages[stages.length - 1].detail = {
                 screen: 'LINEの「友だち追加」画面',
@@ -318,7 +319,7 @@ function Inner() {
                 fix: 'LPで「LINEの友だち追加が必要です」と先に伝えておく。',
               };
               stages.push({
-                key: 'open', label: 'ゴルトモの画面が開いた', n: lp.open,
+                key: 'open', label: 'ゴルトモの画面が開いた', n: lp?.open ?? 0,
                 note: '友だち追加まで済んだ人',
                 lostNote: 'ログイン画面などで戻ってしまった',
                 detail: { screen: 'アプリの起動画面（/liff）',
@@ -328,7 +329,7 @@ function Inner() {
                   fix: '起動が遅いと離脱するので、起動画面の待ち時間を短くする。' },
               });
               stages.push({
-                key: 'auth', label: 'ログインが通った', n: lp.auth, note: 'アプリの中に入れた',
+                key: 'auth', label: 'ログインが通った', n: lp?.auth ?? 0, note: 'アプリの中に入れた',
                 lostNote: '入れたが新規登録ではなかった（既存会員の再ログイン）',
                 detail: { screen: 'ホーム（/home）',
                   image: '/funnel-shots/home.jpg',
@@ -337,7 +338,7 @@ function Inner() {
                   fix: '新規と再ログインの差が大きいときは、既存会員の再訪が多いということ。' },
               });
               stages.push({
-                key: 'new', label: '🆕 会員になった', n: lp.newUser, goal: true,
+                key: 'new', label: '🆕 会員になった', n: lp?.newUser ?? 0, goal: true,
                 detail: { screen: '会員データが作られた時点',
                   noImage: '画面ではなくデータの出来事なので、絵はありません。',
                   what: 'users にドキュメントが作られた＝本当の登録完了です。',
@@ -348,9 +349,12 @@ function Inner() {
               <Card title="🔻 入口から会員まで（1本）"
                 sub="上が入口、下へ行くほど絞られます。赤字は「そこで何人が、なぜ消えたか」。段をタップすると、それがどの画面のことか開きます">
                 <FunnelChart stages={stages} />
-                {!lp && (
-                  <div className="text-[10.5px] text-muted mt-1 leading-relaxed">
-                    ※ LINEへ進んだ先（アプリ起動〜登録）の計測は 2026-08-21 からです。
+                {(!lp || (lp.open === 0 && lp.newUser === 0)) && (
+                  <div className="text-[10.5px] text-muted mt-2 leading-relaxed bg-bg border border-hair rounded p-2">
+                    ※ この期間は「LINEアプリに移った」より先の記録がありません（0人）。
+                    段は<b className="text-text">いつも同じ7段</b>を出しています——
+                    期間で段数が変わると、同じ画面が別物に見えてしまうためです。
+                    アプリ起動〜登録の計測は 2026-08-21 から貯まっています。
                   </div>
                 )}
               </Card>
