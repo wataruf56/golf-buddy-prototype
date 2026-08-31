@@ -274,8 +274,13 @@ function PcQr({ to }: { to: string }) {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-bg">
-      <div className="text-4xl mb-3">📱</div>
-      <div className="text-[19px] font-black mb-1">スマホで開いてください</div>
+      {/* 名乗りを先に置く。QRだけの無名のページは、初めて見る人には
+          怪しいページに見えて読み取ってもらえない。 */}
+      <div className="flex items-center gap-2 mb-6">
+        <span className="w-9 h-9 rounded-full bg-orange text-white border-2 border-border grid place-items-center text-[17px]">⛳</span>
+        <span className="text-[19px] font-black">ゴルトモ</span>
+      </div>
+      <div className="text-[19px] font-black mb-1">📱 スマホで開いてください</div>
       <div className="text-[12.5px] text-sub font-bold leading-relaxed mb-5 max-w-[300px]">
         ゴルトモはLINEの中で動くため、パソコンでは最後まで進めません。<br />
         下のQRコードをスマホのカメラで読み取ってください。
@@ -287,8 +292,11 @@ function PcQr({ to }: { to: string }) {
       </div>
 
       <div className="text-[11.5px] text-muted font-bold mt-4 leading-relaxed max-w-[300px]">
-        スマホでLINEを開いたまま読み取ると、そのまま始められます。<br />
+        スマホのカメラで読み取ると、そのまま続きから始められます。<br />
         うまくいかないときは、LINEで「ゴルトモ」を友だち追加してください。
+      </div>
+      <div className="text-[11px] text-muted font-bold mt-2">
+        20〜30代限定のゴルフ友達マッチング
       </div>
 
       <a href="/" className="mt-5 text-[12px] font-black text-blue underline">
