@@ -95,9 +95,17 @@ export default async function middleware(req: NextRequest) {
     if (/\.(png|jpe?g|webp|svg|gif|ico|css|js|mjs|map|woff2?|ttf|otf|json|txt|xml|mp4|webm)$/i.test(path)) {
       return NextResponse.next();
     }
+    // goltomo.com/guide は記事の親URLに見えるが、実体はアプリの「使い方」タブ
+    // (app/(main)/guide) のシェル。サイト共通の title のまま canonical も無い HTML を
+    // 200 で返す＝ソフト404で、しかも最重要の指名KW「ゴルトモ」で自社ページ同士が
+    // 競合する。記事一覧の実体は /guides なので、そこへ恒久リダイレクトする。
+    // app.goltomo.com/guide（アプリ内の使い方タブ）はこの LP ホスト分岐を通らないので無影響。
+    if (path === '/guide') {
+      return NextResponse.redirect(new URL(`https://goltomo.com/guides${url.search}`), 308);
+    }
     // /type と /type/[code] は SEO用の公開ページ（ゴルフ版MBTI 16タイプ）。
     // ここで通さないと、下の「それ以外は /lp に rewrite」に飲まれて LP が出てしまう。
-    if (path.startsWith('/legal') || path === '/lp' || path.startsWith('/lp/') || path.startsWith('/icons/') || path.startsWith('/golmoti-chars/') || path === '/manifest.json' || path === '/favicon.ico' || path === '/golmoti' || path === '/golmoti.html' || path === '/golmoti-lp' || path === '/golmoti-lp.html' || path === '/type' || path.startsWith('/type/') || path === '/about' || path === '/data' || path === '/guide' || path.startsWith('/guide/') || path === '/guides') {
+    if (path.startsWith('/legal') || path === '/lp' || path.startsWith('/lp/') || path.startsWith('/icons/') || path.startsWith('/golmoti-chars/') || path === '/manifest.json' || path === '/favicon.ico' || path === '/golmoti' || path === '/golmoti.html' || path === '/golmoti-lp' || path === '/golmoti-lp.html' || path === '/type' || path.startsWith('/type/') || path === '/about' || path === '/data' || path.startsWith('/guide/') || path === '/guides') {
       return NextResponse.next();
     }
     // 短縮URL: goltomo.com/mbti → 診断LP（golmoti.html）。
