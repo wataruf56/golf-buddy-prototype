@@ -338,17 +338,44 @@ function Inner() {
                   fix: '新規と再ログインの差が大きいときは、既存会員の再訪が多いということ。' },
               });
               stages.push({
-                key: 'new', label: '🆕 会員になった', n: lp?.newUser ?? 0, goal: true,
+                // ここは「LP経由と分かった新規会員」であって、全体の新規会員ではない。
+                // 「会員になった」とだけ書くと、実際は増えているのに0に見えて誤解を生む。
+                key: 'new', label: '🆕 会員になった（LP経由と分かったぶん）', n: lp?.newUser ?? 0, goal: true,
+                lostNote: 'LPから来たと分からなかった（印が途中で落ちた／別の入口から登録した）',
                 detail: { screen: '会員データが作られた時点',
                   noImage: '画面ではなくデータの出来事なので、絵はありません。',
-                  what: 'users にドキュメントが作られた＝本当の登録完了です。',
-                  fix: 'この数字だけが「増えた会員」。ほかの段はすべて途中経過です。' },
+                  what: 'users にドキュメントが作られた＝本当の登録完了です。ただしこの段に出るのは、'
+                    + '**LPから来たと最後まで分かった人だけ**です。',
+                  why: 'LINEアプリへ渡すときに印（?lp=）が落ちると、LPから来た人でも'
+                    + '「LINEの中から直接来た人」に数えられます。'
+                    + 'また、LPで友だち追加だけして後日リッチメニューから登録した人も、ここには出ません。',
+                  fix: 'この期間に実際に増えた会員の数は、すぐ下の行に出しています。'
+                    + '2つの差が大きいときは、印が落ちているか、LP以外の入口が効いているかのどちらかです。' },
               });
             }
             return (
               <Card title="🔻 入口から会員まで（1本）"
                 sub="上が入口、下へ行くほど絞られます。赤字は「そこで何人が、なぜ消えたか」。段をタップすると、それがどの画面のことか開きます">
                 <FunnelChart stages={stages} />
+
+                {/* 答え合わせ。上の段は「LP経由と分かったぶん」しか出ないので、
+                    実際に増えた会員をここに必ず並べる。これが無いと「0人」だけが
+                    目に入って、登録が来ていないように見えてしまう。 */}
+                {data.signups && (
+                  <div className="text-[11.5px] mt-2 leading-relaxed bg-green-light border-2 border-green rounded-lg p-2.5">
+                    <b className="text-[12.5px]">この期間に実際に増えた会員：{data.signups.total}人</b>
+                    <span className="text-muted">（サーバーの実測。test_ は除く）</span>
+                    <br />
+                    うちLP経由と分かったのは <b>{lp?.newUser ?? 0}人</b>、
+                    LINEの中から直接来た人が <b>{data.liffOrigin?.fromLine.newUser ?? 0}人</b>です。
+                    {(data.signups.total || 0) > (lp?.newUser ?? 0) && (
+                      <><br /><span className="text-sub">
+                        差は「LPから来たのに印が落ちた人」と「リッチメニューなどLP以外から登録した人」の合計です。
+                      </span></>
+                    )}
+                  </div>
+                )}
+
                 {(!lp || (lp.open === 0 && lp.newUser === 0)) && (
                   <div className="text-[10.5px] text-muted mt-2 leading-relaxed bg-bg border border-hair rounded p-2">
                     ※ この期間は「LINEアプリに移った」より先の記録がありません（0人）。

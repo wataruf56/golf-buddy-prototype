@@ -101,6 +101,33 @@ function isDesktopBrowser(): boolean {
   } catch { return false; }
 }
 
+/**
+ * このページに実際に渡ってきたパラメータを組み立てる。
+ *
+ * 【なぜ素の searchParams では足りないか】
+ * LINEは LIFF URL の元のクエリを **`?liff.state=` に畳んで**渡してくることがある。
+ * 例: /liff?lp=top&v=abc → /liff?liff.state=%3Flp%3Dtop%26v%3Dabc
+ * このとき `search.get('lp')` は null になる。
+ *
+ * ここを見落としていたせいで、**LPから来た人がほぼ全員「LINEの中から直接来た人」に
+ * 分類されていた**（7日間でLPから12人がLINEへ進んだのに、LP経由と分かったのは2人）。
+ * その結果、管理画面のLPファネルの最後の段「会員になった」がずっと0のままだった。
+ *
+ * liff.state があれば中身を開いて、素のクエリに無いものだけ補う。
+ */
+function readLiffParams(search: URLSearchParams | null): URLSearchParams {
+  const out = new URLSearchParams(search?.toString() || '');
+  const state = out.get('liff.state');
+  if (state) {
+    try {
+      // 値は「?a=1&b=2」か「/path?a=1」の形で来る。? の後ろだけを取る。
+      const q = state.startsWith('?') ? state.slice(1) : (state.split('?')[1] || '');
+      new URLSearchParams(q).forEach((v, k) => { if (!out.get(k)) out.set(k, v); });
+    } catch { /* 開けなければ素のクエリだけで進む */ }
+  }
+  return out;
+}
+
 function LiffEntryInner() {
   const router = useRouter();
   const search = useSearchParams();
@@ -124,18 +151,20 @@ function LiffEntryInner() {
       `${window.location.origin}/liff?retried=1&to=${encodeURIComponent(to)}`;
 
     // 計測用のコンテキスト。?v= はLPから引き継いだID、?ref= はどのLPから来たか。
-    const urlRefRaw = (search?.get('ref') || search?.get('utm_source') || search?.get('source') || '')
+    // liff.state に畳まれている場合があるので、開いたものから読む。
+    const q = readLiffParams(search);
+    const urlRefRaw = (q.get('ref') || q.get('utm_source') || q.get('source') || '')
       .trim().toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 40);
-    const urlMenu = (search?.get('e') || '').toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 40);
+    const urlMenu = (q.get('e') || '').toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 40);
     const ctx = {
-      vid: liffVisitorId(search?.get('v')),
+      vid: liffVisitorId(q.get('v')),
       entry: liffEntryOf(urlRefRaw, urlMenu),
       ref: urlRefRaw,
       // どのLPから飛んできたか（top=普通のLP / mbti=診断LP / links=リンクハブ）。
       // LPのCTAが ?lp= を付けてくれる。リッチメニュー等から直接来た場合は空。
       // ただし /links（インスタのリンクハブ）はLINEの友だち追加URLへ直接飛ばすため
       // パラメータを運べない。同一オリジンに残した記憶をここで拾う（一度きり）。
-      fromLp: (search?.get('lp') || '').replace(/[^a-z]/g, '').slice(0, 20) || takeLpOrigin(),
+      fromLp: (q.get('lp') || '').replace(/[^a-z]/g, '').slice(0, 20) || takeLpOrigin(),
     };
 
     let cancelled = false;
@@ -155,6 +184,19 @@ function LiffEntryInner() {
         const liff = (await import('@line/liff')).default;
         await liff.init({ liffId });
         if (cancelled) return;
+
+        // LIFF SDK は初期化のときに liff.state を展開して URL を書き戻すことがある。
+        // 初期化前に読めていなかった印を、ここでもう一度拾い直す。
+        // liff_open には間に合わないが、**肝心の liff_new（会員になった）には間に合う**。
+        try {
+          const q2 = readLiffParams(new URLSearchParams(window.location.search));
+          const lp2 = (q2.get('lp') || '').replace(/[^a-z]/g, '').slice(0, 20);
+          if (!ctx.fromLp && lp2) ctx.fromLp = lp2;
+          const ref2 = (q2.get('ref') || q2.get('utm_source') || '')
+            .toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 40);
+          if (!ctx.ref && ref2) { ctx.ref = ref2; ctx.entry = liffEntryOf(ref2, urlMenu); }
+        } catch { /* 拾えなくても先へ進む */ }
+
         liffTrack('liff_sdk', ctx);
 
         if (!liff.isLoggedIn()) {
