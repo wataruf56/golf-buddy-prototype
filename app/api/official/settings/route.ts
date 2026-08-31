@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { isAdminUserId } from '@/lib/adminAccess';
-import { getSettings, matchesTarget, saveSettings } from '@/lib/officialSettings';
-import { getActiveThread, officialOf, takenSeats, totalSeats } from '@/lib/officialThread';
+import { getSettings, promptFrom, saveSettings } from '@/lib/officialSettings';
+import { listActiveThreads, officialOf, promptMatches, takenSeats, totalSeats } from '@/lib/officialThread';
 
 const noStore = { 'Cache-Control': 'no-store' };
 export const dynamic = 'force-dynamic';
@@ -22,26 +22,37 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
 
   if (url.searchParams.get('for') === 'home') {
-    if (!meId) return NextResponse.json({ show: false }, { headers: noStore });
-    const round = await getActiveThread();
-    if (!round) return NextResponse.json({ show: false }, { headers: noStore });
-    const o = officialOf(round)!;
-    // 募集中で、まだ空きがあって、自分が入っていないときだけ声をかける。
-    if (o.stage !== 'recruiting') return NextResponse.json({ show: false }, { headers: noStore });
-    if ((round.applicantIds || []).includes(meId)) return NextResponse.json({ show: false }, { headers: noStore });
+    if (!meId) return NextResponse.json({ show: false, prompts: [] }, { headers: noStore });
 
-    const [s, me] = await Promise.all([getSettings(), db.getUser(meId)]);
-    if (!matchesTarget(s, me as any)) return NextResponse.json({ show: false }, { headers: noStore });
+    // 同時開催に対応（2026-08-31）。動いている枠を全部見て、
+    // **その枠自身の声かけ設定**で自分が対象かを判定する。
+    const [actives, me, fallback] = await Promise.all([
+      listActiveThreads(), db.getUser(meId), getSettings(),
+    ]);
 
-    const taken = takenSeats(round); const total = totalSeats(round);
-    if (taken >= total) return NextResponse.json({ show: false }, { headers: noStore });
+    const prompts = actives.flatMap((round) => {
+      const o = officialOf(round)!;
+      // 募集中で、まだ空きがあって、自分が入っていないときだけ声をかける。
+      if (o.stage !== 'recruiting') return [];
+      if ((round.applicantIds || []).includes(meId)) return [];
+      const taken = takenSeats(round); const total = totalSeats(round);
+      if (taken >= total) return [];
+      // 同時開催より前に立てた枠は prompt を持たないので、既定のひな形で補う。
+      const pr = o.prompt || promptFrom(fallback);
+      if (!promptMatches(pr, me as any)) return [];
+      return [{
+        show: true, id: round.id, title: pr.popupTitle, body: pr.popupBody,
+        // 声かけの見た目も企画で変える（女性だけの枠は桜色）
+        pattern: o.pattern,
+        left: total - taken, total, snoozeDays: pr.snoozeDays,
+      }];
+    });
 
-    return NextResponse.json({
-      show: true, id: round.id, title: s.popupTitle, body: s.popupBody,
-      // 声かけの見た目も企画で変える（女性だけの枠は桜色）
-      pattern: o.pattern,
-      left: total - taken, total, snoozeDays: s.snoozeDays,
-    }, { headers: noStore });
+    // prompts（複数）が本体。top-level は同時開催より前からある形なので残す。
+    return NextResponse.json(
+      prompts.length ? { ...prompts[0], prompts } : { show: false, prompts: [] },
+      { headers: noStore },
+    );
   }
 
   if (!adminToken(req) && !isAdminUserId(meId)) {

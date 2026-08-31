@@ -38,9 +38,13 @@ export function OfficialThreadPanel({ roundId }: { roundId: string }) {
 
   const load = useCallback(async () => {
     try {
-      const r = await fetch('/api/official', { cache: 'no-store', credentials: 'include' });
+      // 同時開催に対応。id を指定しないと、動いている別の枠が返ってきて
+      // 2本目以降の枠でパネルが出なくなる。
+      const r = await fetch(`/api/official?id=${encodeURIComponent(roundId)}`,
+        { cache: 'no-store', credentials: 'include' });
       const j = await r.json();
-      if (j?.thread?.id === roundId) { setT(j.thread); setMe(j.me || null); }
+      const t = (j?.threads || []).find((x: Thread) => x.id === roundId) || null;
+      if (t) { setT(t); setMe(j.me || null); }
       else setT(null);
     } catch { setT(null); }
   }, [roundId]);

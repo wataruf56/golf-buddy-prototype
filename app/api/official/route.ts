@@ -3,16 +3,19 @@ import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { isAdminUserId } from '@/lib/adminAccess';
 import {
-  createThread, getActiveThread, listThreads, officialOf, slotStates,
+  createThread, listActiveThreads, listThreads, officialOf, slotStates,
   takenSeats, totalSeats, type OfficialPattern,
 } from '@/lib/officialThread';
+import type { Round } from '@/lib/types';
 
 const noStore = { 'Cache-Control': 'no-store' };
 export const dynamic = 'force-dynamic';
 
 // 公式スレッド（運営が代理で立てる募集）。
-//   GET  … いま動いている1本＋自分が参加できるか。ホームの声かけと詳細で使う。
-//   POST … 作る（運営のみ・管理トークンでも可）。**同時に走らせるのは1本まで**。
+//   GET  … 動いている枠と、自分が参加できるか。ホームの声かけと詳細で使う。
+//          `?id=<roundId>` でその枠だけ。省略すると動いているものを全部返す。
+//   POST … 作る（運営のみ・管理トークンでも可）。**同時に何本でも立てられる**
+//          （2026-08-31。以前は1本まで。塞いでいたのは声かけ設定が全体で1組だった件）。
 
 function adminToken(req: NextRequest): boolean {
   const t = new URL(req.url).searchParams.get('token') || '';
@@ -43,30 +46,43 @@ export async function GET(req: NextRequest) {
     }, { headers: noStore });
   }
 
-  // 一般：いま動いている1本
-  const round = await getActiveThread();
-  if (!round) return NextResponse.json({ thread: null }, { headers: noStore });
-
-  const o = officialOf(round)!;
-  const memberIds = round.applicantIds || [];
-  const users: Record<string, any> = {};
-  try {
-    (await db.listUsers(memberIds)).forEach((u) => { if (u) users[u.id] = u; });
-  } catch { /* 名前が出なくても枠は返す */ }
+  // 一般：動いている枠。?id= が付いていればその1本だけ。
+  const wantId = new URL(req.url).searchParams.get('id') || '';
+  let actives = await listActiveThreads();
+  if (wantId) actives = actives.filter((r) => r.id === wantId);
+  if (!actives.length) {
+    return NextResponse.json({ thread: null, threads: [] }, { headers: noStore });
+  }
 
   const me = meId ? await db.getUser(meId) : null;
-  const states = slotStates(round, users);
 
-  return NextResponse.json({
-    thread: {
-      id: round.id, title: round.title, official: o,
+  // 参加者の名前は枠をまたいで1回で引く（枠ごとに引くと本数分だけ往復する）
+  const allIds = Array.from(new Set(actives.flatMap((r) => r.applicantIds || [])));
+  const users: Record<string, any> = {};
+  try {
+    (await db.listUsers(allIds)).forEach((u) => { if (u) users[u.id] = u; });
+  } catch { /* 名前が出なくても枠は返す */ }
+
+  const shape = (round: Round) => {
+    const memberIds = round.applicantIds || [];
+    const states = slotStates(round, users);
+    return {
+      id: round.id, title: round.title, official: officialOf(round)!,
       taken: takenSeats(round), total: totalSeats(round),
       slots: states.map((s) => ({
         ...s.slot, taken: s.taken, left: s.left, drivers: s.drivers, driverOnly: s.driverOnly,
       })),
       members: memberIds.map((id) => slim(users[id])).filter(Boolean),
       joined: !!meId && memberIds.includes(meId),
-    },
+    };
+  };
+
+  const threads = actives.map(shape);
+  // thread（単数）は同時開催より前からある形。自分が入っている枠を優先して返す。
+  const thread = threads.find((t) => t.joined) || threads[0];
+
+  return NextResponse.json({
+    threads, thread,
     me: me ? { id: me.id, gender: me.gender, car: me.car } : null,
   }, { headers: noStore });
 }
@@ -87,6 +103,8 @@ export async function POST(req: NextRequest) {
     slots: Array.isArray(body?.slots) ? body.slots : undefined,
     askLicense: body?.askLicense,
     expireDays: Number(body?.expireDays) || undefined,
+    // 枠ごとに声かけ文面を変えられる。省略なら既定のひな形をそのまま使う。
+    prompt: body?.prompt && typeof body.prompt === 'object' ? body.prompt : undefined,
   });
   if (!res.ok) return NextResponse.json({ ok: false, message: res.message }, { status: 409, headers: noStore });
   return NextResponse.json({ ok: true, id: res.round.id, title: res.round.title }, { headers: noStore });

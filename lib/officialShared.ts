@@ -34,6 +34,25 @@ export type OfficialSlot = {
   note?: string;
 };
 
+/**
+ * ホームでの声かけ。**枠ごとに持つ**。
+ *
+ * もともとは全体で1組しか持てず、それが「同時に1本まで」の正体だった
+ * （2本目を立てると、どちらの枠にどの文面を出すのか決められないため）。
+ * 枠に貼り付けることで、女性だけの枠と駅ピックアップの枠を同時に走らせられる。
+ *
+ * 立てた時点の設定を**写し取って**保存する（参照ではなく複製）。
+ * あとで既定のひな形を変えても、走っている枠の文面が勝手に変わらないようにするため。
+ */
+export type OfficialPrompt = {
+  popupTitle: string;
+  popupBody: string;
+  targetGender: '' | 'male' | 'female';
+  targetAreas: string[];
+  snoozeDays: number;
+  showFareCard: boolean;
+};
+
 export type OfficialInfo = {
   pattern: OfficialPattern;
   slots: OfficialSlot[];
@@ -57,7 +76,21 @@ export type OfficialInfo = {
   confirmedBy?: string;
   /** 成立時の自動メッセージを送ったか（二重送信の防止） */
   filledNotifiedAt?: number;
+  /** この枠の声かけ。無いのは同時開催より前に立てた枠＝既定のひな形を使う。 */
+  prompt?: OfficialPrompt;
 };
+
+/** この人に声をかけてよいか（性別・エリアの条件）。枠ごとの prompt で判定する。 */
+export function promptMatches(
+  p: OfficialPrompt | undefined,
+  user: { gender?: string; area?: string } | null,
+): boolean {
+  if (!user) return false;
+  if (!p) return true;   // 文面が無い枠は絞り込みもしない
+  if (p.targetGender && user.gender !== p.targetGender) return false;
+  if (p.targetAreas.length && !p.targetAreas.some((a) => (user.area || '').includes(a))) return false;
+  return true;
+}
 
 export const LICENSE_LABEL: Record<License, string> = {
   have: '🚗 免許あり',

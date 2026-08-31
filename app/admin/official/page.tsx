@@ -67,10 +67,16 @@ function Inner() {
   }, [token]);
   useEffect(() => { load(); }, [load]);
 
-  const active = threads.find((t) => t.official.stage === 'recruiting' || t.official.stage === 'deciding');
+  const actives = threads.filter((t) => t.official.stage === 'recruiting' || t.official.stage === 'deciding');
+  const active = actives[0];
 
   async function create() {
-    if (active) { setMsg('❌ すでに動いている枠があります。先に終わらせてください。'); return; }
+    // 同時開催に対応（2026-08-31）。2本目以降も立てられる。
+    // 声かけ文面は枠ごとに写し取られるので、走っている枠の文面は変わらない。
+    if (actives.length && !window.confirm(
+      `いま${actives.length}本の枠が動いています。もう1本立てますか？
+`
+      + '（ホームの声かけは、それぞれの枠の対象条件に合う人にだけ出ます）')) return;
     if (!window.confirm('この内容で枠を立てますか？')) return;
     setBusy(true); setMsg('');
     try {

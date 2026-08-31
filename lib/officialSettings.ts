@@ -1,11 +1,17 @@
 import { getAdminDb } from './firebase';
-import { DEFAULT_FILLED_MESSAGE } from './officialShared';
+import { DEFAULT_FILLED_MESSAGE, type OfficialPrompt } from './officialShared';
 
 // 公式スレッドの運用設定。管理画面から編集する1ドキュメント。
-// ホームの声かけ文面・対象・スヌーズ日数・成立時にチャットへ流す文をここに置く。
 //
-// ※ 同時に走らせるスレッドは1本までなので、「どれを声かけに出すか」の
-//   優先順位は持たない（動いている1本が自動的に対象になる）。
+// ※ 位置づけが変わった（2026-08-31・同時開催の対応）。
+//   ここは**新しく立てる枠の既定のひな形**であって、走っている枠を直接動かすものではない。
+//   枠を立てた瞬間に、この内容が `official.prompt` へ写し取られる。
+//   したがって、ここを直しても**すでに走っている枠の文面は変わらない**
+//   （走っている最中に文面が入れ替わると、見た人と見ていない人で話が食い違うため）。
+//   走っている枠の文面を直したいときは、その枠の prompt を直接編集する。
+//
+//   filledMessage だけは枠に貼らず全体で持つ（成立時にチャットへ流す運営文で、
+//   枠ごとに変える理由が無く、変えたくなったら全部まとめて直したいため）。
 export type OfficialSettings = {
   /** ホームに出す見出しと本文 */
   popupTitle: string;
@@ -73,10 +79,24 @@ export async function saveSettings(patch: Partial<OfficialSettings>): Promise<Of
   return next;
 }
 
-/** この人に声をかけてよいか（性別・エリアの条件） */
+/** この人に声をかけてよいか（性別・エリアの条件）。既定のひな形で判定する版。 */
 export function matchesTarget(s: OfficialSettings, user: { gender?: string; area?: string } | null): boolean {
   if (!user) return false;
   if (s.targetGender && user.gender !== s.targetGender) return false;
   if (s.targetAreas.length && !s.targetAreas.some((a) => (user.area || '').includes(a))) return false;
   return true;
+}
+
+/** ひな形から、枠に貼り付ける声かけを作る（写し取り）。 */
+export function promptFrom(s: OfficialSettings, over?: Partial<OfficialPrompt>): OfficialPrompt {
+  return {
+    popupTitle: String(over?.popupTitle ?? s.popupTitle).slice(0, 60),
+    popupBody: String(over?.popupBody ?? s.popupBody).slice(0, 300),
+    targetGender: (['male', 'female'].includes(String(over?.targetGender ?? s.targetGender))
+      ? (over?.targetGender ?? s.targetGender) : '') as OfficialPrompt['targetGender'],
+    targetAreas: (Array.isArray(over?.targetAreas) ? over!.targetAreas : s.targetAreas)
+      .map((a) => String(a).slice(0, 20)).slice(0, 20),
+    snoozeDays: Math.max(0, Math.min(60, Math.floor(Number(over?.snoozeDays ?? s.snoozeDays) || 0))),
+    showFareCard: over?.showFareCard !== undefined ? !!over.showFareCard : !!s.showFareCard,
+  };
 }

@@ -11,12 +11,18 @@ import {
 // 型・ラベル・枠の集計・参加可否は officialShared.ts（クライアントからも読む）。
 // lib/db と lib/firebase は server-only なので、混ぜるとクライアントのビルドが落ちる。
 export * from './officialShared';
+import { getSettings, promptFrom } from './officialSettings';
+import type { OfficialPrompt } from './officialShared';
 
 // ── いま動いている1本（同時募集はしない） ──────────────────
 /**
  * いま動いている公式スレッドを返す。**同時に走らせるのは1本まで**という運用なので、
  * 見つかった最初の1件でよい。（複数を並行させると声かけがぶつかり、
  * どちらも中途半端に埋まって成立しない、が起きやすい。）
+ */
+/**
+ * 動いている枠のうち、いちばん新しい1本。
+ * 同時開催に対応したので「唯一の枠」ではない。1本だけ欲しい場面にだけ使う。
  */
 export async function getActiveThread(): Promise<Round | null> {
   const adb = getAdminDb() as any;
@@ -29,6 +35,22 @@ export async function getActiveThread(): Promise<Round | null> {
       .sort((a: Round, b: Round) => (b.createdAt || 0) - (a.createdAt || 0));
     return active[0] || null;
   } catch { return null; }
+}
+
+/**
+ * 動いている枠を**すべて**返す（新しい順）。
+ * 同時開催に対応したので、ホームの声かけも詳細画面もこちらを使う。
+ */
+export async function listActiveThreads(): Promise<Round[]> {
+  const adb = getAdminDb() as any;
+  if (!adb) return [];
+  try {
+    const snap = await adb.collection('rounds').where('hostId', '==', ADMIN_MANAGER_ID).limit(50).get();
+    return snap.docs
+      .map((d: any) => ({ id: d.id, ...(d.data() || {}) } as Round))
+      .filter((r: Round) => { const o = of(r); return !!o && isActiveStage(o.stage); })
+      .sort((a: Round, b: Round) => (b.createdAt || 0) - (a.createdAt || 0));
+  } catch { return []; }
 }
 
 export async function listThreads(limit = 60): Promise<Round[]> {
@@ -50,13 +72,13 @@ export async function createThread(input: {
   slots?: OfficialSlot[];
   askLicense?: boolean;
   expireDays?: number;
+  /** この枠の声かけ。省略したら既定のひな形をそのまま写し取る。 */
+  prompt?: Partial<OfficialPrompt>;
 }): Promise<{ ok: true; round: Round } | { ok: false; message: string }> {
-  // 同時に走らせない。動いているものがあれば作らせない。
-  const active = await getActiveThread();
-  if (active) {
-    return { ok: false, message: `「${active.title}」がまだ動いています。先にそちらを終わらせてください。` };
-  }
-
+  // 同時開催に対応（2026-08-31）。以前はここで「動いているものがあれば作らせない」と
+  // 弾いていたが、塞いでいた本当の理由は声かけ設定が全体で1組しか無かったことなので、
+  // 枠ごとに声かけを持たせたうえで制限を外した。
+  // 出しっぱなしを防ぐのは expiresAt と cron（official-expire）の役目。
   const pattern = input.pattern;
   const place = (input.meetPlace || '').trim().slice(0, 20) || undefined;
   const slots = (input.slots && input.slots.length ? input.slots : defaultSlots(pattern, place))
@@ -78,6 +100,8 @@ export async function createThread(input: {
     askLicense: input.askLicense !== undefined ? !!input.askLicense : pattern === 'women',
     expiresAt: Date.now() + Math.max(1, Math.min(60, input.expireDays || DEFAULT_EXPIRE_DAYS)) * 86400000,
     stage: 'recruiting',
+    // 立てた時点の声かけを写し取る。あとでひな形を変えても、この枠の文面は変わらない。
+    prompt: promptFrom(await getSettings(), input.prompt),
   };
 
   const round: Omit<Round, 'id'> = {
