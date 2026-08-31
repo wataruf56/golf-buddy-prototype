@@ -8,6 +8,7 @@ import { RoundCard } from '@/components/RoundCard';
 import { Avatar } from '@/components/Avatar';
 import { HomeUpdateCard } from '@/components/HomeUpdateCard';
 import { OfficialHomeCard } from '@/components/OfficialHomeCard';
+import { DriverAskCard } from '@/components/DriverAskCard';
 import { toast } from '@/components/Toast';
 import { RESTRICTION_MSG } from '@/lib/restrictions';
 import { isRoundHost } from '@/lib/roundHost';
@@ -302,6 +303,10 @@ export default function HomePage() {
       )}
 
       <HomeUpdateCard />
+
+      {/* 管理者の代理ラウンド募集：車を出せる人への声かけ。
+          「車あり」かつ未回答の人にだけ出るので、ほとんどの人には何も増えない。 */}
+      <DriverAskCard />
 
       <OfficialHomeCard />
 

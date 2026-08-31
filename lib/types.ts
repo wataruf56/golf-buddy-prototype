@@ -54,6 +54,17 @@ export type User = {
   //     （車がない人向け）／'car'=車で自分で行ける（送迎有無を問わず全通知）。
   //     旧データの pickup:true は 'pickup' 相当として扱う。
   notifyMatch?: { enabled: boolean; areas: string[]; days: string[]; pickupPref: 'any' | 'pickup' | 'car'; pickup?: boolean };
+  /**
+   * 管理者の代理ラウンド募集で「自分の車で駅から一緒に行ける」と答えた人の登録。
+   * プロフィールで car:'have' の人にだけ聞く。
+   *
+   * 枠ごとではなく**会員に紐づけて持つ**。枠が立つ前にドライバーを探す必要があるのと、
+   * 一度答えたら次の募集でも使い回せるため。
+   *   stations : 拾える駅（lib/stations.ts の選択肢）
+   *   at       : 答えた時刻
+   *   snoozeUntil : 「あとで」を押した人に、いつまで聞かないか
+   */
+  driverPickup?: { stations: string[]; at: number; snoozeUntil?: number };
   // 「お知らせ」(アプリ内通知インボックス) を最後に既読にした時刻。これより
   // 新しい createdAt の通知が未読扱い。
   notifReadAt?: number;

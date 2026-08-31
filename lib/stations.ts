@@ -14,3 +14,39 @@ export const PICKUP_STATIONS = [
   // 茨城方面
   '守谷',
 ];
+
+// 駅がどの都道府県にあるか。
+//
+// 管理者の代理ラウンド募集で、ドライバーが選んだ駅の**周辺にいる人**へ声をかけたい。
+// ところが会員が持っている場所の情報は都道府県（`User.area`）までなので、
+// 駅そのものでは突き合わせられない。ここで駅→都道府県に落として絞り込む。
+//
+// 「同じ都道府県」は「駅の周辺」より広いが、いま持っている情報で引ける一番細かい単位。
+// 精度を上げるなら会員側に最寄り駅を持たせる必要があり、それは別の話。
+export const STATION_AREA: Record<string, string> = {
+  東京: '東京都', 新宿: '東京都', 渋谷: '東京都', 池袋: '東京都', 品川: '東京都',
+  上野: '東京都', 北千住: '東京都', 赤羽: '東京都',
+  立川: '東京都', 八王子: '東京都', 町田: '東京都', 吉祥寺: '東京都',
+  横浜: '神奈川県', 川崎: '神奈川県', 武蔵小杉: '神奈川県', 新横浜: '神奈川県', 藤沢: '神奈川県',
+  大宮: '埼玉県', 浦和: '埼玉県', 川口: '埼玉県', 所沢: '埼玉県', 越谷: '埼玉県',
+  船橋: '千葉県', 西船橋: '千葉県', 柏: '千葉県', 千葉: '千葉県', 海浜幕張: '千葉県',
+  守谷: '茨城県',
+};
+
+/** 駅の集合 → 声かけの対象にする都道府県（重複なし）。 */
+export function areasForStations(stations: string[]): string[] {
+  const out = new Set<string>();
+  for (const st of stations || []) {
+    const a = STATION_AREA[st];
+    if (a) out.add(a);
+  }
+  return Array.from(out);
+}
+
+/** 「東京・新宿 ほか2駅」のように、短く読める形にする。 */
+export function stationsLabel(stations: string[], head = 2): string {
+  const list = (stations || []).filter(Boolean);
+  if (!list.length) return '';
+  if (list.length <= head) return list.join('・');
+  return `${list.slice(0, head).join('・')} ほか${list.length - head}駅`;
+}
