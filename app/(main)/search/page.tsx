@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { RoundCard } from '@/components/RoundCard';
 import { allAreas } from '@/lib/mockData';
 import { useStore, getMe } from '@/lib/store';
+import { isOfficialThread } from '@/lib/officialShared';
 import type { Round } from '@/lib/types';
 import { cn, priceValueForGender } from '@/lib/utils';
 
@@ -47,7 +48,8 @@ function isFullRound(r: Round): boolean {
 }
 
 export default function SearchPage() {
-  const rounds = useStore((s) => s.rounds);
+  // 運営が代理で立てた枠はここに出さない（入口はホーム上部のカードだけ）。
+  const rounds = useStore((s) => s.rounds.filter((r) => !isOfficialThread(r)));
   const users = useStore((s) => s.users);
   const me = useStore(getMe);
 

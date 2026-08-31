@@ -11,6 +11,7 @@ import { OfficialHomeCard } from '@/components/OfficialHomeCard';
 import { toast } from '@/components/Toast';
 import { RESTRICTION_MSG } from '@/lib/restrictions';
 import { isRoundHost } from '@/lib/roundHost';
+import { isOfficialThread } from '@/lib/officialShared';
 
 function relTime(ts: number): string {
   const diff = Date.now() - ts;
@@ -136,7 +137,13 @@ export default function HomePage() {
     if (go && tab) router.push(`/buddies?tab=${tab}`);
   }
 
-  const rounds = useStore((s) => s.rounds.filter((r) => r.status === 'open'));
+  // ホームの一覧に出すもの。
+  //   ・運営が代理で立てた枠は外す（上の OfficialHomeCard が入口。一覧にも出すと
+  //     同じ枠が2か所に並んで「別の募集が2つある」ように見える）
+  //   ・満員も外す（「募集してるやつ」だけを並べる）
+  const rounds = useStore((s) => s.rounds.filter(
+    (r) => r.status === 'open' && !isOfficialThread(r) && (r.currentCount || 0) < r.maxSpots,
+  ));
   const allRounds = useStore((s) => s.rounds);
   const users = useStore((s) => s.users);
   // 自分が「主催 or 参加/申請中」で、まだ完了していない（開催前の）ラウンド。
@@ -226,8 +233,18 @@ export default function HomePage() {
 
   return (
     <>
-      <div className="px-5 pt-2 pb-4 flex items-center justify-between">
-        <span className="text-2xl font-black tracking-tight">ホーム</span>
+      <div className="px-5 pt-2 pb-4 flex items-center gap-2">
+        <span className="text-2xl font-black tracking-tight flex-1">ホーム</span>
+        {/* 本文からプロフィールと「募集する」を外したので、行き先だけはここに残す。
+            下タブにマイページも募集も無く、外すとアプリ内から辿れなくなるため。 */}
+        <Link href="/mypage" className="w-10 h-10 rounded-full overflow-hidden border-2 border-border flex items-center justify-center bg-card" aria-label="マイページ">
+          <Avatar user={me} size={36} />
+        </Link>
+        <Link
+          href="/create"
+          onClick={(e) => { if (restrictions.noCreate) { e.preventDefault(); toast(RESTRICTION_MSG.noCreate, 'error'); } }}
+          className="h-10 px-3 rounded-full bg-orange text-white border-2 border-border flex items-center justify-center text-[13px] font-black whitespace-nowrap"
+        >＋ 募集</Link>
         <button
           onClick={() => setShowNotifModal(true)}
           className="relative w-10 h-10 rounded-full bg-card border-2 border-border flex items-center justify-center"
@@ -323,34 +340,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* プロフィール（タップでマイページ／鉛筆で編集）。統計はマイページに集約。 */}
-      <div className="px-5 pb-3">
-        <div className="bg-card rounded-card p-3.5 shadow-card flex items-center gap-3">
-          <Link href="/mypage" className="flex items-center gap-3 flex-1 min-w-0">
-            <Avatar user={me} size={46} />
-            <div className="min-w-0">
-              <div className="text-[16px] font-black truncate">{me.displayName || 'プロフィール'}</div>
-              <div className="text-[11px] text-muted">タップでプロフィール</div>
-            </div>
-          </Link>
-          <Link href="/mypage/edit" className="flex-shrink-0 px-3 py-2 bg-bg border-2 border-border rounded-full text-xs font-bold">✏️ 編集</Link>
-        </div>
-      </div>
-
-      {/* 募集する／さがす */}
-      <div className="px-5 pb-3 grid grid-cols-2 gap-3">
-        <Link
-          href="/create"
-          onClick={(e) => { if (restrictions.noCreate) { e.preventDefault(); toast(RESTRICTION_MSG.noCreate, 'error'); } }}
-          className="bg-orange text-white border-2 border-border rounded-card shadow-card py-4 text-center font-black"
-        >
-          <div className="text-2xl leading-none mb-1">＋</div>ラウンドを募集
-        </Link>
-        <Link href="/search" className="bg-green text-white border-2 border-border rounded-card shadow-card py-4 text-center font-black">
-          <div className="text-2xl leading-none mb-1">🔍</div>募集をさがす
-        </Link>
-      </div>
-
       {/* 参加予定のラウンド（自分が主催 or 参加/申請中で開催前）。開催日昇順で見やすく。 */}
       {myUpcoming.length > 0 && (
         <div className="px-5 pb-3">
@@ -383,24 +372,6 @@ export default function HomePage() {
               {myUpcoming.length > 5 && (
                 <Link href="/mypage" className="text-[11px] font-bold text-blue text-center pt-1">ほか{myUpcoming.length - 5}件をマイページで見る ›</Link>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 未読がある時だけ、上部にインライン表示。既読・過去はベルから確認。 */}
-      {unread.length > 0 && (
-        <div className="px-5 pb-3">
-          <div className="bg-card rounded-card shadow-card overflow-hidden border-2 border-green">
-            <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
-              <div className="text-base font-black flex items-center gap-1.5">
-                🔔 新着のお知らせ
-                <span className="text-[11px] font-black text-white bg-red px-2 py-0.5 rounded-full leading-none">{unread.length}</span>
-              </div>
-              <button onClick={() => setShowNotifModal(true)} className="text-[11px] font-bold text-blue">すべて見る</button>
-            </div>
-            <div>
-              {unread.slice(0, 5).map((n) => renderNotif(n))}
             </div>
           </div>
         </div>
@@ -452,23 +423,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* 直近ログインしたユーザー（ログイン新しい順・最大30人）。ホーム最下部に配置。写真＋名前のみ。
-          すでにつながっている人（ゴル友・一緒に回った人など＝canDm）はアイコンに薄い緑のリング。 */}
-      {recentLogins.length > 0 && (
-        <div className="px-5 pt-1 pb-3">
-          <div className="text-[12px] font-bold text-sub mb-2">🟢 最近ログインしたユーザー</div>
-          <div className="grid grid-cols-5 gap-x-2 gap-y-3">
-            {recentLogins.map((u) => (
-              <Link key={u.id} href={`/profile/${u.id}`} className="flex flex-col items-center min-w-0">
-                <div className={`rounded-full p-[2px] ${u.canDm ? 'bg-green-light' : ''}`}>
-                  <Avatar user={u} size={44} />
-                </div>
-                <div className="text-[10px] text-center truncate w-full mt-1">{u.displayName}</div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
       <div className="h-5" />
 
       {/* ベルから開く全件パネル（既読・過去も確認できる） */}
