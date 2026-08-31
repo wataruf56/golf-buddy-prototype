@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase';
 import type { Round } from '@/lib/types';
+import { warmTestIds, withoutTestRounds, withoutTestUsers } from '@/lib/testAccounts';
+
 
 // 管理画面トップの「事業サマリー」。散らばっていた計測を、意思決定に必要な数字だけに絞って返す。
 //
@@ -26,6 +28,8 @@ const membersOf = (r: Round) => [r.hostId, ...(r.coHostIds || []), ...(r.applica
 const dateOf = (r: Round) => (r.date ? new Date(`${r.date}T00:00:00+09:00`).getTime() : 0);
 
 export async function GET(req: NextRequest) {
+  // 手動登録したテストアカウントも外すため、最初に1回だけ読み込む。
+  await warmTestIds();
   if (!authed(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
   const db = getAdminDb() as any;
   if (!db) return NextResponse.json({ error: 'no_db' }, { status: 500, headers: noStore });
@@ -39,8 +43,11 @@ export async function GET(req: NextRequest) {
       db.collection('rounds').limit(1000).get(),
       db.collection('users').limit(1000).get(),
     ]);
-    const rounds: Round[] = roundSnap.docs.map((d: any) => ({ id: d.id, ...(d.data() || {}) }));
-    const users = userSnap.docs.map((d: any) => ({ id: d.id, ...(d.data() || {}) }));
+    // 動作確認用（test_）は実績に混ぜない。主催者がテストのラウンドも外す。
+    const rounds: Round[] = withoutTestRounds(
+      roundSnap.docs.map((d: any) => ({ id: d.id, ...(d.data() || {}) })));
+    const users = withoutTestUsers(
+      userSnap.docs.map((d: any) => ({ id: d.id, ...(d.data() || {}) })));
 
     // ── 北極星：実際にラウンドした人数（完了ラウンドのメンバー・当日欠席は除く） ──
     const playedIn = (from: number, to: number) => {

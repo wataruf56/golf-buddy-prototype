@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase';
+import { warmTestIds, isTestId } from '@/lib/testAccounts';
+
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 
@@ -32,6 +34,8 @@ function normPage(raw: string): string {
 // and who's using swing analysis (and how many times). Aggregated from the
 // _logs (client telemetry) and swings collections.
 export async function GET(req: NextRequest) {
+  // 手動登録したテストアカウントも外すため、最初に1回だけ読み込む。
+  await warmTestIds();
   if (!checkToken(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
   const db = getAdminDb() as any;
   if (!db) return NextResponse.json({ error: 'firestore not initialized' }, { status: 500, headers: noStore });
@@ -42,7 +46,9 @@ export async function GET(req: NextRequest) {
     // page_view が大量に混ざるため広めに取得。①が参照する操作が②に必ず含まれるよう、
     // ②の表示件数も十分に増やして（下記 slice）窓を揃える。
     const logSnap = await db.collection('_logs').orderBy('ts', 'desc').limit(4000).get();
-    const logs = logSnap.docs.map((d: any) => d.data());
+    // 動作確認用（test_）の操作は実績に混ぜない。混ざると「よく開かれている画面」や
+    // アクティブユーザー数が、実際に使われているより多く見えてしまう。
+    const logs = logSnap.docs.map((d: any) => d.data()).filter((l: any) => !isTestId(l?.userId));
 
     // ①いま使っているユーザーの「最後の操作」は実操作のみ（画面表示は除く）。
     const ACTION_HIDDEN = new Set(['app_open', 'hydrate_success', 'hydrate_error', 'page_view', 'mypage_render', 'menu_entry']);
@@ -128,11 +134,11 @@ export async function GET(req: NextRequest) {
     let swings: any[] = [];
     try {
       const swSnap = await db.collection('swings').orderBy('createdAt', 'desc').limit(500).get();
-      swings = swSnap.docs.map((d: any) => d.data());
+      swings = swSnap.docs.map((d: any) => d.data()).filter((x: any) => !isTestId(x?.userId));
     } catch {
       // Fallback without orderBy (older docs missing createdAt index)
       const swSnap = await db.collection('swings').limit(500).get();
-      swings = swSnap.docs.map((d: any) => d.data());
+      swings = swSnap.docs.map((d: any) => d.data()).filter((x: any) => !isTestId(x?.userId));
       swings.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     }
     const swingPerUser: Record<string, { total: number; done: number; lastAt: number }> = {};
@@ -245,7 +251,8 @@ export async function GET(req: NextRequest) {
       let total = 0, tagged = 0;
       uSnap.docs.forEach((d: any) => {
         const u = d.data() || {};
-        if (u.isSystem) return; // 管理人などは除外
+        if (u.isSystem) return;       // 管理人などは除外
+        if (isTestId(d.id)) return;   // 動作確認用は会員数に混ぜない
         total++;
         const src = String(u.acquisitionSource || 'unknown');
         bySrc[src] = (bySrc[src] || 0) + 1;

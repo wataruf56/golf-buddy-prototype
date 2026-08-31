@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listAudit, AUDIT_ACTION, type AuditEntry } from '@/lib/auditLog';
+import { isTestId, warmTestIds } from '@/lib/testAccounts';
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 export const dynamic = 'force-dynamic';
@@ -31,6 +32,8 @@ type Stay = {
 };
 
 export async function GET(req: NextRequest) {
+  // 手動登録したテストアカウントも外すため、最初に1回だけ読み込む。
+  await warmTestIds();
   if (!authed(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
   const u = new URL(req.url);
   const days = Math.min(365, Math.max(1, Number(u.searchParams.get('days') || 30)));
@@ -42,7 +45,7 @@ export async function GET(req: NextRequest) {
   if (userId) rows = rows.filter((r) => r.actorId === userId);
   // テストアカウントの出入りは既定で外す。動作確認の行が混ざると、
   // 実際の会員がどう動いたのかが読めなくなるため。
-  if (!includeTest) rows = rows.filter((r) => !r.actorId.startsWith('test_'));
+  if (!includeTest) rows = rows.filter((r) => !isTestId(r.actorId));
 
   // グループ（＝ラウンド）ごとにまとめる
   const groups = new Map<string, { groupId: string; title: string; official: boolean; events: Ev[] }>();

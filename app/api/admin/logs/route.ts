@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isDemoMode } from '@/lib/demoMode';
 import { getAdminDb } from '@/lib/firebase';
+import { warmTestIds, isTestId } from '@/lib/testAccounts';
+
 
 const noStore = {
   'Cache-Control': 'no-store, must-revalidate',
@@ -10,6 +12,8 @@ const noStore = {
 // GET /api/admin/logs?token=XXX&limit=N&userId=Uxxx
 // Token must match ADMIN_LOG_TOKEN env var. Returns recent _logs entries.
 export async function GET(req: NextRequest) {
+  // 手動登録したテストアカウントも外すため、最初に1回だけ読み込む。
+  await warmTestIds();
   const url = new URL(req.url);
   const token = url.searchParams.get('token') || '';
   const expected = process.env.ADMIN_LOG_TOKEN || '';
@@ -32,7 +36,9 @@ export async function GET(req: NextRequest) {
       .orderBy('ts', 'desc')
       .limit(userId ? Math.max(limit * 4, 200) : limit)
       .get();
-    let logs = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+    // 動作確認用（test_）の操作は出さない。
+    let logs = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }))
+      .filter((l: any) => !isTestId(l.userId));
     if (userId) logs = logs.filter((l: any) => l.userId === userId).slice(0, limit);
     // Also fetch the current Firestore user doc for context
     let userDoc: any = null;

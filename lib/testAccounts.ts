@@ -123,3 +123,40 @@ export async function saveTestAccountConfig(patch: Partial<TestAccountConfig>): 
   invalidateTestAccountCache();
   return next;
 }
+
+// ── 管理画面の集計から動作確認用を外すための道具 ──
+//
+// 集計はドキュメントを何百件も回すので、1件ごとに await するわけにいかない。
+// リクエストの最初に warmTestIds() で1回だけ読み込み、以降は同期で判定する。
+//
+// **test_ 始まり（なりすましログイン）だけでなく、管理画面で手動登録した
+// 実LINEアカウントも同じように外す。**どちらも「本番の実績ではないもの」で、
+// 片方だけ外すと数字の意味が画面ごとに変わってしまう。
+let _idSetForFilter: Set<string> = new Set();
+
+/** リクエストの最初に1回だけ呼ぶ。手動登録ぶんを読み込む。 */
+export async function warmTestIds(): Promise<void> {
+  try { _idSetForFilter = await getTestAccountIdSet(); } catch { /* 接頭辞だけで判定する */ }
+}
+
+/** 動作確認用のIDか（同期）。warmTestIds() を呼んでいなくても test_ は判定できる。 */
+export function isTestId(id?: string | null): boolean {
+  if (!id) return false;
+  const s = String(id);
+  return s.startsWith('test_') || _idSetForFilter.has(s);
+}
+
+/** 主催者がテストのラウンドか。 */
+export function isTestRound(r: { hostId?: string } | null | undefined): boolean {
+  return !!r && isTestId(r.hostId);
+}
+
+/** 実ユーザーだけ残す。 */
+export function withoutTestUsers<T extends { id?: string }>(list: T[]): T[] {
+  return (list || []).filter((x) => !isTestId(x?.id));
+}
+
+/** テストが立てたラウンドを落とす。 */
+export function withoutTestRounds<T extends { hostId?: string }>(list: T[]): T[] {
+  return (list || []).filter((r) => !isTestId(r?.hostId));
+}

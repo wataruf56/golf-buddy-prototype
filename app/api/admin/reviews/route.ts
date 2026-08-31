@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase';
+import { warmTestIds, isTestId } from '@/lib/testAccounts';
+
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 
@@ -23,6 +25,8 @@ async function recomputeUserStats(db: any, userId: string) {
 
 // GET /api/admin/reviews?token=XXX[&userId=...&roundId=...]
 export async function GET(req: NextRequest) {
+  // 手動登録したテストアカウントも外すため、最初に1回だけ読み込む。
+  await warmTestIds();
   if (!checkToken(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
   const db = getAdminDb();
   if (!db) return NextResponse.json({ error: 'firestore not initialized' }, { status: 500, headers: noStore });
@@ -36,7 +40,9 @@ export async function GET(req: NextRequest) {
     if (userId) q = q.where('revieweeId', '==', userId);
     else if (roundId) q = q.where('roundId', '==', roundId);
     const snap = await q.limit(200).get();
-    const items = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+    // 動作確認用（test_）が書いた／書かれたレビューは実績に混ぜない。
+    const items = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }))
+      .filter((r: any) => !isTestId(r.reviewerId) && !isTestId(r.revieweeId));
     items.sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
 
     // Resolve user displayNames
@@ -55,6 +61,8 @@ export async function GET(req: NextRequest) {
 
 // PATCH /api/admin/reviews?token=XXX  body: { id, stars?, tags?, comment? }
 export async function PATCH(req: NextRequest) {
+  // 手動登録したテストアカウントも外すため、最初に1回だけ読み込む。
+  await warmTestIds();
   if (!checkToken(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
   const db = getAdminDb();
   if (!db) return NextResponse.json({ error: 'firestore not initialized' }, { status: 500, headers: noStore });
@@ -86,6 +94,8 @@ export async function PATCH(req: NextRequest) {
 // DELETE /api/admin/reviews?token=XXX  body: { id, revert?: boolean }
 // revert=true → also resets the corresponding pendingReview back to status:'pending' so the reviewer can redo it.
 export async function DELETE(req: NextRequest) {
+  // 手動登録したテストアカウントも外すため、最初に1回だけ読み込む。
+  await warmTestIds();
   if (!checkToken(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
   const db = getAdminDb();
   if (!db) return NextResponse.json({ error: 'firestore not initialized' }, { status: 500, headers: noStore });

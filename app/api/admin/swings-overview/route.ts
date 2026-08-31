@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase';
+import { warmTestIds, isTestId } from '@/lib/testAccounts';
+
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 
@@ -9,6 +11,8 @@ const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 // requeue them with a single click. Replaces the old "input a userId first"
 // flow which made the page look broken when admin opened it.
 export async function GET(req: NextRequest) {
+  // 手動登録したテストアカウントも外すため、最初に1回だけ読み込む。
+  await warmTestIds();
   const url = new URL(req.url);
   const token = url.searchParams.get('token') || '';
   const expected = process.env.ADMIN_LOG_TOKEN || '';
@@ -32,7 +36,9 @@ export async function GET(req: NextRequest) {
     .limit(200)
     .get();
 
-  const docs = snap.docs.map((d: any) => ({ ref: d.ref, data: d.data() }));
+  // 動作確認用（test_）の解析は一覧にも件数にも出さない。
+  const docs = snap.docs.map((d: any) => ({ ref: d.ref, data: d.data() }))
+    .filter((d: any) => !isTestId(d.data?.userId));
 
   const counts: Record<string, number> = { queued: 0, analyzing: 0, done: 0, failed: 0, other: 0 };
   for (const d of docs) {

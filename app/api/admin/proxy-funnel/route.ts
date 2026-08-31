@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase';
 import { listActiveThreads, listThreads, officialOf, takenSeats, totalSeats } from '@/lib/officialThread';
+import { isTestId, warmTestIds } from '@/lib/testAccounts';
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 export const dynamic = 'force-dynamic';
@@ -35,6 +36,8 @@ const RIDER_STEPS = [
 ];
 
 export async function GET(req: NextRequest) {
+  // 手動登録したテストアカウントも外すため、最初に1回だけ読み込む。
+  await warmTestIds();
   if (!authed(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
   const u = new URL(req.url);
   const days = Math.min(365, Math.max(1, Number(u.searchParams.get('days') || 30)));
@@ -53,7 +56,7 @@ export async function GET(req: NextRequest) {
       const ev = String(r.event || '');
       if (!ev.startsWith('pr_')) continue;
       const uid = String(r.userId || '');
-      if (!uid || uid.startsWith('test_')) continue;   // 動作確認ぶんは混ぜない
+      if (!uid || isTestId(uid)) continue;   // 動作確認ぶんは混ぜない
       (uniq[ev] ||= new Set()).add(uid);
     }
   } catch (e) {
@@ -67,7 +70,7 @@ export async function GET(req: NextRequest) {
     const { listAudit, AUDIT_ACTION } = await import('@/lib/auditLog');
     const rows = await listAudit({ limit: 500, action: AUDIT_ACTION.groupLeave, since });
     leftAfter = new Set(rows
-      .filter((r) => (r.detail as any)?.official && !String(r.actorId).startsWith('test_'))
+      .filter((r) => (r.detail as any)?.official && !isTestId(r.actorId))
       .map((r) => `${r.actorId}:${r.targetId}`)).size;
   } catch { /* 出せなくても他は返す */ }
 

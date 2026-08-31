@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase';
+import { warmTestIds, isTestId } from '@/lib/testAccounts';
+
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 
@@ -12,6 +14,8 @@ function checkToken(req: NextRequest): boolean {
 
 // GET /api/admin/rounds?token=XXX[&hostId=...]
 export async function GET(req: NextRequest) {
+  // 手動登録したテストアカウントも外すため、最初に1回だけ読み込む。
+  await warmTestIds();
   if (!checkToken(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
   const db = getAdminDb();
   if (!db) return NextResponse.json({ error: 'firestore not initialized' }, { status: 500, headers: noStore });
@@ -23,7 +27,10 @@ export async function GET(req: NextRequest) {
     let q: any = db.collection('rounds');
     if (hostId) q = q.where('hostId', '==', hostId);
     const snap = await q.limit(200).get();
-    const items = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+    // 動作確認用（test_）が立てた募集は一覧にも件数にも出さない。
+    // 混ざると満員率や募集件数が実態より良く見える。
+    const items = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }))
+      .filter((r: any) => !isTestId(r.hostId));
     items.sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
 
     // Resolve host displayNames
@@ -43,6 +50,8 @@ export async function GET(req: NextRequest) {
 // PATCH /api/admin/rounds?token=XXX  body: { id, isOfficial: boolean }
 // Toggle a specific round's "ゴルトモ公式" flag from the admin screen.
 export async function PATCH(req: NextRequest) {
+  // 手動登録したテストアカウントも外すため、最初に1回だけ読み込む。
+  await warmTestIds();
   if (!checkToken(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
   const db = getAdminDb();
   if (!db) return NextResponse.json({ error: 'firestore not initialized' }, { status: 500, headers: noStore });
@@ -70,6 +79,8 @@ export async function PATCH(req: NextRequest) {
 // DELETE /api/admin/rounds?token=XXX  body: { id, cascade?: boolean }
 // cascade=true → also deletes related pendingReviews + roundChats
 export async function DELETE(req: NextRequest) {
+  // 手動登録したテストアカウントも外すため、最初に1回だけ読み込む。
+  await warmTestIds();
   if (!checkToken(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
   const db = getAdminDb();
   if (!db) return NextResponse.json({ error: 'firestore not initialized' }, { status: 500, headers: noStore });

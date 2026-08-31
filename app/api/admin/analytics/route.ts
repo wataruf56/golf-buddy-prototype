@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase';
+import { warmTestIds, isTestId } from '@/lib/testAccounts';
+
 
 // 管理者用アクセス分析。登録者数の推移（users.createdAt）＋アプリ内アクセスの
 // 日別・時間帯別（_logs のテレメトリ）を集計して返す。SaaS的なダッシュボードの土台。
@@ -23,6 +25,8 @@ function jstParts(ts: number): { day: string; hour: number } {
 }
 
 export async function GET(req: NextRequest) {
+  // 手動登録したテストアカウントも外すため、最初に1回だけ読み込む。
+  await warmTestIds();
   if (!checkToken(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
   const db = getAdminDb() as any;
   if (!db) return NextResponse.json({ error: 'no_db' }, { status: 500, headers: noStore });
@@ -37,6 +41,8 @@ export async function GET(req: NextRequest) {
     let usersWithDate = 0;
     let usersTotal = 0;
     usersSnap.docs.forEach((d: any) => {
+      // 動作確認用（test_）は登録推移にも会員数にも混ぜない。
+      if (isTestId(d.id)) return;
       usersTotal++;
       const c = d.data()?.createdAt;
       if (typeof c === 'number' && c > 0) {

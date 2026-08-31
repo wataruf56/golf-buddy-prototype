@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase';
+import { warmTestIds, isTestId } from '@/lib/testAccounts';
+
 
 // 管理画面：全ユーザーの評価状況を一覧＋一人ずつ詳しく見るためのデータ。
 //
@@ -22,6 +24,8 @@ function authed(req: NextRequest): boolean {
 }
 
 export async function GET(req: NextRequest) {
+  // 手動登録したテストアカウントも外すため、最初に1回だけ読み込む。
+  await warmTestIds();
   if (!authed(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
   const db = getAdminDb() as any;
   if (!db) return NextResponse.json({ error: 'firestore not initialized' }, { status: 500, headers: noStore });
@@ -34,7 +38,9 @@ export async function GET(req: NextRequest) {
       db.collection('_matchLikes').limit(8000).get(),
     ]);
 
-    const users = uSnap.docs.map((d: any) => ({ id: d.id, ...(d.data() || {}) }));
+    // 動作確認用（test_）は評価の集計に混ぜない。
+    const users = uSnap.docs.map((d: any) => ({ id: d.id, ...(d.data() || {}) }))
+      .filter((u: any) => !isTestId(u.id));
     const nameOf: Record<string, string> = {};
     users.forEach((u: any) => { nameOf[u.id] = u.displayName || '（名前なし）'; });
 

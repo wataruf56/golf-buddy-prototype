@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase';
+import { isTestId, warmTestIds } from '@/lib/testAccounts';
 
 // 管理画面：LP流入ファネル。_lpTrack を集計する。
 //
@@ -29,6 +30,8 @@ const uniq = (s: Set<string>) => s.size;
 const sz = (s?: Set<string>) => (s ? s.size : 0);
 
 export async function GET(req: NextRequest) {
+  // 手動登録したテストアカウントも外すため、最初に1回だけ読み込む。
+  await warmTestIds();
   if (!authed(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
   const db = getAdminDb() as any;
   if (!db) return NextResponse.json({ error: 'firestore not initialized' }, { status: 500, headers: noStore });
@@ -220,7 +223,7 @@ export async function GET(req: NextRequest) {
         const x = u.data() || {};
         const id = String(x.id || u.id || '');
         const at = Number(x.acquisitionAt || x.createdAt || 0);
-        if (id.startsWith('test_')) {
+        if (isTestId(id)) {
           if (at >= from && at < to) signups.testExcluded++;
           return;
         }
