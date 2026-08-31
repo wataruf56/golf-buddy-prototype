@@ -12,7 +12,7 @@ import { appProfileUrl } from '@/lib/adminLinks';
 type Row = {
   ts: number;
   action: string;
-  actorKind: 'admin' | 'token' | 'system';
+  actorKind: 'admin' | 'token' | 'system' | 'user';
   actorId: string;
   actorName?: string;
   targetId?: string;
@@ -43,6 +43,8 @@ const ACTION_LABEL: Record<string, string> = {
   'rematch.notify': '🔁 再会の通知',
   'rematch.run': '🔁 再会エンジンを手動実行',
   'rematch.reset': '🔁 再会データの削除',
+  'group.join': '🚪 グループに入った',
+  'group.leave': '🚪 グループを抜けた',
 };
 const al = (k: string) => ACTION_LABEL[k] || k;
 
@@ -50,6 +52,7 @@ const ACTOR_LABEL: Record<Row['actorKind'], string> = {
   admin: '👤 管理者',
   token: '🔑 管理トークン',
   system: '🤖 自動',
+  user: '🙋 会員本人',
 };
 
 const fmt = (ms: number) =>
@@ -112,6 +115,9 @@ function Inner() {
       <div className="text-2xl font-black mt-1 mb-1">📒 操作ログ</div>
       <div className="text-[11.5px] text-sub font-bold leading-relaxed mb-3">
         誰が・誰に・何をしたかの台帳です。<b className="text-text">自動で動く再会エンジンの送信も同じ場所に残ります。</b>
+        <Link href={`/admin/group-log?token=${token}`} className="text-blue underline ml-1">
+          グループの入退室だけ見る ›
+        </Link>
       </div>
 
       {/* しぼり込み */}
@@ -157,6 +163,7 @@ function Inner() {
               <span className={'text-[10.5px] font-black border rounded-full px-2 py-0.5 ' +
                 (r.actorKind === 'system' ? 'bg-blue-light border-blue text-blue'
                   : r.actorKind === 'admin' ? 'bg-green-light border-green text-green'
+                  : r.actorKind === 'user' ? 'bg-bg border-border text-sub'
                   : 'bg-yellow-light border-yellow text-orange')}>
                 {ACTOR_LABEL[r.actorKind]}{r.actorName ? ` ${r.actorName}` : ''}
               </span>

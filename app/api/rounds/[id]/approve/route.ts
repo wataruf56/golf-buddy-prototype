@@ -42,5 +42,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
   } catch { /* non-fatal */ }
 
+  // 出入りのログ。「誰が」は入った本人にして、承認した主催者は by に残す。
+  try {
+    const { audit, userActor, AUDIT_ACTION } = await import('@/lib/auditLog');
+    await audit({
+      action: AUDIT_ACTION.groupJoin,
+      ...(await userActor(userId)),
+      targetKind: 'round', targetId: round.id, targetName: round.title,
+      summary: `「${round.title}」に入った`,
+      detail: { by: 'host', hostId: meId, seats: `${updated?.currentCount ?? ''}` },
+    }, req);
+  } catch { /* ログの失敗で承認を止めない */ }
+
   return NextResponse.json({ round: updated });
 }

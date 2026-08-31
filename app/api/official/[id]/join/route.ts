@@ -99,6 +99,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
   }
 
+  // 出入りのログ。誰がいつどのグループに入ったかを管理画面で追えるようにする。
+  try {
+    const { audit, userActor, AUDIT_ACTION } = await import('@/lib/auditLog');
+    await audit({
+      action: AUDIT_ACTION.groupJoin,
+      ...(await userActor(meId)),
+      targetKind: 'round', targetId: round.id, targetName: round.title,
+      summary: `「${round.title}」に入った`,
+      detail: { by: 'self', slotId, ...(o.askLicense ? { license } : {}), seats: `${applicantIds.length}/${totalSeats(round)}`, official: true },
+    }, req);
+  } catch { /* ログの失敗で参加を止めない */ }
+
   return NextResponse.json({
     ok: true, filled, taken: applicantIds.length, total: totalSeats(round),
   }, { headers: noStore });

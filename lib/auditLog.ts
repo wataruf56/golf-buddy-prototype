@@ -18,7 +18,8 @@ const COLL = '_auditLog';
 export type AuditActorKind =
   | 'admin'     // 管理者本人（LINEログインで本人が特定できている）
   | 'token'     // 管理トークン経由（共有パスワードのため本人までは特定できない）
-  | 'system';   // 自動処理（cron・再会エンジンなど）
+  | 'system'    // 自動処理（cron・再会エンジンなど）
+  | 'user';     // 会員自身の操作（枠に入った・抜けた など）
 
 export type AuditEntry = {
   ts: number;
@@ -56,6 +57,10 @@ export const AUDIT_ACTION = {
   rematchNotify: 'rematch.notify',
   rematchRun: 'rematch.run',
   rematchReset: 'rematch.reset',
+  // 会員自身の出入り。誰がいつ入って、いつ抜けたかを追えるようにする。
+  // 運営の枠でも普通の募集でも同じ action で書く（画面ではグループ名で並べる）。
+  groupJoin: 'group.join',
+  groupLeave: 'group.leave',
 } as const;
 
 /**
@@ -101,6 +106,16 @@ export async function adminActor(meId?: string | null): Promise<Pick<AuditEntry,
     name = (await db.getUser(meId))?.displayName || '';
   } catch { /* 名前は取れなくてもよい */ }
   return { actorKind: 'admin', actorId: meId, actorName: name || undefined };
+}
+
+/** 会員自身の「誰が」。管理者の操作と混ざらないよう actorKind を分ける。 */
+export async function userActor(userId: string): Promise<Pick<AuditEntry, 'actorKind' | 'actorId' | 'actorName'>> {
+  let name = '';
+  try {
+    const { db } = await import('./db');
+    name = (await db.getUser(userId))?.displayName || '';
+  } catch { /* 名前は取れなくてもよい */ }
+  return { actorKind: 'user', actorId: userId, actorName: name || undefined };
 }
 
 /** 自動処理の「誰が」。 */
