@@ -20,6 +20,24 @@ const nextConfig = {
   // 消すのではなく現行の診断LPへ恒久リダイレクトする。
   // 注意：middleware の許可リストから /golmoti-lp を外すと、ここに来る前に /lp へ
   // rewrite されてこのリダイレクトが効かなくなる。
+  // 募集の詳細ページ（/round/[id]）を検索結果に出さない。
+  //
+  // 募集は数週間で終わる使い捨てのページなので、育てても実らないうちに終わる。
+  // それが何十件も索引されると、最重要の指名KW「ゴルトモ」で**自社の終わった募集
+  // どうしが競合**して本命のLPを押し下げるうえ、参加者の名前が検索結果に出うる。
+  //
+  // robots.txt で塞がないのは、**クロールは許可したままにしたいから**。
+  // 募集ページは X や LINE でシェアされる主戦場で、塞ぐとプレビューカードが死ぬ。
+  // X-Robots-Tag なら「読んでよいが索引には入れるな」と伝えられる。
+  // follow を付けているのは、ページ内のリンク（LPや使い方）は辿ってほしいため。
+  async headers() {
+    return [
+      {
+        source: '/round/:path*',
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex, follow' }],
+      },
+    ];
+  },
   async redirects() {
     return [
       { source: '/golmoti-lp', destination: '/golmoti.html', permanent: true },

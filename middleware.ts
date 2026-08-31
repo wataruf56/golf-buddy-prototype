@@ -89,6 +89,11 @@ export default async function middleware(req: NextRequest) {
 
   // -------- LP host (goltomo.com / www.goltomo.com) --------
   if (LP_HOSTS.has(host)) {
+    // 末尾スラッシュを落としてから判定する。middleware は Next の正規化より
+    // 先に走るので、ここで揃えないと /about/ が許可リストに当たらず404になる。
+    if (path.length > 1 && path.endsWith('/')) {
+      return NextResponse.redirect(new URL(`${path.replace(/\/+$/, '')}${url.search}`, req.url), 308);
+    }
     // 静的アセット（画像・CSS・JS・フォント等）は public/ からそのまま配信。
     // これを通さないと LP(/lp や golmoti.html)が参照する画像が /lp の HTML に
     // 書き換えられてしまう（例: /line-logo.png）。
@@ -160,11 +165,27 @@ export default async function middleware(req: NextRequest) {
     if (
       path.startsWith('/share') || path.startsWith('/liff') || path.startsWith('/api/') ||
       path.startsWith('/round') || path.startsWith('/profile') || path.startsWith('/poll') ||
-      path.startsWith('/add-friend') || path.startsWith('/qr')
+      path.startsWith('/add-friend') || path.startsWith('/qr') ||
+      // /links はインスタのリンク集。貼っているのは app. 付きだが、裸のURLで
+      // 来た人を404にしたくないので、正しいホストへ逃がす。
+      path.startsWith('/links')
     ) {
       return NextResponse.redirect(new URL(`https://app.goltomo.com${path}${url.search}`));
     }
-    // Everything else on LP host → render the LP (rewrite, keeps URL).
+    // トップだけがLP。それ以外の知らないパスは**404にする**。
+    //
+    // これまでは知らないパスを全部 /lp へ rewrite していたので、
+    // goltomo.com/no-such-page-xyz のようなでたらめなURLが200でLPを返していた
+    // （＝ソフト404）。canonical で重複は吸収できていたが、Googleには
+    // 「実在しないURLに200を返すサイト」として積み上がる。
+    //
+    // 404にする前に、意図して外に出しているURLは上で全部拾ってある
+    //   … 静的ファイル / 許可リスト / /guide→/guides / /rounds / /mbti /
+    //     /app（LIFF） / /admin系 / app ホスト行き（/links を含む）
+    // 末尾スラッシュ付き（/about/ など）はここに来る前に正規化しておく。
+    if (path !== '/') {
+      return NextResponse.rewrite(new URL('/lp-404', req.url));
+    }
     return NextResponse.rewrite(new URL('/lp', req.url));
   }
 
