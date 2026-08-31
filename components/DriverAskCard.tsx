@@ -89,7 +89,7 @@ export function DriverAskCard() {
       {/* 閉じても戻ってこられるカード。ポップアップだけだと一度閉じたら終わってしまう */}
       <div className="px-5 pb-3">
         <button onClick={toStations}
-          className="block w-full text-left border-2 border-teal rounded-card p-4 bg-green-light">
+          className="block w-full text-left border-2 border-green rounded-card p-4 bg-green-light">
           <div className="flex items-center gap-3">
             <span className="text-2xl">🚗</span>
             <div className="flex-1 min-w-0">
@@ -113,8 +113,11 @@ export function DriverAskCard() {
             <div className="text-[12.5px] font-bold text-sub text-center mt-2 leading-relaxed whitespace-pre-wrap">
               {ask.body}
             </div>
+            {/* 先へ進む一番のボタンなので、アプリで一番強い色（オレンジ）を使う。
+                白文字＋濃い縁で、クリーム地の上でもはっきり読めるようにする。 */}
             <button onClick={toStations}
-              className="w-full mt-4 py-3.5 rounded-xl text-[15px] font-black border-2 text-white bg-teal border-teal">
+              className="w-full mt-4 py-3.5 rounded-xl text-[15px] font-black border-2 text-white
+                bg-orange border-border shadow-card">
               駅を選ぶ
             </button>
             <button onClick={later}
@@ -144,7 +147,7 @@ export function DriverAskCard() {
                   <button key={s}
                     onClick={() => setPicked((p) => on ? p.filter((x) => x !== s) : [...p, s])}
                     className={'text-[13px] font-black border-2 rounded-full px-3.5 py-2 ' +
-                      (on ? 'bg-teal border-teal text-white' : 'bg-white border-border')}>
+                      (on ? 'bg-green border-border text-white' : 'bg-white border-border')}>
                     {s}
                   </button>
                 );
