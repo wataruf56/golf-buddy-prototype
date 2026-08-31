@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { track } from '@/lib/telemetry';
 import { takeLpOrigin } from '@/lib/lpOrigin';
+import { QRCodeSVG } from 'qrcode.react';
 
 // LIFF entry: initialize SDK → ensure logged in → exchange idToken for our cookie → redirect.
 // Default redirect target is /home, override with ?to=/round/xxx etc.
@@ -38,6 +39,7 @@ export default function LiffEntryPage() {
 //   liff_auth    … サーバー認証OK（セッション発行）
 //   liff_new     … 新規会員として作成された ★これが本当の「登録完了」
 //   liff_return  … 既存会員の再ログイン（登録数には数えない）
+//   liff_pc      … PCで開かれたのでQRを出して止めた（LINEの赤いエラーに着かせない）
 //   liff_error   … 途中で失敗（note に理由）
 const LIFF_VID_KEY = 'gb_vid';
 const LIFF_BACK_KEY = 'gb_liff_await_login';
@@ -80,6 +82,25 @@ function liffEntryOf(ref: string, menu: string): string {
   return 'line';
 }
 
+/**
+ * PC（＝LINEアプリの外・スマホでもない）で開かれたか。
+ *
+ * ここで止めないと liff.login() がLINEのログインへ飛ばし、PCでは
+ * **LINEの赤いエラー画面**に着いて終わる。ファネルで一番人が消えていた場所で、
+ * 戻り道も無いので、そのまま二度と来ない。
+ *
+ * スマホのブラウザ（LINEの外のSafari/Chrome）は素通しにする。
+ * そちらは liff.login() から LINEアプリへ繋がって正常に進むため。
+ */
+function isDesktopBrowser(): boolean {
+  try {
+    const ua = navigator.userAgent || '';
+    if (/Line\//i.test(ua)) return false;                 // LINEアプリの中
+    if (/Android|iPhone|iPad|iPod|Mobile/i.test(ua)) return false;  // スマホ・タブレット
+    return true;
+  } catch { return false; }
+}
+
 function LiffEntryInner() {
   const router = useRouter();
   const search = useSearchParams();
@@ -87,6 +108,7 @@ function LiffEntryInner() {
   const retried = search?.get('retried') === '1';
   const [status, setStatus] = useState<string>('LIFFを起動中...');
   const [errorMsg, setErrorMsg] = useState<string>('');
+  const [pc, setPc] = useState(false);
 
   useEffect(() => {
     const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '';
@@ -136,6 +158,13 @@ function LiffEntryInner() {
         liffTrack('liff_sdk', ctx);
 
         if (!liff.isLoggedIn()) {
+          // PCはここで止める。この先の liff.login() がLINEの赤いエラー画面に着き、
+          // 戻り道が無いまま終わってしまう。代わりにQRを出してスマホへ渡す。
+          if (isDesktopBrowser()) {
+            liffTrack('liff_pc', ctx);
+            setPc(true);
+            return;
+          }
           if (retried) {
             throw new Error('LINE ログインに失敗しました。LINE アプリを再起動してからもう一度お試しください。');
           }
@@ -223,7 +252,50 @@ function LiffEntryInner() {
     return () => { cancelled = true; };
   }, [router, to, retried]);
 
+  if (pc) return <PcQr to={to} />;
   return <LiffLoading status={status} errorMsg={errorMsg} />;
+}
+
+/**
+ * PCで開いた人に出す画面。
+ * ゴルトモはLINEの中で動くので、PCでは最後まで進めない。
+ * 「使えません」で終わらせず、**同じURLのQR**を出して、そのままスマホへ渡す。
+ */
+function PcQr({ to }: { to: string }) {
+  const [url, setUrl] = useState('');
+  useEffect(() => {
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.set('to', to);
+      u.searchParams.delete('retried');
+      setUrl(u.toString());
+    } catch { setUrl('https://app.goltomo.com/liff'); }
+  }, [to]);
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-bg">
+      <div className="text-4xl mb-3">📱</div>
+      <div className="text-[19px] font-black mb-1">スマホで開いてください</div>
+      <div className="text-[12.5px] text-sub font-bold leading-relaxed mb-5 max-w-[300px]">
+        ゴルトモはLINEの中で動くため、パソコンでは最後まで進めません。<br />
+        下のQRコードをスマホのカメラで読み取ってください。
+      </div>
+
+      <div className="bg-white border-[3px] border-border rounded-card shadow-card p-4">
+        {url ? <QRCodeSVG value={url} size={196} level="M" includeMargin={false} />
+             : <div className="w-[196px] h-[196px]" />}
+      </div>
+
+      <div className="text-[11.5px] text-muted font-bold mt-4 leading-relaxed max-w-[300px]">
+        スマホでLINEを開いたまま読み取ると、そのまま始められます。<br />
+        うまくいかないときは、LINEで「ゴルトモ」を友だち追加してください。
+      </div>
+
+      <a href="/" className="mt-5 text-[12px] font-black text-blue underline">
+        サービスの説明を見る ›
+      </a>
+    </div>
+  );
 }
 
 function LiffLoading({ status, errorMsg }: { status: string; errorMsg?: string }) {
