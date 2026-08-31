@@ -452,15 +452,24 @@ class FirestoreDB implements DB {
     const ref = this.fs.collection('users').doc(u.id);
     const snap = await ref.get();
     if (!snap.exists) {
-      const data = {
-        displayName: u.displayName || 'ゴルファー', age: u.age ?? 0,
-        area: u.area || '', scoreRange: u.scoreRange || '', playStyle: u.playStyle || '',
-        frequency: u.frequency || '', avatar: u.avatar || '⛳', color: u.color || '#2D8C4E',
-        reviewAvg: u.reviewAvg ?? 0, reviewCount: u.reviewCount ?? 0,
-        roundCount: u.roundCount ?? 0, buddyCount: u.buddyCount ?? 0,
-        lineId: u.lineId || null, gender: u.gender || null,
-        createdAt: Date.now(), updatedAt: Date.now(),
+      // 新規作成。**渡されたものは全部そのまま保存する**。
+      //
+      // ここは以前、決め打ちの14項目だけを組み立てて保存しており、
+      // それ以外に渡された値（car / avatarUrl / botFollowed / mannerPenalty など）を
+      // 黙って捨てていた。LINE登録時のプロフィール写真が最初の1回だけ出ない、
+      // 「車あり」で作った会員に車が付かない、といった不具合の原因になっていた。
+      // 既定値を先に置き、そのうえに呼び出し側の値をかぶせる。
+      const defaults: Record<string, unknown> = {
+        displayName: 'ゴルファー', age: 0,
+        area: '', scoreRange: '', playStyle: '',
+        frequency: '', avatar: '⛳', color: '#2D8C4E',
+        reviewAvg: 0, reviewCount: 0, roundCount: 0, buddyCount: 0,
+        // Firestore に項目自体を作っておきたいので null で置く（undefined は保存できない）。
+        lineId: null, gender: null,
       };
+      const given: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(u)) if (k !== 'id' && v !== undefined) given[k] = v;
+      const data = { ...defaults, ...given, createdAt: Date.now(), updatedAt: Date.now() };
       await ref.set(data);
       return { id: u.id, ...data } as unknown as User;
     } else {
