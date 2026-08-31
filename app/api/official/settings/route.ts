@@ -45,6 +45,11 @@ export async function GET(req: NextRequest) {
         // 声かけの見た目も企画で変える（女性だけの枠は桜色）
         pattern: o.pattern,
         left: total - taken, total, snoozeDays: pr.snoozeDays,
+        // 管理者の代理ラウンド募集（ドライバー先行）の枠かどうか。
+        // こちらは「予定が合えば行きたい」のワンタップで、枠を選ばせずに
+        // そのままチャットへ入れる。手で立てた meetup 枠とは導線が違う。
+        proxy: !!(o.driverId || (o.stations && o.stations.length)),
+        stations: o.stations || [],
       }];
     });
 
