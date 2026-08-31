@@ -160,13 +160,24 @@ export async function findReplacementDrivers(round: Round, limit = 30): Promise<
  */
 export async function onDriverLeft(round: Round, leftUserId: string): Promise<number> {
   const o = officialOf(round);
-  if (!o || o.driverId !== leftUserId) return 0;
+  if (!o || !o.driverId || o.driverId !== leftUserId) return 0;
 
+  // driverId を undefined にしない。updateRound は undefined を捨てるうえ、
+  // Firestore は入れ子の undefined を受け付けずに例外を投げる。
+  // 例外が出るとこの関数ごと落ちて、再募集の通知もチャットも流れない。
+  // 「いない」は空文字で表す（このリポジトリで消したいときの決まりごと）。
   await db.updateRound(round.id, {
-    official: { ...o, driverId: undefined as any, driverWanted: true },
+    official: { ...o, driverId: '', driverWanted: true },
   } as any);
 
   const label = stationsLabel(o.stations || []);
+  // 中にいる人へは先に伝える。候補が1人も見つからなくても、
+  // 「運営が代わりを探している」ことが見えないと、残された人は何が起きたか分からない。
+  try {
+    await db.addRoundMessage(round.id, ADMIN_MANAGER_ID,
+      `🚗 車を出せる方を、運営で探しています（${label}）。\n決まりしだいここでお知らせします。`);
+  } catch { /* noop */ }
+
   const cands = await findReplacementDrivers(round);
   if (!cands.length) return 0;
 
@@ -185,13 +196,6 @@ export async function onDriverLeft(round: Round, leftUserId: string): Promise<nu
   } catch (e) {
     console.error('[proxyRecruit] notify replacement failed', (e as Error).message);
   }
-
-  // チャットにも1行残す。抜けたことは知らせない（参加者への通知は不要という方針）が、
-  // 「運営が代わりを探している」ことは中にいる人に見えたほうがよい。
-  try {
-    await db.addRoundMessage(round.id, ADMIN_MANAGER_ID,
-      `🚗 車を出せる方を、運営で探しています（${label}）。\n決まりしだいここでお知らせします。`);
-  } catch { /* noop */ }
 
   return cands.length;
 }

@@ -88,6 +88,8 @@ export type OfficialInfo = {
   /**
    * 車を出す人。この人が抜けても**枠は解散しない**。
    * 同じ駅で車を出せる別の人に声をかけ直して、集まっている参加者はそのまま残す。
+   * 抜けたあとは**空文字**にする（undefined は updateRound に捨てられ、
+   * Firestore も入れ子の undefined を受け付けないため）。
    */
   driverId?: string;
   /** ドライバーを探し直している最中か（前の人が抜けた）。 */
