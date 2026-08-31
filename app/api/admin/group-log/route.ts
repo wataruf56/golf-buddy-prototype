@@ -10,8 +10,9 @@ export const dynamic = 'force-dynamic';
 // 台帳を別に持たないのは、同じ出来事を2か所に書くと必ずズレるため。
 // ここでやるのは「並べ替えと突き合わせ」だけ。
 //
-//   ?days=   … 期間（既定30日）
-//   ?userId= … この人の出入りだけ
+//   ?days=       … 期間（既定30日）
+//   ?userId=     … この人の出入りだけ
+//   ?includeTest=1 … テストアカウント（test_）も混ぜる（既定は除く）
 
 function authed(req: NextRequest): boolean {
   const token = new URL(req.url).searchParams.get('token') || '';
@@ -34,10 +35,14 @@ export async function GET(req: NextRequest) {
   const u = new URL(req.url);
   const days = Math.min(365, Math.max(1, Number(u.searchParams.get('days') || 30)));
   const userId = u.searchParams.get('userId') || '';
+  const includeTest = u.searchParams.get('includeTest') === '1';
 
   const all = await listAudit({ limit: 500, since: Date.now() - days * 86400000 });
   let rows = all.filter((r) => r.action === AUDIT_ACTION.groupJoin || r.action === AUDIT_ACTION.groupLeave);
   if (userId) rows = rows.filter((r) => r.actorId === userId);
+  // テストアカウントの出入りは既定で外す。動作確認の行が混ざると、
+  // 実際の会員がどう動いたのかが読めなくなるため。
+  if (!includeTest) rows = rows.filter((r) => !r.actorId.startsWith('test_'));
 
   // グループ（＝ラウンド）ごとにまとめる
   const groups = new Map<string, { groupId: string; title: string; official: boolean; events: Ev[] }>();

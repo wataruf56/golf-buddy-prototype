@@ -47,6 +47,7 @@ function Inner() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [days, setDays] = useState(30);
   const [user, setUser] = useState('');
+  const [withTest, setWithTest] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
@@ -71,6 +72,7 @@ function Inner() {
     try {
       const q = new URLSearchParams({ token, days: String(days) });
       if (user) q.set('userId', user);
+      if (withTest) q.set('includeTest', '1');
       const r = await fetch(`/api/admin/group-log?${q}`, { cache: 'no-store' });
       const text = await r.text();
       let j: any;
@@ -79,7 +81,7 @@ function Inner() {
       setGroups(j.groups || []);
     } catch (e) { setErr((e as Error).message); }
     finally { setLoading(false); }
-  }, [token, days, user]);
+  }, [token, days, user, withTest]);
   useEffect(() => { load(); }, [load]);
 
   if (!token) return <div className="min-h-screen bg-bg p-5 text-sm text-muted">⚙️ 読み込み中...</div>;
@@ -115,7 +117,11 @@ function Inner() {
               className="px-3 rounded-lg text-[12px] font-black border-2 border-border bg-white">解除</button>
           )}
         </div>
-        <div className="text-[11px] font-bold text-muted mt-2">
+        <label className="flex items-center gap-1.5 mt-2 text-[11px] font-bold text-muted">
+          <input type="checkbox" checked={withTest} onChange={(e) => setWithTest(e.target.checked)} />
+          テストアカウント（test_）の出入りも混ぜる
+        </label>
+        <div className="text-[11px] font-bold text-muted mt-1">
           いま中にいる {totalIn}人 ／ 抜けた {totalOut}件
         </div>
       </div>
