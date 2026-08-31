@@ -34,7 +34,7 @@ function profileLine(u: User): string {
  * 呼ばれるたびに同じ文だと、4人ぶん並んだときに機械が喋っているように見える。
  * 入った順で書き出しを変えて、それらしさを出している。
  */
-export function buildWelcome(user: User, round: Round, taken: number, total: number): string {
+export function buildWelcome(user: User, taken: number): string {
   const name = user.displayName || 'ゴルフ好きの方';
   const openers = [
     `${name}さん、参加ありがとうございます！`,
@@ -43,17 +43,14 @@ export function buildWelcome(user: User, round: Round, taken: number, total: num
   ];
   const head = openers[Math.max(0, taken - 1) % openers.length];
 
+  // 空行は入れない。スマホの吹き出しは幅が狭く、3行の文でも5〜6行に折り返る。
+  // 参加のたびに縦長の吹き出しが積み上がると、人の会話が押し流される。
   const lines = [head];
   const p = profileLine(user);
-  if (p) lines.push('', p);
-
-  const left = Math.max(0, total - taken);
-  lines.push('');
-  if (left > 0) {
-    lines.push(`みなさん、ひとこと声をかけてあげてください。あと${left}人で成立です。`);
-  } else {
-    lines.push('みなさん、ひとこと声をかけてあげてください。');
-  }
+  if (p) lines.push(p);
+  lines.push('みなさん、ひとこと声をかけてあげてください。');
+  // 残り人数はここに書かない。1行上のお知らせが「（3/4人）」と出しており、
+  // 同じことを2回言うと、読む側は2回目を読み飛ばすようになる。
   return lines.join('\n');
 }
 
@@ -78,7 +75,7 @@ export async function postJoinMessages(
   if (!user) return;
   try {
     await db.addRoundMessage(round.id, SYSTEM_SENDER_ID, buildNotice(user, taken, total));
-    await db.addRoundMessage(round.id, ADMIN_MANAGER_ID, buildWelcome(user, round, taken, total));
+    await db.addRoundMessage(round.id, ADMIN_MANAGER_ID, buildWelcome(user, taken));
   } catch (e) {
     console.error('[joinWelcome] post failed (non-fatal)', (e as Error).message);
   }
