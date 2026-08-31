@@ -69,7 +69,7 @@ export function articleJsonLd(m: ArticleMeta, faq: { q: string; a: string }[]) {
       '@type': 'BreadcrumbList',
       itemListElement: [
         { '@type': 'ListItem', position: 1, name: 'ホーム', item: `${SITE}/` },
-        { '@type': 'ListItem', position: 2, name: 'ガイド', item: `${SITE}/guide` },
+        { '@type': 'ListItem', position: 2, name: 'ガイド', item: `${SITE}/guides` },
         { '@type': 'ListItem', position: 3, name: m.title, item: url },
       ],
     },

@@ -21,7 +21,8 @@ export const metadata: Metadata = {
   title: TITLE,
   description: DESC,
   keywords: [
-    'ゴルフ友達 探す', 'ゴルフ友達 作り方', 'ゴルフ仲間 探し方', 'ゴル友 探し',
+    'ゴルフ 友達探し', 'ゴルフ友達探し', 'ゴルフ友達 探す', 'ゴルフ友達 作り方',
+    'ゴルフ仲間 探し方', 'ゴル友 探し', 'ゴルフ 20代', 'ゴルフ 30代',
     'ゴルフ 一人参加', 'ラウンド募集', 'ゴルフ 友達 いない', 'ゴルフ マッチング',
   ],
   alternates: { canonical: PAGE_URL },
@@ -98,7 +99,7 @@ export default async function Page() {
 
   // 構造化データは lib/articleMeta.ts で共通化（日付・著者・publisher を必ず入れる）。
   const jsonLd = articleJsonLd(
-    { path: '/guide/find-golf-friends', title: TITLE, description: DESC, published: '2026-08-21', modified: '2026-08-22' },
+    { path: '/guide/find-golf-friends', title: TITLE, description: DESC, published: '2026-08-21', modified: '2026-08-31' },
     FAQ,
   );
 
@@ -109,7 +110,7 @@ export default async function Page() {
       <h1>ゴルフ友達の探し方7つ<br />一人でもラウンドに行ける方法</h1>
       <p className="lead">
         「ゴルフを始めたけれど、一緒に回る人がいない」。道具を揃えて練習場にも通っているのに、
-        コースに出られない。この記事では、ゴルフ友達を見つける方法を7つ並べて、
+        コースに出られない。この記事では、<strong>ゴルフ友達探し</strong>の方法を7つ並べて、
         <strong>費用・すぐ行けるか・気まずさ</strong>で比較します。
       </p>
       <p className="meta">最終更新：{today}</p>
@@ -289,6 +290,18 @@ export default async function Page() {
         <a href="/guide/solo-round">
           <span className="l">一人でゴルフに行くには</span>
           <span className="n">一人参加の実際と、当日の流れ</span>
+        </a>
+        <a href="/guide/round-recruit">
+          <span className="l">ゴルフのラウンド募集</span>
+          <span className="n">集まる募集の書き方と選び方</span>
+        </a>
+        <a href="/guide/golf-20s">
+          <span className="l">20代のゴルフの始め方</span>
+          <span className="n">費用・道具・一緒に回る人</span>
+        </a>
+        <a href="/guide/golf-30s">
+          <span className="l">30代からのゴルフ</span>
+          <span className="n">仕事で必要になった人と、趣味の人へ</span>
         </a>
         <a href="/guide/round-debut">
           <span className="l">ラウンドデビューの進め方</span>

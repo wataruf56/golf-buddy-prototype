@@ -10,7 +10,11 @@ import { useState } from 'react';
 //     ── LP1枚だけでは拾えるキーワードが限られるため、記事へ確実にリンクを通す
 export const NAV_LINKS: Array<{ href: string; label: string; note?: string }> = [
   { href: '/about', label: 'ゴルトモとは', note: 'サービスの概要' },
+  { href: '/guides', label: 'ゴルフの始め方ガイド', note: '記事の一覧' },
   { href: '/guide/find-golf-friends', label: 'ゴルフ友達の探し方', note: '7つの方法を比較' },
+  { href: '/guide/round-recruit', label: 'ゴルフのラウンド募集', note: '書き方と選び方' },
+  { href: '/guide/golf-20s', label: '20代のゴルフの始め方', note: '費用・道具・仲間' },
+  { href: '/guide/golf-30s', label: '30代からのゴルフ', note: '仕事の付き合いと時間' },
   { href: '/guide/solo-round', label: '一人でゴルフに行くには', note: '一人参加の実際' },
   { href: '/guide/round-debut', label: 'ラウンドデビューの進め方', note: '初めての人へ' },
   { href: '/guide/golf-without-car', label: '車がなくてもゴルフに行く', note: '送迎・相乗り' },
