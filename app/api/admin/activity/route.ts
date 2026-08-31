@@ -48,7 +48,19 @@ export async function GET(req: NextRequest) {
     const logSnap = await db.collection('_logs').orderBy('ts', 'desc').limit(4000).get();
     // 動作確認用（test_）の操作は実績に混ぜない。混ざると「よく開かれている画面」や
     // アクティブユーザー数が、実際に使われているより多く見えてしまう。
-    const logs = logSnap.docs.map((d: any) => d.data()).filter((l: any) => !isTestId(l?.userId));
+    // 動作確認用（test_・手動登録ぶん）は実績に混ぜない。混ざると「よく開かれている画面」や
+    // アクティブユーザー数が、実際に使われているより多く見えてしまう。
+    // **相手がテストの操作も落とす**。実ユーザーがテスト垢にDMを開いた記録などは、
+    // 本人の行動ではあってもテストの副産物なので、操作ログに並べても読む意味がない。
+    const logs = logSnap.docs.map((d: any) => d.data()).filter((l: any) => {
+      if (isTestId(l?.userId)) return false;
+      const to = (l?.data && typeof l.data.to === 'string') ? l.data.to : '';
+      if (to && isTestId(to)) return false;
+      // プロフィール閲覧は URL の末尾が相手のID
+      const m = String(l?.page || '').match(/^\/profile\/([^/?#]+)/);
+      if (m && isTestId(decodeURIComponent(m[1]))) return false;
+      return true;
+    });
 
     // ①いま使っているユーザーの「最後の操作」は実操作のみ（画面表示は除く）。
     const ACTION_HIDDEN = new Set(['app_open', 'hydrate_success', 'hydrate_error', 'page_view', 'mypage_render', 'menu_entry']);

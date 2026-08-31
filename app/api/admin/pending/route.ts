@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isDemoMode } from '@/lib/demoMode';
 import { getAdminDb } from '@/lib/firebase';
-import { warmTestIds, isTestId } from '@/lib/testAccounts';
 
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate', 'Content-Type': 'application/json; charset=utf-8' };
@@ -10,8 +9,6 @@ const noStore = { 'Cache-Control': 'no-store, must-revalidate', 'Content-Type': 
 // Dumps all pendingReviews docs whose reviewerId == userId (any status),
 // with both the actual Firestore doc id and the raw data for debugging.
 export async function GET(req: NextRequest) {
-  // 手動登録したテストアカウントも外すため、最初に1回だけ読み込む。
-  await warmTestIds();
   const url = new URL(req.url);
   const token = url.searchParams.get('token') || '';
   const expected = process.env.ADMIN_LOG_TOKEN || '';
@@ -35,8 +32,6 @@ export async function GET(req: NextRequest) {
       docId: d.id,
       data: d.data(),
     }));
-    // 動作確認用（test_）が立てた募集の申請は出さない。
-    const real = docs.filter((d: any) => !isTestId(d.hostId) && !isTestId(d.userId));
     return NextResponse.json({ count: docs.length, docs, completed: completeDocId || null }, { headers: noStore });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
