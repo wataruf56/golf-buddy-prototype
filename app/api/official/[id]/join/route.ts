@@ -66,6 +66,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     ...(filled ? { status: 'closed' as const } : {}),
   } as any);
 
+  // チャットへ「◯◯さんが参加しました」＋歓迎の一言。
+  // 埋まったときの案内より**先**に流す（入った→そろった、の順で読めるように）。
+  try {
+    const { postJoinMessages } = await import('@/lib/joinWelcome');
+    await postJoinMessages(round, me, applicantIds.length, totalSeats(round));
+  } catch (e) {
+    console.error('[official join] welcome failed (non-fatal)', e);
+  }
+
   // 枠が埋まった瞬間に、運営から案内を1回だけ流す。
   if (filled && !o.filledNotifiedAt) {
     try {

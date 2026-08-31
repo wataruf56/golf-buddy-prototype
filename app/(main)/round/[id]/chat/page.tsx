@@ -9,6 +9,7 @@ import { toast } from '@/components/Toast';
 import { track } from '@/lib/telemetry';
 import { markRoundChatSeen } from '@/lib/useUnread';
 import type { Message, Round, RoundThread } from '@/lib/types';
+import { ADMIN_MANAGER_AVATAR, ADMIN_MANAGER_ID, ADMIN_MANAGER_NAME, SYSTEM_SENDER_ID } from '@/lib/adminManagerId';
 
 // Branded launch URL (handled in middleware → LIFF). Lets us share a friendly
 // goltomo.com/app link that deep-links to this group chat after login.
@@ -315,14 +316,36 @@ export default function RoundChatPage() {
         {shown.map((m) => {
           const mine = m.senderId === meId;
           const sender = users.find((u) => u.id === m.senderId);
+          // 入室のお知らせ（誰が増えたか）は事実の1行。吹き出しにすると
+          // 挨拶に埋もれて「今何人か」が読めなくなるので、中央に細く出す。
+          if (m.senderId === SYSTEM_SENDER_ID) {
+            return (
+              <div key={m.id} className="text-center my-1">
+                <span className="inline-block bg-card/80 text-muted text-[11px] font-bold rounded-full px-3 py-1">
+                  {m.text}
+                </span>
+              </div>
+            );
+          }
+          // 管理人はユーザー一覧に載らないので、名前とアイコンを自前で出す
+          // （出さないと、送り主のない吹き出しになって誰の発言か分からない）。
+          const isAdmin = m.senderId === ADMIN_MANAGER_ID;
           return (
             <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'} gap-2`}>
               {!mine && sender && (
                 <Link href={`/profile/${sender.id}`}><Avatar user={sender} size={28} emojiSize={14} /></Link>
               )}
+              {!mine && !sender && isAdmin && (
+                <div className="w-7 h-7 rounded-full bg-green-light border border-green grid place-items-center text-[14px] shrink-0">
+                  {ADMIN_MANAGER_AVATAR}
+                </div>
+              )}
               <div className="flex flex-col max-w-[75%]">
                 {!mine && sender && (
                   <Link href={`/profile/${sender.id}`} className="text-[10px] text-muted mb-0.5 ml-1">{sender.displayName}</Link>
+                )}
+                {!mine && !sender && isAdmin && (
+                  <div className="text-[10px] text-muted mb-0.5 ml-1">{ADMIN_MANAGER_NAME}</div>
                 )}
                 <div
                   className={`px-3.5 py-2.5 text-sm leading-relaxed ${mine ? 'bg-green text-white' : 'bg-card text-text shadow-card'}`}

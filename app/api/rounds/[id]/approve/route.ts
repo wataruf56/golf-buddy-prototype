@@ -42,6 +42,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
   } catch { /* non-fatal */ }
 
+  // チャットへ「◯◯さんが参加しました」＋歓迎の一言。
+  try {
+    const { postJoinMessages } = await import('@/lib/joinWelcome');
+    const joined = await db.getUser(userId);
+    await postJoinMessages(round, joined, updated?.currentCount || 0, round.maxSpots || 0);
+  } catch (e) {
+    console.error('[approve] welcome failed (non-fatal)', e);
+  }
+
   // 出入りのログ。「誰が」は入った本人にして、承認した主催者は by に残す。
   try {
     const { audit, userActor, AUDIT_ACTION } = await import('@/lib/auditLog');
