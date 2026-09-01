@@ -8,8 +8,17 @@ Disallow: /login
 Disallow: /liff
 Disallow: /mypage
 Disallow: /chat
+# ★ 重要：診断LP（集客の本命）を robots.txt から守るための明示 Allow。
+# 下の `Disallow: /go` は前方一致なので、書いたままだと /golmoti.html・/golmoti・
+# /golmoti-chars/* まで巻き込んで塞いでしまう（2026-08-11〜09-01の21日間、実際に
+# 塞がっていた）。Google/Bing は「一致した文字列が長いルールが勝つ」ので、
+# ここで長い Allow を明示しておけば /go 側のルールに勝てる。消さないこと。
+Allow: /golmoti
 # 流入計測の中継ページ（すぐLINEへ転送するだけ）。検索結果に出す意味がない。
-Disallow: /go
+# `/go` は `$`（終端）と `?`（クエリ付き）で「/go だけ」に限定する。
+# ここを素の `Disallow: /go` に戻すと、また診断LPを巻き込む。
+Disallow: /go$
+Disallow: /go?
 Disallow: /links
 # LP診断からLIFF経由で着地する中継ページ。上と同じくすぐ次へ送るだけ。
 Disallow: /lp-link
@@ -54,7 +63,9 @@ Disallow: /login
 Disallow: /liff
 Disallow: /mypage
 Disallow: /chat
-Disallow: /go
+Allow: /golmoti
+Disallow: /go$
+Disallow: /go?
 Disallow: /links
 Disallow: /lp-link
 Disallow: /test-login
