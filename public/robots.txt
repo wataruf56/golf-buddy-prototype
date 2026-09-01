@@ -11,6 +11,10 @@ Disallow: /chat
 # 流入計測の中継ページ（すぐLINEへ転送するだけ）。検索結果に出す意味がない。
 Disallow: /go
 Disallow: /links
+# LP診断からLIFF経由で着地する中継ページ。上と同じくすぐ次へ送るだけ。
+Disallow: /lp-link
+# 動作確認用のログイン画面。検索結果に出す意味がまったくない。
+Disallow: /test-login
 # ログイン不要で開ける個人ページ・調整ページ（app.goltomo.com）。
 # 中身は個々のユーザーの情報で検索需要が無いうえ、これらは page 側で title を
 # 持たず layout.tsx のサイト共通文言を継承する＝指名検索「ゴルトモ」で
@@ -19,6 +23,7 @@ Disallow: /profile
 Disallow: /poll
 Disallow: /qr
 Disallow: /add-friend
+Disallow: /friends/confirm
 # 末尾スラッシュ付き＝アプリ内の /rounds/past・/rounds/upcoming だけを対象にし、
 # インスタbio用の短縮URL goltomo.com/rounds は塞がない。
 Disallow: /rounds/
@@ -51,10 +56,13 @@ Disallow: /mypage
 Disallow: /chat
 Disallow: /go
 Disallow: /links
+Disallow: /lp-link
+Disallow: /test-login
 Disallow: /profile
 Disallow: /poll
 Disallow: /qr
 Disallow: /add-friend
+Disallow: /friends/confirm
 Disallow: /rounds/
 
 # サイトの要約と主要ページの一覧（LLM向け）

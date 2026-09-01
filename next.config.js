@@ -30,10 +30,19 @@ const nextConfig = {
   // 募集ページは X や LINE でシェアされる主戦場で、塞ぐとプレビューカードが死ぬ。
   // X-Robots-Tag なら「読んでよいが索引には入れるな」と伝えられる。
   // follow を付けているのは、ページ内のリンク（LPや使い方）は辿ってほしいため。
+  //
+  // スイング解析の共有ページ（/share/swing/[id]）も同じ扱いにする。
+  // こちらも「本人が仲間に見せるための使い捨てURL」で検索需要はなく、
+  // 索引されるとサイト共通タイトルのページが人数分だけ増えて指名KWを薄める。
+  // LINE でシェアされる前提なのでクロールは許可したまま（プレビューを死なせない）。
   async headers() {
     return [
       {
         source: '/round/:path*',
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex, follow' }],
+      },
+      {
+        source: '/share/:path*',
         headers: [{ key: 'X-Robots-Tag', value: 'noindex, follow' }],
       },
     ];
