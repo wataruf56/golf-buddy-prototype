@@ -76,6 +76,18 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
   const assigned = new Set(cars.flatMap((c) => c.passengerIds));
   const pool = allPeople.filter((id) => !assigned.has(id) && isPassengerCandidate(id));
 
+  // 「自分で行く（送迎はいらない）」と答えた人。
+  //
+  // 一般の参加者は自分でこれを選べるが、**ゲストは自分で選べない**。
+  // これまで盤面に置き場が無かったので、主催者が代わりに答えてあげる手段が
+  // どこにも無く、ゲストが「未割り当て」に残り続けていた。
+  // ここに置き場を作って、ドラッグで入れられるようにする。
+  const selfGoing = allPeople.filter((id) => {
+    if (driverSet.has(id) || assigned.has(id)) return false;
+    const st = pp[id]?.status;
+    return st === 'no_need' || st === 'cannot';
+  });
+
   // ---------- read-only view (participants) ----------
   if (!isHost) {
     const saved = (round.carAssignments || []).filter((c) => c.passengerIds.length > 0 || c.station);
@@ -127,6 +139,32 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
     setDirty(true);
   }
 
+  /**
+   * 「自分で行く」置き場への出し入れ。
+   *
+   * ここだけは車の割り振り（carAssignments）ではなく**その人の送迎回答**を
+   * 書き換えるので、保存ボタンを待たずにその場で送る。2つの保存を1つのボタンに
+   * まとめると、どちらが保存されたのか分からなくなるため。
+   * ゲストのぶんは主催者しか答えられない（APIも同じ条件で許可している）。
+   */
+  async function setSelfGoing(id: string, on: boolean) {
+    setCars((prev) => prev.map((c) => ({ ...c, passengerIds: c.passengerIds.filter((m) => m !== id) })));
+    try {
+      const res = await fetch(`/api/rounds/${round.id}/pickup`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        // 戻すときは '' にして未入力へ。'want' にすると「希望した」ことになってしまう。
+        body: JSON.stringify({ userId: id, status: on ? 'no_need' : '', stations: [] }),
+        cache: 'no-store', credentials: 'include',
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      await store.refreshRounds();
+      toast(on ? `${nameOf(id)}さんを「自分で行く」にしました` : `${nameOf(id)}さんを未割り当てに戻しました`);
+    } catch (e) {
+      toast('変更できませんでした: ' + (e as Error).message, 'error');
+      await store.refreshRounds();
+    }
+  }
+
   function onPointerDown(e: React.PointerEvent, id: string) {
     e.preventDefault();
     const el = e.currentTarget as HTMLElement;
@@ -154,7 +192,14 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
     if (!dragRef.current) return;
     e.preventDefault();
     const zone = zoneUnder(e.clientX, e.clientY);
-    if (zone) movePassenger(dragRef.current.id, zone);
+    const id = dragRef.current.id;
+    const wasSelf = selfGoing.includes(id);
+    if (zone === 'self') { if (!wasSelf) setSelfGoing(id, true); }
+    else if (zone) {
+      // 「自分で行く」から出したら、まず回答を戻してから車へ入れる。
+      if (wasSelf) setSelfGoing(id, false);
+      if (zone !== 'pool') movePassenger(id, zone);
+    }
     cleanup();
   }
   function zoneUnder(x: number, y: number): string | null {
@@ -255,7 +300,7 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
   return (
     <div className="bg-card rounded-card p-4 shadow-card mb-4">
       <div className="text-[13px] font-bold mb-0.5">🚗 配車（車の割り振り）（主催者）</div>
-      <div className="text-[10px] text-muted mb-2.5">「未割り当て」から各車へドラッグ。運転者は「ピックアップできます」と答えた人です。定員は運転者を含みます。</div>
+      <div className="text-[10px] text-muted mb-2.5">「未割り当て」から各車へドラッグ。運転者は「ピックアップできます」と答えた人です。定員は運転者を含みます。<b>自分の車で行く人・送迎がいらない人は「🚶 自分で行く」へ。</b>ゲストのぶんはここでしか設定できません。</div>
 
       <div className="flex gap-2 mb-3">
         <button onClick={autoAssign} disabled={pool.length === 0} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold disabled:opacity-50">🪄 自動割り当て</button>
@@ -303,6 +348,21 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
         {pool.length === 0
           ? <div className="text-[11px] text-muted px-1 py-1">全員 車に割り当て済み ✅</div>
           : <div className="flex flex-wrap gap-1.5">{pool.map((id) => renderPassenger(id))}</div>}
+      </div>
+
+      {/* 自分で行く人の置き場。
+          プールから消えるだけだと「割り振り忘れ」と見分けが付かないので、
+          ちゃんと目に見えるところに並べる。 */}
+      <div data-dz="self" className="border border-[#dfe6e2] bg-[#fbfdfc] rounded-xl p-2.5 mt-2.5">
+        <div className="text-[13px] font-black mb-1.5">
+          🚶 自分で行く <span className="text-[11px] text-muted">({selfGoing.length}人・送迎なし)</span>
+        </div>
+        {selfGoing.length === 0
+          ? <div className="text-[11px] text-muted px-1 py-1 leading-relaxed">
+              自分の車で行く人・送迎がいらない人をここへドラッグしてください。<br />
+              <b className="text-sub">ゲストのぶんは、ここでしか設定できません。</b>
+            </div>
+          : <div className="flex flex-wrap gap-1.5">{selfGoing.map((id) => renderPassenger(id))}</div>}
       </div>
 
       <button onClick={save} disabled={saving || !dirty} className="w-full mt-3 py-3 bg-green text-white rounded-xl text-sm font-bold disabled:opacity-50">
