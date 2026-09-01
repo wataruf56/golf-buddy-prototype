@@ -811,7 +811,31 @@ export default function RoundDetailPage() {
             {(isHost || isApproved) && round.status !== 'completed' && (
               <CarDispatch round={round} users={users as User[]} isHost={isHost} />
             )}
-            <div className="text-[11px] text-muted mt-1">※ 各メンバーの送迎回答は「参加してる人」タブの各行から確認・編集できます。</div>
+            {/* ゲストの送迎回答を、主催者がここで代理入力できるようにする。
+                ゲストは自分でアプリを開けないので、誰かが代わりに答えないと
+                永久に「未回答」のまま配車ボードの未割り当てに残る。
+                機能自体は「参加してる人」タブにもあるが、配車を組んでいる最中に
+                タブを行き来させられるのが実際のつまずきどころだったので、
+                作業する場所に置く。 */}
+            {isHost && round.status !== 'completed' && (round.guests || []).length > 0 && (
+              <div className="bg-card rounded-card p-4 shadow-card mb-4">
+                <div className="text-[13px] font-bold mb-1">👤 ゲストの送迎（主催者が代わりに入力）</div>
+                <div className="text-[11px] text-sub mb-2.5 leading-relaxed">
+                  ゲストは自分で答えられません。<b className="text-text">希望する駅は複数選べます</b>（一覧に無い駅も入力して追加できます）。
+                </div>
+                {(round.guests || []).map((g) => (
+                  <div key={g.id} className="mb-2 last:mb-0">
+                    <div className="flex items-center gap-2 px-1">
+                      <span className="text-[12.5px] font-bold">{g.name}</span>
+                      <span className="text-[10px] text-muted font-bold">ゲスト</span>
+                      <span className="text-[10px] text-sub ml-auto">{pickupStatusLabel(round.participantPickups?.[g.id])}</span>
+                    </div>
+                    <PickupMemberControl round={round} member={{ id: g.id, displayName: g.name }} meId={meId} isHost={isHost} guest />
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="text-[11px] text-muted mt-1">※ 登録メンバーの送迎回答は「参加してる人」タブの各行からも確認・編集できます。</div>
           </>
         )}
 
