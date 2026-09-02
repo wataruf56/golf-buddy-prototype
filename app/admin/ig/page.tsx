@@ -35,6 +35,26 @@ const TYPE_LABEL: Record<Post['mediaType'], string> = {
   IMAGE: '写真', CAROUSEL: 'カルーセル', REELS: 'リール',
 };
 
+// 上部のタブ。状態ごとに分けて見られるようにする。
+// 「予約」には公開処理中（リールの変換待ち）も入れる。まだ出ていないものは同じ扱いのため。
+// 「失敗」には取りやめも入れる。どちらも「出なかったもの」なので。
+type Tab = 'all' | 'draft' | 'scheduled' | 'published' | 'failed';
+
+const TABS: { key: Tab; label: string; match: (p: Post) => boolean }[] = [
+  { key: 'all',       label: 'すべて',   match: () => true },
+  { key: 'draft',     label: '未投稿',   match: (p) => p.status === 'draft' },
+  { key: 'scheduled', label: '予約',     match: (p) => p.status === 'scheduled' || p.status === 'publishing' },
+  { key: 'published', label: '公開済', match: (p) => p.status === 'published' },
+  { key: 'failed',    label: '失敗',     match: (p) => p.status === 'failed' || p.status === 'canceled' },
+];
+
+/** タブごとに並び順を変える。予約はこれから出る順、公開済みは新しい順。 */
+function sortFor(tab: Tab, a: Post, b: Post): number {
+  if (tab === 'scheduled') return (a.scheduledAt || 0) - (b.scheduledAt || 0);
+  if (tab === 'published') return (b.publishedAt || 0) - (a.publishedAt || 0);
+  return b.createdAt - a.createdAt;
+}
+
 /** epoch ms → datetime-local 用の文字列（ローカル時刻）。 */
 function toLocalInput(ms?: number | null): string {
   if (!ms) return '';
@@ -55,6 +75,7 @@ export default function AdminIgPage() {
   const [times, setTimes] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string>('');
   const [showHidden, setShowHidden] = useState(false);
+  const [tab, setTab] = useState<Tab>('all');
 
   const load = useCallback(async (tk: string) => {
     setLoading(true);
@@ -95,6 +116,9 @@ export default function AdminIgPage() {
     } catch (e) { setMsg(String(e)); } finally { setBusy(''); }
   }
 
+  const match = TABS.find((t) => t.key === tab)!.match;
+  const shown = posts.filter(match).slice().sort((a, b) => sortFor(tab, a, b));
+
   if (loading) return <main style={S.wrap}><p>読み込み中…</p></main>;
 
   return (
@@ -132,9 +156,27 @@ export default function AdminIgPage() {
         </p>
       )}
       {msg && <p style={S.msg}>{msg}</p>}
-      {!posts.length && <p style={{ color: '#6b7280' }}>投稿はまだありません。</p>}
 
-      {posts.map((p) => {
+      <div style={S.tabs}>
+        {TABS.map((t) => {
+          const n = posts.filter(t.match).length;
+          const on = tab === t.key;
+          return (
+            <button key={t.key} onClick={() => setTab(t.key)}
+                    style={{ ...S.tab, ...(on ? S.tabOn : {}) }}>
+              {t.label}
+              <span style={{ ...S.tabNum, ...(on ? S.tabNumOn : {}) }}>{n}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {!posts.length && <p style={{ color: '#6b7280' }}>投稿はまだありません。</p>}
+      {posts.length > 0 && !shown.length && (
+        <p style={{ color: '#6b7280' }}>ここに入る投稿はありません。</p>
+      )}
+
+      {shown.map((p) => {
         const editable = p.status === 'draft' || p.status === 'scheduled' || p.status === 'failed';
         const len = (drafts[p.id] || '').length;
         return (
@@ -295,4 +337,13 @@ const S: Record<string, React.CSSProperties> = {
   msg: { background: '#eff6ff', border: '1px solid #bfdbfe', padding: '8px 12px', borderRadius: 8, fontSize: 14 },
   warn: { background: '#fef3c7', border: '1px solid #fcd34d', padding: '8px 12px', borderRadius: 8, fontSize: 14 },
   err: { color: '#dc2626', fontSize: 13, margin: '4px 0' },
+  // 5つを狭い画面にも収める。入り切らない機種でも横スクロールで見られる。
+  tabs: { display: 'flex', gap: 3, overflowX: 'auto', margin: '4px 0 16px', paddingBottom: 2 },
+  tab: { flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+         whiteSpace: 'nowrap', padding: '7px 8px', borderRadius: 999, border: '1px solid #d1d5db',
+         background: '#fff', color: '#374151', fontSize: 12.5, fontFamily: 'inherit' },
+  tabOn: { background: '#111827', borderColor: '#111827', color: '#fff', fontWeight: 700 },
+  tabNum: { background: '#f3f4f6', color: '#6b7280', borderRadius: 999,
+            padding: '1px 5px', fontSize: 11, fontWeight: 700 },
+  tabNumOn: { background: 'rgba(255,255,255,.24)', color: '#fff' },
 };
