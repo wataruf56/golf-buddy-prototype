@@ -109,7 +109,7 @@ export default async function Page() {
   const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '/');
 
   const jsonLd = articleJsonLd(
-    { path: '/guide/golf-matching', title: TITLE, description: DESC, published: '2026-09-01', modified: '2026-09-01' },
+    { path: '/guide/golf-matching', title: TITLE, description: DESC, published: '2026-09-03', modified: '2026-09-03' },
     FAQ,
   );
 

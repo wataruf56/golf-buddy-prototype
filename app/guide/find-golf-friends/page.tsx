@@ -99,7 +99,7 @@ export default async function Page() {
 
   // 構造化データは lib/articleMeta.ts で共通化（日付・著者・publisher を必ず入れる）。
   const jsonLd = articleJsonLd(
-    { path: '/guide/find-golf-friends', title: TITLE, description: DESC, published: '2026-08-21', modified: '2026-09-01' },
+    { path: '/guide/find-golf-friends', title: TITLE, description: DESC, published: '2026-08-21', modified: '2026-09-03' },
     FAQ,
   );
 
