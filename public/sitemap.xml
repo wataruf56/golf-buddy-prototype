@@ -31,6 +31,21 @@
     <priority>0.9</priority>
   </url>
   <url>
+    <loc>https://goltomo.com/guide/golf-tokyo</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://goltomo.com/guide/golf-kanagawa</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://goltomo.com/guide/golf-chiba</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
     <loc>https://goltomo.com/guide/golf-20s</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>

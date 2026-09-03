@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 
 const SITE = 'https://goltomo.com';
 const PAGE_URL = `${SITE}/guide/golf-without-car`;
-const TITLE = '車がなくてもゴルフに行く方法3つ｜送迎・電車バス・相乗り';
+const TITLE = 'ゴルフに車がない人の行き方3つ｜送迎・電車バス・相乗りで解決';
 const DESC =
   '車を持っていなくてもゴルフに行けます。送迎（ピックアップ）・電車＋クラブハウスバス・相乗りの3つを、費用と手間で比較しました。相乗りを頼むときの割り勘の相場と、頼み方の文例もまとめています。';
 
