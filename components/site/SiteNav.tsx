@@ -11,7 +11,8 @@ import { useState } from 'react';
 export const NAV_LINKS: Array<{ href: string; label: string; note?: string }> = [
   { href: '/about', label: 'ゴルトモとは', note: 'サービスの概要' },
   { href: '/guides', label: 'ゴルフの始め方ガイド', note: '記事の一覧' },
-  { href: '/guide/find-golf-friends', label: 'ゴルフ友達の探し方', note: '7つの方法を比較' },
+  { href: '/guide/find-golf-friends', label: 'ゴルフ友達探し', note: '7つの方法を比較' },
+  { href: '/guide/golf-matching', label: 'ゴルフマッチングとは', note: 'アプリの選び方' },
   { href: '/guide/round-recruit', label: 'ゴルフのラウンド募集', note: '書き方と選び方' },
   { href: '/guide/golf-20s', label: '20代のゴルフの始め方', note: '費用・道具・仲間' },
   { href: '/guide/golf-30s', label: '30代からのゴルフ', note: '仕事の付き合いと時間' },

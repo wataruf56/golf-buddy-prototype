@@ -13,9 +13,9 @@ export const dynamic = 'force-dynamic';
 
 const SITE = 'https://goltomo.com';
 const PAGE_URL = `${SITE}/guide/find-golf-friends`;
-const TITLE = 'ゴルフ友達の探し方7つ｜一人でもラウンドに行ける方法を実データで比較';
+const TITLE = 'ゴルフ友達探しの方法7つ｜ゴルフ仲間を見つけて一人でもラウンドに行く｜実データで比較';
 const DESC =
-  'ゴルフ友達がいなくてもラウンドに行く方法を7つ比較。職場・スクール・練習場・サークル・SNS・1人予約・マッチングを、費用/すぐ行けるか/気まずさで整理しました。実際の募集がどれくらい集まるかも運用データで公開します。';
+  'ゴルフ友達探しの方法を7つ比較。職場・スクール・練習場・サークル・SNS・1人予約・マッチングを、費用/すぐ行けるか/気まずさで整理しました。ゴルフ仲間が見つからない人向けに、実際の募集がどれくらい集まるかも運用データで公開します。';
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   alternates: { canonical: PAGE_URL },
   openGraph: {
     type: 'article', url: PAGE_URL, siteName: 'ゴルトモ',
-    title: 'ゴルフ友達の探し方7つ｜一人でもラウンドに行ける方法',
+    title: 'ゴルフ友達探しの方法7つ｜ゴルフ仲間を見つける',
     description: '7つの方法を費用・すぐ行けるか・気まずさで比較。実際の運用データも公開。',
     images: [{ url: `${SITE}/ogp-golmoti.png`, width: 1200, height: 630 }],
   },
@@ -99,7 +99,7 @@ export default async function Page() {
 
   // 構造化データは lib/articleMeta.ts で共通化（日付・著者・publisher を必ず入れる）。
   const jsonLd = articleJsonLd(
-    { path: '/guide/find-golf-friends', title: TITLE, description: DESC, published: '2026-08-21', modified: '2026-08-31' },
+    { path: '/guide/find-golf-friends', title: TITLE, description: DESC, published: '2026-08-21', modified: '2026-09-01' },
     FAQ,
   );
 
@@ -107,7 +107,7 @@ export default async function Page() {
     <ArticleShell current="/guide/find-golf-friends" page="guide">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      <h1>ゴルフ友達の探し方7つ<br />一人でもラウンドに行ける方法</h1>
+      <h1>ゴルフ友達探しの方法7つ<br />ゴルフ仲間を見つけて一人でもラウンドへ</h1>
       <p className="lead">
         「ゴルフを始めたけれど、一緒に回る人がいない」。道具を揃えて練習場にも通っているのに、
         コースに出られない。この記事では、<strong>ゴルフ友達探し</strong>の方法を7つ並べて、
@@ -137,7 +137,7 @@ export default async function Page() {
         </ol>
       </div>
 
-      <h2 id="methods">ゴルフ友達の探し方7つを比較</h2>
+      <h2 id="methods">ゴルフ友達探し・ゴルフ仲間の見つけ方7つを比較</h2>
       <p>
         どれが正解ということはありません。
         <strong>「今すぐ回りたい」のか「長く付き合える人を作りたい」のか</strong>で向き不向きが変わります。
@@ -294,6 +294,10 @@ export default async function Page() {
         <a href="/guide/round-recruit">
           <span className="l">ゴルフのラウンド募集</span>
           <span className="n">集まる募集の書き方と選び方</span>
+        </a>
+        <a href="/guide/golf-matching">
+          <span className="l">ゴルフマッチングとは</span>
+          <span className="n">サービスの選び方を4つの軸で</span>
         </a>
         <a href="/guide/golf-20s">
           <span className="l">20代のゴルフの始め方</span>
