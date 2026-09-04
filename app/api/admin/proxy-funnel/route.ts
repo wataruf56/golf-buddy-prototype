@@ -157,12 +157,34 @@ export async function GET(req: NextRequest) {
   const inNow = threads.reduce((acc, t: any) => acc + (t.members?.length || 0), 0);
 
   // 見た人の一覧（誰が見て、そのあと入ったか）。
+  //
+  // 名前は**会員データから引く**。以前は入った人・抜けた人の記録から探していたが、
+  // 「見ただけの人」はそのどちらにも出てこないので、生のLINE IDが並んでいた。
+  // IDのままでは誰のことか分からず、この画面の意味がなくなる。
   const joinedIds = new Set(joiners.map((j: any) => j.userId));
+  const viewerIds = Object.keys({ ...(firstSeen['pr_rider_view'] || {}), ...(firstSeen['pr_driver_view'] || {}) });
+  const nameOf: Record<string, { name: string; gender?: string; age?: number; area?: string; car?: string }> = {};
+  try {
+    const { db: appDb } = await import('@/lib/db');
+    const ids = Array.from(new Set([
+      ...viewerIds,
+      ...joiners.map((j: any) => j.userId),
+      ...leavers.map((l: any) => l.userId),
+    ]));
+    (await appDb.listUsers(ids)).forEach((u: any) => {
+      if (u) nameOf[u.id] = { name: u.displayName || '', gender: u.gender, age: u.age, area: u.area, car: u.car };
+    });
+  } catch { /* 引けなければIDのまま出す */ }
+
+  const label = (id: string) => nameOf[id]?.name || '(退会済み)';
+  joiners.forEach((j: any) => { j.name = label(j.userId); Object.assign(j, nameOf[j.userId] || {}); });
+  leavers.forEach((l: any) => { l.name = label(l.userId); Object.assign(l, nameOf[l.userId] || {}); });
+
   const viewerList = Object.entries({ ...(firstSeen['pr_rider_view'] || {}), ...(firstSeen['pr_driver_view'] || {}) })
     .map(([userId, ts]) => ({
+      ...(nameOf[userId] || {}),
       userId, ts,
-      name: (joiners.find((j: any) => j.userId === userId)?.name)
-        || (leavers.find((l: any) => l.userId === userId)?.name) || '',
+      name: label(userId),
       joined: joinedIds.has(userId),
     }))
     .sort((a, b) => b.ts - a.ts);

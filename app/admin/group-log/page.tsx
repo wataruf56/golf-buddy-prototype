@@ -109,11 +109,12 @@ function Inner() {
 
   return (
     <div className="min-h-screen bg-bg p-4 max-w-md mx-auto">
-      <Link href={`/admin?token=${token}`} className="text-[12px] text-blue font-bold">‹ 管理</Link>
+      <Link href={`/admin/official?token=${token}`} className="text-[12px] text-blue font-bold">‹ 代理ラウンド募集</Link>
       <div className="text-2xl font-black mt-1 mb-1">🚪 入退室ログ</div>
       <div className="text-[11.5px] text-sub font-bold leading-relaxed mb-3">
-        グループごとに、<b className="text-text">誰がいつ入って、いつ抜けたか</b>を並べています。
-        自分で抜けたのか、運営・主催者が外したのかも残ります。
+        <b className="text-text">代理ラウンド募集（運営が代わりに立てる枠）</b>の出入りだけを並べています。
+        誰がいつ入って、いつ抜けたか。自分で抜けたのか外されたのかも残ります。<br />
+        普通の募集や公式コンペの出入りは、ここには出しません。
       </div>
 
       <div className="bg-card rounded-xl shadow-card p-3 mb-3">

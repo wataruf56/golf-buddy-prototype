@@ -55,6 +55,15 @@ export async function GET(req: NextRequest) {
   // 実際の会員がどう動いたのかが読めなくなるため。
   if (!includeTest) rows = rows.filter((r) => !isTestId(r.actorId));
 
+  // **代理ラウンド募集（運営が代わりに立てる枠）の出入りだけを見る。**
+  // 普通の募集や公式コンペの出入りまで混ぜると、この画面で追いたい
+  // 「運営が用意した枠に人が居着くのか」が読めなくなる。
+  //
+  // 見分けは detail.official。運営枠に入る／抜ける経路（official/join・
+  // proxy-recruit/join・proxy-recruit/driver・rounds/leave）だけが true を書く。
+  // 主催者の承認や強制退出（普通の募集）には付かない。
+  rows = rows.filter((r) => (r.detail as any)?.official === true);
+
   // グループ（＝ラウンド）ごとにまとめる
   const groups = new Map<string, {
     groupId: string; title: string; official: boolean; events: Ev[];
@@ -184,4 +193,59 @@ export async function GET(req: NextRequest) {
     totalJoin: rows.filter((r) => r.action === AUDIT_ACTION.groupJoin).length,
     totalLeave: rows.filter((r) => r.action === AUDIT_ACTION.groupLeave).length,
   }, { headers: noStore });
+}
+
+// DELETE /api/admin/group-log?token=...&scope=test|round&roundId=...
+//
+// 入退室ログの掃除。**既定はテストぶんだけ**。
+//   scope=test  … 動作確認用（test_・手動登録）が動かした記録だけ消す（既定）
+//   scope=round … roundId で指定した枠の記録だけ消す
+//   scope=all   … 全部消す。実ユーザーの記録も消えるので confirm=DELETE_ALL が要る
+//
+// 実ユーザーの出入りは、あとから「誰がいつ入ったか」を確かめる唯一の手がかりで、
+// 消すと戻せない。だから全消しだけは、間違って押せないようにしてある。
+export async function DELETE(req: NextRequest) {
+  await warmTestIds();
+  if (!authed(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
+  const u = new URL(req.url);
+  const scope = u.searchParams.get('scope') || 'test';
+  const roundId = u.searchParams.get('roundId') || '';
+  const confirm = u.searchParams.get('confirm') || '';
+  if (scope === 'all' && confirm !== 'DELETE_ALL') {
+    return NextResponse.json({
+      error: 'confirm_required',
+      message: '全部消すときは confirm=DELETE_ALL を付けてください（実ユーザーの記録も消えます）',
+    }, { status: 400, headers: noStore });
+  }
+  if (scope === 'round' && !roundId) {
+    return NextResponse.json({ error: 'roundId required' }, { status: 400, headers: noStore });
+  }
+
+  const adb = getAdminDb() as any;
+  if (!adb) return NextResponse.json({ error: 'firestore not initialized' }, { status: 500, headers: noStore });
+
+  let deleted = 0, kept = 0;
+  try {
+    const snap = await adb.collection('_auditLog').orderBy('ts', 'desc').limit(3000).get();
+    const targets: any[] = [];
+    for (const d of snap.docs) {
+      const r = d.data() || {};
+      const a = String(r.action || '');
+      if (a !== AUDIT_ACTION.groupJoin && a !== AUDIT_ACTION.groupLeave) continue;
+      const hit = scope === 'all' ? true
+        : scope === 'round' ? r.targetId === roundId
+        : isTestId(String(r.actorId || ''));
+      if (hit) targets.push(d.ref); else kept++;
+    }
+    // Firestore の一括書き込みは500件までなので分けて投げる
+    for (let i = 0; i < targets.length; i += 400) {
+      const batch = adb.batch();
+      targets.slice(i, i + 400).forEach((ref: any) => batch.delete(ref));
+      await batch.commit();
+      deleted += Math.min(400, targets.length - i);
+    }
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
+  }
+  return NextResponse.json({ ok: true, scope, deleted, kept }, { headers: noStore });
 }

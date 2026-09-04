@@ -159,11 +159,18 @@ function Inner() {
     <div className="min-h-screen bg-bg p-4 max-w-md mx-auto">
       <Link href={`/admin?token=${token}`} className="text-[12px] text-blue font-bold">‹ 管理</Link>
       <div className="text-2xl font-black mt-1 mb-1">📣 運営が立てる枠</div>
-      <Link href={`/admin/proxy-funnel?token=${token}`}
-        className="block bg-card rounded-xl shadow-card px-3 py-2.5 mb-3 border-2 border-border">
-        <span className="text-[12.5px] font-black">📊 レポートを見る</span>
-        <span className="text-[11px] font-bold text-sub"> — 誰が見て、誰が入って、誰が抜けたか</span>
-      </Link>
+      <div className="flex gap-2 mb-3">
+        <Link href={`/admin/proxy-funnel?token=${token}`}
+          className="flex-1 bg-card rounded-xl shadow-card px-3 py-2.5 border-2 border-border text-center">
+          <span className="text-[12.5px] font-black">📊 レポート</span>
+          <span className="block text-[10.5px] font-bold text-sub">見た人・入った人</span>
+        </Link>
+        <Link href={`/admin/group-log?token=${token}`}
+          className="flex-1 bg-card rounded-xl shadow-card px-3 py-2.5 border-2 border-border text-center">
+          <span className="text-[12.5px] font-black">🚪 入退室ログ</span>
+          <span className="block text-[10.5px] font-bold text-sub">誰がいつ入って抜けたか</span>
+        </Link>
+      </div>
       <div className="text-[11.5px] text-sub font-bold leading-relaxed mb-4">
         主催者を置かずに、枠だけ先に出す募集です。<b className="text-text">同時に走らせるのは1本まで。</b>
         声かけがぶつかって、どちらも埋まらなくなるのを避けるためです。
