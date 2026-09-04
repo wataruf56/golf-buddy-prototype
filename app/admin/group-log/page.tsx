@@ -17,12 +17,30 @@ type Stay = {
   userId: string; userName?: string;
   joinedAt?: number; leftAt?: number; stayedMs?: number;
   joinBy?: string; leaveBy?: string; inNow: boolean;
+  gender?: string; age?: number; area?: string; car?: string;
+  isDriver?: boolean; visit?: number;
 };
 type Ev = { ts: number; kind: 'join' | 'leave'; userId: string; userName?: string; by?: string };
-type Group = {
-  groupId: string; title: string; official: boolean;
-  stays: Stay[]; events: Ev[]; inNow: number; leftCount: number; lastTs: number;
+type Info = {
+  exists: boolean; status: string; members: number; maxSpots: number;
+  proxy: boolean; stations: string[]; driverId: string; driverWanted: boolean; stage: string;
 };
+type Group = {
+  groupId: string; title: string; official: boolean; info?: Info | null;
+  stays: Stay[]; current: Stay[]; events: Ev[];
+  inNow: number; leftCount: number; peopleCount: number; lastTs: number;
+};
+
+/** 「男性・28歳・東京都・車あり」のように、その人が誰か分かる一行。 */
+function who(s: Stay): string {
+  const p = [
+    s.gender === 'male' ? '男性' : s.gender === 'female' ? '女性' : '',
+    s.age ? `${s.age}歳` : '',
+    s.area || '',
+    s.car === 'have' ? '車あり' : s.car === 'none' ? '車なし' : '',
+  ].filter(Boolean);
+  return p.join('・');
+}
 
 const fmt = (ms?: number) =>
   ms ? new Date(ms).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
@@ -144,8 +162,57 @@ function Inner() {
               )}
               <span className="text-[13px] font-black flex-1 min-w-0 break-all">{g.title}</span>
             </div>
-            <div className="text-[11px] font-bold text-muted mb-2">
-              いま {g.inNow}人 ／ 抜けた {g.leftCount}件 ・ 最終 {fmt(g.lastTs)}
+            {/* 枠そのものの状況。代理ラウンド募集なら駅と車を出す人まで出す。
+                題名の文字列だけだと、どの枠の出入りなのかが分からない。 */}
+            {g.info?.exists ? (
+              <div className="text-[11px] font-bold text-sub mb-2 leading-relaxed bg-bg border border-hair rounded-lg p-2">
+                {g.info.proxy && <span className="text-orange font-black">🚗 代理ラウンド募集　</span>}
+                {g.info.members}/{g.info.maxSpots}人
+                ・{g.info.stage === 'deciding' ? '日程とコースを相談中'
+                  : g.info.status === 'closed' ? '締切' : '募集中'}
+                {g.info.stations?.length > 0 && <><br />🚉 {g.info.stations.join('・')}</>}
+                {g.info.driverWanted && (
+                  <><br /><span className="text-red font-black">⚠️ 車を出す人が抜けました。代わりを募集中です</span></>
+                )}
+              </div>
+            ) : (
+              <div className="text-[11px] font-bold text-muted mb-2">
+                この枠はもうありません（削除済み）
+              </div>
+            )}
+
+            {/* いま中にいる人。ここが「誰が入っているか」の答えなので先に出す。
+                抜けた人と混ぜて並べると、探さないと分からない。 */}
+            <div className="border-2 border-green rounded-lg p-2.5 mb-2 bg-green-light">
+              <div className="text-[12px] font-black text-green-dark mb-1.5">
+                いま中にいる人（{g.inNow}人）
+              </div>
+              {g.current.length === 0 ? (
+                <div className="text-[11.5px] font-bold text-muted">誰もいません</div>
+              ) : (
+                <div className="space-y-1">
+                  {g.current.map((c) => (
+                    <div key={c.userId} className="flex items-start gap-1.5 flex-wrap">
+                      <span className="text-[12.5px] font-black">{c.userName || '(名前なし)'}</span>
+                      {c.isDriver && (
+                        <span className="text-[10px] font-black rounded-full px-1.5 py-0.5 border border-orange text-orange bg-white">🚗 車を出す人</span>
+                      )}
+                      {(c.visit || 1) > 1 && (
+                        <span className="text-[10px] font-black rounded-full px-1.5 py-0.5 border border-border text-sub bg-white">{c.visit}回目</span>
+                      )}
+                      <span className="text-[11px] font-bold text-sub w-full">
+                        {who(c) && <>{who(c)}　</>}
+                        {c.joinedAt ? `${fmt(c.joinedAt)} から` : '記録なし（ログを入れる前から参加）'}
+                        {c.joinBy === 'host' && '（主催者が承認）'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="text-[11px] font-bold text-muted mb-1.5">
+              出入りの記録（のべ {g.stays.length}件 ／ 実人数 {g.peopleCount}人）・最終 {fmt(g.lastTs)}
             </div>
 
             <div className="space-y-1.5">
@@ -154,12 +221,19 @@ function Inner() {
                   className={'rounded-lg border p-2 ' + (s.inNow ? 'border-green bg-green-light' : 'border-hair bg-bg')}>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="text-[12.5px] font-black">{s.userName || '(名前なし)'}</span>
+                    {s.isDriver && (
+                      <span className="text-[10px] font-black rounded-full px-1.5 py-0.5 border border-orange text-orange bg-white">🚗</span>
+                    )}
+                    {(s.visit || 1) > 1 && (
+                      <span className="text-[10px] font-black rounded-full px-1.5 py-0.5 border border-border text-sub bg-white">{s.visit}回目</span>
+                    )}
                     <span className={'text-[10px] font-black rounded-full px-1.5 py-0.5 border bg-white ' +
                       (s.inNow ? 'border-green text-green' : 'border-border text-muted')}>
                       {s.inNow ? 'いま中にいる' : '抜けた'}
                     </span>
                     <a href={appProfileUrl(s.userId)} className="text-[10.5px] font-black text-blue underline ml-auto">プロフィール</a>
                   </div>
+                  {who(s) && <div className="text-[11px] font-bold text-sub mt-0.5">{who(s)}</div>}
                   <div className="text-[11.5px] font-bold leading-relaxed mt-1">
                     <div>
                       入った：{s.joinedAt ? fmt(s.joinedAt) : <span className="text-muted">記録なし（ログを入れる前から参加）</span>}
@@ -183,16 +257,21 @@ function Inner() {
             </button>
             {open === g.groupId && (
               <div className="mt-2 border-t border-hair pt-2 space-y-1">
-                {g.events.map((e, i) => (
-                  <div key={`${e.ts}-${i}`} className="text-[11.5px] font-bold leading-relaxed">
-                    <span className="text-muted">{fmt(e.ts)}</span>{' '}
-                    <span className={e.kind === 'join' ? 'text-green' : 'text-orange'}>
-                      {e.kind === 'join' ? '＋' : '−'}
-                    </span>{' '}
-                    {e.userName || e.userId} さんが{e.kind === 'join' ? '入った' : '抜けた'}
-                    {e.by === 'host' && <span className="text-muted">（{e.kind === 'join' ? '承認' : '外された'}）</span>}
-                  </div>
-                ))}
+                {g.events.map((e, i) => {
+                  // その時点で何人になったかを添える。行だけ並んでいても増減が読めない。
+                  const upto = g.events.slice(i).reduce((n, x) => n + (x.kind === 'join' ? 1 : -1), 0);
+                  return (
+                    <div key={`${e.ts}-${i}`} className="text-[11.5px] font-bold leading-relaxed">
+                      <span className="text-muted">{fmt(e.ts)}</span>{' '}
+                      <span className={e.kind === 'join' ? 'text-green' : 'text-orange'}>
+                        {e.kind === 'join' ? '＋' : '−'}
+                      </span>{' '}
+                      {e.userName || e.userId} さんが{e.kind === 'join' ? '入った' : '抜けた'}
+                      {e.by === 'host' && <span className="text-muted">（{e.kind === 'join' ? '承認' : '外された'}）</span>}
+                      <span className="text-muted">　→ {Math.max(0, upto)}人</span>
+                    </div>
+                  );
+                })}
                 <div className="text-[10.5px] text-muted font-bold pt-1 break-all">グループID: {g.groupId}</div>
               </div>
             )}
