@@ -709,7 +709,25 @@ export default function RoundDetailPage() {
           </div>
         )}
 
-        {officialActive && !isHost ? null : isHost ? (
+        {/* 運営が代わりに立てた枠（代理ラウンド募集）に入っている人の抜け道。
+            ここを丸ごと null にしていたせいで「参加を取りやめる」が消え、
+            **入ったら抜けられない**状態になっていた（問い合わせで発覚）。
+            主催者がいない枠なので、承認や完了のボタンは要らないが、
+            抜けるだけは必ずできないといけない。 */}
+        {officialActive && !isHost ? (
+          isApproved ? (
+            <div className="space-y-2 mb-4">
+              <button onClick={leave}
+                className="w-full py-3 bg-card text-red border border-red rounded-xl text-sm font-bold">
+                この枠から抜ける
+              </button>
+              <div className="text-[11px] text-muted text-center leading-relaxed">
+                抜けても、ほかの参加者には知らせません。<br />
+                空いた枠は、また募集されます。
+              </div>
+            </div>
+          ) : null
+        ) : isHost ? (
           <div className="space-y-2 mb-4">
             {round.status === 'open' && (
               <button onClick={() => setInviteOpen(true)} className="w-full py-3 bg-green text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2">
