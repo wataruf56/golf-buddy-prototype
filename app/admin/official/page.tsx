@@ -38,6 +38,14 @@ function Inner() {
   const [busy, setBusy] = useState(false);
   // 新規作成
   const [pattern, setPattern] = useState<'women' | 'meetup'>('women');
+  // 声かけは**枠ごと**に持つ（立てた瞬間に写し取られる）。
+  // これまでは下の「既定のひな形」がそのまま使われていたので、
+  // 駅集合の枠を立てても「女性だけでラウンドしませんか？」が出てしまっていた。
+  const [pTitle, setPTitle] = useState('');
+  const [pBody, setPBody] = useState('');
+  const [pGender, setPGender] = useState<'' | 'male' | 'female'>('female');
+  const [pSnooze, setPSnooze] = useState('7');
+  const [touched, setTouched] = useState(false);   // 手で直したら既定値で上書きしない
   const [place, setPlace] = useState('新宿');
   const [expireDays, setExpireDays] = useState('14');
 
@@ -52,6 +60,22 @@ function Inner() {
       } catch { /* noop */ }
     })();
   }, [search]);
+
+  // パターンと駅から、その企画に合う既定の文面を作る。
+  // 手で直したあとは上書きしない（せっかく書いたものが消えると腹が立つ）。
+  useEffect(() => {
+    if (touched) return;
+    if (pattern === 'women') {
+      setPTitle('女性だけでラウンドしませんか？');
+      setPBody('コースも日程も、集まってから決めます。\n車がなくても大丈夫です。');
+      setPGender('female');
+    } else {
+      const st = (place || '').trim();
+      setPTitle(st ? `${st}に集まってラウンドしませんか？` : '駅に集まってラウンドしませんか？');
+      setPBody('コースも日程も、集まってから決めます。\n車を出せる人が一緒なので、車がなくても行けます。');
+      setPGender('');   // 駅集合は男女どちらも募るので絞らない
+    }
+  }, [pattern, place, touched]);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -82,7 +106,15 @@ function Inner() {
     try {
       const r = await fetch(`/api/official?token=${encodeURIComponent(token)}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pattern, meetPlace: pattern === 'meetup' ? place : undefined, expireDays: Number(expireDays) || 14 }),
+        body: JSON.stringify({
+          pattern, meetPlace: pattern === 'meetup' ? place : undefined,
+          expireDays: Number(expireDays) || 14,
+          // この枠だけの声かけ。全体のひな形ではなく、ここで決めたものが使われる。
+          prompt: {
+            popupTitle: pTitle, popupBody: pBody, targetGender: pGender,
+            snoozeDays: Number(pSnooze) || 7,
+          },
+        }),
       });
       const j = await asJson(r);
       if (!j.ok) throw new Error(j?.message || '作れませんでした');
@@ -127,6 +159,11 @@ function Inner() {
     <div className="min-h-screen bg-bg p-4 max-w-md mx-auto">
       <Link href={`/admin?token=${token}`} className="text-[12px] text-blue font-bold">‹ 管理</Link>
       <div className="text-2xl font-black mt-1 mb-1">📣 運営が立てる枠</div>
+      <Link href={`/admin/proxy-funnel?token=${token}`}
+        className="block bg-card rounded-xl shadow-card px-3 py-2.5 mb-3 border-2 border-border">
+        <span className="text-[12.5px] font-black">📊 レポートを見る</span>
+        <span className="text-[11px] font-bold text-sub"> — 誰が見て、誰が入って、誰が抜けたか</span>
+      </Link>
       <div className="text-[11.5px] text-sub font-bold leading-relaxed mb-4">
         主催者を置かずに、枠だけ先に出す募集です。<b className="text-text">同時に走らせるのは1本まで。</b>
         声かけがぶつかって、どちらも埋まらなくなるのを避けるためです。
@@ -190,6 +227,35 @@ function Inner() {
               className="w-full mt-1 border-2 border-border rounded-xl px-3 py-2.5 text-[14px] font-black" />
           </label>
         )}
+        {/* 声かけは枠ごと。パターンを選ぶと既定の文面が入れ替わる。
+            ここで決めた文面が、立てた瞬間にその枠へ写し取られる。 */}
+        <div className="mt-4 pt-3 border-t-2 border-hair">
+          <div className="text-[12.5px] font-black mb-1">この枠の声かけ（ホームに出る文）</div>
+          <div className="text-[11px] font-bold text-sub mb-2 leading-relaxed">
+            上で企画を選ぶと、それに合う文面が入ります。手で直せます。
+          </div>
+          <Text label="見出し" v={pTitle} on={(v) => { setTouched(true); setPTitle(v); }} />
+          <Area label="本文" v={pBody} on={(v) => { setTouched(true); setPBody(v); }} rows={3} />
+          <div className="mt-3">
+            <div className="text-[12px] font-black mb-1">誰に出すか</div>
+            <div className="flex gap-2">
+              {([['', 'ぜんいん'], ['female', '女性だけ'], ['male', '男性だけ']] as const).map(([k, l]) => (
+                <button key={k} onClick={() => { setTouched(true); setPGender(k); }} disabled={!!active}
+                  className={'flex-1 py-2.5 rounded-xl text-[12px] font-black border-2 ' +
+                    (pGender === k ? 'border-green bg-green-light' : 'border-border bg-white')}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+          <label className="block mt-3">
+            <span className="text-[12px] font-black">「あとで」で何日消すか</span>
+            <input inputMode="numeric" value={pSnooze} disabled={!!active}
+              onChange={(e) => { setTouched(true); setPSnooze(e.target.value.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '')); }}
+              className="w-full mt-1 border-2 border-border rounded-xl px-3 py-2.5 text-[14px] font-black" />
+          </label>
+        </div>
+
         <label className="block mt-3">
           <span className="text-[12px] font-black">締め切り（何日で静かに閉じるか）</span>
           <input inputMode="numeric" value={expireDays} disabled={!!active}
@@ -202,30 +268,15 @@ function Inner() {
         </button>
       </div>
 
-      {/* 声かけと文面 */}
+      {/* 全体で1つだけ持つもの。
+          声かけの文面は枠ごとに持つようにしたので、ここからは外した
+          （2か所に同じ入力欄があると、どちらが効くのか分からなくなる）。 */}
       {s && (
         <div className="bg-card rounded-xl shadow-card p-4 mb-3">
-          <div className="text-[13px] font-black mb-2">ホームでの声かけ</div>
-          <Text label="見出し" v={s.popupTitle} on={(v) => setS({ ...s, popupTitle: v })} />
-          <Area label="本文" v={s.popupBody} on={(v) => setS({ ...s, popupBody: v })} rows={3} />
-          <div className="mt-3">
-            <div className="text-[12px] font-black mb-1">誰に出すか</div>
-            <div className="flex gap-2">
-              {([['', 'ぜんいん'], ['female', '女性だけ'], ['male', '男性だけ']] as const).map(([k, l]) => (
-                <button key={k} onClick={() => setS({ ...s, targetGender: k })}
-                  className={'flex-1 py-2.5 rounded-xl text-[12px] font-black border-2 ' + (s.targetGender === k ? 'border-green bg-green-light' : 'border-border bg-white')}>
-                  {l}
-                </button>
-              ))}
-            </div>
+          <div className="text-[13px] font-black mb-1">人がそろった瞬間にチャットへ流す文</div>
+          <div className="text-[11px] font-bold text-sub mb-2 leading-relaxed">
+            これは<b className="text-text">全部の枠で共通</b>です。枠ごとの声かけは、上の「枠を立てる」の中にあります。
           </div>
-          <label className="block mt-3">
-            <span className="text-[12px] font-black">「あとで」で何日消すか</span>
-            <input inputMode="numeric" value={String(s.snoozeDays)}
-              onChange={(e) => setS({ ...s, snoozeDays: Number(e.target.value.replace(/[^0-9]/g, '')) || 0 })}
-              className="w-full mt-1 border-2 border-border rounded-xl px-3 py-2.5 text-[14px] font-black" />
-          </label>
-          <div className="text-[13px] font-black mt-4 mb-1">人がそろった瞬間にチャットへ流す文</div>
           <Area label="" v={s.filledMessage} on={(v) => setS({ ...s, filledMessage: v })} rows={6} />
           <button onClick={saveSettings} disabled={busy}
             className="w-full mt-3 py-3.5 rounded-xl text-[15px] font-black bg-green text-white disabled:opacity-50">保存する</button>

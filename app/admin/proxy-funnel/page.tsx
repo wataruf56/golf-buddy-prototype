@@ -101,7 +101,7 @@ function Inner() {
 
   return (
     <div className="min-h-screen bg-bg p-4 max-w-md mx-auto">
-      <Link href={`/admin?token=${token}`} className="text-[12px] text-blue font-bold">‹ 管理</Link>
+      <Link href={`/admin/official?token=${token}`} className="text-[12px] text-blue font-bold">‹ 代理ラウンド募集</Link>
       <div className="text-2xl font-black mt-1 mb-1">🚗 代理ラウンド募集</div>
       <div className="text-[11.5px] text-sub font-bold leading-relaxed mb-3">
         運営が車を出せる人を先に見つけ、残りの参加者を代わりに集める機能のレポートです。
