@@ -87,10 +87,12 @@ export function whenLabel(w: OfficialWhen | undefined): string {
   return `${w.month}月${HALF_LABEL[w.half]}・${w.days === 'any' ? '平日/土日' : DAY_LABEL[w.days]}`;
 }
 
-/** 一覧の日付欄に出す1行。日付そのものは決まっていないことも併せて伝える。 */
+/** 一覧の日付欄に出す1行。日付そのものは決まっていないことも併せて伝える。
+ *  「ごろ」は月にだけ掛ける（whenLabel をそのまま使うと「平日ごろ」になる）。 */
 export function whenDateRange(w: OfficialWhen | undefined): string {
-  const l = whenLabel(w);
-  return l ? `${l}ごろ（日程はこれから）` : '日程はこれから決めます';
+  if (!w || !w.month) return '日程はこれから決めます';
+  const d = w.days === 'any' ? '平日/土日' : DAY_LABEL[w.days];
+  return `${w.month}月${HALF_LABEL[w.half]}ごろ・${d}（日程はこれから）`;
 }
 
 /** 外から来た値を整える。壊れていたら undefined（＝時期は未設定）を返す。 */
