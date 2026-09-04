@@ -4,7 +4,7 @@ import { getMeId } from '@/lib/session';
 import { isAdminUserId } from '@/lib/adminAccess';
 import {
   createThread, listActiveThreads, listThreads, officialOf, slotStates,
-  takenSeats, totalSeats, type OfficialPattern,
+  takenSeats, totalSeats, isFilled, type OfficialPattern,
 } from '@/lib/officialThread';
 import type { Round } from '@/lib/types';
 
@@ -66,14 +66,33 @@ export async function GET(req: NextRequest) {
   const shape = (round: Round) => {
     const memberIds = round.applicantIds || [];
     const states = slotStates(round, users);
+    const joined = !!meId && memberIds.includes(meId);
+
+    // 誰が入っているかは、**集まるまで伏せる**。
+    // 先に入った人の顔ぶれで参加を決められると、企画の狙い（横並びで手を挙げられる）が
+    // 崩れるし、まだ入っていない人に会員の顔と名前を見せる理由もない。
+    // 自分が入っていれば見える（入った時点でグループチャットに合流して分かるので、
+    // ここだけ伏せても意味がない）。満席になったら全員に開く。
+    const reveal = joined || isFilled(round);
+
     return {
       id: round.id, title: round.title, official: officialOf(round)!,
       taken: takenSeats(round), total: totalSeats(round),
+      revealed: reveal,
       slots: states.map((s) => ({
-        ...s.slot, taken: s.taken, left: s.left, drivers: s.drivers, driverOnly: s.driverOnly,
+        ...s.slot,
+        // 伏せているあいだは userId も返さない（画面で隠しても応答に残っていたら同じこと）
+        taken: reveal ? s.taken : [],
+        takenCount: s.taken.length,
+        left: s.left, drivers: s.drivers, driverOnly: s.driverOnly,
       })),
-      members: memberIds.map((id) => slim(users[id])).filter(Boolean),
-      joined: !!meId && memberIds.includes(meId),
+      members: reveal ? memberIds.map((id) => slim(users[id])).filter(Boolean) : [],
+      // 誰かは伏せたまま、判断に要る「何人・うち車あり何人」だけは常に渡す。
+      digest: {
+        count: memberIds.length,
+        withCar: memberIds.filter((id) => users[id]?.car === 'have').length,
+      },
+      joined,
     };
   };
 
@@ -105,6 +124,8 @@ export async function POST(req: NextRequest) {
     expireDays: Number(body?.expireDays) || undefined,
     // 枠ごとに声かけ文面を変えられる。省略なら既定のひな形をそのまま使う。
     prompt: body?.prompt && typeof body.prompt === 'object' ? body.prompt : undefined,
+    // だいたいの開催時期（9月下旬・土日 など）。中身は createThread 側で整える。
+    when: body?.when && typeof body.when === 'object' ? body.when : undefined,
   });
   if (!res.ok) return NextResponse.json({ ok: false, message: res.message }, { status: 409, headers: noStore });
   return NextResponse.json({ ok: true, id: res.round.id, title: res.round.title }, { headers: noStore });

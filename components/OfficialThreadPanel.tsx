@@ -16,13 +16,18 @@ import { LICENSE_LABEL, type License } from '@/lib/officialShared';
 type Slot = {
   id: string; gender: 'male' | 'female' | 'any'; count: number;
   role: 'any' | 'driver' | 'rider'; minDrivers?: number; note?: string;
-  taken: string[]; left: number; drivers: number; driverOnly: boolean;
+  taken: string[]; takenCount?: number; left: number; drivers: number; driverOnly: boolean;
 };
 type Member = { id: string; displayName?: string; avatar?: string; avatarUrl?: string; color?: string; car?: string };
 type Thread = {
   id: string; title: string; taken: number; total: number; joined: boolean;
-  official: { pattern: 'women' | 'meetup'; meetPlace?: string; askLicense: boolean; stage: string; expiresAt: number };
+  official: { pattern: 'women' | 'meetup'; meetPlace?: string; askLicense: boolean; stage: string; expiresAt: number;
+    when?: { year: number; month: number; half: 'early' | 'late'; days: 'weekday' | 'weekend' | 'any' } };
   slots: Slot[]; members: Member[];
+  /** 顔ぶれを見せてよいか（満席になったか、自分が入っているか）。 */
+  revealed?: boolean;
+  /** 誰かは伏せたままの人数まとめ。 */
+  digest?: { count: number; withCar: number };
 };
 
 const GENDER_LABEL: Record<string, string> = { female: '👩 女性', male: '👨 男性', any: '👥 どなたでも' };
@@ -113,6 +118,26 @@ export function OfficialThreadPanel({ roundId }: { roundId: string }) {
         )}
       </div>
 
+      {/* だいたいの開催時期。日付は決めずに出す企画だが、
+          「平日なのか土日なのか分からず手を挙げられない」という声があったので、
+          選ぶのに足りるだけの粗さで先に見せる。 */}
+      {!!t.official.when?.month && (
+        <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+          <span className="text-[12px] font-black bg-white text-text border-2 border-border rounded-lg px-2.5 py-1">
+            📅 {t.official.when.month}月{t.official.when.half === 'early' ? '上旬' : '下旬'}ごろ
+          </span>
+          <span className={'text-[12px] font-black rounded-lg px-2.5 py-1 border-2 '
+            + (t.official.when.days === 'weekday'
+                ? 'bg-white text-blue border-blue'
+                : t.official.when.days === 'weekend'
+                  ? 'bg-white text-orange border-orange'
+                  : 'bg-white text-sub border-border')}>
+            {t.official.when.days === 'weekday' ? '平日に開催'
+              : t.official.when.days === 'weekend' ? '土日に開催' : '平日・土日どちらでも'}
+          </span>
+        </div>
+      )}
+
       <div className={'mt-2.5 border-2 rounded-xl px-3 py-2.5 text-[12px] font-bold leading-relaxed ' + c.soft + ' ' + c.edge}>
         {women ? (
           <>🌸 <b className="text-text">車がなくても大丈夫です。</b>移動は集まってから決めます。</>
@@ -121,6 +146,15 @@ export function OfficialThreadPanel({ roundId }: { roundId: string }) {
         )}
         <br />日程もコースも、<b className="text-text">集まった{t.total}人で決めます。</b>
       </div>
+
+      {/* 顔ぶれを伏せていることを、隠しているのではなく仕様として伝える。
+          何も言わずに👤だけ並べると「読み込み中？」に見えるため。 */}
+      {!t.revealed && !!t.digest?.count && (
+        <div className="mt-2.5 bg-bg border-2 border-hair rounded-xl px-3 py-2 text-[11.5px] font-bold text-sub leading-relaxed">
+          👤 いま<b className="text-text">{t.digest.count}人</b>が参加しています。
+          <br />どなたが参加しているかは、<b className="text-text">人がそろってから</b>お知らせします。
+        </div>
+      )}
 
       {/* 枠 */}
       <div className="mt-3 space-y-2.5">
@@ -145,9 +179,18 @@ export function OfficialThreadPanel({ roundId }: { roundId: string }) {
               {s.note && <div className="text-[11.5px] font-bold text-sub mt-1">{s.note}</div>}
               <div className="flex gap-1.5 mt-2">
                 {Array.from({ length: s.count }).map((_, i) => {
+                  const filled = i < (s.takenCount ?? s.taken.length);
                   const uid = s.taken[i];
                   const u = uid ? membersById[uid] : null;
                   if (u) return <Avatar key={i} user={u as any} size={30} emojiSize={15} />;
+                  // 埋まっているが、まだ顔ぶれを出さない席。
+                  // 「入っている」ことだけ伝わればよく、誰かは満席まで伏せる。
+                  if (filled) return (
+                    <div key={i}
+                      className="w-[30px] h-[30px] rounded-full bg-bg border-2 border-hair grid place-items-center text-[13px] text-muted">
+                      👤
+                    </div>
+                  );
                   // 空席。女性枠は桜色の点線にして「ここに入れる」を柔らかく見せる。
                   return (
                     <div key={i}
@@ -206,7 +249,7 @@ export function OfficialThreadPanel({ roundId }: { roundId: string }) {
               <Row k="車がある人がいれば" v="その車で行きます。ガソリン代と高速代を割り勘" />
               <Row k="全員 車なし＋免許あり" v={<><b>レンタカーになります</b><br />1日8,000円前後 ÷ {t.total}人＝<b>1人{Math.round(8000 / Math.max(1, t.total) / 100) * 100}円前後</b></>} />
               <Row k="免許のある人がいない" v="駅からバスのあるコースを選びます" />
-              <NowLine members={t.members} />
+              <NowLine d={t.digest} />
             </div>
           ) : (
             <div className="mt-3 border-2 border-blue rounded-xl bg-white p-3">
@@ -244,14 +287,15 @@ function Row({ k, v }: { k: string; v: React.ReactNode }) {
   );
 }
 
-function NowLine({ members }: { members: Member[] }) {
-  if (!members.length) return null;
-  const noCar = members.filter((m) => m.car !== 'have').length;
-  const allNoCar = noCar === members.length;
+/** 顔ぶれは伏せたまま「いま何人・うち車あり何人」だけ伝える。
+ *  レンタカーになるかどうかは参加の判断に効くので、ここは隠さない。 */
+function NowLine({ d }: { d?: { count: number; withCar: number } }) {
+  if (!d || !d.count) return null;
+  const allNoCar = d.withCar === 0;
   return (
     <div className="mt-2.5 bg-sakura-light border-2 border-sakura rounded-xl px-2.5 py-2 text-[11.5px] font-black leading-relaxed">
-      いま参加中の{members.length}人は{allNoCar ? <>全員<b>車なし</b>です。<br />このままだと<b>レンタカー</b>になりそうです。</>
-        : <>うち{members.length - noCar}人が<b>車あり</b>です。</>}
+      いま参加中の{d.count}人は{allNoCar ? <>全員<b>車なし</b>です。<br />このままだと<b>レンタカー</b>になりそうです。</>
+        : <>うち{d.withCar}人が<b>車あり</b>です。</>}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import type { Round } from './types';
 import {
   DEFAULT_EXPIRE_DAYS, defaultSlots, isActiveStage, officialOf as of, titleFor,
   type OfficialInfo, type OfficialPattern, type OfficialSlot, type SlotGender, type SlotRole,
+  normalizeWhen, whenDateRange,
 } from './officialShared';
 
 // 公式スレッドのうち、**Firestore に触る部分**だけをここに置く。
@@ -74,6 +75,8 @@ export async function createThread(input: {
   expireDays?: number;
   /** この枠の声かけ。省略したら既定のひな形をそのまま写し取る。 */
   prompt?: Partial<OfficialPrompt>;
+  /** だいたいの開催時期（9月下旬・土日 など）。 */
+  when?: any;
 }): Promise<{ ok: true; round: Round } | { ok: false; message: string }> {
   // 同時開催に対応（2026-08-31）。以前はここで「動いているものがあれば作らせない」と
   // 弾いていたが、塞いでいた本当の理由は声かけ設定が全体で1組しか無かったことなので、
@@ -103,6 +106,8 @@ export async function createThread(input: {
     // 立てた時点の声かけを写し取る。あとでひな形を変えても、この枠の文面は変わらない。
     prompt: promptFrom(await getSettings(), input.prompt),
   };
+  const when = normalizeWhen(input.when);
+  if (when) official.when = when;   // undefined を入れない（Firestore が入れ子の undefined を拒む）
 
   const round: Omit<Round, 'id'> = {
     hostId: ADMIN_MANAGER_ID,
@@ -112,7 +117,9 @@ export async function createThread(input: {
     // 日程もコースも決めずに出す。ここがこの企画の肝。
     type: 'flexible',
     dateType: 'range',
-    dateRange: '日程はこれから決めます',
+    // 日付は決めないが、平日か土日か・何月ごろかだけは載せる。
+    // ここに入れておくと一覧カードやチャットの見出しにもそのまま出る。
+    dateRange: whenDateRange(when),
     // 運営は参加者に数えないので、定員＝枠の合計そのもの。
     maxSpots: seats,
     spotsMale: slots.filter((s) => s.gender === 'male').reduce((a, s) => a + s.count, 0),

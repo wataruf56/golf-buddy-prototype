@@ -238,6 +238,19 @@ export default function RoundDetailPage() {
   const officialStage = ((round as any).official?.stage as string | undefined);
   const isOfficialThread = !!officialStage;
   const officialActive = officialStage === 'recruiting' || officialStage === 'deciding';
+  // 運営枠は、**人がそろうまで顔ぶれを伏せる**。
+  // 先に入った人の顔を見てから決められると、この企画の狙い（誰でも横並びで
+  // 手を挙げられる）が崩れる。まだ入っていない人に会員の顔と名前を見せる理由もない。
+  // 自分が入っていれば見える（入った時点でグループチャットに合流して分かるので、
+  // ここだけ伏せても意味がない）。定員に達したら全員に開く。
+  const officialFilled = (() => {
+    const o = (round as any).official;
+    if (!o?.slots) return false;
+    const seats = o.slots.reduce((a: number, x: any) => a + (x.count || 0), 0);
+    return seats > 0 && (round.applicantIds || []).length >= seats;
+  })();
+  const hideOfficialMembers = isOfficialThread && officialActive && !officialFilled
+    && !isHost && !round.applicantIds.includes(meId);
   const isApproved = round.applicantIds.includes(meId);
   const isPending = (round.pendingApplicantIds || []).includes(meId);
   // 参加者同士のDMは「主催者/共同管理者 or 承認済み参加者」だけに開放する。未参加の閲覧者は
@@ -900,8 +913,19 @@ export default function RoundDetailPage() {
           </div>
         ) : null}
 
+        {/* 運営枠で顔ぶれを伏せているあいだの代わり。
+            何も出さないと「まだ誰もいない」に見えてしまうので、人数だけは伝える。 */}
+        {hideOfficialMembers && applicants.length > 0 && (
+          <div className="mb-4">
+            <div className="text-[13px] font-bold mb-2">参加確定（{applicants.length}名）</div>
+            <div className="bg-bg border-2 border-hair rounded-[10px] p-3 text-[12px] font-bold text-sub leading-relaxed">
+              👤 どなたが参加しているかは、<b className="text-text">人がそろってから</b>お知らせします。
+            </div>
+          </div>
+        )}
+
         {/* Approved applicants + ゲスト。レビュー/初参加の代わりにピックアップ状態を表示。 */}
-        {(applicants.length > 0 || (round.guests?.length ?? 0) > 0) && (
+        {!hideOfficialMembers && (applicants.length > 0 || (round.guests?.length ?? 0) > 0) && (
           <div className="mb-4">
             <div className="text-[13px] font-bold mb-2">参加確定（{applicants.length + (round.guests?.length ?? 0)}名）</div>
             {applicants.map((u) => u && (

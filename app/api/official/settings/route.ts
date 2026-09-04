@@ -50,6 +50,8 @@ export async function GET(req: NextRequest) {
         // そのままチャットへ入れる。手で立てた meetup 枠とは導線が違う。
         proxy: !!(o.driverId || (o.stations && o.stations.length)),
         stations: o.stations || [],
+        // 「平日なのか土日なのか分からない」で手が挙がらないので、声かけの時点で見せる。
+        when: o.when || null,
       }];
     });
 

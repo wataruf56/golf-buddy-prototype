@@ -23,9 +23,19 @@ const SNOOZE_KEY = 'gb_official_snooze';
 type Prompt = { show: boolean; id?: string; title?: string; body?: string; pattern?: 'women' | 'meetup';
   left?: number; total?: number; snoozeDays?: number;
   // 管理者の代理ラウンド募集（ドライバー先行）の枠。ワンタップで入ってチャットへ送る。
-  proxy?: boolean; stations?: string[] };
+  proxy?: boolean; stations?: string[];
+  /** だいたいの開催時期。無い枠もある（この項目より前に立てたもの）。 */
+  when?: { year: number; month: number; half: 'early' | 'late'; days: 'weekday' | 'weekend' | 'any' } | null };
 type Mine = { id: string; title: string; stage: string; taken: number; total: number;
   pattern?: 'women' | 'meetup' };
+
+/** 「9月下旬ごろ・土日」。声かけの時点で見せる。
+ *  日程は決めない企画だが、平日か土日かだけは先に分からないと手を挙げられない。 */
+function whenText(w: Prompt['when']): string {
+  if (!w || !w.month) return '';
+  const d = w.days === 'weekday' ? '平日' : w.days === 'weekend' ? '土日' : '平日/土日';
+  return `${w.month}月${w.half === 'early' ? '上旬' : '下旬'}ごろ・${d}`;
+}
 
 export function OfficialHomeCard() {
   const router = useRouter();
@@ -152,6 +162,9 @@ export function OfficialHomeCard() {
                       ? `🚉 ${p.stations.slice(0, 3).join('・')}で拾えます・あと${p.left}人`
                       : `運営が立てた枠・あと${p.left}人`}
                   </div>
+                  {!!whenText(p.when) && (
+                    <div className="text-[11px] font-black mt-0.5">📅 {whenText(p.when)}</div>
+                  )}
                 </div>
                 <span className={c.ink}>›</span>
               </div>
@@ -167,7 +180,14 @@ export function OfficialHomeCard() {
             <div className="text-center text-[34px] leading-none">{colorOf(popup.pattern).face}</div>
             <div className="text-[18px] font-black text-center mt-2 leading-snug">{popup.title}</div>
             <div className="text-[12.5px] font-bold text-sub text-center mt-2 leading-relaxed whitespace-pre-wrap">{popup.body}</div>
-            <div className="bg-white border-2 border-border rounded-xl p-3 mt-3.5 text-[12.5px] font-black text-center leading-relaxed">
+            {!!whenText(popup.when) && (
+              <div className="mt-3 text-center">
+                <span className="inline-block text-[13px] font-black bg-white border-2 border-border rounded-xl px-3 py-1.5">
+                  📅 {whenText(popup.when)}
+                </span>
+              </div>
+            )}
+            <div className="bg-white border-2 border-border rounded-xl p-3 mt-3 text-[12.5px] font-black text-center leading-relaxed">
               運営が枠だけ用意しています<br />
               <span className={colorOf(popup.pattern).ink}>あと{popup.left}人</span>
               <span className="font-bold text-sub">（{popup.total}人集まったら始まります）</span>

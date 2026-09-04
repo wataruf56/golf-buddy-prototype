@@ -53,6 +53,65 @@ export type OfficialPrompt = {
   showFareCard: boolean;
 };
 
+/**
+ * だいたいの開催時期。
+ *
+ * この企画は「日程を決めずに人だけ先に集める」のが肝なので、日付は空で出す。
+ * ただしそれだけだと、見た人が**いつの話なのか分からず手を挙げられない**
+ * （会員から「平日なのか土日なのか分からない」と指摘があった）。
+ * 日付は決めないまま、選ぶのに足りるだけの粗さで伝えるための項目。
+ *
+ * 月をまたいで走らせる枠のために year も持つ。持たないと年末に
+ * 「1月上旬」が去年なのか来年なのか読めなくなる。
+ */
+export type DayKind = 'weekday' | 'weekend' | 'any';
+export type MonthHalf = 'early' | 'late';
+export type OfficialWhen = {
+  year: number;
+  /** 1〜12 */
+  month: number;
+  half: MonthHalf;
+  days: DayKind;
+};
+
+export const DAY_LABEL: Record<DayKind, string> = {
+  weekday: '平日',
+  weekend: '土日',
+  any: '平日・土日どちらでも',
+};
+export const HALF_LABEL: Record<MonthHalf, string> = { early: '上旬', late: '下旬' };
+
+/** 「9月下旬・土日」。募集カードや一覧に出す短い形。 */
+export function whenLabel(w: OfficialWhen | undefined): string {
+  if (!w || !w.month) return '';
+  return `${w.month}月${HALF_LABEL[w.half]}・${w.days === 'any' ? '平日/土日' : DAY_LABEL[w.days]}`;
+}
+
+/** 一覧の日付欄に出す1行。日付そのものは決まっていないことも併せて伝える。 */
+export function whenDateRange(w: OfficialWhen | undefined): string {
+  const l = whenLabel(w);
+  return l ? `${l}ごろ（日程はこれから）` : '日程はこれから決めます';
+}
+
+/** 外から来た値を整える。壊れていたら undefined（＝時期は未設定）を返す。 */
+export function normalizeWhen(v: any): OfficialWhen | undefined {
+  if (!v) return undefined;
+  const month = Math.floor(Number(v.month) || 0);
+  if (month < 1 || month > 12) return undefined;
+  const y = Math.floor(Number(v.year) || 0);
+  return {
+    year: y >= 2020 && y <= 2100 ? y : new Date().getFullYear(),
+    month,
+    half: v.half === 'early' ? 'early' : 'late',
+    days: v.days === 'weekday' ? 'weekday' : v.days === 'any' ? 'any' : 'weekend',
+  };
+}
+
+/** 未設定のときの初期値。今月の下旬・土日から始める。 */
+export function defaultWhen(now: Date): OfficialWhen {
+  return { year: now.getFullYear(), month: now.getMonth() + 1, half: 'late', days: 'weekend' };
+}
+
 export type OfficialInfo = {
   pattern: OfficialPattern;
   slots: OfficialSlot[];
@@ -78,6 +137,8 @@ export type OfficialInfo = {
   filledNotifiedAt?: number;
   /** この枠の声かけ。無いのは同時開催より前に立てた枠＝既定のひな形を使う。 */
   prompt?: OfficialPrompt;
+  /** だいたいの開催時期。無いのはこの項目より前に立てた枠。 */
+  when?: OfficialWhen;
 
   // ---- 管理者の代理ラウンド募集（ドライバー先行型） ----
   /**

@@ -12,7 +12,8 @@ import { appRoundUrl } from '@/lib/adminLinks';
 type Thread = {
   id: string; title: string; createdAt: number;
   official: { pattern: 'women' | 'meetup'; stage: string; meetPlace?: string; expiresAt: number;
-    decide?: { course?: string; date?: string; price?: string } };
+    decide?: { course?: string; date?: string; price?: string };
+    when?: { year: number; month: number; half: 'early' | 'late'; days: 'weekday' | 'weekend' | 'any' } };
   taken: number; total: number;
 };
 type Settings = {
@@ -48,6 +49,13 @@ function Inner() {
   const [touched, setTouched] = useState(false);   // 手で直したら既定値で上書きしない
   const [place, setPlace] = useState('新宿');
   const [expireDays, setExpireDays] = useState('14');
+  // だいたいの開催時期。日付は決めずに出す企画なので、月と上旬/下旬、
+  // それに平日か土日かだけを持つ。既定は「今月の下旬・土日」。
+  const now = new Date();
+  const [wYear, setWYear] = useState(now.getFullYear());
+  const [wMonth, setWMonth] = useState(now.getMonth() + 1);
+  const [wHalf, setWHalf] = useState<'early' | 'late'>('late');
+  const [wDays, setWDays] = useState<'weekday' | 'weekend' | 'any'>('weekend');
 
   useEffect(() => {
     const cached = search?.get('token') || localStorage.getItem('gb_admin_token') || '';
@@ -109,6 +117,7 @@ function Inner() {
         body: JSON.stringify({
           pattern, meetPlace: pattern === 'meetup' ? place : undefined,
           expireDays: Number(expireDays) || 14,
+          when: { year: wYear, month: wMonth, half: wHalf, days: wDays },
           // この枠だけの声かけ。全体のひな形ではなく、ここで決めたものが使われる。
           prompt: {
             popupTitle: pTitle, popupBody: pBody, targetGender: pGender,
@@ -134,6 +143,23 @@ function Inner() {
       const j = await asJson(r);
       if (!j.ok) throw new Error(j?.message || 'できませんでした');
       setMsg(mode === 'delete' ? '🗑 削除しました' : '✅ 閉じました');
+      await load();
+    } catch (e) { setMsg('❌ ' + (e as Error).message); }
+    finally { setBusy(false); }
+  }
+
+  // 走っている枠の開催時期を後から直す。立て直すと参加者もチャットも失うので、
+  // 中身だけ差し替える。
+  async function saveWhen(t: Thread, w: { year: number; month: number; half: 'early' | 'late'; days: 'weekday' | 'weekend' | 'any' }) {
+    setBusy(true); setMsg('');
+    try {
+      const r = await fetch(`/api/official/${t.id}?token=${encodeURIComponent(token)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ when: w }),
+      });
+      const j = await asJson(r);
+      if (!j.ok) throw new Error(j?.message || '直せませんでした');
+      setMsg('✅ 開催時期を直しました');
       await load();
     } catch (e) { setMsg('❌ ' + (e as Error).message); }
     finally { setBusy(false); }
@@ -180,36 +206,42 @@ function Inner() {
 
       {/* いま動いているもの */}
       <div className="bg-card rounded-xl shadow-card p-4 mb-3">
-        <div className="text-[13px] font-black mb-2">いま動いている枠</div>
-        {active ? (
-          <a href={appRoundUrl(active.id)} className="block border-2 border-orange bg-orange-light rounded-xl p-3">
-            <div className="text-[14px] font-black">{active.title}</div>
-            <div className="text-[11.5px] font-bold text-sub mt-1">
-              {STAGE_LABEL[active.official.stage]} ・ {active.taken}/{active.total}人 ・ 締切 {fmt(active.official.expiresAt)}
-            </div>
-            {active.official.stage === 'deciding' && (
-              <div className="text-[11px] font-bold text-orange mt-1">
-                ⛳ {active.official.decide?.course || '未入力'} / 📅 {active.official.decide?.date || '未入力'} / 💰 {active.official.decide?.price || '未入力'}
-              </div>
-            )}
-          </a>
-        ) : (
+        {/* 同時開催に対応したので、動いている枠は**全部**並べる。
+            1本目しか出していなかったため、2本目を閉じることも直すこともできなかった。 */}
+        <div className="text-[13px] font-black mb-2">いま動いている枠（{actives.length}本）</div>
+        {!actives.length && (
           <div className="text-[12px] text-muted font-bold py-2">ありません。下から立てられます。</div>
         )}
-        {active && (
-          <div className="flex gap-2 mt-2.5">
-            <button onClick={() => finish(active, 'close')} disabled={busy}
-              className="flex-1 py-2.5 rounded-xl text-[12px] font-black border-2 border-border bg-white disabled:opacity-50">
-              閉じる（履歴に残す）
-            </button>
-            {active.taken === 0 && (
-              <button onClick={() => finish(active, 'delete')} disabled={busy}
-                className="flex-1 py-2.5 rounded-xl text-[12px] font-black border-2 border-red text-red bg-white disabled:opacity-50">
-                🗑 削除
+        {actives.map((t) => (
+          <div key={t.id} className="border-2 border-orange bg-orange-light rounded-xl p-3 mb-2.5">
+            <a href={appRoundUrl(t.id)} className="block">
+              <div className="text-[14px] font-black">{t.title}</div>
+              <div className="text-[11.5px] font-bold text-sub mt-1">
+                {STAGE_LABEL[t.official.stage]} ・ {t.taken}/{t.total}人 ・ 締切 {fmt(t.official.expiresAt)}
+              </div>
+              {t.official.stage === 'deciding' && (
+                <div className="text-[11px] font-bold text-orange mt-1">
+                  ⛳ {t.official.decide?.course || '未入力'} / 📅 {t.official.decide?.date || '未入力'} / 💰 {t.official.decide?.price || '未入力'}
+                </div>
+              )}
+            </a>
+
+            <WhenEditor t={t} busy={busy} onSave={saveWhen} />
+
+            <div className="flex gap-2 mt-2.5">
+              <button onClick={() => finish(t, 'close')} disabled={busy}
+                className="flex-1 py-2.5 rounded-xl text-[12px] font-black border-2 border-border bg-white disabled:opacity-50">
+                閉じる（履歴に残す）
               </button>
-            )}
+              {t.taken === 0 && (
+                <button onClick={() => finish(t, 'delete')} disabled={busy}
+                  className="flex-1 py-2.5 rounded-xl text-[12px] font-black border-2 border-red text-red bg-white disabled:opacity-50">
+                  🗑 削除
+                </button>
+              )}
+            </div>
           </div>
-        )}
+        ))}
       </div>
 
       {/* 立てる */}
@@ -218,7 +250,7 @@ function Inner() {
         <div className="space-y-2">
           {([['women', '女性だけで、のんびりラウンド', '女性4人。免許を聞きます'],
              ['meetup', '駅に集まってラウンド', '女性2＋男性2。男性の1人は車あり']] as const).map(([k, t, d]) => (
-            <button key={k} onClick={() => setPattern(k)} disabled={!!active}
+            <button key={k} onClick={() => setPattern(k)}
               className={'w-full text-left p-3 rounded-xl border-2 ' + (pattern === k
                 ? (k === 'women' ? 'border-sakura bg-sakura-light' : 'border-orange bg-orange-light')
                 : 'border-border bg-white')}>
@@ -230,7 +262,7 @@ function Inner() {
         {pattern === 'meetup' && (
           <label className="block mt-3">
             <span className="text-[12px] font-black">集合する駅</span>
-            <input value={place} onChange={(e) => setPlace(e.target.value)} disabled={!!active}
+            <input value={place} onChange={(e) => setPlace(e.target.value)}
               className="w-full mt-1 border-2 border-border rounded-xl px-3 py-2.5 text-[14px] font-black" />
           </label>
         )}
@@ -247,7 +279,7 @@ function Inner() {
             <div className="text-[12px] font-black mb-1">誰に出すか</div>
             <div className="flex gap-2">
               {([['', 'ぜんいん'], ['female', '女性だけ'], ['male', '男性だけ']] as const).map(([k, l]) => (
-                <button key={k} onClick={() => { setTouched(true); setPGender(k); }} disabled={!!active}
+                <button key={k} onClick={() => { setTouched(true); setPGender(k); }}
                   className={'flex-1 py-2.5 rounded-xl text-[12px] font-black border-2 ' +
                     (pGender === k ? 'border-green bg-green-light' : 'border-border bg-white')}>
                   {l}
@@ -257,21 +289,74 @@ function Inner() {
           </div>
           <label className="block mt-3">
             <span className="text-[12px] font-black">「あとで」で何日消すか</span>
-            <input inputMode="numeric" value={pSnooze} disabled={!!active}
+            <input inputMode="numeric" value={pSnooze}
               onChange={(e) => { setTouched(true); setPSnooze(e.target.value.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '')); }}
               className="w-full mt-1 border-2 border-border rounded-xl px-3 py-2.5 text-[14px] font-black" />
           </label>
         </div>
 
+        {/* だいたいの開催時期。
+            日付を決めずに人だけ集める企画だが、それだけだと
+            「平日なのか土日なのか」が分からず手を挙げられない、という声があった。
+            日付は決めないまま、選ぶのに足りる粗さだけをここで決める。 */}
+        <div className="mt-4 border-2 border-border rounded-xl p-3">
+          <div className="text-[13px] font-black">📅 だいたいの開催時期</div>
+          <div className="text-[11px] font-bold text-sub mt-0.5 leading-relaxed">
+            日付は決めません。募集カードに「{wMonth}月{wHalf === 'early' ? '上旬' : '下旬'}ごろ・
+            {wDays === 'weekday' ? '平日' : wDays === 'weekend' ? '土日' : '平日/土日'}」と出ます。
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <label className="block">
+              <span className="text-[11px] font-black">月</span>
+              <select value={`${wYear}-${wMonth}`}
+                onChange={(e) => {
+                  const [y, m] = e.target.value.split('-').map(Number);
+                  setWYear(y); setWMonth(m);
+                }}
+                className="w-full mt-1 border-2 border-border rounded-xl px-3 py-2.5 text-[14px] font-black bg-white">
+                {Array.from({ length: 12 }).map((_, i) => {
+                  // 今月から12か月ぶんを並べる。年をまたいでも迷わないように年も持つ。
+                  const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+                  const y = d.getFullYear(); const m = d.getMonth() + 1;
+                  return <option key={i} value={`${y}-${m}`}>{y !== now.getFullYear() ? `${y}年 ` : ''}{m}月</option>;
+                })}
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-[11px] font-black">上旬 / 下旬</span>
+              <select value={wHalf}
+                onChange={(e) => setWHalf(e.target.value as 'early' | 'late')}
+                className="w-full mt-1 border-2 border-border rounded-xl px-3 py-2.5 text-[14px] font-black bg-white">
+                <option value="early">上旬</option>
+                <option value="late">下旬</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="mt-2">
+            <span className="text-[11px] font-black">平日 / 土日</span>
+            <div className="grid grid-cols-3 gap-2 mt-1">
+              {([['weekend', '土日'], ['weekday', '平日'], ['any', 'どちらでも']] as const).map(([v, label]) => (
+                <button key={v} type="button" onClick={() => setWDays(v)}
+                  className={'py-2.5 rounded-xl text-[13px] font-black border-2 disabled:opacity-50 '
+                    + (wDays === v ? 'bg-orange text-white border-orange' : 'bg-white text-sub border-border')}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
         <label className="block mt-3">
           <span className="text-[12px] font-black">締め切り（何日で静かに閉じるか）</span>
-          <input inputMode="numeric" value={expireDays} disabled={!!active}
+          <input inputMode="numeric" value={expireDays}
             onChange={(e) => setExpireDays(e.target.value.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, ''))}
             className="w-full mt-1 border-2 border-border rounded-xl px-3 py-2.5 text-[14px] font-black" />
         </label>
-        <button onClick={create} disabled={busy || !!active}
+        <button onClick={create} disabled={busy}
           className="w-full mt-3 py-3.5 rounded-xl text-[15px] font-black bg-orange text-white disabled:opacity-50">
-          {active ? '動いている枠があります' : 'この内容で立てる'}
+          {actives.length ? `この内容でもう1本立てる（いま${actives.length}本）` : 'この内容で立てる'}
         </button>
       </div>
 
@@ -337,5 +422,62 @@ function Area({ label, v, on, rows }: { label: string; v: string; on: (v: string
       <textarea value={v} rows={rows} onChange={(e) => on(e.target.value)}
         className="w-full mt-1 border-2 border-border rounded-xl px-3 py-2.5 text-[13px] font-bold leading-relaxed" />
     </label>
+  );
+}
+
+/**
+ * 走っている枠の開催時期を、その場で直す小さな欄。
+ *
+ * 立てるときのフォームとは別に要る。この項目より前に立てた枠（＝いま動いているもの）は
+ * 時期を持っていないので、後から入れられないと会員には出ないままになる。
+ */
+function WhenEditor({ t, busy, onSave }: {
+  t: Thread; busy: boolean;
+  onSave: (t: Thread, w: { year: number; month: number; half: 'early' | 'late'; days: 'weekday' | 'weekend' | 'any' }) => void;
+}) {
+  const now = new Date();
+  const w = t.official.when;
+  const [year, setYear] = useState(w?.year || now.getFullYear());
+  const [month, setMonth] = useState(w?.month || now.getMonth() + 1);
+  const [half, setHalf] = useState<'early' | 'late'>(w?.half || 'late');
+  const [days, setDays] = useState<'weekday' | 'weekend' | 'any'>(w?.days || 'weekend');
+
+  const changed = !w || w.year !== year || w.month !== month || w.half !== half || w.days !== days;
+
+  return (
+    <div className="mt-2.5 bg-white border-2 border-border rounded-xl p-2.5">
+      <div className="text-[11.5px] font-black">
+        📅 開催時期{!w && <span className="text-red ml-1">（未設定・会員には出ていません）</span>}
+      </div>
+      <div className="grid grid-cols-2 gap-2 mt-1.5">
+        <select value={`${year}-${month}`}
+          onChange={(e) => { const [y, m] = e.target.value.split('-').map(Number); setYear(y); setMonth(m); }}
+          className="border-2 border-border rounded-lg px-2 py-2 text-[13px] font-black bg-white">
+          {Array.from({ length: 12 }).map((_, i) => {
+            const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+            const y = d.getFullYear(); const m = d.getMonth() + 1;
+            return <option key={i} value={`${y}-${m}`}>{y !== now.getFullYear() ? `${y}年 ` : ''}{m}月</option>;
+          })}
+        </select>
+        <select value={half} onChange={(e) => setHalf(e.target.value as 'early' | 'late')}
+          className="border-2 border-border rounded-lg px-2 py-2 text-[13px] font-black bg-white">
+          <option value="early">上旬</option>
+          <option value="late">下旬</option>
+        </select>
+      </div>
+      <div className="grid grid-cols-3 gap-2 mt-2">
+        {([['weekend', '土日'], ['weekday', '平日'], ['any', 'どちらでも']] as const).map(([v, label]) => (
+          <button key={v} type="button" onClick={() => setDays(v)}
+            className={'py-2 rounded-lg text-[12px] font-black border-2 '
+              + (days === v ? 'bg-orange text-white border-orange' : 'bg-white text-sub border-border')}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <button type="button" onClick={() => onSave(t, { year, month, half, days })} disabled={busy || !changed}
+        className="w-full mt-2 py-2 rounded-lg text-[12px] font-black bg-green text-white disabled:opacity-40">
+        {changed ? 'この時期にする' : '保存済み'}
+      </button>
+    </div>
   );
 }
