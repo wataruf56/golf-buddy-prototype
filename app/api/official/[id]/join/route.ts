@@ -4,16 +4,20 @@ import { getMeId } from '@/lib/session';
 import { ADMIN_MANAGER_ID } from '@/lib/adminManagerId';
 import {
   canJoinSlot, DEFAULT_FILLED_MESSAGE, isFilled, licenseSummary, officialOf,
-  takenSeats, totalSeats, type License, type OfficialInfo,
+  slotStates, takenSeats, totalSeats, type License, type OfficialInfo,
 } from '@/lib/officialThread';
 
 const noStore = { 'Cache-Control': 'no-store' };
 export const dynamic = 'force-dynamic';
 
-// POST /api/official/[id]/join  { slotId, license? }
+// POST /api/official/[id]/join  { slotId?, license? }
 //
-// 公式スレッドの枠に手を挙げる。ふつうの募集と違い**承認は要らない**（枠に空きが
-// あれば即参加）。主催者がいないので、承認する人もいないため。
+// 公式スレッドに手を挙げる。ふつうの募集と違い**承認は要らない**（空きがあれば即参加）。
+// 主催者がいないので、承認する人もいないため。
+//
+// slotId は**省略できる**。会員には枠の内訳（女性2・男性2…）を見せないので、
+// 押せるボタンは「参加する」1つだけ。どの席に座るかは性別と車の有無から
+// こちらで決める。slotId が来たときは今まで通りその席に座らせる。
 //
 // 免許は成立してから聞くと、そこで話が止まる。だから**申し込みのこの瞬間**に聞く。
 // 枠が埋まったら、運営名義の案内をチャットへ自動で流す。
@@ -41,7 +45,28 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   } catch { /* noop */ }
   const me = await db.getUser(meId);
 
-  const check = canJoinSlot(round, slotId, me || undefined, users);
+  // 席を決める。指定が無ければ、この人が座れる席を先頭から探す。
+  // 見つからないときは「なぜ入れないか」を、いちばん具体的な理由で返す
+  // （どの席も満席なら満席、性別で弾かれているならそう言う）。
+  let seat = slotId;
+  if (!seat) {
+    const states = slotStates(round, users);
+    const fit = states.find((st) => st.left > 0 && canJoinSlot(round, st.slot.id, me || undefined, users).ok);
+    if (!fit) {
+      const reasons = states.map((st) => canJoinSlot(round, st.slot.id, me || undefined, users))
+        .filter((r): r is Exclude<typeof r, { ok: true }> => !r.ok);
+      const pick = reasons.find((r) => r.reason === 'need_car')
+        || reasons.find((r) => r.reason === 'gender')
+        || reasons[0];
+      return NextResponse.json(
+        { ok: false, reason: pick?.reason || 'full', message: pick?.message || 'いまは空きがありません' },
+        { status: 409, headers: noStore },
+      );
+    }
+    seat = fit.slot.id;
+  }
+
+  const check = canJoinSlot(round, seat, me || undefined, users);
   if (!check.ok) {
     return NextResponse.json({ ok: false, reason: check.reason, message: check.message }, { status: 409, headers: noStore });
   }
@@ -52,7 +77,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const applicantIds = Array.from(new Set([...(round.applicantIds || []), meId]));
   const next: OfficialInfo = {
     ...o,
-    slotOf: { ...(o.slotOf || {}), [meId]: slotId },
+    slotOf: { ...(o.slotOf || {}), [meId]: seat },
     ...(o.askLicense ? { license: { ...(o.license || {}), [meId]: license } } : {}),
   };
 
@@ -66,43 +91,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     ...(filled ? { status: 'closed' as const } : {}),
   } as any);
 
-  // チャットへ「◯◯さんが参加しました」＋歓迎の一言。
-  // 埋まったときの案内より**先**に流す（入った→そろった、の順で読めるように）。
-  try {
-    const { postJoinMessages } = await import('@/lib/joinWelcome');
-    await postJoinMessages(round, me, applicantIds.length, totalSeats(round));
-  } catch (e) {
-    console.error('[official join] welcome failed (non-fatal)', e);
-  }
+  // 以前はここで「◯◯さんが参加しました」を毎回チャットへ流していたが、やめた。
+  // そろうまで顔ぶれを伏せる方針にしたので、チャット自体が**そろってから**始まる。
+  // 途中で名前を流すと、伏せている意味がなくなる。
+  // 代わりに、そろった瞬間に全員をまとめて紹介する（下の filled のところ）。
 
   // 枠が埋まった瞬間に、運営から案内を1回だけ流す。
+  // 中身は代理参加の経路と共通（片方にしか無いと、そちらから最後の1人が
+  // 入ったときに誰にも知らされない）。
   if (filled && !o.filledNotifiedAt) {
     try {
-      (await db.listUsers(applicantIds)).forEach((u) => { if (u) users[u.id] = u; });
-      const { getSettings } = await import('@/lib/officialSettings');
-      const st = await getSettings();
-      await db.addRoundMessage(round.id, ADMIN_MANAGER_ID, st.filledMessage || DEFAULT_FILLED_MESSAGE);
-      if (next.askLicense) {
-        const sum = licenseSummary(next, applicantIds, users);
-        if (sum) {
-          await db.addRoundMessage(round.id, ADMIN_MANAGER_ID,
-            `🚗 運転免許（申し込みのときの回答）\n${sum}`);
-        }
-      }
-      await db.updateRound(round.id, { official: { ...next, filledNotifiedAt: Date.now() } } as any);
-
-      // 全員に「そろいました」を知らせる
-      const { addNotification } = await import('@/lib/notifications');
-      const { isNotifyEnabled } = await import('@/lib/notifyPrefs');
-      const { pushTo, liffUrl } = await import('@/lib/linePush');
-      const link = `/round/${round.id}/decide`;
-      const text = `🎉 「${round.title}」に${applicantIds.length}人そろいました。日程とコースを決めましょう`;
-      await Promise.all(applicantIds.map(async (uid) => {
-        await addNotification(uid, 'applyApproved', text, link);
-        if (isNotifyEnabled(users[uid], 'applyApproved')) {
-          pushTo(uid, text, liffUrl(link), 'official_filled').catch(() => {});
-        }
-      }));
+      const { onOfficialFilled } = await import('@/lib/officialFilled');
+      await onOfficialFilled(round, next, applicantIds);
     } catch (e) {
       console.error('[official join] filled notice failed (non-fatal)', e);
     }
@@ -116,7 +116,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       ...(await userActor(meId)),
       targetKind: 'round', targetId: round.id, targetName: round.title,
       summary: `「${round.title}」に入った`,
-      detail: { by: 'self', slotId, ...(o.askLicense ? { license } : {}), seats: `${applicantIds.length}/${totalSeats(round)}`, official: true },
+      detail: { by: 'self', slotId: seat, ...(o.askLicense ? { license } : {}), seats: `${applicantIds.length}/${totalSeats(round)}`, official: true },
     }, req);
   } catch { /* ログの失敗で参加を止めない */ }
 

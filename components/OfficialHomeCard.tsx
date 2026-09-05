@@ -96,7 +96,11 @@ export function OfficialHomeCard() {
         throw new Error(j?.message || '参加できませんでした');
       }
       setPopupId(null);
-      router.push(`/round/${p.id}/chat`);
+      // そろっていればチャットが始まっているのでそちらへ。
+      // まだなら募集の画面へ（チャットは人がそろってから始まるので、
+      // ここでチャットへ送ると空の部屋に着いてしまう）。
+      router.push(j.filled ? `/round/${p.id}/chat` : `/round/${p.id}`);
+      if (!j.filled) toast('参加しました。人がそろったらお知らせします');
     } catch (e) {
       toast((e as Error).message, 'error');
     } finally { setBusy(false); }

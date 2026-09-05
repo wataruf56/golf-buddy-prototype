@@ -250,6 +250,26 @@ export default function RoundChatPage() {
   }
   if (!round) return <div className="p-5 text-sub">{loaded ? '見つかりません' : '読み込み中...'}</div>;
 
+  // 運営枠のチャットは**人がそろってから**始まる。募集中に開かせない。
+  // 入口は出していないが、URL を直接叩けば来られてしまうのでここでも止める。
+  if ((round as any).official?.stage === 'recruiting') {
+    return (
+      <div className="p-5">
+        <div className="bg-card border-2 border-border rounded-card p-4 text-center">
+          <div className="text-[15px] font-black">まだチャットは始まっていません</div>
+          <div className="text-[12px] font-bold text-sub mt-2 leading-relaxed">
+            人がそろうと、この枠のグループチャットが始まります。<br />
+            そろったらお知らせします。
+          </div>
+          <a href={`/round/${params.id}`}
+            className="block w-full mt-3.5 py-3 rounded-xl text-[14px] font-black bg-green text-white text-center">
+            募集の画面にもどる
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}

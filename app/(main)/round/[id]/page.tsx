@@ -283,7 +283,10 @@ export default function RoundDetailPage() {
     && !completionDismissed;
   const isFlexible = round.type === 'flexible';
   const dateLabel = round.dateType === 'range' ? round.dateRange : formatDate(round.date);
-  const canChatGroup = isHost || isApproved;
+  // 運営枠のグループチャットは**人がそろってから**始まる。
+  // 募集中に開けてしまうと、誰が入っているかを伏せている意味がなくなる。
+  const canChatGroup = (isHost || isApproved)
+    && !(isOfficialThread && officialStage === 'recruiting');
 
   // ♡「気になる」state + people who marked interest (publicly visible).
   const iAmInterested = (round.interestedIds || []).includes(meId);
@@ -624,8 +627,9 @@ export default function RoundDetailPage() {
         )}
 
         {/* Gender breakdown across host + approved applicants. Always shown
-            (incl. competitions) so you can see the mix at a glance. */}
-        {(() => {
+            (incl. competitions) so you can see the mix at a glance.
+            運営枠だけは、そろうまで出さない（「女性2名」だけでも顔ぶれが推せてしまう）。 */}
+        {!hideOfficialMembers && (() => {
           const ids = [round.hostId, ...round.applicantIds];
           let m = 0, f = 0, o = 0;
           for (const id of ids) {
@@ -722,25 +726,12 @@ export default function RoundDetailPage() {
           </div>
         )}
 
-        {/* 運営が代わりに立てた枠（代理ラウンド募集）に入っている人の抜け道。
-            ここを丸ごと null にしていたせいで「参加を取りやめる」が消え、
-            **入ったら抜けられない**状態になっていた（問い合わせで発覚）。
-            主催者がいない枠なので、承認や完了のボタンは要らないが、
-            抜けるだけは必ずできないといけない。 */}
-        {officialActive && !isHost ? (
-          isApproved ? (
-            <div className="space-y-2 mb-4">
-              <button onClick={leave}
-                className="w-full py-3 bg-card text-red border border-red rounded-xl text-sm font-bold">
-                この枠から抜ける
-              </button>
-              <div className="text-[11px] text-muted text-center leading-relaxed">
-                抜けても、ほかの参加者には知らせません。<br />
-                空いた枠は、また募集されます。
-              </div>
-            </div>
-          ) : null
-        ) : isHost ? (
+        {/* 運営枠で主催者でない人には、承認や完了のボタンは要らない（主催者がいない枠なので）。
+            「参加を取り消す」は OfficialThreadPanel の中に置いた。
+            以前ここを丸ごと null にしていたせいで抜け道が消え、
+            **入ったら抜けられない**状態になっていたことがある（問い合わせで発覚）。
+            消すときは、必ず別の場所に抜け道があることを確かめること。 */}
+        {officialActive && !isHost ? null : isHost ? (
           <div className="space-y-2 mb-4">
             {round.status === 'open' && (
               <button onClick={() => setInviteOpen(true)} className="w-full py-3 bg-green text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2">

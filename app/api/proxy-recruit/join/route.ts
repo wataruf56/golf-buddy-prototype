@@ -66,12 +66,18 @@ export async function POST(req: NextRequest) {
     ...(filled ? { status: 'closed' as const } : {}),
   } as any);
 
-  // 入室のお知らせ＋歓迎。通常の参加と同じものを流す。
-  try {
-    const { postJoinMessages } = await import('@/lib/joinWelcome');
-    await postJoinMessages(round, me, applicantIds.length, totalSeats(round));
-  } catch (e) {
-    console.error('[proxy join] welcome failed (non-fatal)', e);
+  // 入室のお知らせは流さない。運営枠は**そろうまで顔ぶれを伏せる**ので、
+  // 途中で名前を出すと伏せている意味がなくなる。
+  // 全員の紹介は、そろった瞬間にまとめて流す（下）。
+
+  // そろったときの案内。募集カードからの参加と同じものを流す。
+  if (filled && !o.filledNotifiedAt) {
+    try {
+      const { onOfficialFilled } = await import('@/lib/officialFilled');
+      await onOfficialFilled(round, next as any, applicantIds);
+    } catch (e) {
+      console.error('[proxy join] filled notice failed (non-fatal)', e);
+    }
   }
 
   // 出入りのログ。
