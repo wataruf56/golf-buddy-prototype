@@ -6,13 +6,15 @@ import { toast } from '@/components/Toast';
 import { confirmDialog } from '@/components/ConfirmDialog';
 import { LICENSE_LABEL, type License } from '@/lib/officialShared';
 
-// 公式スレッド（運営が代理で立てた枠）の中身。募集中はここで枠に手を挙げる。
+// 公式スレッド（運営が代理で立てた枠）の中身。
 //
 // ふつうの募集と違うところ:
 //   - 主催者がいないので「承認待ち」がない。空きがあれば即参加。
-//   - 自分が入れる枠だけ押せる（性別・車の条件はサーバーでも弾く）。
-//   - 申し込むときに免許を聞く（A のみ）。集まってから聞くと話が止まるため。
-//   - 移動手段が未定なので、申し込む前に「どうなる可能性があるか」を見せる。
+//   - どの席に座るかは会員に選ばせない。性別と車の有無からサーバーが決める。
+//   - **募集中は画面をここまで削る**。出すのは状態と、押せるボタン1つだけ。
+//     枠の内訳・顔ぶれ・移動の説明まで並べると、そこから誰が入っているかを
+//     推せてしまうし、そもそも読む量が多すぎて何をすればいいか分からない。
+//     費用や集合場所の話は、そろってからチャットでできる。
 type Slot = {
   id: string; gender: 'male' | 'female' | 'any'; count: number;
   role: 'any' | 'driver' | 'rider'; minDrivers?: number; note?: string;
@@ -124,171 +126,98 @@ export function OfficialThreadPanel({ roundId }: { roundId: string }) {
         soft: 'bg-orange-light', ink: 'text-orange' };
   const blocked = blockedReason();
 
-  return (
-    <div className={'bg-card border-2 rounded-card shadow-card p-4 mb-4 ' + c.edge}>
-      <div className="flex items-center gap-1.5 flex-wrap">
-        <span className={'text-[11px] font-black text-white border-[1.5px] border-border rounded-full px-2.5 py-0.5 ' + c.chip}>
+  // ── 参加している人：これだけ ──────────────────────────
+  // 状態と抜け道の2つだけ。募集中は何も決まっていないのだから、
+  // 見せるものも、できることも本当にこれしかない。
+  if (recruiting && t.joined) {
+    return (
+      <div className="bg-card border-2 border-green rounded-card shadow-card p-5 mb-4">
+        <div className="text-center text-[20px] font-black text-green leading-relaxed">
+          参加中
+          <div className="text-[14px] font-bold text-text mt-1">{t.total}人集まったら始まります</div>
+        </div>
+        <button onClick={leave} disabled={busy}
+          className="w-full mt-4 py-3.5 rounded-xl text-[15px] font-black bg-card text-red border-2 border-red disabled:opacity-50">
+          退出する
+        </button>
+      </div>
+    );
+  }
+
+  // ── まだ参加していない人：判断に要るものだけ ────────────
+  // 「いつ・どこに集まるか」と「参加する」ボタン。
+  // 枠の内訳も顔ぶれも出さない。費用や移動の話は、そろってからチャットでできる。
+  if (recruiting) {
+    return (
+      <div className={'bg-card border-2 rounded-card shadow-card p-4 mb-4 ' + c.edge}>
+        <span className={'inline-block text-[11px] font-black text-white rounded-full px-2.5 py-0.5 ' + c.chip}>
           運営が立てた枠
         </span>
-        {women && (
-          <span className="text-[11px] font-black bg-white text-sakura border-[1.5px] border-sakura rounded-full px-2.5 py-0.5">
-            🌸 女性だけ
-          </span>
-        )}
-        {!recruiting && (
-          <span className="text-[11px] font-black bg-green-light text-green border-[1.5px] border-green rounded-full px-2.5 py-0.5">
-            人がそろいました
-          </span>
-        )}
-      </div>
 
-      {/* だいたいの開催時期。日付は決めずに出す企画だが、
-          「平日なのか土日なのか分からず手を挙げられない」という声があったので、
-          選ぶのに足りるだけの粗さで先に見せる。 */}
-      {!!t.official.when?.month && (
-        <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-          <span className="text-[12px] font-black bg-white text-text border-2 border-border rounded-lg px-2.5 py-1">
-            📅 {t.official.when.month}月{t.official.when.half === 'early' ? '上旬' : '下旬'}ごろ
-          </span>
-          <span className={'text-[12px] font-black rounded-lg px-2.5 py-1 border-2 '
-            + (t.official.when.days === 'weekday'
-                ? 'bg-white text-blue border-blue'
-                : t.official.when.days === 'weekend'
-                  ? 'bg-white text-orange border-orange'
-                  : 'bg-white text-sub border-border')}>
-            {t.official.when.days === 'weekday' ? '平日に開催'
-              : t.official.when.days === 'weekend' ? '土日に開催' : '平日・土日どちらでも'}
-          </span>
-        </div>
-      )}
-
-      <div className={'mt-2.5 border-2 rounded-xl px-3 py-2.5 text-[12px] font-bold leading-relaxed ' + c.soft + ' ' + c.edge}>
-        {women ? (
-          <>🌸 <b className="text-text">車がなくても大丈夫です。</b>移動は集まってから決めます。</>
-        ) : (
-          <>🚉 <b className="text-text">{t.official.meetPlace}に集合。</b>車を出す方に乗せてもらいます。</>
-        )}
-        <br />日程もコースも、<b className="text-text">集まった{t.total}人で決めます。</b>
-      </div>
-
-      {/* 顔ぶれを伏せていることを、隠しているのではなく仕様として伝える。
-          何も言わずに👤だけ並べると「読み込み中？」に見えるため。 */}
-      {!t.revealed && !!t.digest?.count && (
-        <div className="mt-2.5 bg-bg border-2 border-hair rounded-xl px-3 py-2 text-[11.5px] font-bold text-sub leading-relaxed">
-          👤 いま<b className="text-text">{t.digest.count}人</b>が参加しています。
-          <br />どなたが参加しているかは、<b className="text-text">人がそろってから</b>お知らせします。
-        </div>
-      )}
-
-      {/* 進み具合。**内訳は出さない**（女性2・男性2…と並べると、
-          誰が入っているかを推せてしまうし、押せる席を探す作業になる）。
-          伝えるのは「あと何人でチャットが始まるか」だけ。 */}
-      <div className="mt-3 border-2 border-border rounded-xl bg-white p-3.5">
-        <div className="text-center text-[15px] font-black">
-          {left > 0
-            ? <>あと<span className={c.ink}>{left}人</span>で始まります</>
-            : <>人がそろいました</>}
-        </div>
-        <div className="flex justify-center gap-1.5 mt-2.5">
-          {Array.from({ length: t.total }).map((_, i) => (
-            <div key={i}
-              className={'w-[26px] h-[26px] rounded-full border-2 grid place-items-center text-[12px] '
-                + (i < t.taken
-                    ? c.btn + ' text-white'
-                    : 'border-dashed border-hair text-muted')}>
-              {i < t.taken ? '●' : ''}
-            </div>
-          ))}
-        </div>
-        <div className="text-[11px] font-bold text-sub text-center mt-2 leading-relaxed">
-          {t.taken}人が参加しています
-        </div>
-      </div>
-
-      {/* 移動と費用の見通し。ここは参加を決める材料なので出す。 */}
-      {women ? (
-        <div className="mt-3 border-2 border-sakura rounded-xl bg-white p-3">
-          <div className="text-[13px] font-black text-sakura">🚗 移動はどうなりますか？</div>
-          <div className="text-[11px] font-bold text-sub mt-0.5">集まったメンバーで決めます</div>
-          <Row k="車がある人がいれば" v="その車で行きます。ガソリン代と高速代を割り勘" />
-          <Row k="全員 車なし＋免許あり" v={<><b>レンタカーになります</b><br />1日8,000円前後 ÷ {t.total}人＝<b>1人{Math.round(8000 / Math.max(1, t.total) / 100) * 100}円前後</b></>} />
-          <Row k="免許のある人がいない" v="駅からバスのあるコースを選びます" />
-          <NowLine d={t.digest} />
-        </div>
-      ) : (
-        <div className="mt-3 border-2 border-blue rounded-xl bg-white p-3">
-          <div className="text-[13px] font-black text-blue">🚉 {t.official.meetPlace}に来られますか？</div>
-          <Row k="集合" v={`${t.official.meetPlace}（時間はあとで決めます）`} />
-          <Row k="移動" v="車を出す方に乗せてもらいます" />
-          <Row k="費用" v={<>ガソリン代・高速代を割り勘<br /><span className="text-[10.5px] text-sub">運転する人は少し安くするのがおすすめです</span></>} />
-        </div>
-      )}
-
-      {/* 参加していない人：ボタン1つ。枠は選ばせない。 */}
-      {recruiting && !t.joined && (
-        <>
-          {t.official.askLicense && (
-            <div className="mt-3">
-              <div className="text-[13.5px] font-black">🚗 運転免許はありますか？</div>
-              <div className="text-[11px] font-bold text-sub mt-0.5">レンタカーになったときに必要です</div>
-              <div className="space-y-2 mt-2">
-                {LIC.map((k) => (
-                  <button key={k} onClick={() => setLicense(k)}
-                    className={'w-full py-3 rounded-xl text-[13.5px] font-black border-2 '
-                      + (license === k ? c.btn + ' text-white' : 'bg-white border-border')}>
-                    {license === k ? '✓ ' : ''}{LICENSE_LABEL[k]}
-                  </button>
-                ))}
-              </div>
+        <div className="mt-2.5 text-[14px] font-black leading-relaxed">
+          {!!t.official.when?.month && (
+            <div>
+              📅 {t.official.when.month}月{t.official.when.half === 'early' ? '上旬' : '下旬'}ごろ・
+              {t.official.when.days === 'weekday' ? '平日' : t.official.when.days === 'weekend' ? '土日' : '平日/土日'}
             </div>
           )}
-
-          {blocked ? (
-            <div className="mt-3 bg-bg border-2 border-hair rounded-xl py-3 text-center text-[13px] font-black text-muted">
-              {blocked}
-            </div>
-          ) : (
-            <button disabled={busy} onClick={join}
-              className={'w-full mt-3 py-4 rounded-xl text-[16px] font-black border-2 text-white disabled:opacity-50 ' + c.btn}>
-              {busy ? '送信中...' : '参加する'}
-            </button>
-          )}
-
-          <div className="mt-2.5 text-[11px] font-bold text-sub text-center leading-relaxed">
-            どなたが参加しているかは、<b className="text-text">人がそろってから</b>分かります。<br />
-            そろうとグループチャットが始まります。
+          <div className="mt-0.5">
+            {women ? '🌸 女性だけでラウンド' : `🚉 ${t.official.meetPlace}に集合`}
           </div>
-        </>
-      )}
+        </div>
 
-      {/* 参加している人 */}
+        {t.official.askLicense && (
+          <div className="mt-3">
+            <div className="text-[13px] font-black">🚗 運転免許はありますか？</div>
+            <div className="space-y-2 mt-1.5">
+              {LIC.map((k) => (
+                <button key={k} onClick={() => setLicense(k)}
+                  className={'w-full py-2.5 rounded-xl text-[13px] font-black border-2 '
+                    + (license === k ? c.btn + ' text-white' : 'bg-white border-border')}>
+                  {license === k ? '✓ ' : ''}{LICENSE_LABEL[k]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {blocked ? (
+          <div className="mt-3 bg-bg border-2 border-hair rounded-xl py-3 text-center text-[13px] font-black text-muted">
+            {blocked}
+          </div>
+        ) : (
+          <button disabled={busy} onClick={join}
+            className={'w-full mt-3 py-4 rounded-xl text-[16px] font-black border-2 text-white disabled:opacity-50 ' + c.btn}>
+            {busy ? '送信中...' : '参加する'}
+          </button>
+        )}
+
+        <div className="mt-2.5 text-[11px] font-bold text-sub text-center leading-relaxed">
+          {t.total}人集まったら始まります。<br />
+          どなたが参加しているかは、そろってから分かります。
+        </div>
+      </div>
+    );
+  }
+
+  // ── そろったあと ────────────────────────────────────
+  return (
+    <div className="bg-card border-2 border-green rounded-card shadow-card p-4 mb-4">
+      <span className="inline-block text-[11px] font-black bg-green-light text-green border-[1.5px] border-green rounded-full px-2.5 py-0.5">
+        人がそろいました
+      </span>
       {t.joined && (
-        <div className="mt-4">
-          {recruiting ? (
-            <>
-              <div className="bg-green-light border-2 border-green rounded-xl py-3 text-center text-[14px] font-black text-green leading-relaxed">
-                ✅ 参加しています<br />
-                <span className="text-[11.5px] font-bold">
-                  あと{left}人そろったら、グループチャットが始まります
-                </span>
-              </div>
-              <div className="text-[11px] font-bold text-sub text-center mt-2 leading-relaxed">
-                そろったらお知らせします。それまで待っていてください。
-              </div>
-            </>
-          ) : (
-            <a href={`/round/${roundId}/chat`}
-              className="block w-full py-3.5 rounded-xl text-[15px] font-black border-2 bg-green text-white border-green text-center">
-              💬 グループチャットを開く
-            </a>
-          )}
-
+        <>
+          <a href={`/round/${roundId}/chat`}
+            className="block w-full mt-3 py-3.5 rounded-xl text-[15px] font-black bg-green text-white text-center">
+            💬 グループチャットを開く
+          </a>
           {/* 抜け道は必ず出す。入ったら抜けられない状態にはしない。 */}
           <button onClick={leave} disabled={busy}
-            className="w-full mt-2 py-3 rounded-xl text-[13px] font-bold bg-card text-red border-2 border-red disabled:opacity-50">
-            参加を取り消す
+            className="w-full mt-2 py-3 rounded-xl text-[14px] font-black bg-card text-red border-2 border-red disabled:opacity-50">
+            退出する
           </button>
-        </div>
+        </>
       )}
     </div>
   );

@@ -522,6 +522,26 @@ export default function RoundDetailPage() {
     } catch (e) { toast((e as Error).message, 'error'); }
   }
 
+  // 運営枠は、**募集中のあいだ画面をここまで削る**。
+  //
+  // ふつうの募集の画面は、主催者・参加者一覧・配車・組み分け・入金・アルバムと
+  // 何十個も並ぶ。だが運営枠の募集中は、日付もコースも主催者も無く、
+  // 参加者は伏せている。つまり出せる中身が何も無いのに器だけが並び、
+  // 「何をすればいいか分からない画面」になっていた。
+  // 出すのは、状態と、押せるボタン1つだけ。
+  //
+  // そろった（deciding 以降）ら、ふつうの画面に戻す。配車や日程決めが要るため。
+  // 運営（主催者）には最初からふつうの画面を出す。枠の管理ができなくなるので。
+  if (isOfficialThread && officialStage === 'recruiting' && !isHost) {
+    return (
+      <div className="px-5 py-3">
+        <button onClick={() => router.back()} className="text-sm text-blue font-semibold">← 戻る</button>
+        <h1 className="text-[20px] font-black mt-3 mb-4 leading-snug">{round.title}</h1>
+        <OfficialThreadPanel roundId={round.id} />
+      </div>
+    );
+  }
+
   return (
     <div className="px-5 py-3">
       <div className="flex items-center justify-between mb-4">
