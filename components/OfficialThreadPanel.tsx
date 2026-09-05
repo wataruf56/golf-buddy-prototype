@@ -181,6 +181,16 @@ export function OfficialThreadPanel({ roundId }: { roundId: string }) {
           </div>
         )}
 
+        {/* 押す前に、押したあと何が起きるかを一言で。
+            日付もコースも決めずに募集しているので、これが無いと
+            「何に申し込むのか分からないもの」に見えて手が止まる。
+            決めるのは運営ではなく集まった人たち、というのがこの企画の要。 */}
+        <div className="mt-3 bg-bg border-2 border-hair rounded-xl px-3 py-2.5 text-[12px] font-bold leading-relaxed">
+          <b className="text-text">{t.total}人そろうと、グループチャットが始まります。</b><br />
+          実際に行くかどうか、日程やコース、誰が予約するかは、
+          そこで集まった{t.total}人で決めます。
+        </div>
+
         {blocked ? (
           <div className="mt-3 bg-bg border-2 border-hair rounded-xl py-3 text-center text-[13px] font-black text-muted">
             {blocked}
@@ -193,7 +203,6 @@ export function OfficialThreadPanel({ roundId }: { roundId: string }) {
         )}
 
         <div className="mt-2.5 text-[11px] font-bold text-sub text-center leading-relaxed">
-          {t.total}人集まったら始まります。<br />
           どなたが参加しているかは、そろってから分かります。
         </div>
       </div>
