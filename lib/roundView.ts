@@ -18,3 +18,29 @@ export function stripViews(round: Round): Round {
   if (!round.viewedBy) return round;
   return { ...round, viewedBy: undefined };
 }
+
+// 招待した相手（invitedIds）は主催者だけが見られる。
+//
+// 画面では前から主催者だけに出していたが、**応答には全員ぶんのIDが入ったまま**
+// だった。招待はまだ参加していない人なので、他の閲覧者には参加者と紛らわしく、
+// そもそも「誰を誘ったか」は主催者の手の内。
+//
+// ただし**自分が招待されているかの判定**には要る（ホームの「招待されています」、
+// 主催者へのDM可否、招待の受諾ボタン）。だから消しきらず、
+// 主催者以外へは**自分のIDだけ**を残す。
+export function stripInvitesForViewer(round: Round, viewerId: string | null): Round {
+  const ids = round.invitedIds || [];
+  if (!ids.length) return round;
+  if (isRoundHost(round, viewerId)) return round;
+  return { ...round, invitedIds: viewerId && ids.includes(viewerId) ? [viewerId] : [] };
+}
+
+/**
+ * 閲覧者に配ってよい形に整える。**募集を返すところは必ずここを通す**。
+ *
+ * 1つずつ呼ぶ形にしていたら、新しく足した口で掛け忘れる
+ * （実際 /api/rounds/[id]/interest は掛かっていなかった）。まとめてある。
+ */
+export function stripRoundForViewer(round: Round, viewerId: string | null): Round {
+  return stripViews(stripGroupPrefsForViewer(stripInvitesForViewer(round, viewerId), viewerId));
+}

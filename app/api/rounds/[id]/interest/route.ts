@@ -47,5 +47,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
   }
 
-  return NextResponse.json({ round, interested });
+  // ここも配信の口。素の round を返すと、招待した相手や組み分け希望が
+  // そのまま出ていく（掛け忘れていた）。
+  const { stripRoundForViewer } = await import('@/lib/roundView');
+  return NextResponse.json({ round: stripRoundForViewer(round, meId), interested });
 }

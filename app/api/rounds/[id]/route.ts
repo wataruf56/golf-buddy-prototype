@@ -19,13 +19,15 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   // 組み分け希望は主催者のみ集計閲覧可。閲覧者に応じて groupPrefs を絞る。
   // 「見に来た人」(viewedBy) は誰にも返さない（主催者は /viewers 経由で取得）。
   const viewerId = await getMeId();
-  const { stripGroupPrefsForViewer, stripViews } = await import('@/lib/roundView');
-  const round = stripViews(stripGroupPrefsForViewer(stored, viewerId));
+  const { stripRoundForViewer } = await import('@/lib/roundView');
+  const round = stripRoundForViewer(stored, viewerId);
   // isOfficial is an explicit stored flag now (admin-toggled), passed as-is.
   const userIds = new Set<string>([round.hostId]);
   for (const a of round.applicantIds || []) userIds.add(a);
   for (const a of round.pendingApplicantIds || []) userIds.add(a);
   for (const a of round.interestedIds || []) userIds.add(a);
+  // 招待した相手の**プロフィール**も主催者だけ。round.invitedIds は上で
+  // 絞ってあるので、ここをそのまま回せば非主催者には自分ぶんしか入らない。
   for (const a of round.invitedIds || []) userIds.add(a);
   const users = await db.listUsers(Array.from(userIds));
   // Strip private real names — the round host gets participant names via the

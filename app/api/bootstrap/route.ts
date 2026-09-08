@@ -160,8 +160,8 @@ export async function GET() {
   // 組み分け希望（groupPrefs）は主催者のみ集計閲覧可。閲覧者以外の希望は落とす。
   // 「見に来た人」(viewedBy) は誰にも配らない（主催者は /viewers 経由で取得）。
   try {
-    const { stripGroupPrefsForViewer, stripViews } = await import('@/lib/roundView');
-    rounds = rounds.map((r) => stripViews(stripGroupPrefsForViewer(r, meId)));
+    const { stripRoundForViewer } = await import('@/lib/roundView');
+    rounds = rounds.map((r) => stripRoundForViewer(r, meId));
   } catch { /* 失敗時はそのまま（万一でも致命的でない） */ }
 
   return NextResponse.json({

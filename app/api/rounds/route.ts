@@ -9,9 +9,13 @@ import type { Round } from '@/lib/types';
 
 export async function GET() {
   const raw = await db.listRounds({ status: 'open' });
-  // 「見に来た人」(viewedBy) と組み分け希望(groupPrefs) は主催者限定。汎用一覧では必ず落とす。
-  const { stripViews, stripGroupPrefsForViewer } = await import('@/lib/roundView');
-  const rounds = raw.map((r) => stripViews(stripGroupPrefsForViewer(r, null)));
+  // 「見に来た人」「組み分け希望」「招待した相手」は主催者限定。
+  // 以前ここだけ viewerId に null を渡していて、**自分の組み分け希望や
+  // 自分あての招待まで消えていた**（この一覧は store.rounds を丸ごと
+  // 置き換えるので、ホームの「招待されています」が出なくなる）。本人を渡す。
+  const meId = await getMeId();
+  const { stripRoundForViewer } = await import('@/lib/roundView');
+  const rounds = raw.map((r) => stripRoundForViewer(r, meId));
   return NextResponse.json({ rounds });
 }
 
