@@ -20,6 +20,13 @@ import { getAreaStats } from '@/lib/areaStats';
 //   ・送迎で拾える駅（その県のもの）
 //   ・行き先がどこに集中しているか（実データ）
 // 数字が小さいところは小さいまま出す。大きく見せると、来た人が実物を見て離れる。
+//
+// 【2026-09-05 追記】実データだけでは差が付かなかった。
+// 定型文（3ページ以上で共通の行）を除いた固有本文を測ると、他の記事8本が
+// 2,400〜2,900字あるのに対し、地域3ページは 675〜744字しかなかった（全体の3割）。
+// 会員数・駅数といった数値は数十文字にしかならず、地の文が全ページ共通のままだったため。
+// そこで **その地域でしか書けない地の文** を AreaCopy に増やした（train / localTitle /
+// localBody / faq）。県名を差し替えれば成立する文は、ここに書かないこと。
 
 export type AreaCopy = {
   /** '東京都' など。実データの照合キーにもなる */
@@ -36,6 +43,14 @@ export type AreaCopy = {
   destination: string;
   /** 移動の実際 */
   access: string;
+  /** 電車とバスで行く場合の現実（路線・駅からの足）。地域ごとに事情がまるで違う */
+  train: string;
+  /** その地域ならではの話の見出し（例「東京から行くときに効いてくること」） */
+  localTitle: string;
+  /** 同・本文。混雑・季節・価格など、県名を入れ替えたら成り立たない内容にする */
+  localBody: string;
+  /** その地域でしか出ない質問。FAQ の2番目に差し込む */
+  faq: { q: string; a: string };
 };
 
 export async function AreaGuide({ copy }: { copy: AreaCopy }) {
@@ -50,6 +65,7 @@ export async function AreaGuide({ copy }: { copy: AreaCopy }) {
         + `${a.members > 0 ? `${copy.short}にお住まいの会員は現在${a.members}人です。` : ''}`
         + `ゴルフ場の1人予約と違い、同伴者が親世代になることがありません。`,
     },
+    copy.faq,
     {
       q: `30代からゴルフを始めても大丈夫ですか？`,
       a: '大丈夫です。30代で始める人が最も多く、仕事の付き合いがきっかけになるケースが目立ちます。'
@@ -103,6 +119,7 @@ export async function AreaGuide({ copy }: { copy: AreaCopy }) {
         <ol>
           <li><a href="#where">{copy.short}からどこのコースへ行くか</a></li>
           <li><a href="#car">車がない人はどうするか</a></li>
+          <li><a href="#local">{copy.localTitle}</a></li>
           <li><a href="#age">20代と30代で事情が違うところ</a></li>
           <li><a href="#data">{copy.short}の実データ</a></li>
           <li><a href="#faq">よくある質問</a></li>
@@ -139,9 +156,14 @@ export async function AreaGuide({ copy }: { copy: AreaCopy }) {
           </div>
         </>
       )}
+      <h3>電車とバスで行く場合</h3>
+      <p>{copy.train}</p>
       <p>
         くわしくは <a href="/guide/golf-without-car">車がない人がゴルフに行く方法</a> にまとめています。
       </p>
+
+      <h2 id="local">{copy.localTitle}</h2>
+      <p>{copy.localBody}</p>
 
       <h2 id="age">20代と30代で事情が違うところ</h2>
       <h3>20代</h3>
