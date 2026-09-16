@@ -87,7 +87,7 @@ export async function AreaGuide({ copy }: { copy: AreaCopy }) {
   ];
 
   const jsonLd = articleJsonLd(
-    { path, title: copy.title, description: copy.desc, published: '2026-09-03', modified: '2026-09-03' },
+    { path, title: copy.title, description: copy.desc, published: '2026-09-03', modified: '2026-09-14' },
     FAQ,
   );
 
