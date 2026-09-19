@@ -31,6 +31,8 @@ import type { Round } from './types';
 //      抜け道にはならない。
 //
 // ただし **「ごめんなさい」で遮断されたペアは、上のどれに当てはまっても送れない**。
+// また **「どっちでもいい」を選んだペアは、7・8（やり取りの履歴）を理由には送れない**
+// （lib/dmBlock の closeDm）。1〜6の「いまの関係」があれば送れる。
 
 const memberSet = (r: Round) => new Set([r.hostId, ...(r.coHostIds || []), ...(r.applicantIds || [])].filter(Boolean));
 const hostSet = (r: Round) => new Set([r.hostId, ...(r.coHostIds || [])].filter(Boolean));
@@ -114,13 +116,15 @@ export async function dmAllowedSet(meId: string, candidateIds: string[]): Promis
 
   // 8. すでに会話が始まっている相手は維持する。
   //    条件を絞った日をまたいで、進行中のやり取りが急に途切れないようにする。
+  //    ただし「どっちでもいい」で閉じたペアは除く（履歴だけを理由に送らせない）。
   if (allowed.size < cands.length) {
     try {
-      const chats = await appDb.listChatsForUser(meId);
+      const { closedSetOf } = await import('./dmBlock');
+      const [chats, closed] = await Promise.all([appDb.listChatsForUser(meId), closedSetOf(meId)]);
       for (const c of chats) {
         if (!c.lastMessageAt) continue;   // 部屋だけあって1通も無いものは対象外
         for (const p of c.participants || []) {
-          if (p !== meId && cands.includes(p)) allowed.add(p);
+          if (p !== meId && cands.includes(p) && !closed.has(p)) allowed.add(p);
         }
       }
     } catch { /* 取れなければ他の条件だけで判定される */ }
@@ -141,6 +145,11 @@ export async function canDm(meId: string, otherId: string, chatId?: string): Pro
   }
   const set = await dmAllowedSet(meId, [otherId]);
   if (set.has(otherId)) return true;
+  // 7.（受信済みスレッドへの返信）も履歴を理由にした例外なので、「どっちでもいい」なら使わない。
+  if (chatId && meId !== ADMIN_MANAGER_ID && otherId !== ADMIN_MANAGER_ID) {
+    const { closedBy } = await import('./dmBlock');
+    if (await closedBy(meId, otherId)) return false;
+  }
   if (chatId) {
     try {
       const chat = await appDb.getChat(chatId);

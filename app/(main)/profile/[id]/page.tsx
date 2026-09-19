@@ -30,6 +30,7 @@ export default function ProfilePage() {
   // declinedByMe のときだけ、断った本人に理由を出す。
   const [declined, setDeclined] = useState(false);
   const [declinedByMe, setDeclinedByMe] = useState(false);
+  const [closedByMe, setClosedByMe] = useState(false);   // 「どっちでもいい」を選んだのが自分
 
   const [user, setUser] = useState<User | undefined>(cachedUser);
   const [notFound, setNotFound] = useState(false);
@@ -70,6 +71,7 @@ export default function ProfilePage() {
         setDmAllowed(!!d.allowed);
         setDeclined(!!d.declined);
         setDeclinedByMe(!!d.declinedByMe);
+        setClosedByMe(!!d.closedByMe);
       })
       .catch(() => { /* 判定失敗時はボタンを出さない（サーバー側でも弾かれる） */ });
     return () => { cancelled = true; };
@@ -271,6 +273,12 @@ export default function ProfilePage() {
               {declinedByMe && (
                 <div className="mt-2 text-center py-2.5 px-4 bg-yellow-light border-[1.5px] border-yellow rounded-xl text-[11.5px] font-black">
                   あなたが「ごめんなさい」を選んでいます
+                </div>
+              )}
+              {!declinedByMe && closedByMe && (
+                <div className="mt-2 text-center py-2.5 px-4 bg-yellow-light border-[1.5px] border-yellow rounded-xl text-[11.5px] font-black leading-relaxed">
+                  あなたが「どっちでもいい」を選んでいます<br />
+                  <span className="text-[10.5px] font-bold text-sub">再会画面で「また回りたい」に戻すと、また送れます</span>
                 </div>
               )}
               {/* 一緒に回ったのに接点が記録されていない相手のための入口。

@@ -89,3 +89,68 @@ export async function blockedSetOf(meId: string): Promise<Set<string>> {
   } catch { /* noop */ }
   return out;
 }
+
+// ── 「どっちでもいい」でのやわらかい遮断 ─────────────────────────
+//
+// 【何を解いているか】
+// DMの規則には「すでにやり取りのある相手とは送り続けられる」という例外がある
+// （lib/dmPolicy の 7・8）。条件を絞った日に進行中の会話が切れないようにするためのもの。
+// ところがこの例外のせいで、再会画面で「どっちでもいい」を選んでマッチを外しても、
+// 一度でもDMしたことのある相手からは**ずっと届き続けた**。
+// 追いDMを受けている人ほどやり取りの履歴があるので、いちばん困る人が抜け出せなかった。
+//
+// 【ごめんなさい（_dmBlocks）との違い】
+//   ごめんなさい   … どんな関係でも送れない（ゴル友・同じ組でも）。★にも響く。
+//   どっちでもいい … 「前にやり取りしたから」という理由だけを外す。
+//                    ゴル友（QR・友達申請）・これから一緒に回る同じ組・申請/招待中など、
+//                    **いま関係がある**なら送れる。★には響かない。
+// 別のコレクションに置くのは、既存の遮断（isBlocked / blockedSetOf）の意味を変えないため。
+const CLOSED = '_dmClosed';
+
+/** 「どっちでもいい」を記録して、履歴だけを理由にしたDMを閉じる。 */
+export async function closeDm(by: string, other: string, roundId?: string): Promise<void> {
+  const adb = getAdminDb() as any;
+  if (!adb || !by || !other || by === other) return;
+  const id = blockId(by, other);
+  try {
+    await adb.collection(CLOSED).doc(id).set(
+      { pairId: id, members: [by, other].sort(), by, at: Date.now(), ...(roundId ? { roundId } : {}) },
+      { merge: true },
+    );
+  } catch (e) {
+    console.error('[dmClosed] set failed', (e as Error).message);
+  }
+}
+
+/** やわらかい遮断を解く。「また回りたい」を選び直したときに呼ぶ。 */
+export async function reopenDm(a: string, b: string): Promise<void> {
+  const adb = getAdminDb() as any;
+  if (!adb || !a || !b) return;
+  try { await adb.collection(CLOSED).doc(blockId(a, b)).delete(); }
+  catch { /* もともと無ければそれでよい */ }
+}
+
+/** 誰が「どっちでもいい」にしたか。本人にだけ理由を出すために使う。無ければ null。 */
+export async function closedBy(a: string, b: string): Promise<string | null> {
+  const adb = getAdminDb() as any;
+  if (!adb || !a || !b) return null;
+  try {
+    const s = await adb.collection(CLOSED).doc(blockId(a, b)).get();
+    return s.exists ? (s.data()?.by || null) : null;
+  } catch { return null; }
+}
+
+/** meId と「どっちでもいい」で閉じている相手の集合（一括判定用）。 */
+export async function closedSetOf(meId: string): Promise<Set<string>> {
+  const out = new Set<string>();
+  const adb = getAdminDb() as any;
+  if (!adb || !meId) return out;
+  try {
+    const snap = await adb.collection(CLOSED).where('members', 'array-contains', meId).limit(1000).get();
+    snap.docs.forEach((d: any) => {
+      const m: string[] = d.data()?.members || [];
+      m.forEach((x) => { if (x && x !== meId) out.add(x); });
+    });
+  } catch { /* 引けなければ閉じていない扱い（従来どおり） */ }
+  return out;
+}

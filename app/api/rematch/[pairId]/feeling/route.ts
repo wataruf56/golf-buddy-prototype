@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { getAdminDb } from '@/lib/firebase';
 import { getSession, saveSession, membersOfPair } from '@/lib/rematch';
-import { blockDm, unblockDm } from '@/lib/dmBlock';
+import { blockDm, unblockDm, closeDm, reopenDm } from '@/lib/dmBlock';
 
 const noStore = { 'Cache-Control': 'no-store' };
 export const dynamic = 'force-dynamic';
@@ -15,7 +15,8 @@ export const dynamic = 'force-dynamic';
 //
 //   again    … また回りたい（友人として。romantic からの切り替えもここ）
 //   romantic … 異性として気になる（again も同時にON＝既存の運用に合わせる）
-//   either   … どっちでもいい → マッチ解除。DMは友達申請が要るようになる
+//   either   … どっちでもいい → マッチ解除＋**やり取りの履歴を理由にしたDMも閉じる**
+//                （以前は履歴があると送り続けられた。ゴル友・同じ組など「いまの関係」があれば送れる）
 //   never    … ごめんなさい   → マッチ解除＋**双方向でDMを閉じる**
 //
 // 「ごめんなさい」から選び直した場合は遮断を解く（また一緒に回ったときの復活）。
@@ -99,8 +100,12 @@ export async function POST(req: NextRequest, { params }: { params: { pairId: str
   if (roundId) await upsertVerdict(meId, otherId, roundId, feeling);
 
   // 3. DMの遮断
+  // DM：ごめんなさい＝完全に閉じる／どっちでもいい＝履歴を理由にした例外だけ閉じる／
+  // また回りたい・気になる＝どちらも解く（また一緒に回ったときの復活）。
   if (feeling === 'never') await blockDm(meId, otherId, roundId);
   else await unblockDm(meId, otherId);
+  if (feeling === 'either') await closeDm(meId, otherId, roundId);
+  else if (feeling === 'again' || feeling === 'romantic') await reopenDm(meId, otherId);
 
   // 4. 再会セッションの扱い
   //    続ける場合は matchKind を選び直した内容に合わせる（romantic → again の切り替え）。

@@ -79,13 +79,22 @@ export default function ChatPage() {
   // DM可否（関係性ゲート・lib/dmPolicy と同一判定）。false なら入力欄を出さず案内を表示。
   // 過去のやり取りは読める（閲覧はブロックしない）。
   const [dmAllowed, setDmAllowed] = useState<boolean | null>(null);
+  // 送れない理由のうち、**自分の選択が原因**のもの。本人にだけ出す（相手には出さない）。
+  const [myChoice, setMyChoice] = useState<'never' | 'either' | null>(null);
+  const [policyMsg, setPolicyMsg] = useState('');
   useEffect(() => {
     setDmAllowed(null);
+    setMyChoice(null);
     if (!otherId || !params.chatId) return;
     let cancelled = false;
     fetch(`/api/me/can-dm?userId=${encodeURIComponent(otherId)}&chatId=${encodeURIComponent(params.chatId)}`, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (!cancelled && d) setDmAllowed(!!d.allowed); })
+      .then((d) => {
+        if (cancelled || !d) return;
+        setDmAllowed(!!d.allowed);
+        setMyChoice(d.declinedByMe ? 'never' : d.closedByMe ? 'either' : null);
+        setPolicyMsg(d.message || '');
+      })
       .catch(() => { /* 判定不能時は入力欄を出す（送信時にサーバーが最終判定） */ });
     return () => { cancelled = true; };
   }, [otherId, params.chatId]);
@@ -221,7 +230,19 @@ export default function ChatPage() {
 
       {dmAllowed === false ? (
         <div className="px-5 py-4 pb-8 bg-card border-t border-border flex-shrink-0 text-center text-[11px] text-sub leading-relaxed">
-          💬 メッセージを送れるのは「ゴル友（QRでつながった人）」「一緒にラウンド・コンペを回った人」「参加申請・招待中の相手」「募集中ラウンドの主催者」のみです
+          {/* 自分の選択で閉じているときは、それを先に言う。
+              言わないと「なぜ送れないのか」が本人にも分からない。相手側にはこの行は出ない。 */}
+          {myChoice && (
+            <div className="mb-2 py-2.5 px-3 bg-yellow-light border-[1.5px] border-yellow rounded-xl text-[12px] font-black text-text">
+              {myChoice === 'never'
+                ? 'あなたが「ごめんなさい」を選んでいます'
+                : <>あなたが「どっちでもいい」を選んでいます<br />
+                    <span className="text-[11px] font-bold text-sub">再会画面で「また回りたい」に戻すと、また送れます</span></>}
+            </div>
+          )}
+          {/* 規則の説明は lib/dmPolicy の文言をそのまま出す（ここに書き写すと古くなる。
+              実際、以前ここだけ「一緒にラウンドを回った人」と旧ルールのままだった）。 */}
+          💬 {policyMsg || 'このお相手には、いまはメッセージを送れません'}
         </div>
       ) : (
       <div className="flex items-end gap-2 px-4 py-3 pb-7 bg-card border-t border-border flex-shrink-0">

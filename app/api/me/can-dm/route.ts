@@ -19,17 +19,19 @@ export async function GET(req: NextRequest) {
   const allowed = await canDm(meId, userId, chatId || undefined);
   // 「ごめんなさい」で閉じている場合は、友達申請の導線も出さない
   // （そこから連絡が再開できてしまうため）。断った本人にだけ理由を返す。
-  let declined = false; let declinedByMe = false;
+  let declined = false; let declinedByMe = false; let closedByMe = false;
   if (!allowed) {
     try {
-      const { blockedBy } = await import('@/lib/dmBlock');
-      const by = await blockedBy(meId, userId);
+      const { blockedBy, closedBy } = await import('@/lib/dmBlock');
+      const [by, cb] = await Promise.all([blockedBy(meId, userId), closedBy(meId, userId)]);
       declined = !!by;
       declinedByMe = by === meId;
+      // 「どっちでもいい」を選んだ本人にだけ理由を出す（相手には出さない）。
+      closedByMe = cb === meId;
     } catch { /* 取れなければ通常の案内だけ返す */ }
   }
   return NextResponse.json({
-    allowed, declined, declinedByMe,
+    allowed, declined, declinedByMe, closedByMe,
     message: allowed ? '' : DM_POLICY_MSG,
   }, { headers: noStore });
 }
