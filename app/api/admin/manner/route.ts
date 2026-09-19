@@ -8,8 +8,12 @@ import { getAdminDb } from '@/lib/firebase';
 //   ①アプリ内の通報から（/admin/reports の「評価を下げる」。従来どおり {userId, delta}）
 //   ②LINE等で直接ドタキャンの報告を受けたとき（/admin/manner。{userId, reason, note, roundId}）
 // どちらも `_mannerLog` に履歴を残す。誰を・いつ・なぜ下げたのかが後から追え、
-// 1件ずつ取り消せる（action:'undo'）。★（また回りたい率）はユーザー同士の相互評価から
-// 算出する指標なので運営は触らない。ここで動かすのはマナー/信頼度の指標だけ。
+// 1件ずつ取り消せる（action:'undo'）。
+//
+// ★への反映（2026-09-19〜）：ここで積んだ mannerPenalty は、1件につき★を1つ下げる
+// （lib/utils の revisitStar）。以前は★を相互評価だけで出していたが、それだと
+// ドタキャンした人ほど★が付かない（そのラウンドのレビュー対象から外れるため）。
+// 本人には「⚠️ 運営から注意あり」を出さず、他の会員がプロフィールを見たときだけ出す。
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 
 const REASONS = ['noshow', 'late', 'no_contact', 'inappropriate', 'report', 'other'] as const;

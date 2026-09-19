@@ -7,11 +7,30 @@ import { db as appDb } from '@/lib/db';
 // バッジを出すのに使う。again=また回りたい / romantic=異性として気になる。
 const noStore = { 'Cache-Control': 'no-store' };
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   const meId = await getMeId();
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: noStore });
   const db = getAdminDb() as any;
   if (!db) return NextResponse.json({ matches: {} }, { headers: noStore });
+
+  // ?with=相手ID … その1人とのマッチだけを見る（DM画面の追いDMの確認用）。
+  // 全件を引くと相手のプロフィールまで人数ぶん読むので、1人ならこちらで済ませる。
+  const withId = new URL(req.url).searchParams.get('with') || '';
+  if (withId) {
+    try {
+      const has = async (kind: 'again' | 'romantic') => {
+        const [a, b] = await Promise.all([
+          db.collection('_matchLikes').doc(`${kind}__${meId}__${withId}`).get(),
+          db.collection('_matchLikes').doc(`${kind}__${withId}__${meId}`).get(),
+        ]);
+        return a.exists && b.exists;
+      };
+      const [again, romantic] = await Promise.all([has('again'), has('romantic')]);
+      return NextResponse.json({ match: { again, romantic } }, { headers: noStore });
+    } catch (e) {
+      return NextResponse.json({ match: { again: false, romantic: false }, error: (e as Error).message }, { headers: noStore });
+    }
+  }
 
   try {
     const mine = await db.collection('_matchLikes').where('from', '==', meId).get();

@@ -162,7 +162,7 @@ export default function RoundDetailPage() {
 
   // 主催者・参加者・気になる・招待中などの評価を「また回りたい率」でリアルタイム表示する
   // （user.reviewAvg は非正規化で古くなるため使わない）。表示ユーザーぶんを一括取得。
-  const [ratings, setRatings] = useState<Record<string, { roundedWith: number; againCount: number; neverCount: number }>>({});
+  const [ratings, setRatings] = useState<Record<string, { roundedWith: number; againCount: number; neverCount: number; mannerPenalty?: number }>>({});
   useEffect(() => {
     const r = storeRound || fetchedRound;
     if (!r) return;

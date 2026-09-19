@@ -6,7 +6,8 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { store, useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { toast } from '@/components/Toast';
-import { revisitStar } from '@/lib/utils';
+import { revisitStar, hasRevisitStar } from '@/lib/utils';
+import { ChaseCheck } from '@/components/ChaseCheck';
 import { resizeImage } from '@/lib/resizeImage';
 import { track } from '@/lib/telemetry';
 
@@ -58,19 +59,21 @@ export default function ChatPage() {
 
   // 相手の評価は「また回りたい率」をリアルタイムに算出して表示する（user.reviewAvg は
   // 非正規化で古くなるため使わない。プロフィール上部と同じ track-record を使い一致させる）。
-  const [otherTrack, setOtherTrack] = useState<{ roundedWith: number; neverCount: number } | null>(null);
+  const [otherTrack, setOtherTrack] = useState<{ roundedWith: number; neverCount: number; mannerPenalty?: number } | null>(null);
   useEffect(() => {
     setOtherTrack(null);
     if (!otherId) return;
     let cancelled = false;
     fetch(`/api/users/${encodeURIComponent(otherId)}/track-record`, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (!cancelled && d) setOtherTrack({ roundedWith: d.roundedWith || 0, neverCount: d.neverCount || 0 }); })
+      .then((d) => { if (!cancelled && d) setOtherTrack({ roundedWith: d.roundedWith || 0, neverCount: d.neverCount || 0, mannerPenalty: d.mannerPenalty || 0 }); })
       .catch(() => { /* noop */ });
     return () => { cancelled = true; };
   }, [otherId]);
-  const ratingText = otherTrack && otherTrack.roundedWith > 0
-    ? `★${revisitStar(otherTrack.roundedWith, otherTrack.neverCount).toFixed(1)}（${otherTrack.roundedWith}）`
+  // 運営ペナルティも★に入れる（プロフィールと同じ式。lib/utils の revisitStar）。
+  const ratingText = hasRevisitStar(otherTrack)
+    ? `★${revisitStar(otherTrack!.roundedWith, otherTrack!.neverCount, otherTrack!.mannerPenalty).toFixed(1)}`
+      + (otherTrack!.roundedWith > 0 ? `（${otherTrack!.roundedWith}）` : '')
     : '🆕 初参加';
 
   // DM可否（関係性ゲート・lib/dmPolicy と同一判定）。false なら入力欄を出さず案内を表示。
@@ -162,6 +165,12 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* 追いDMの確認。返事をしていないのに相手から2通以上続けて届いていて、
+          その相手とマッチしているときだけ出る（components/ChaseCheck.tsx）。 */}
+      {meId && other?.id && (
+        <ChaseCheck chatId={params.chatId} meId={meId} otherId={other.id}
+          otherName={other.displayName || 'この方'} messages={messages as any} />
+      )}
       <div className="flex items-center gap-3 px-5 py-3 border-b border-border bg-card flex-shrink-0 sticky top-0 z-10">
         <button onClick={() => router.back()} className="text-xl text-blue">←</button>
         <Link href={`/profile/${other.id}`} className="flex items-center gap-3 flex-1 min-w-0">

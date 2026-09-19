@@ -15,23 +15,39 @@ export function formatDate(d?: string) {
 
 // 「また回りたい率」を5段階(0〜5・0.5刻み)の星に写像する。プロフィール上部の★と
 // チャットヘッダーの★で同じ実装を使い、リアルタイム(track-record)で一致させる。
-// roundedWith=レビューをくれた人数、neverCount=「ごめんなさい」を付けた人数。
-export function revisitStar(roundedWith?: number, neverCount?: number): number {
+// roundedWith=レビューをくれた人数、neverCount=「ごめんなさい」を付けた人数、
+// mannerPenalty=運営がドタキャンや不適切な行為を確認して付けた数。
+//
+// 【運営ペナルティ 1件につき ★1 下げる】
+// 以前は★を相互評価だけで出していて、運営ペナルティは別の札（⚠️）にしか出なかった。
+// それだと**ドタキャンした人ほど星が付かない**。ドタキャンした人はそのラウンドの
+// レビュー対象から外れるので、評価ゼロのまま「🆕 初参加」と綺麗に見えてしまう。
+// そこで、レビューが無い人は★5を起点にして引く。
+//
+// 下限は0。1で止めると、もともと★0の人がペナルティで逆に上がってしまう。
+export function revisitStar(roundedWith?: number, neverCount?: number, mannerPenalty?: number): number {
   const rw = roundedWith || 0;
-  if (rw <= 0) return 0;
-  return Math.round((1 - (neverCount || 0) / rw) * 5 * 2) / 2;
+  const p = Math.max(0, Math.floor(mannerPenalty || 0));
+  if (rw <= 0 && p <= 0) return 0;
+  const base = rw > 0 ? (1 - (neverCount || 0) / rw) * 5 : 5;
+  return Math.max(0, Math.round((base - p) * 2) / 2);
+}
+
+/** 星を出せるか。レビューが無くても、運営ペナルティがあれば出す（上の理由）。 */
+export function hasRevisitStar(r: { roundedWith?: number; mannerPenalty?: number } | null | undefined): boolean {
+  return (r?.roundedWith || 0) > 0 || (r?.mannerPenalty || 0) > 0;
 }
 
 // 「また回りたい率」ベースのリアルタイム評価ラベル。track-record（roundedWith=レビューを
 // くれた人数、neverCount=ごめんなさい数）から算出。旧 ratingLabel(reviewAvg) の置き換え。
 // レビューがまだ無ければ「🆕 初参加」。
 export function revisitRatingLabel(
-  r: { roundedWith?: number; neverCount?: number } | null | undefined,
+  r: { roundedWith?: number; neverCount?: number; mannerPenalty?: number } | null | undefined,
   opts: { count?: boolean } = {},
 ): string {
   const rw = r?.roundedWith || 0;
-  if (rw <= 0) return '🆕 初参加';
-  const star = revisitStar(rw, r?.neverCount).toFixed(1);
+  if (!hasRevisitStar(r)) return '🆕 初参加';
+  const star = revisitStar(rw, r?.neverCount, r?.mannerPenalty).toFixed(1);
   return opts.count ? `★${star}（${rw}）` : `★${star}`;
 }
 

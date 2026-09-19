@@ -13,7 +13,7 @@ import { confirmDialog } from '@/components/ConfirmDialog';
 import type { User } from '@/lib/types';
 import { track as logEvent } from '@/lib/telemetry';
 import { ProfileDetails } from '@/components/ProfileDetails';
-import { chatIdFor, carLabel, instagramUrl } from '@/lib/utils';
+import { chatIdFor, carLabel, instagramUrl, revisitStar, hasRevisitStar } from '@/lib/utils';
 
 export default function ProfilePage() {
   const params = useParams<{ id: string }>();
@@ -33,7 +33,7 @@ export default function ProfilePage() {
 
   const [user, setUser] = useState<User | undefined>(cachedUser);
   const [notFound, setNotFound] = useState(false);
-  const [track, setTrack] = useState<{ roundedWith: number; againCount: number; neverCount: number; hostedCount: number; joinedCount: number } | null>(null);
+  const [track, setTrack] = useState<{ roundedWith: number; againCount: number; neverCount: number; mannerPenalty?: number; hostedCount: number; joinedCount: number } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
@@ -185,7 +185,7 @@ export default function ProfilePage() {
           </div>
           <div className="mt-1.5 flex items-center gap-2.5 flex-wrap">
             {/* ★は「また回りたい率」を5段階に写像（旧★平均は廃止）。3/3 → ★5.0 */}
-            <GolfBallRating value={track && track.roundedWith > 0 ? Math.round((1 - (track.neverCount || 0) / track.roundedWith) * 5 * 2) / 2 : 0} count={track?.roundedWith || 0} size={18} />
+            <GolfBallRating value={revisitStar(track?.roundedWith, track?.neverCount, track?.mannerPenalty)} count={track?.roundedWith || 0} rated={hasRevisitStar(track)} size={18} />
             {track && track.roundedWith > 0 && (
               <span className="inline-flex items-center gap-1 text-[12px] font-black text-green bg-green-light border border-green rounded-full px-2.5 py-0.5">
                 🏌️ また回りたい {track.againCount}/{track.roundedWith}
@@ -195,8 +195,11 @@ export default function ProfilePage() {
           {track && track.roundedWith > 0 && (
             <div className="text-[11px] text-sub mt-1">この人をレビューした{track.roundedWith}人のうち{track.againCount}人が「また回りたい」と回答</div>
           )}
-          {/* マナー/信頼度（運営が通報・ドタキャンを確認して下げる指標）。良好時は控えめに表示。 */}
-          <MannerBadge penalty={(user as any).mannerPenalty || 0} />
+          {/* マナー/信頼度（運営が通報・ドタキャンを確認して下げる指標）。良好時は控えめに表示。
+              **本人には出さない**（運営方針）。他の人が見たときだけ出す。
+              「🤝 マナー良好」も本人には出さない。良好のときだけ出ていると、
+              ペナルティが付いた瞬間に**札が消えたこと**で本人に伝わってしまうため。 */}
+          {!isMe && <MannerBadge penalty={(user as any).mannerPenalty || 0} />}
           {metaLine && <div className="text-[13px] text-sub mt-1.5">{metaLine}</div>}
           {user.golmotiType && (
             <div className="mt-2.5">

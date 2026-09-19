@@ -33,15 +33,18 @@ function StarSlot({ fill, size }: { fill: number; size: number }) {
   );
 }
 
-export function GolfBallRating({ value, count, size = 18, showNumber = true }: {
+export function GolfBallRating({ value, count, size = 18, showNumber = true, rated }: {
   value: number;      // 0〜5（0.5刻み）
   count?: number;     // 評価人数（あれば括弧書きで表示）
   size?: number;
   showNumber?: boolean;
+  /** 評価として数字を出すか。省略時は count>0 で判定。
+   *  レビューが0件でも運営ペナルティで★が付く人がいるので、外から指定できるようにした。 */
+  rated?: boolean;
 }) {
   const v = Math.max(0, Math.min(5, value || 0));
   const slots = [0, 1, 2, 3, 4].map((i) => Math.max(0, Math.min(1, v - i)));
-  const hasRating = (count ?? 0) > 0;
+  const hasRating = rated ?? (count ?? 0) > 0;
   return (
     <span className="inline-flex items-center gap-1.5" style={{ lineHeight: 1 }}>
       <span className="inline-flex items-center gap-[3px]">
@@ -51,7 +54,7 @@ export function GolfBallRating({ value, count, size = 18, showNumber = true }: {
         hasRating ? (
           <span className="inline-flex items-baseline gap-1">
             <span className="font-black text-text" style={{ fontSize: size * 0.9 }}>{v.toFixed(1)}</span>
-            {typeof count === 'number' && <span className="text-muted font-bold" style={{ fontSize: size * 0.72 }}>({count})</span>}
+            {typeof count === 'number' && count > 0 && <span className="text-muted font-bold" style={{ fontSize: size * 0.72 }}>({count})</span>}
           </span>
         ) : (
           <span className="text-muted font-bold" style={{ fontSize: size * 0.72 }}>評価なし</span>

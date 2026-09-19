@@ -59,7 +59,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ratings: {}, error: (e as Error).message }, { headers: noStore });
   }
 
-  const ratings: Record<string, { roundedWith: number; againCount: number; neverCount: number }> = {};
+  // 運営ペナルティ。星の減点に使う（lib/utils の revisitStar）。
+  const penalty: Record<string, number> = {};
+  try {
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const chunk = ids.slice(i, i + CHUNK);
+      const us = await db.getAll(...chunk.map((x) => db.collection('users').doc(x)));
+      us.forEach((d: any) => {
+        const n = Math.max(0, Math.floor(Number((d.data() || {}).mannerPenalty || 0)));
+        if (n) penalty[d.id] = n;
+      });
+    }
+  } catch { /* 引けなくても星は出す */ }
+
+  const ratings: Record<string, { roundedWith: number; againCount: number; neverCount: number; mannerPenalty: number }> = {};
   for (const id of ids) {
     const rev = reviewers[id];
     let againCount = 0; let neverCount = 0;
@@ -67,7 +80,7 @@ export async function POST(req: NextRequest) {
       if (againFrom[id].has(r)) againCount++;
       if (neverFrom[id].has(r)) neverCount++;
     });
-    ratings[id] = { roundedWith: rev.size, againCount, neverCount };
+    ratings[id] = { roundedWith: rev.size, againCount, neverCount, mannerPenalty: penalty[id] || 0 };
   }
 
   return NextResponse.json({ ratings }, { headers: noStore });

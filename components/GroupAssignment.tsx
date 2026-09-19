@@ -115,6 +115,29 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
 
   function setGroupsDirty(next: RoundGroup[]) { setGroups(next); setDirty(true); }
 
+  // 組み分け希望の「同じ組は避けたい」に当たっている組み合わせ。
+  // 希望の一覧は上に出しているが、人数が多いと目で突き合わせきれない。
+  // 組に入れた瞬間にその組の中で出す。**主催者にしか出さない**（この編集部は主催者専用）。
+  // 片方向でも出す（AがCを避けたいだけで十分）。両方向なら1件にまとめる。
+  const nameOfUser = (id: string) => users.find((u) => u.id === id)?.displayName || 'メンバー';
+  function avoidHits(memberIds: string[]): { a: string; b: string; mutual: boolean }[] {
+    const prefs = round.groupPrefs || {};
+    const inGroup = new Set(memberIds);
+    const hits: { a: string; b: string; mutual: boolean }[] = [];
+    const seen = new Set<string>();
+    for (const a of memberIds) {
+      for (const b of prefs[a]?.avoid || []) {
+        if (!inGroup.has(b)) continue;
+        const key = [a, b].sort().join('|');
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const mutual = (prefs[b]?.avoid || []).includes(a);
+        hits.push({ a, b, mutual });
+      }
+    }
+    return hits;
+  }
+
   function moveMember(id: string, toZone: string) {
     // ゲストは「当日来れなかった人」にはできない（レビュー対象外なので不要）。
     const targetZone = toZone === 'noshow' && isGuest(id) ? 'pool' : toZone;
@@ -307,6 +330,16 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
         </div>
       )}
 
+      {(() => {
+        const n = groups.reduce((acc, g) => acc + avoidHits(g.memberIds).length, 0);
+        if (!n) return null;
+        return (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 text-[11px] font-bold mb-2.5">
+            ⚠️ 「同じ組は避けたい」希望に当たっている組み合わせが{n}件あります（下の組の中に表示）
+          </div>
+        );
+      })()}
+
       <div className="flex gap-2 mb-3">
         <button onClick={shuffle} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold">🔀 シャッフル</button>
         <button onClick={addGroup} className="px-3 py-1.5 bg-bg text-sub border border-border rounded-lg text-xs font-bold">＋ 組を追加</button>
@@ -360,6 +393,13 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
               </div>
             )}
             {over && <div className="text-[10px] text-red-600 font-bold mb-1.5">⚠️ 人数オーバーです（{g.memberIds.length}名 / 規定{GROUP_MAX}名）</div>}
+            {avoidHits(g.memberIds).map(({ a, b, mutual }) => (
+              <div key={`${a}|${b}`} className="text-[11px] text-red-600 font-bold mb-1.5 bg-red-50 border border-red-200 rounded-lg px-2 py-1.5 leading-relaxed">
+                ⚠️ {mutual
+                  ? <>{nameOfUser(a)}さんと{nameOfUser(b)}さんは、お互いに同じ組を避けたい希望です</>
+                  : <>{nameOfUser(a)}さんは、{nameOfUser(b)}さんと同じ組を避けたい希望です</>}
+              </div>
+            ))}
             <div className="flex flex-col gap-1.5 min-h-[40px]">
               {g.memberIds.length === 0
                 ? <div className="text-[11px] text-muted px-1 py-1.5">ここにドラッグ</div>

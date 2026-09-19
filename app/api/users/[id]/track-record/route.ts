@@ -68,7 +68,14 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       if (neverFrom.has(r)) neverCount++;
     });
 
-    return NextResponse.json({ roundedWith, againCount, neverCount, hostedCount, joinedCount }, { headers: noStore });
+    // 運営ペナルティ。星の減点に使う（lib/utils の revisitStar）。
+    let mannerPenalty = 0;
+    try {
+      const us = await db.collection('users').doc(id).get();
+      mannerPenalty = Math.max(0, Math.floor(Number((us.data() || {}).mannerPenalty || 0)));
+    } catch { /* 引けなくても星は出す */ }
+
+    return NextResponse.json({ roundedWith, againCount, neverCount, mannerPenalty, hostedCount, joinedCount }, { headers: noStore });
   } catch (e) {
     return NextResponse.json({ roundedWith: 0, againCount: 0, neverCount: 0, hostedCount: 0, joinedCount: 0, error: (e as Error).message }, { headers: noStore });
   }

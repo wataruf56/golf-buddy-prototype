@@ -12,7 +12,7 @@ import { GolfBallRating } from '@/components/GolfBallRating';
 import { NotifySettings } from '@/components/NotifySettings';
 import { AppUpdateButton } from '@/components/AppUpdateButton';
 import { track } from '@/lib/telemetry';
-import { formatDate, instagramUrl } from '@/lib/utils';
+import { formatDate, instagramUrl, revisitStar, hasRevisitStar } from '@/lib/utils';
 import { ProfileDetails } from '@/components/ProfileDetails';
 
 const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
@@ -67,7 +67,7 @@ export default function MyPage() {
     (r.pendingApplicantIds || []).map((uid) => ({ round: r, applicantId: uid }))
   );
   // 実績ベース評価：一緒に回った人のうち「また回りたい」を押した人数（相手にも見える指標）。
-  const [trackRecord, setTrackRecord] = useState<{ roundedWith: number; againCount: number; neverCount: number; hostedCount: number; joinedCount: number } | null>(null);
+  const [trackRecord, setTrackRecord] = useState<{ roundedWith: number; againCount: number; neverCount: number; mannerPenalty?: number; hostedCount: number; joinedCount: number } | null>(null);
   const users = useStore((s) => s.users);
 
   useEffect(() => {
@@ -155,7 +155,7 @@ export default function MyPage() {
               </div>
               <div className="mt-1.5 flex items-center gap-2.5 flex-wrap">
                 {/* ★は「また回りたい率」を5段階に写像（旧★平均は廃止）。3/3 → ★5.0 */}
-                <GolfBallRating value={trackRecord && trackRecord.roundedWith > 0 ? Math.round((1 - (trackRecord.neverCount || 0) / trackRecord.roundedWith) * 5 * 2) / 2 : 0} count={trackRecord?.roundedWith || 0} size={18} />
+                <GolfBallRating value={revisitStar(trackRecord?.roundedWith, trackRecord?.neverCount, trackRecord?.mannerPenalty)} count={trackRecord?.roundedWith || 0} rated={hasRevisitStar(trackRecord)} size={18} />
                 {trackRecord && trackRecord.roundedWith > 0 && (
                   <span className="inline-flex items-center gap-1 text-[12px] font-black text-green bg-green-light border border-green rounded-full px-2.5 py-0.5">
                     🏌️ また回りたい {trackRecord.againCount}/{trackRecord.roundedWith}

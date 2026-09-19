@@ -77,6 +77,53 @@ export async function runRematchNotifier(limit = MAX_PER_TICK): Promise<{ ok: bo
     .filter((r) => (r.completedAt || 0) > 0 && (r.completedAt || 0) <= threshold)
     .sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
 
+  // ── ペアごとの「最後に一緒に回った日」──────────────────────
+  //
+  // 【直したこと（2026-09-19）】
+  // 上の rounds は「intervalDays 以上前に終わったラウンド」だけで、ここから
+  // 通知する相手と文面の日付を決めていた。すると、**再会エンジンを通さずに
+  // 最近また一緒に回った2人**は、その最近のラウンドが検索範囲に入らないので
+  // エンジンが知らない。実際、7/25に回って9/19にまた回った2人に、9/19当日
+  // 「7/25に回った◯◯さんとそろそろ…」が届いた。
+  //
+  // そこで、**全ラウンド**から2人が最後に一緒だった時点を引き、
+  //   ・これから一緒に回る予定がある → 送らない
+  //   ・最後に一緒に回ってから intervalDays 経っていない → まだ送らない
+  //   ・前回の通知より後に一緒に回っている → 新しい周回として数え直す
+  // とする。文面の日付とコースも、その最後のラウンドのものを使う。
+  const everyRound = (await db.listRounds()).filter((r) => r.eventType !== 'drink');
+  const roundsOf = new Map<string, typeof everyRound>();
+  for (const r of everyRound) {
+    const noShow = new Set(r.noShowIds || []);   // 当日来なかった人は「一緒に回った」に数えない
+    for (const u of [r.hostId, ...(r.applicantIds || [])]) {
+      if (!u || noShow.has(u)) continue;
+      if (!roundsOf.has(u)) roundsOf.set(u, []);
+      roundsOf.get(u)!.push(r);
+    }
+  }
+  // そのラウンドで2人が一緒になった（なる）時点。
+  //   日付がある → その日（まだ完了を押していない当日のラウンドも拾える）
+  //   日付が無く完了済み → 完了した時刻
+  //   日付が無く進行中（日程調整中・運営枠の募集中）→ 一緒に入った時点＝作成時刻。
+  //     「いま一緒に予定を立てている」ので、その間は誘わない。
+  const togetherAt = (r: (typeof everyRound)[number]): number => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(r.date || '');
+    if (m) return new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00+09:00`).getTime();
+    if (r.status === 'completed') return r.completedAt || r.createdAt || 0;
+    return r.createdAt || 0;
+  };
+  const lastTogether = (a: string, b: string) => {
+    const mine = new Set((roundsOf.get(a) || []).map((r) => r.id));
+    let best: (typeof everyRound)[number] | null = null;
+    let at = 0;
+    for (const r of roundsOf.get(b) || []) {
+      if (!mine.has(r.id)) continue;
+      const t = togetherAt(r);
+      if (t > at) { at = t; best = r; }
+    }
+    return { at, round: best };
+  };
+
   // テスト扱いユーザーの集合（管理画面「🧪 テストアカウント管理」で一元管理）。
   // testMode 中の安全弁に使う。test_ 始まりは常にテスト扱い。
   const testIds = await getTestAccountIdSet();
@@ -98,35 +145,49 @@ export async function runRematchNotifier(limit = MAX_PER_TICK): Promise<{ ok: bo
       if (seen.has(pairId)) continue;
       seen.add(pairId);
 
+      const last = lastTogether(a, b);
+      // これから一緒に回る予定がある（日付が先）。誘う必要がない。
+      if (last.at > now) continue;
+      // 最後に一緒に回ってから、まだ intervalDays 経っていない。
+      if (last.at > threshold) continue;
+
       const s = await getSession(pairId);
-      if (s && (s.status === 'agreed' || s.status === 'posted')) continue;
+      // 前回の通知より後に一緒に回っていれば、新しい周回。
+      // 回数の上限も、再会が成立済み（agreed/posted）の止めも、ここで外れる。
+      const playedSince = !!s && last.at > (s.lastNotifyAt || 0);
+      if (s && !playedSince && (s.status === 'agreed' || s.status === 'posted')) continue;
+      // 「もう通知しない」を押した人の意思は、周回が変わっても尊重する。
       if (s && (s.optedOutBy || []).length > 0) continue;
-      const notifyCount = s?.notifyCount || 0;
+      const notifyCount = playedSince ? 0 : (s?.notifyCount || 0);
       if (notifyCount >= cfg.maxCycles) continue;
       // 2回目以降は intervalDays 経過後のみ
       if (notifyCount >= 1 && s?.lastNotifyAt && (now - s.lastNotifyAt) < cfg.intervalDays * rematchDayMs) continue;
 
       const [ua, ub] = await Promise.all([db.getUser(a), db.getUser(b)]);
-      const course = r.courseName || r.title || 'ゴルフ';
+      // 文面の「◯/◯に回った」は、いちばん最近一緒に回ったラウンドにする。
+      const ctxRound = last.round || r;
+      const course = ctxRound.courseName || ctxRound.title || 'ゴルフ';
       const link = `/rematch/${pairId}`;
       const nth = notifyCount + 1;
-      await notifyOne(a, ua, ub?.displayName || 'あの人', course, r.date || '', link,
-        { partnerId: b, kind, round: r.id, nth });
-      await notifyOne(b, ub, ua?.displayName || 'あの人', course, r.date || '', link,
-        { partnerId: a, kind, round: r.id, nth });
+      await notifyOne(a, ua, ub?.displayName || 'あの人', course, ctxRound.date || '', link,
+        { partnerId: b, kind, round: ctxRound.id, nth });
+      await notifyOne(b, ub, ua?.displayName || 'あの人', course, ctxRound.date || '', link,
+        { partnerId: a, kind, round: ctxRound.id, nth });
 
       const [lo, hi] = a < b ? [a, b] : [b, a];
+      // 新しい周回なら、前の周回の候補日や成立の記録は持ち越さない。
+      const carry = s && !playedSince;
       await saveSession(pairId, {
-        pairId, userA: lo, userB: hi, roundId: r.id,
-        courseName: course, roundDate: r.date || '', matchKind: kind,
+        pairId, userA: lo, userB: hi, roundId: ctxRound.id,
+        courseName: course, roundDate: ctxRound.date || '', matchKind: kind,
         notifyCount: notifyCount + 1,
-        firstNotifyAt: s?.firstNotifyAt || now,
+        firstNotifyAt: carry ? (s!.firstNotifyAt || now) : now,
         lastNotifyAt: now,
-        candidatesA: s?.candidatesA || [],
-        candidatesB: s?.candidatesB || [],
-        agreedDate: s?.agreedDate || null,
-        agreedAt: s?.agreedAt || null,
-        postedRoundId: s?.postedRoundId || null,
+        candidatesA: carry ? (s!.candidatesA || []) : [],
+        candidatesB: carry ? (s!.candidatesB || []) : [],
+        agreedDate: carry ? (s!.agreedDate || null) : null,
+        agreedAt: carry ? (s!.agreedAt || null) : null,
+        postedRoundId: carry ? (s!.postedRoundId || null) : null,
         optedOutBy: s?.optedOutBy || [],
         status: 'notified',
       });
