@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revisitStar, hasRevisitStar } from '@/lib/utils';
 import { getAdminDb } from '@/lib/firebase';
 import { warmTestIds, isTestId } from '@/lib/testAccounts';
 
@@ -96,7 +97,11 @@ export async function GET(req: NextRequest) {
         const roundedWith = reviewers.size;
         let againCount = 0, neverCount = 0;
         reviewers.forEach((r) => { if (again.has(r)) againCount++; if (never.has(r)) neverCount++; });
-        const star = roundedWith > 0 ? Math.round((1 - neverCount / roundedWith) * 5 * 2) / 2 : null;
+        // 会員に見えている★と同じ式（lib/utils の revisitStar。運営ペナルティ1件で★−1）。
+        // ここだけ古い式を直書きしていて、会員には★4.0なのに管理画面では★5.0／初参加に見えていた。
+        const penalty = Math.max(0, Math.floor(Number(u.mannerPenalty || 0)));
+        const star = hasRevisitStar({ roundedWith, mannerPenalty: penalty })
+          ? revisitStar(roundedWith, neverCount, penalty) : null;
         const s = stat[u.id] || { hosted: 0, joined: 0, noShow: 0, partners: new Set() };
         return {
           id: u.id,
