@@ -139,6 +139,52 @@ export async function notifyRematch(
 }
 
 // 重なり（両者が行ける日）。
+// ── 「最後に一緒に回った日」──────────────────────────────
+// 再会通知の基準。通知バッチ（cron）と再会画面の「次の通知」表示で同じ判定を使う。
+// 片方だけ直すと、画面に出る日付と実際に届く日がずれる。
+
+type RoundLike = {
+  id: string; date?: string; status?: string; completedAt?: number; createdAt?: number;
+  hostId?: string; applicantIds?: string[]; noShowIds?: string[]; eventType?: string;
+};
+
+/** そのラウンドで一緒になった（なる）時点。
+ *  日付がある → その日の0時（JST）。完了を押していない当日のラウンドも拾える。
+ *  日付が無く完了済み → 完了した時刻。
+ *  日付が無く進行中（日程調整中・運営枠の募集中）→ 作成時刻。いま一緒に予定を立てている。 */
+export function togetherAt(r: RoundLike): number {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(r.date || '');
+  if (m) return new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00+09:00`).getTime();
+  if (r.status === 'completed') return r.completedAt || r.createdAt || 0;
+  return r.createdAt || 0;
+}
+
+/** 2人が一緒だったラウンドのうち、いちばん新しいもの。飲み会と当日来なかった人は除く。 */
+export function lastTogetherIn(rounds: RoundLike[], a: string, b: string): { at: number; round: RoundLike | null } {
+  let at = 0;
+  let best: RoundLike | null = null;
+  for (const r of rounds) {
+    if (r.eventType === 'drink') continue;
+    const noShow = new Set(r.noShowIds || []);
+    const mem = new Set([r.hostId, ...(r.applicantIds || [])].filter(Boolean) as string[]);
+    if (!mem.has(a) || !mem.has(b) || noShow.has(a) || noShow.has(b)) continue;
+    const t = togetherAt(r);
+    if (t > at) { at = t; best = r; }
+  }
+  return { at, round: best };
+}
+
+const jstDay = (ms: number) => new Date(ms + 9 * 3600 * 1000).toISOString().slice(0, 10);
+
+/** 前回の通知より後に一緒に回ったか。**同じ日なら「後」とみなす**。
+ *  ラウンドの日付は0時扱いなので、時刻で比べると、回った当日に届いた通知のほうが
+ *  「後」になってしまう。回った当日の「そろそろまた…」は必ず誤りなので、日単位で比べる。 */
+export function playedSinceNotify(lastTogetherAt: number, lastNotifyAt?: number): boolean {
+  if (!lastTogetherAt) return false;
+  if (!lastNotifyAt) return true;
+  return jstDay(lastTogetherAt) >= jstDay(lastNotifyAt);
+}
+
 export function overlapDates(a: string[], b: string[]): string[] {
   const setB = new Set(b);
   return Array.from(new Set(a.filter((d) => setB.has(d)))).sort();

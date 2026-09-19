@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMeId } from '@/lib/session';
 import { db } from '@/lib/db';
-import { getSession, membersOfPair, overlapDates, recordRematchEvent, listSessionsForUser, rematchDayMs } from '@/lib/rematch';
+import { getSession, membersOfPair, overlapDates, recordRematchEvent, listSessionsForUser, rematchDayMs, lastTogetherIn, playedSinceNotify } from '@/lib/rematch';
+import { getAdminDb } from '@/lib/firebase';
 import { getRematchConfig } from '@/lib/rematchConfig';
 
 // GET /api/rematch/[pairId] — 1ペアの状態（自分視点：自分/相手の候補日・重なり・status）。
@@ -44,17 +45,36 @@ export async function GET(_req: NextRequest, { params }: { params: { pairId: str
   } catch { /* best-effort */ }
   const myPastCandidates = Array.from(pastSet).sort();
 
-  // 次の再会通知が送られる予定時刻（ms）。通知が有効・未決定・未停止・上限未達で、
-  // 前回通知から intervalDays 経過後に送られる。該当しなければ null（今後の通知なし）。
+  // 次の再会通知が送られる予定時刻（ms）。該当しなければ null（今後の通知なし）。
+  //
+  // 通知バッチ（cron/rematch-notifier）と**同じ判定**で出す。以前は
+  // 「前回通知＋intervalDays」だけで出していたが、バッチは「最後に一緒に回った日」も
+  // 見るようになったので、画面に出る日付と実際に届く日がずれていた。
   let nextNotifyAt: number | null = null;
-  if (
-    cfg.enabled &&
-    s.status !== 'agreed' && s.status !== 'posted' &&
-    (s.optedOutBy || []).length === 0 &&
-    (s.notifyCount || 0) < cfg.maxCycles &&
-    s.lastNotifyAt
-  ) {
-    nextNotifyAt = s.lastNotifyAt + cfg.intervalDays * rematchDayMs;
+  let lastAt = 0;
+  try {
+    // 自分が入っているラウンドだけ引けば、2人が一緒のものは全部入っている。
+    const adb = getAdminDb() as any;
+    if (adb) {
+      const [asApp, asHost] = await Promise.all([
+        adb.collection('rounds').where('applicantIds', 'array-contains', meId).limit(500).get(),
+        adb.collection('rounds').where('hostId', '==', meId).limit(500).get(),
+      ]);
+      const mineRounds = [...asApp.docs, ...asHost.docs].map((d: any) => ({ id: d.id, ...(d.data() || {}) }));
+      lastAt = lastTogetherIn(mineRounds, meId, otherId).at;
+    }
+  } catch { /* 引けなければ前回通知だけで出す */ }
+
+  const interval = cfg.intervalDays * rematchDayMs;
+  const playedSince = playedSinceNotify(lastAt, s.lastNotifyAt);
+  const count = playedSince ? 0 : (s.notifyCount || 0);
+  const concluded = !playedSince && (s.status === 'agreed' || s.status === 'posted');
+  if (cfg.enabled && !concluded && (s.optedOutBy || []).length === 0 && count < cfg.maxCycles
+      && (lastAt || s.lastNotifyAt)) {
+    let t = lastAt ? lastAt + interval : 0;
+    // 同じ周回の2回目以降は、前回の通知からも intervalDays 空ける。
+    if (count >= 1 && s.lastNotifyAt) t = Math.max(t, s.lastNotifyAt + interval);
+    nextNotifyAt = t || null;
   }
 
   return NextResponse.json({

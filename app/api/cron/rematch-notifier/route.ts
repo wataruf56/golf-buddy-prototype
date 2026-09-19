@@ -5,7 +5,7 @@ import { webPushText } from '@/lib/webPush';
 import { isNotifyEnabled } from '@/lib/notifyPrefs';
 import { getRematchConfig } from '@/lib/rematchConfig';
 import { getTestAccountIdSet } from '@/lib/testAccounts';
-import { getSession, saveSession, pairIdOf, mutualPairsInRound, rematchDayMs } from '@/lib/rematch';
+import { getSession, saveSession, pairIdOf, mutualPairsInRound, rematchDayMs, lastTogetherIn, playedSinceNotify } from '@/lib/rematch';
 
 // ①再会通知バッチ。完了ラウンドの相互マッチ済みペアへ「そろそろまた行きませんか？」
 // を送る。intervalDays=0 なら完了後すぐ発火（テスト用）。housekeeping から毎tick呼ばれる。
@@ -91,37 +91,20 @@ export async function runRematchNotifier(limit = MAX_PER_TICK): Promise<{ ok: bo
   //   ・最後に一緒に回ってから intervalDays 経っていない → まだ送らない
   //   ・前回の通知より後に一緒に回っている → 新しい周回として数え直す
   // とする。文面の日付とコースも、その最後のラウンドのものを使う。
-  const everyRound = (await db.listRounds()).filter((r) => r.eventType !== 'drink');
+  const everyRound = await db.listRounds();
+  // 人ごとに引けるよう索引にしておく（ペアごとに全件をなめると重い）。
   const roundsOf = new Map<string, typeof everyRound>();
   for (const r of everyRound) {
-    const noShow = new Set(r.noShowIds || []);   // 当日来なかった人は「一緒に回った」に数えない
     for (const u of [r.hostId, ...(r.applicantIds || [])]) {
-      if (!u || noShow.has(u)) continue;
+      if (!u) continue;
       if (!roundsOf.has(u)) roundsOf.set(u, []);
       roundsOf.get(u)!.push(r);
     }
   }
-  // そのラウンドで2人が一緒になった（なる）時点。
-  //   日付がある → その日（まだ完了を押していない当日のラウンドも拾える）
-  //   日付が無く完了済み → 完了した時刻
-  //   日付が無く進行中（日程調整中・運営枠の募集中）→ 一緒に入った時点＝作成時刻。
-  //     「いま一緒に予定を立てている」ので、その間は誘わない。
-  const togetherAt = (r: (typeof everyRound)[number]): number => {
-    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(r.date || '');
-    if (m) return new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00+09:00`).getTime();
-    if (r.status === 'completed') return r.completedAt || r.createdAt || 0;
-    return r.createdAt || 0;
-  };
+  // 判定そのものは lib/rematch（再会画面の「次の通知」表示と共通）。
   const lastTogether = (a: string, b: string) => {
-    const mine = new Set((roundsOf.get(a) || []).map((r) => r.id));
-    let best: (typeof everyRound)[number] | null = null;
-    let at = 0;
-    for (const r of roundsOf.get(b) || []) {
-      if (!mine.has(r.id)) continue;
-      const t = togetherAt(r);
-      if (t > at) { at = t; best = r; }
-    }
-    return { at, round: best };
+    const r = lastTogetherIn(roundsOf.get(a) || [], a, b);
+    return { at: r.at, round: r.round as (typeof everyRound)[number] | null };
   };
 
   // テスト扱いユーザーの集合（管理画面「🧪 テストアカウント管理」で一元管理）。
@@ -154,7 +137,7 @@ export async function runRematchNotifier(limit = MAX_PER_TICK): Promise<{ ok: bo
       const s = await getSession(pairId);
       // 前回の通知より後に一緒に回っていれば、新しい周回。
       // 回数の上限も、再会が成立済み（agreed/posted）の止めも、ここで外れる。
-      const playedSince = !!s && last.at > (s.lastNotifyAt || 0);
+      const playedSince = !!s && playedSinceNotify(last.at, s.lastNotifyAt);
       if (s && !playedSince && (s.status === 'agreed' || s.status === 'posted')) continue;
       // 「もう通知しない」を押した人の意思は、周回が変わっても尊重する。
       if (s && (s.optedOutBy || []).length > 0) continue;
