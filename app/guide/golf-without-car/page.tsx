@@ -80,7 +80,7 @@ const FAQ = [
 
 // 本文を直したらこの日付を上げる。あわせて public/sitemap.xml の lastmod も同じ日に
 // 揃えること（ページ表示・Article の dateModified・sitemap の3か所で同じ日を名乗る）。
-const MODIFIED = '2026-08-22';
+const MODIFIED = '2026-09-03';
 
 export default async function Page() {
   const s = await getGuideStats();
