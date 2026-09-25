@@ -1,5 +1,5 @@
 import { ArticleShell } from '@/components/site/ArticleShell';
-import { articleJsonLd, SITE } from '@/lib/articleMeta';
+import { articleJsonLd, displayDate, SITE } from '@/lib/articleMeta';
 import { StartButton } from '@/components/StartButton';
 import { getGuideStats } from '@/lib/guideStats';
 import { getAreaStats } from '@/lib/areaStats';
@@ -53,9 +53,16 @@ export type AreaCopy = {
   faq: { q: string; a: string };
 };
 
+// 地域3ページ共通の更新日。本文（AreaCopy の地の文含む）を直したらここを上げ、
+// public/sitemap.xml の3ページぶんの lastmod も同じ日に揃える。
+const MODIFIED = '2026-09-14';
+
 export async function AreaGuide({ copy }: { copy: AreaCopy }) {
   const [s, a] = await Promise.all([getGuideStats(), getAreaStats(copy.area)]);
   const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '/');
+  // 表示する更新日は MODIFIED（=dateModified・lastmod と同じ日）。today のほうは
+  // 「開くたびに再集計される実データ」に添える日付なので、そちらは今日で正しい。
+  const updated = displayDate(MODIFIED);
   const path = `/guide/golf-${copy.slug}`;
 
   const FAQ = [
@@ -87,7 +94,7 @@ export async function AreaGuide({ copy }: { copy: AreaCopy }) {
   ];
 
   const jsonLd = articleJsonLd(
-    { path, title: copy.title, description: copy.desc, published: '2026-09-03', modified: '2026-09-14' },
+    { path, title: copy.title, description: copy.desc, published: '2026-09-03', modified: MODIFIED },
     FAQ,
   );
 
@@ -101,7 +108,7 @@ export async function AreaGuide({ copy }: { copy: AreaCopy }) {
 
       <h1>{copy.short}の20代・30代がゴルフ仲間を見つけるには</h1>
       <p className="lead">{copy.intro}</p>
-      <p className="meta">最終更新：{today}</p>
+      <p className="meta">最終更新：{updated}</p>
 
       <div className="answer">
         <span className="at">結論</span>

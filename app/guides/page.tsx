@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { ArticleShell } from '@/components/site/ArticleShell';
-import { SITE, AUTHOR, PUBLISHER } from '@/lib/articleMeta';
+import { SITE, AUTHOR, PUBLISHER, displayDate } from '@/lib/articleMeta';
 import { StartButton } from '@/components/StartButton';
 import { getGuideStats } from '@/lib/guideStats';
 
@@ -109,9 +109,14 @@ const ARTICLES = [
   },
 ];
 
+// 記事を足したり一覧の文を直したらこの日付を上げる。sitemap.xml の /guides の
+// lastmod と、下の CollectionPage の dateModified も同じ日に揃える。
+const MODIFIED = '2026-09-03';
+
 export default async function Page() {
   const s = await getGuideStats();
-  const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '/');
+  // 表示する更新日は MODIFIED（=sitemap の lastmod と同じ日）を使う。
+  const updated = displayDate(MODIFIED);
 
   // 一覧なので Article ではなく CollectionPage + ItemList。
   // パンくずは記事側と同じ階層に揃える。
@@ -123,6 +128,8 @@ export default async function Page() {
       description: DESC,
       url: PAGE_URL,
       inLanguage: 'ja',
+      datePublished: '2026-08-31',
+      dateModified: MODIFIED,
       author: AUTHOR,
       publisher: PUBLISHER,
       isAccessibleForFree: true,
@@ -160,7 +167,7 @@ export default async function Page() {
         ゴルフを始めてから実際に詰まるところを、
         <strong>20〜30代限定で運用しているゴルトモの実データ</strong>をもとにまとめています。
       </p>
-      <p className="meta">最終更新：{today}</p>
+      <p className="meta">最終更新：{updated}</p>
 
       <div className="answer">
         <span className="at">はじめての方へ</span>

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { ArticleShell } from '@/components/site/ArticleShell';
 import { StartButton } from '@/components/StartButton';
 import { getGuideStats } from '@/lib/guideStats';
-import { AUTHOR, PUBLISHER } from '@/lib/articleMeta';
+import { AUTHOR, PUBLISHER, displayDate } from '@/lib/articleMeta';
 
 // 「ゴルトモとは」。サイト内リンクの起点であり、ブランド名で検索した人の受け皿。
 //
@@ -65,6 +65,12 @@ const FAQ: { q: string; a: string }[] = [
   },
 ];
 
+// 本文を直したらこの日付を上げる。sitemap.xml の /about の lastmod と、
+// WebPage の dateModified も同じ日を名乗る。
+// ここを「今日」にすると、直していない日も更新済みに見えてしまう（下の実績ボックスの
+// 「◯月◯日時点」は開くたび再集計される数字に添えるものなので、あちらは今日で正しい）。
+const MODIFIED = '2026-08-22';
+
 export default async function AboutPage() {
   const s = await getGuideStats();
   const showData = s.fillRate != null && s.fillN >= 3;
@@ -107,7 +113,7 @@ export default async function AboutPage() {
         description: DESC,
         inLanguage: 'ja',
         datePublished: '2026-08-21',
-        dateModified: new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10),
+        dateModified: MODIFIED,
         author: AUTHOR,
         publisher: PUBLISHER,
         isPartOf: { '@type': 'WebSite', name: 'ゴルトモ', url: `${SITE}/` },
@@ -131,7 +137,7 @@ export default async function AboutPage() {
         20〜30代限定の、ゴルフ友達マッチングです。LINEだけで使えて、利用は無料。
         「行きたいけど、誘う相手がいない」を無くすために作りました。
       </p>
-      <div className="meta">最終更新：{new Date().toLocaleDateString('ja-JP')}</div>
+      <div className="meta">最終更新：{displayDate(MODIFIED)}</div>
 
       {/* 結論を先に出す。AIに引用されるための箱でもある。 */}
       <div className="answer">

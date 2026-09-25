@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { ArticleShell } from '@/components/site/ArticleShell';
-import { articleJsonLd } from '@/lib/articleMeta';
+import { articleJsonLd, displayDate } from '@/lib/articleMeta';
 import { StartButton } from '@/components/StartButton';
 import { getGuideStats } from '@/lib/guideStats';
 
@@ -92,14 +92,20 @@ const FAQ = [
   },
 ];
 
+// 本文を直したらこの日付を上げる。あわせて public/sitemap.xml の lastmod も同じ日に
+// 揃えること（ページ表示・Article の dateModified・sitemap の3か所で同じ日を名乗る）。
+const MODIFIED = '2026-08-31';
+
 export default async function Page() {
   const s = await getGuideStats();
   const showFill = s.fillRate != null && s.fillN >= 3;
   const showAgain = s.againRate != null && s.againN >= 20;
   const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '/');
+  // 表示する更新日は MODIFIED（=dateModified・lastmod と同じ日）を使う。
+  const updated = displayDate(MODIFIED);
 
   const jsonLd = articleJsonLd(
-    { path: '/guide/round-recruit', title: TITLE, description: DESC, published: '2026-08-31', modified: '2026-08-31' },
+    { path: '/guide/round-recruit', title: TITLE, description: DESC, published: '2026-08-31', modified: MODIFIED },
     FAQ,
   );
 
@@ -112,7 +118,7 @@ export default async function Page() {
         ラウンド募集を検索する人は、<strong>出したい人</strong>と<strong>入りたい人</strong>に分かれます。
         この記事では両方を扱います。前半は人が集まる募集の書き方、後半は募集を選ぶときに確認すべき点です。
       </p>
-      <p className="meta">最終更新：{today}</p>
+      <p className="meta">最終更新：{updated}</p>
 
       <div className="answer">
         <span className="at">結論</span>

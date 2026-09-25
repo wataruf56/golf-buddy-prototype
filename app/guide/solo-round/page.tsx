@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { ArticleShell } from '@/components/site/ArticleShell';
-import { articleJsonLd } from '@/lib/articleMeta';
+import { articleJsonLd, displayDate } from '@/lib/articleMeta';
 import { StartButton } from '@/components/StartButton';
 import { getGuideStats, hasFillData, hasAgainData } from '@/lib/guideStats';
 
@@ -78,13 +78,19 @@ const FAQ = [
   },
 ];
 
+// 本文を直したらこの日付を上げる。あわせて public/sitemap.xml の lastmod も同じ日に
+// 揃えること（ページ表示・Article の dateModified・sitemap の3か所で同じ日を名乗る）。
+const MODIFIED = '2026-08-22';
+
 export default async function Page() {
   const s = await getGuideStats();
   const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '/');
+  // 表示する更新日は MODIFIED（=dateModified・lastmod と同じ日）を使う。
+  const updated = displayDate(MODIFIED);
 
   // 構造化データは lib/articleMeta.ts で共通化（日付・著者・publisher を必ず入れる）。
   const jsonLd = articleJsonLd(
-    { path: '/guide/solo-round', title: TITLE, description: DESC, published: '2026-08-21', modified: '2026-08-22' },
+    { path: '/guide/solo-round', title: TITLE, description: DESC, published: '2026-08-21', modified: MODIFIED },
     FAQ,
   );
 
@@ -98,7 +104,7 @@ export default async function Page() {
         <strong>受付から解散までの当日の流れ</strong>、そして
         「浮かないか」「迷惑をかけないか」という不安への具体的な答えをまとめます。
       </p>
-      <p className="meta">最終更新：{today}</p>
+      <p className="meta">最終更新：{updated}</p>
 
       {/* 結論を先に出す。AIに引用されるための箱でもある。 */}
       <div className="answer">

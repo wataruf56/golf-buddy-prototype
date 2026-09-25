@@ -28,6 +28,20 @@ export const PUBLISHER = {
   parentOrganization: { '@type': 'Organization', name: '合同会社シクミヤ', url: 'https://shikumi-ya.com/' },
 };
 
+// ページに見せる更新日。構造化データの dateModified・sitemap.xml の lastmod と
+// **同じ日付**を出すためのもの。
+//
+// ここを `new Date()`（今日）にしてはいけない。実際に本文を直していない日も
+// 「最終更新：今日」と表示されてしまい、
+//   ・ページ上の日付と Article の dateModified と sitemap の lastmod が食い違う
+//   ・直していないのに毎日更新したことになる（見かけの鮮度づけ）
+// の2点で、Googleに日付の申告そのものを信用されなくなる。
+// 実績の数値ボックスのように「開くたびに再集計される数字」に添える日付は
+// 今日で正しいので、そちらとは使い分ける。
+export function displayDate(iso: string) {
+  return iso.replace(/-/g, '/');
+}
+
 export type ArticleMeta = {
   path: string;          // '/guide/solo-round'
   title: string;

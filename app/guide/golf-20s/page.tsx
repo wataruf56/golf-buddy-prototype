@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { ArticleShell } from '@/components/site/ArticleShell';
-import { articleJsonLd } from '@/lib/articleMeta';
+import { articleJsonLd, displayDate } from '@/lib/articleMeta';
 import { StartButton } from '@/components/StartButton';
 import { getGuideStats } from '@/lib/guideStats';
 
@@ -84,15 +84,21 @@ const FAQ = [
   },
 ];
 
+// 本文を直したらこの日付を上げる。あわせて public/sitemap.xml の lastmod も同じ日に
+// 揃えること（ページ表示・Article の dateModified・sitemap の3か所で同じ日を名乗る）。
+const MODIFIED = '2026-08-31';
+
 export default async function Page() {
   const s = await getGuideStats();
   const showAge = s.avgAge != null && s.ageN >= 20;
   const showFill = s.fillRate != null && s.fillN >= 3;
   const showFemale = s.femaleRate != null && s.genderN >= 20;
   const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '/');
+  // 表示する更新日は MODIFIED（=dateModified・lastmod と同じ日）を使う。
+  const updated = displayDate(MODIFIED);
 
   const jsonLd = articleJsonLd(
-    { path: '/guide/golf-20s', title: TITLE, description: DESC, published: '2026-08-31', modified: '2026-08-31' },
+    { path: '/guide/golf-20s', title: TITLE, description: DESC, published: '2026-08-31', modified: MODIFIED },
     FAQ,
   );
 
@@ -106,7 +112,7 @@ export default async function Page() {
         <strong>道具を揃えて練習場に通ったあと、一緒にコースへ行く人がいない</strong>ところで止まります。
         この記事では、かかるお金を正直に並べたうえで、その先の壁の越え方を書きます。
       </p>
-      <p className="meta">最終更新：{today}</p>
+      <p className="meta">最終更新：{updated}</p>
 
       <div className="answer">
         <span className="at">結論</span>

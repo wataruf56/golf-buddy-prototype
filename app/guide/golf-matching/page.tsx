@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { ArticleShell } from '@/components/site/ArticleShell';
-import { articleJsonLd } from '@/lib/articleMeta';
+import { articleJsonLd, displayDate } from '@/lib/articleMeta';
 import { StartButton } from '@/components/StartButton';
 import { getGuideStats } from '@/lib/guideStats';
 
@@ -105,15 +105,21 @@ const FAQ = [
   },
 ];
 
+// 本文を直したらこの日付を上げる。あわせて public/sitemap.xml の lastmod も同じ日に
+// 揃えること（ページ表示・Article の dateModified・sitemap の3か所で同じ日を名乗る）。
+const MODIFIED = '2026-09-16';
+
 export default async function Page() {
   const s = await getGuideStats();
   const showFill = s.fillRate != null && s.fillN >= 3;
   const showAge = s.avgAge != null && s.ageN >= 20;
   const showAgain = s.againRate != null && s.againN >= 20;
   const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '/');
+  // 表示する更新日は MODIFIED（=dateModified・lastmod と同じ日）を使う。
+  const updated = displayDate(MODIFIED);
 
   const jsonLd = articleJsonLd(
-    { path: '/guide/golf-matching', title: TITLE, description: DESC, published: '2026-09-03', modified: '2026-09-16' },
+    { path: '/guide/golf-matching', title: TITLE, description: DESC, published: '2026-09-03', modified: MODIFIED },
     FAQ,
   );
 
@@ -128,7 +134,7 @@ export default async function Page() {
         ここを取り違えると、登録してから「思っていたのと違う」になります。
         選ぶときの軸を先に整理します。
       </p>
-      <p className="meta">最終更新：{today}</p>
+      <p className="meta">最終更新：{updated}</p>
 
       <div className="answer">
         <span className="at">結論</span>
