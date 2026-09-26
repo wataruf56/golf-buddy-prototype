@@ -65,6 +65,10 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  // 「＋ 追加」を押した組（後半は 'back:<組id>'）。ドラッグ＆ドロップは残すが、
+  // 画面の下の「未割り当て」から上の組までドラッグで運ぶのはスクロールできず難しい、
+  // という指摘があったので、組の側から選んで入れられるようにした。
+  const [pickerFor, setPickerFor] = useState<string | null>(null);
   // 自由記入モードの組（コースがプリセット以外、または「自由記入」を選んだ組）。
   const [freeCourse, setFreeCourse] = useState<Set<string>>(() => {
     const s = new Set<string>();
@@ -82,6 +86,10 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   const noShowSet = new Set(noShow);
   // 未割り当て = 組にも「当日来れなかった人」にも入っていない参加者。
   const pool = participantIds.filter((id) => !assigned.has(id) && !noShowSet.has(id));
+  // 後半の未割り当て（前半で組にいて、後半のどの組にもいない人）。「＋ 追加」の候補に使う。
+  const backPoolAll = backOn
+    ? (() => { const inBack = new Set(groupsBack.flatMap((g) => g.memberIds)); return groups.flatMap((g) => g.memberIds).filter((id) => !inBack.has(id)); })()
+    : [];
   const needed = Math.ceil(Math.max(0, participantIds.length - noShow.length) / GROUP_MAX);
 
   // ---------- read-only view (non-host) ----------
@@ -340,7 +348,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   return (
     <div className="bg-card rounded-card p-4 shadow-card mb-4">
       <div className="text-[13px] font-bold mb-0.5">⛳ 組分け・スタート時間（主催者）</div>
-      <div className="text-[10px] text-muted mb-2.5">「未割り当て」から各組へドラッグ。メンバーの「×」または外へドラッグで未割り当てに戻せます。</div>
+      <div className="text-[10px] text-muted mb-2.5">各組の「＋ 追加」から未割り当ての人を選んで入れられます（ドラッグでも可）。メンバーの「×」または外へドラッグで未割り当てに戻せます。</div>
 
       {/* reservation / capacity */}
       <div className="flex items-center justify-between bg-green-light rounded-xl px-3 py-2 mb-2.5">
@@ -389,6 +397,9 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
                 <span className="flex items-center gap-0.5 flex-shrink-0">
                   <button onClick={() => moveGroup(g.id, -1)} disabled={gi === 0} aria-label="この組を上へ" className="w-6 h-6 rounded-md border border-border text-sub font-black bg-card text-[11px] leading-none disabled:opacity-30">↑</button>
                   <button onClick={() => moveGroup(g.id, 1)} disabled={gi === groups.length - 1} aria-label="この組を下へ" className="w-6 h-6 rounded-md border border-border text-sub font-black bg-card text-[11px] leading-none disabled:opacity-30">↓</button>
+                  <button type="button" onClick={() => setPickerFor(g.id)} disabled={pool.length === 0}
+                    aria-label="この組に未割り当ての人を追加"
+                    className="ml-1 px-2 h-6 rounded-md border border-green text-green font-black bg-card text-[11px] leading-none disabled:opacity-30">＋ 追加</button>
                 </span>
               </span>
               <span className="flex items-center gap-1.5 flex-shrink-0">
@@ -440,6 +451,49 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
         })}
       </div>
 
+      {/* 「＋ 追加」で開く、未割り当ての人の一覧。押すとその組に入る（続けて何人でも）。 */}
+      {pickerFor && (() => {
+        const isBack = pickerFor.startsWith('back:');
+        const gid = isBack ? pickerFor.slice('back:'.length) : pickerFor;
+        const list = isBack ? backPoolAll : pool;
+        const arr = isBack ? groupsBack : groups;
+        const gi = arr.findIndex((x) => x.id === gid);
+        const g = arr[gi];
+        const over = !!g && g.memberIds.length >= GROUP_MAX;
+        return (
+          <div className="fixed inset-0 z-[150] bg-black/45 flex items-end justify-center" onClick={() => setPickerFor(null)}>
+            <div className="bg-card rounded-t-2xl w-full max-w-[480px] p-4 pb-8 max-h-[75vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-[14px] font-black">組{gi + 1}{isBack ? '（後半）' : ''}に追加 <span className="text-[11px] text-sub font-bold">（{g?.memberIds.length ?? 0}/{GROUP_MAX}）</span></div>
+                <button type="button" onClick={() => setPickerFor(null)} className="px-3 py-1.5 rounded-lg border border-border text-[12px] font-bold bg-bg">閉じる</button>
+              </div>
+              {over && <div className="text-[11px] text-red-600 font-bold mb-2">⚠️ この組は規定の{GROUP_MAX}名に達しています（入れることはできます）</div>}
+              {list.length === 0 ? (
+                <div className="text-[12px] text-muted py-4 text-center">{isBack ? '後半の未割り当ての人はいません' : '未割り当ての人はいません'}</div>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {list.map((id) => {
+                    const u = userOf(id);
+                    return (
+                      <button key={id} type="button" onClick={() => moveMember(id, isBack ? `back:${gid}` : gid)}
+                        className="flex items-center gap-2 bg-bg border border-border rounded-[10px] px-2.5 py-2.5 text-[13px] font-bold text-left">
+                        {u
+                          ? <Avatar user={u} size={24} emojiSize={12} />
+                          : <span className="w-[24px] h-[24px] rounded-full bg-card border border-border flex items-center justify-center text-[12px]">👤</span>}
+                        <span className="truncate">{nameOf(id)}</span>
+                        {metaOf(id) && <span className="text-[10px] text-muted font-normal flex-shrink-0">（{metaOf(id)}）</span>}
+                        {isGuest(id) && <span className="text-[9px] font-bold text-sub bg-card border border-border rounded px-1 flex-shrink-0">ゲスト</span>}
+                        <span className="ml-auto text-green font-black text-[12px] flex-shrink-0">＋ 入れる</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── 後半の組（前半と入れ替える場合だけ） ──
           「入れ替えあり」にした瞬間に前半をコピーする。後半の盤は後半の組の間だけで動かせる。
           前半で組にいるのに後半のどこにもいない人は「後半の未割り当て」に出る。 */}
@@ -478,7 +532,12 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
                     <div key={g.id} data-dz={`back:${g.id}`} className={`border-2 border-dashed rounded-xl p-2.5 ${over ? 'border-red-400 bg-red-50' : 'border-border'}`}>
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-[12px] font-black">組{frontIdx >= 0 ? frontIdx + 1 : gi + 1}（後半） <span className={`text-[11px] ${over ? 'text-red-600 font-bold' : 'text-muted'}`}>({g.memberIds.length}/{GROUP_MAX})</span></span>
-                        <span className="text-[11px] text-sub font-bold">{g.startTime || ''}</span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="text-[11px] text-sub font-bold">{g.startTime || ''}</span>
+                          <button type="button" onClick={() => setPickerFor(`back:${g.id}`)} disabled={backPoolAll.length === 0}
+                            aria-label="この組（後半）に未割り当ての人を追加"
+                            className="px-2 h-6 rounded-md border border-green text-green font-black bg-card text-[11px] leading-none disabled:opacity-30">＋ 追加</button>
+                        </span>
                       </div>
                       {over && <div className="text-[10px] text-red-600 font-bold mb-1.5">⚠️ 人数オーバーです（{g.memberIds.length}名 / 規定{GROUP_MAX}名）</div>}
                       {avoidHits(g.memberIds).map(({ a, b, mutual }) => (

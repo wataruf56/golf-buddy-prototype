@@ -66,8 +66,15 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
 
   // 乗せる相手の候補＝「🙋 ピックアップ希望」か「未入力」の人（＝車がない人）だけ。
   // 「一人で行きます(cannot)」「不要(no_need)」「送迎できる(can=運転者)」は対象外。
+  // 車を出せる人（運転者）も候補に入れる。
+  // 車があるからといって必ず誰かを拾うわけではなく、その日はほかの人の車に乗ることもある
+  // （例：車ありの人を別の人の車に入れたい）。ほかの車に乗せた運転者の車は「使わない」扱いになる。
+  // ただし自分の車にすでに同乗者がいる運転者は、先にその人たちを出さないと乗せられない。
   const isPassengerCandidate = (id: string) => {
-    if (driverSet.has(id)) return false;
+    if (driverSet.has(id)) {
+      const own = cars.find((c) => c.driverId === id);
+      return !own || own.passengerIds.length === 0;
+    }
     const v = pp[id];
     const st = v?.status || (v?.stations?.length ? 'can' : undefined);
     return st === 'want' || !st; // 希望 or 未入力のみ
@@ -75,6 +82,11 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
   // 乗客プール = 候補のうち、どの車にも乗っていない人。
   const assigned = new Set(cars.flatMap((c) => c.passengerIds));
   const pool = allPeople.filter((id) => !assigned.has(id) && isPassengerCandidate(id));
+  // ほかの車に乗る運転者（その人の車は使わない）
+  const ridingDrivers = new Set(driverIds.filter((did) => assigned.has(did)));
+  // 「＋ 乗せる」を押した車。ドラッグは残すが、下の未割り当てから上の車まで運ぶのは
+  // スクロールできず難しいので、車の側から選んで乗せられるようにした。
+  const [pickerFor, setPickerFor] = useState<string | null>(null);
 
   // 「自分で行く（送迎はいらない）」と答えた人。
   //
@@ -133,10 +145,13 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
   function setCarsDirty(next: CarAssignment[]) { setCars(next); setDirty(true); }
 
   function movePassenger(id: string, toZone: string) {
+    if (toZone === id) return;   // 自分の車には「乗る」のではなく運転する
     setCars((prev) => {
       let next = prev.map((c) => ({ ...c, passengerIds: c.passengerIds.filter((m) => m !== id) }));
       if (toZone !== 'pool') {
         next = next.map((c) => (c.driverId === toZone ? { ...c, passengerIds: [...c.passengerIds, id] } : c));
+        // 運転者がほかの車に乗るなら、その人の車は使わない（同乗者を未割り当てへ戻す）
+        next = next.map((c) => (c.driverId === id ? { ...c, passengerIds: [] } : c));
       }
       return next;
     });
@@ -233,7 +248,7 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
 
   // 未割り当ての候補（希望・未入力）を、空きのある車へ上から詰めていく自動割り当て。
   function autoAssign() {
-    const seekers = [...pool];
+    const seekers = pool.filter((id) => !driverSet.has(id));   // 運転者は自動では乗せない
     let next = cars.map((c) => ({ ...c }));
     for (const sid of seekers) {
       // 定員（運転者含む）に空きがある最初の車へ。
@@ -251,7 +266,7 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
     try {
       const res = await fetch(`/api/rounds/${round.id}/car-assignments`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assignments: cars }), cache: 'no-store', credentials: 'include',
+        body: JSON.stringify({ assignments: cars.filter((c) => !ridingDrivers.has(c.driverId)) }), cache: 'no-store', credentials: 'include',
       });
       if (!res.ok) throw new Error(`${res.status}`);
       await store.refreshRounds();
@@ -279,6 +294,7 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
         {u ? <Avatar user={u} size={22} emojiSize={12} /> : <span className="w-[22px] h-[22px] rounded-full bg-bg border border-border flex items-center justify-center text-[12px]">👤</span>}
         <span className="truncate">{nameOf(id)}</span>
         {st === 'want' && <span className="text-[9px] font-bold text-orange bg-orange-light border border-orange rounded px-1 flex-shrink-0">🙋希望</span>}
+        {driverSet.has(id) && <span className="text-[9px] font-bold text-green bg-green-light border border-green rounded px-1 flex-shrink-0">🚗車あり</span>}
         {isGuest(id) && <span className="text-[9px] font-bold text-sub bg-bg border border-border rounded px-1 flex-shrink-0">ゲスト</span>}
         {v?.stations?.length ? <span className="text-[9px] text-muted font-normal flex-shrink-0">{v.stations[0]}駅</span> : null}
         {inCar && (
@@ -304,7 +320,7 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
   return (
     <div className="bg-card rounded-card p-4 shadow-card mb-4">
       <div className="text-[13px] font-bold mb-0.5">🚗 配車（車の割り振り）（主催者）</div>
-      <div className="text-[10px] text-muted mb-2.5">「未割り当て」から各車へドラッグ。運転者は「ピックアップできます」と答えた人です。定員は運転者を含みます。<b>自分の車で行く人・送迎がいらない人は「🚶 自分で行く」へ。</b>ゲストのぶんはここでしか設定できません。</div>
+      <div className="text-[10px] text-muted mb-2.5">各車の「＋ 乗せる」から未割り当ての人を選んで乗せられます（ドラッグでも可）。運転者は「ピックアップできます」と答えた人です。<b>車がある人をほかの車に乗せることもできます</b>（その人の車はその日は使わない扱い）。定員は運転者を含みます。<b>自分の車で行く人・送迎がいらない人は「🚶 自分で行く」へ。</b>ゲストのぶんはここでしか設定できません。</div>
 
       <div className="flex gap-2 mb-3">
         <button onClick={autoAssign} disabled={pool.length === 0} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold disabled:opacity-50">🪄 自動割り当て</button>
@@ -323,9 +339,23 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
               <div className="flex items-center justify-between mb-1.5 gap-2">
                 <span className="inline-flex items-center gap-1.5 text-[13px] font-black">
                   🚗 {du ? <Avatar user={du} size={20} emojiSize={11} /> : null}{nameOf(c.driverId)}の車
-                  <span className={`text-[11px] ${over ? 'text-red-600 font-bold' : 'text-muted'}`}>({riders}{cap ? `/${cap}` : ''}名)</span>
+                  {!ridingDrivers.has(c.driverId) && <span className={`text-[11px] ${over ? 'text-red-600 font-bold' : 'text-muted'}`}>({riders}{cap ? `/${cap}` : ''}名)</span>}
                 </span>
+                {!ridingDrivers.has(c.driverId) && (
+                  <button type="button" onClick={() => setPickerFor(c.driverId)} disabled={pool.length === 0}
+                    aria-label="この車に未割り当ての人を乗せる"
+                    className="px-2 h-6 rounded-md border border-green text-green font-black bg-card text-[11px] leading-none disabled:opacity-30">＋ 乗せる</button>
+                )}
               </div>
+              {ridingDrivers.has(c.driverId) && (() => {
+                const host = cars.find((x) => x.passengerIds.includes(c.driverId));
+                return (
+                  <div className="text-[11px] text-sub font-bold bg-bg border border-hair rounded-lg px-2 py-1.5">
+                    この日は{host ? `${nameOf(host.driverId)}さんの車` : 'ほかの車'}に乗ります（この車は使いません）
+                  </div>
+                );
+              })()}
+              {!ridingDrivers.has(c.driverId) && (<>
               <div className="flex items-center gap-1.5 mb-1.5">
                 <span className="text-[10px] text-muted flex-shrink-0">🚉 集合</span>
                 <input
@@ -338,13 +368,53 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
               {over && <div className="text-[10px] text-red-600 font-bold mb-1.5">⚠️ 定員オーバーです（運転者含め{riders}名 / 定員{cap}名）</div>}
               <div className="flex flex-col gap-1.5 min-h-[36px]">
                 {c.passengerIds.length === 0
-                  ? <div className="text-[11px] text-muted px-1 py-1.5">ここに同乗者をドラッグ</div>
+                  ? <div className="text-[11px] text-muted px-1 py-1.5">「＋ 乗せる」で選ぶか、ここに同乗者をドラッグ</div>
                   : c.passengerIds.map((id) => renderPassenger(id, true))}
               </div>
+              </>)}
             </div>
           );
         })}
       </div>
+
+      {/* 「＋ 乗せる」で開く、未割り当ての人の一覧。押すとその車に乗る（続けて何人でも）。 */}
+      {pickerFor && (() => {
+        const car = cars.find((c) => c.driverId === pickerFor);
+        const cap = capacityOf(pickerFor);
+        const riders = (car?.passengerIds.length ?? 0) + 1;
+        return (
+          <div className="fixed inset-0 z-[150] bg-black/45 flex items-end justify-center" onClick={() => setPickerFor(null)}>
+            <div className="bg-card rounded-t-2xl w-full max-w-[480px] p-4 pb-8 max-h-[75vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-[14px] font-black">🚗 {nameOf(pickerFor)}の車に乗せる <span className="text-[11px] text-sub font-bold">（{riders}{cap ? `/${cap}` : ''}名）</span></div>
+                <button type="button" onClick={() => setPickerFor(null)} className="px-3 py-1.5 rounded-lg border border-border text-[12px] font-bold bg-bg">閉じる</button>
+              </div>
+              {cap > 0 && riders >= cap && <div className="text-[11px] text-red-600 font-bold mb-2">⚠️ 定員（{cap}名）に達しています（乗せることはできます）</div>}
+              {pool.filter((id) => id !== pickerFor).length === 0 ? (
+                <div className="text-[12px] text-muted py-4 text-center">未割り当ての人はいません</div>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {pool.filter((id) => id !== pickerFor).map((id) => {
+                    const u = userOf(id);
+                    return (
+                      <button key={id} type="button" onClick={() => movePassenger(id, pickerFor)}
+                        className="flex items-center gap-2 bg-bg border border-border rounded-[10px] px-2.5 py-2.5 text-[13px] font-bold text-left">
+                        {u
+                          ? <Avatar user={u} size={24} emojiSize={12} />
+                          : <span className="w-[24px] h-[24px] rounded-full bg-card border border-border flex items-center justify-center text-[12px]">👤</span>}
+                        <span className="truncate">{nameOf(id)}</span>
+                        {driverSet.has(id) && <span className="text-[9px] font-bold text-green bg-green-light border border-green rounded px-1 flex-shrink-0">🚗車あり</span>}
+                        {isGuest(id) && <span className="text-[9px] font-bold text-sub bg-card border border-border rounded px-1 flex-shrink-0">ゲスト</span>}
+                        <span className="ml-auto text-green font-black text-[12px] flex-shrink-0">＋ 乗せる</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* unassigned pool */}
       <div data-dz="pool" className="border border-[#dfe6e2] bg-[#fbfdfc] rounded-xl p-2.5 mt-2.5">
