@@ -8,7 +8,6 @@ import { RoundCard } from '@/components/RoundCard';
 import { Avatar } from '@/components/Avatar';
 import { HomeUpdateCard } from '@/components/HomeUpdateCard';
 import { OfficialHomeCard } from '@/components/OfficialHomeCard';
-import { DriverAskCard } from '@/components/DriverAskCard';
 import { toast } from '@/components/Toast';
 import { RESTRICTION_MSG } from '@/lib/restrictions';
 import { isRoundHost } from '@/lib/roundHost';
@@ -304,9 +303,9 @@ export default function HomePage() {
 
       <HomeUpdateCard />
 
-      {/* 管理者の代理ラウンド募集：車を出せる人への声かけ。
-          「車あり」かつ未回答の人にだけ出るので、ほとんどの人には何も増えない。 */}
-      <DriverAskCard />
+      {/* 管理者の代理ラウンド募集（駅から相乗り）の「車を出せる人への声かけ」は
+          2026-09-26 に一旦やめた（見た21人のうち登録1人）。代わりに「行ける日」を集める。
+          部品（DriverAskCard）と API は残してある。戻すならこの1行。 */}
 
       <OfficialHomeCard />
 

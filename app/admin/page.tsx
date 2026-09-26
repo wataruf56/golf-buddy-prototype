@@ -87,6 +87,7 @@ function Inner() {
     { href: `/admin/dm?token=${token}`, emoji: '💬', title: 'メッセージ', desc: 'DMログ（誰↔誰・本文）/ 未読ユーザー・未読通知の設定' },
     { href: `/admin/users?token=${token}`, emoji: '👥', title: 'ユーザー管理', desc: 'LINE登録ユーザー一覧 / Swing許可リスト編集' },
     { href: `/admin/rounds?token=${token}`, emoji: '🏆', title: 'ラウンド募集', desc: '全募集の一覧・削除 / タイトル定型文の編集' },
+    { href: `/admin/availability?token=${token}`, emoji: '📅', title: '行ける日（会員の空き）', desc: '会員が出した「行ける日」を日付ごとに。名前・車・最寄り駅つき（コース予約・ピックアップ調整用）' },
     { href: `/admin/official?token=${token}`, emoji: '🚗', title: '代理ラウンド募集', desc: '運営が代わりに立てる募集。枠を立てる / ホームの声かけ / レポート' },
     { href: `/admin/audit?token=${token}`, emoji: '📒', title: '操作ログ', desc: '誰が・誰に・何をしたか（自動の再会通知も含む）' },
     { href: `/admin/reminders?token=${token}`, emoji: '⏰', title: '開催前リマインド設定', desc: '参加ラウンドの何日前に全体通知するか（1ヶ月前/1週間前/前日など）' },
