@@ -347,6 +347,13 @@ export const store = {
     setState({ rounds: state.rounds.map((r) => (r.id === roundId ? { ...r, status: 'closed' } : r)) });
   },
 
+  // 「まだ」＝3日間は完了の催促を出さない（主催者・共同管理者）。
+  snoozeCompletion: async (roundId: string) => {
+    const r = await api<{ ok: boolean; completionSnoozedUntil: number | null }>(`/api/rounds/${roundId}/completion-snooze`, { method: 'POST' });
+    setState({ rounds: state.rounds.map((x) => (x.id === roundId ? { ...x, completionSnoozedUntil: r.completionSnoozedUntil || undefined } : x)) });
+    return r;
+  },
+
   completeRound: async (roundId: string) => {
     await api(`/api/rounds/${roundId}/complete`, { method: 'POST' });
     await store.refreshPending();

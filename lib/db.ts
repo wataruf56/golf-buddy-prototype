@@ -191,11 +191,23 @@ class MemoryDB implements DB {
     r.pendingApplicantIds = (r.pendingApplicantIds || []).filter((x) => x !== userId);
     if (!already) r.applicantIds.push(userId);
     if (guestId) {
+      const named = (r.guests || []).length;
       r.guests = (r.guests || []).filter((g) => g.id !== guestId);
       r.groups = (r.groups || []).map((g) => ({ ...g, memberIds: (g.memberIds || []).map((m) => (m === guestId ? userId : m)) }));
       if (r.groupsBack?.length) r.groupsBack = r.groupsBack.map((g) => ({ ...g, memberIds: (g.memberIds || []).map((m) => (m === guestId ? userId : m)) }));
       r.noShowIds = (r.noShowIds || []).map((x) => (x === guestId ? userId : x));
-      if (!already) r.currentCount += 1; // ゲストは未算入・登録者は算入
+      // 名前付きゲストが知り合い枠の中の人なら、枠を1つ減らす（currentCount は user+1/枠-1 で据え置き）。
+      // 組み分けボードから足したゲスト（枠に数えていない）なら、従来どおり登録者ぶんを足す。
+      let m = r.externalMale || 0, f = r.externalFemale || 0, c = r.externalCount || 0;
+      const inSlots = named <= m + f + c && m + f + c > 0;
+      if (inSlots) {
+        if (gender === 'female' && f > 0) f--; else if (gender === 'male' && m > 0) m--;
+        else if (f > 0) f--; else if (m > 0) m--; else if (c > 0) c--;
+        r.externalMale = m; r.externalFemale = f; r.externalCount = c;
+        if (already) r.currentCount = Math.max(1, r.currentCount - 1);
+      } else if (!already) {
+        r.currentCount += 1;
+      }
     } else {
       let m = r.externalMale || 0, f = r.externalFemale || 0, c = r.externalCount || 0;
       if (gender === 'female' && f > 0) f--; else if (gender === 'male' && m > 0) m--;
@@ -709,6 +721,7 @@ class FirestoreDB implements DB {
       const patch: Record<string, unknown> = { applicantIds, pendingApplicantIds };
       let currentCount = data.currentCount || 1;
       if (guestId) {
+        const named = (data.guests || []).length;
         patch.guests = (data.guests || []).filter((g) => g.id !== guestId);
         patch.groups = (data.groups || []).map((g: any) => ({ ...g, memberIds: (g.memberIds || []).map((m: string) => (m === guestId ? userId : m)) }));
         // 後半の組（前半と入れ替えている場合）にもゲストが入っているので、同じく本人に付け替える
@@ -716,7 +729,21 @@ class FirestoreDB implements DB {
           patch.groupsBack = (data as any).groupsBack.map((g: any) => ({ ...g, memberIds: (g.memberIds || []).map((m: string) => (m === guestId ? userId : m)) }));
         }
         patch.noShowIds = (data.noShowIds || []).map((x) => (x === guestId ? userId : x));
-        if (!already) currentCount += 1;
+        // 名前付きゲストは「知り合い枠に名前を付けた人」であることが多い。その場合、本人に
+        // 置き換えたら枠を1つ減らさないと、currentCount = 主催者+知り合い+参加者 の式で
+        // 同じ人を2回数える（8人枠に10人と出ていた原因）。
+        // 名前付きゲストの数が知り合い枠を超えているときは、組み分けボードから足した
+        // 「枠に数えていないゲスト」なので、従来どおり登録者ぶんを足す。
+        let m = data.externalMale || 0, f = data.externalFemale || 0, c = data.externalCount || 0;
+        const inSlots = named <= m + f + c && m + f + c > 0;
+        if (inSlots) {
+          if (gender === 'female' && f > 0) f--; else if (gender === 'male' && m > 0) m--;
+          else if (f > 0) f--; else if (m > 0) m--; else if (c > 0) c--;
+          patch.externalMale = m; patch.externalFemale = f; patch.externalCount = c;
+          if (already) currentCount = Math.max(1, currentCount - 1);
+        } else if (!already) {
+          currentCount += 1;
+        }
       } else {
         let m = data.externalMale || 0, f = data.externalFemale || 0, c = data.externalCount || 0;
         if (gender === 'female' && f > 0) f--; else if (gender === 'male' && m > 0) m--;

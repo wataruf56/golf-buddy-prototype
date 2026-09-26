@@ -197,6 +197,9 @@ export type Round = {
   // round. Used by /api/cron/round-reminders to avoid double-sending. Unset
   // = never sent.
   reviewReminderSentAt?: number;
+  // 「ラウンドは完了しましたか？」に「まだ」と答えた主催者へ、この時刻までは催促
+  // （詳細のプロンプト／全画面のゲート）を出さない。POST /api/rounds/[id]/completion-snooze。
+  completionSnoozedUntil?: number;
   // ms timestamp when the「ラウンドは完了しましたか？」主催者向け確認通知を送った時刻。
   // スタート時間+6.5h後に主催者だけへ1回送るために使う（cron の二重送信防止）。
   completionPromptSentAt?: number;

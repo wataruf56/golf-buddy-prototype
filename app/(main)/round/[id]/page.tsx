@@ -282,7 +282,8 @@ export default function RoundDetailPage() {
   })();
   const showCompletionPrompt = isHost && round.status === 'open'
     && startMs != null && hydrated && Date.now() >= startMs + 6.5 * 3600 * 1000
-    && !completionDismissed;
+    && !completionDismissed
+    && !(((round as any).completionSnoozedUntil || 0) > Date.now());   // 「まだ」から3日間は出さない
   const isFlexible = round.type === 'flexible';
   const dateLabel = round.dateType === 'range' ? round.dateRange : formatDate(round.date);
   // 運営枠のグループチャットは**人がそろってから**始まる。
@@ -747,7 +748,13 @@ export default function RoundDetailPage() {
             <div className="text-sm font-black mb-1">{isDrink ? '🍻 飲み会は終わりましたか？' : '🏌️ ラウンドは完了しましたか？'}</div>
             <div className="text-[12px] text-sub mb-3 leading-relaxed">{isDrink ? '「完了しました」を押すと、募集を締めて記録に残します（写真アルバムは引き続き使えます）。' : '「完了しました」を押すと、参加者全員に「レビューをお願いします」の通知が届きます。'}</div>
             <div className="flex gap-2">
-              <button onClick={() => setCompletionDismissed(true)} className="flex-1 py-3 bg-card border border-border text-sub rounded-xl text-sm font-bold">まだ</button>
+              <button
+                onClick={async () => {
+                  setCompletionDismissed(true);
+                  // 3日間は催促しない（全画面のゲートも含む）。編集して整えてから完了できる。
+                  try { await store.snoozeCompletion(round!.id); } catch { /* 出さないだけなので失敗しても続ける */ }
+                }}
+                className="flex-1 py-3 bg-card border border-border text-sub rounded-xl text-sm font-bold">まだ</button>
               <button
                 onClick={async () => { try { await store.completeRound(round!.id); toast('ラウンドを完了しました'); router.push('/home'); } catch (e) { toast('失敗: ' + (e as Error).message, 'error'); } }}
                 className="flex-1 py-3 bg-green text-white rounded-xl text-sm font-black"

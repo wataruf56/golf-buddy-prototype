@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useStore, getMe } from '@/lib/store';
+import { useState } from 'react';
+import { useStore, getMe, store } from '@/lib/store';
+import { toast } from '@/components/Toast';
 
 // JST の YYYY-MM-DD。日付の比較は文字列のままで正しく並ぶ。
 function jstToday(): string {
@@ -18,8 +20,11 @@ function jstToday(): string {
 //   ・自分が募集した人（hostId が自分）
 //   ・開催日が決まっていて、その日を過ぎている（date < 今日）
 //   ・まだ completed になっていない
-// 当該ラウンドのページでは出さない（そこで完了操作をするため）。
+//   ・「まだ」で3日間の見送り（completionSnoozedUntil）をしていない
+// 当該ラウンドのページとその配下（編集・チャット等）では出さない。
+// 以前は編集ページも塞いでいて、「まだ」と答えた主催者が知り合い枠を直せなかった。
 export function CompletionGate() {
+  const [busy, setBusy] = useState(false);
   const me = useStore(getMe);
   const rounds = useStore((s) => s.rounds);
   const pathname = usePathname();
@@ -27,12 +32,14 @@ export function CompletionGate() {
 
   const today = jstToday();
   // 何件もあるときは、いちばん古いものから片付けてもらう。
+  const now = Date.now();
   const overdue = rounds
     .filter((r) => r.hostId === me.id && r.status !== 'completed' && !!r.date && r.date < today)
+    .filter((r) => !((r as any).completionSnoozedUntil > now))
     .sort((a, b) => String(a.date).localeCompare(String(b.date)));
   const target = overdue[0];
   if (!target) return null;
-  if (pathname === `/round/${target.id}`) return null;
+  if (pathname === `/round/${target.id}` || pathname.startsWith(`/round/${target.id}/`)) return null;
 
   const isDrink = (target as any).eventType === 'drink';
   const rest = overdue.length - 1;
@@ -57,6 +64,18 @@ export function CompletionGate() {
         >
           {isDrink ? '飲み会を完了する' : 'ラウンドを完了する'}
         </Link>
+        <button
+          type="button" disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            try { await store.snoozeCompletion(target.id); toast('3日間は出しません'); }
+            catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
+            finally { setBusy(false); }
+          }}
+          className="block w-full mt-2 py-2.5 bg-card border border-border text-sub rounded-xl font-bold text-[13px] disabled:opacity-50"
+        >
+          まだ（3日間は出さない）
+        </button>
         {rest > 0 && (
           <div className="text-[11px] text-muted mt-3">ほかにも未完了が {rest} 件あります</div>
         )}
