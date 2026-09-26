@@ -397,9 +397,6 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
                 <span className="flex items-center gap-0.5 flex-shrink-0">
                   <button onClick={() => moveGroup(g.id, -1)} disabled={gi === 0} aria-label="この組を上へ" className="w-6 h-6 rounded-md border border-border text-sub font-black bg-card text-[11px] leading-none disabled:opacity-30">↑</button>
                   <button onClick={() => moveGroup(g.id, 1)} disabled={gi === groups.length - 1} aria-label="この組を下へ" className="w-6 h-6 rounded-md border border-border text-sub font-black bg-card text-[11px] leading-none disabled:opacity-30">↓</button>
-                  <button type="button" onClick={() => setPickerFor(g.id)} disabled={pool.length === 0}
-                    aria-label="この組に未割り当ての人を追加"
-                    className="ml-1 px-2 h-6 rounded-md border border-green text-green font-black bg-card text-[11px] leading-none disabled:opacity-30">＋ 追加</button>
                 </span>
               </span>
               <span className="flex items-center gap-1.5 flex-shrink-0">
@@ -443,9 +440,14 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
             ))}
             <div className="flex flex-col gap-1.5 min-h-[40px]">
               {g.memberIds.length === 0
-                ? <div className="text-[11px] text-muted px-1 py-1.5">ここにドラッグ</div>
+                ? <div className="text-[11px] text-muted px-1 py-1.5">「＋ 追加」で選ぶか、ここにドラッグ</div>
                 : g.memberIds.map((id) => renderMember(id, true))}
             </div>
+            <button type="button" onClick={() => setPickerFor(g.id)} disabled={pool.length === 0}
+              aria-label="この組に未割り当ての人を追加"
+              className="w-full mt-1.5 py-2 rounded-lg border-2 border-dashed border-green text-green text-[12px] font-black bg-card disabled:opacity-30">
+              ＋ 追加（未割り当て {pool.length}人）
+            </button>
           </div>
           );
         })}
@@ -532,12 +534,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
                     <div key={g.id} data-dz={`back:${g.id}`} className={`border-2 border-dashed rounded-xl p-2.5 ${over ? 'border-red-400 bg-red-50' : 'border-border'}`}>
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-[12px] font-black">組{frontIdx >= 0 ? frontIdx + 1 : gi + 1}（後半） <span className={`text-[11px] ${over ? 'text-red-600 font-bold' : 'text-muted'}`}>({g.memberIds.length}/{GROUP_MAX})</span></span>
-                        <span className="flex items-center gap-1.5">
-                          <span className="text-[11px] text-sub font-bold">{g.startTime || ''}</span>
-                          <button type="button" onClick={() => setPickerFor(`back:${g.id}`)} disabled={backPoolAll.length === 0}
-                            aria-label="この組（後半）に未割り当ての人を追加"
-                            className="px-2 h-6 rounded-md border border-green text-green font-black bg-card text-[11px] leading-none disabled:opacity-30">＋ 追加</button>
-                        </span>
+                        <span className="text-[11px] text-sub font-bold">{g.startTime || ''}</span>
                       </div>
                       {over && <div className="text-[10px] text-red-600 font-bold mb-1.5">⚠️ 人数オーバーです（{g.memberIds.length}名 / 規定{GROUP_MAX}名）</div>}
                       {avoidHits(g.memberIds).map(({ a, b, mutual }) => (
@@ -549,9 +546,14 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
                       ))}
                       <div className="flex flex-col gap-1.5 min-h-[40px]">
                         {g.memberIds.length === 0
-                          ? <div className="text-[11px] text-muted px-1 py-1.5">ここにドラッグ</div>
+                          ? <div className="text-[11px] text-muted px-1 py-1.5">「＋ 追加」で選ぶか、ここにドラッグ</div>
                           : g.memberIds.map((id) => renderMember(id, true, false, 'back'))}
                       </div>
+                      <button type="button" onClick={() => setPickerFor(`back:${g.id}`)} disabled={backPoolAll.length === 0}
+                        aria-label="この組（後半）に未割り当ての人を追加"
+                        className="w-full mt-1.5 py-2 rounded-lg border-2 border-dashed border-green text-green text-[12px] font-black bg-card disabled:opacity-30">
+                        ＋ 追加（後半の未割り当て {backPoolAll.length}人）
+                      </button>
                     </div>
                   );
                 })}

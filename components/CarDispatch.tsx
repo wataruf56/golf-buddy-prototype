@@ -341,11 +341,6 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
                   🚗 {du ? <Avatar user={du} size={20} emojiSize={11} /> : null}{nameOf(c.driverId)}の車
                   {!ridingDrivers.has(c.driverId) && <span className={`text-[11px] ${over ? 'text-red-600 font-bold' : 'text-muted'}`}>({riders}{cap ? `/${cap}` : ''}名)</span>}
                 </span>
-                {!ridingDrivers.has(c.driverId) && (
-                  <button type="button" onClick={() => setPickerFor(c.driverId)} disabled={pool.length === 0}
-                    aria-label="この車に未割り当ての人を乗せる"
-                    className="px-2 h-6 rounded-md border border-green text-green font-black bg-card text-[11px] leading-none disabled:opacity-30">＋ 乗せる</button>
-                )}
               </div>
               {ridingDrivers.has(c.driverId) && (() => {
                 const host = cars.find((x) => x.passengerIds.includes(c.driverId));
@@ -371,6 +366,11 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
                   ? <div className="text-[11px] text-muted px-1 py-1.5">「＋ 乗せる」で選ぶか、ここに同乗者をドラッグ</div>
                   : c.passengerIds.map((id) => renderPassenger(id, true))}
               </div>
+              <button type="button" onClick={() => setPickerFor(c.driverId)} disabled={pool.filter((id) => id !== c.driverId).length === 0}
+                aria-label="この車に未割り当ての人を乗せる"
+                className="w-full mt-1.5 py-2 rounded-lg border-2 border-dashed border-green text-green text-[12px] font-black bg-card disabled:opacity-30">
+                ＋ 乗せる（未割り当て {pool.filter((id) => id !== c.driverId).length}人）
+              </button>
               </>)}
             </div>
           );
