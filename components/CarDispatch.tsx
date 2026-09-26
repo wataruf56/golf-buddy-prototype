@@ -90,7 +90,11 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
 
   // ---------- read-only view (participants) ----------
   if (!isHost) {
-    const saved = (round.carAssignments || []).filter((c) => c.passengerIds.length > 0 || c.station);
+    // 抜けた人の車・同乗は出さない（データ側でも消すようにしたが、古い募集には残っていることがある）
+    const saved = (round.carAssignments || [])
+      .filter((c) => registeredIds.includes(c.driverId))
+      .map((c) => ({ ...c, passengerIds: (c.passengerIds || []).filter((p) => allPeople.includes(p)) }))
+      .filter((c) => c.passengerIds.length > 0 || c.station);
     if (!saved.length) return null;
     return (
       <div className="bg-card rounded-card p-4 shadow-card mb-4">

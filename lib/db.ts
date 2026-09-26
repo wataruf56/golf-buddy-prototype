@@ -4,6 +4,7 @@ import { getAdminDb } from './firebase';
 import { mockUsers, mockRounds, mockReviews, mockChats } from './mockData';
 import type { Chat, Message, PendingReview, Review, Round, RoundThread, RoundPhoto, SchedulePoll, User } from './types';
 import { sameGroupPeerIds, isNoShow } from './groups';
+import { scrubMemberFromRound, applyScrubInPlace, type MemberScrub } from './roundMembership';
 
 export interface DB {
   getUser(id: string): Promise<User | null>;
@@ -208,6 +209,7 @@ class MemoryDB implements DB {
     const r = this.rounds.find((x) => x.id === id);
     if (!r) throw new Error('round not found');
     r.pendingApplicantIds = (r.pendingApplicantIds || []).filter((x) => x !== userId);
+    applyScrubInPlace(r, scrubMemberFromRound(r, userId));
     return r;
   }
   async acceptInvite(id: string, userId: string) {
@@ -236,6 +238,8 @@ class MemoryDB implements DB {
       r.currentCount = Math.max(1, r.currentCount - 1);
     }
     r.pendingApplicantIds = (r.pendingApplicantIds || []).filter((x) => x !== userId);
+    // 組み分け・配車・送迎の回答などに残る痕跡も消す（lib/roundMembership）
+    applyScrubInPlace(r, scrubMemberFromRound(r, userId));
     return r;
   }
   async leaveRound(id: string, userId: string) {
@@ -732,8 +736,10 @@ class FirestoreDB implements DB {
       if (!snap.exists) throw new Error('round not found');
       const data = snap.data() as Omit<Round, 'id'>;
       const pending = (data.pendingApplicantIds || []).filter((x) => x !== userId);
-      tx.set(ref, { pendingApplicantIds: pending }, { merge: true });
-      return { ...data, id: snap.id, pendingApplicantIds: pending } as Round;
+      // 申請中の人は組み分けには入らないが、送迎の回答や組み分け希望に残ることがある
+      const scrub = scrubMemberFromRound(data, userId);
+      this.txScrub(tx, ref, { pendingApplicantIds: pending }, scrub);
+      return applyScrubInPlace({ ...data, id: snap.id, pendingApplicantIds: pending } as Round, scrub);
     });
   }
   async acceptInvite(id: string, userId: string) {
@@ -763,6 +769,22 @@ class FirestoreDB implements DB {
       return { ...data, id: snap.id, invitedIds } as Round;
     });
   }
+  /**
+   * トランザクションの中で、通常の項目の更新と「痕跡の掃除」を1回の update にまとめる。
+   * map のキーは merge では消せないので FieldValue.delete()。キーに '.' が入っても
+   * 壊れないよう FieldPath で指す。
+   */
+  private txScrub(tx: any, ref: any, base: Record<string, unknown>, scrub: MemberScrub) {
+    const admin = require('firebase-admin');
+    const { FieldPath, FieldValue } = admin.firestore;
+    const args: any[] = [];
+    for (const [k, v] of Object.entries(base)) args.push(new FieldPath(k), v);
+    for (const [k, v] of Object.entries(scrub.arrays)) args.push(new FieldPath(k), v);
+    for (const [k, key] of scrub.deleteKeys) args.push(new FieldPath(k, key), FieldValue.delete());
+    for (const [k, key, v] of scrub.setKeys) args.push(new FieldPath(k, key), v);
+    tx.update(ref, ...args);
+  }
+
   async kickApplicant(id: string, userId: string) {
     const ref = this.fs.collection('rounds').doc(id);
     return await this.fs.runTransaction(async (tx: any) => {
@@ -773,8 +795,12 @@ class FirestoreDB implements DB {
       const applicantIds = (data.applicantIds || []).filter((x) => x !== userId);
       const pending = (data.pendingApplicantIds || []).filter((x) => x !== userId);
       const currentCount = wasApproved ? Math.max(1, (data.currentCount || 1) - 1) : (data.currentCount || 1);
-      tx.set(ref, { applicantIds, pendingApplicantIds: pending, currentCount }, { merge: true });
-      return { ...data, id: snap.id, applicantIds, pendingApplicantIds: pending, currentCount } as Round;
+      // 組み分け・後半の組・送迎の回答・配車・提案・入金・組み分け希望・スコアからも消す。
+      // ここを applicantIds だけにしていたせいで、抜けた人が組み分けや配車に出続けていた。
+      const scrub = scrubMemberFromRound(data, userId);
+      this.txScrub(tx, ref, { applicantIds, pendingApplicantIds: pending, currentCount }, scrub);
+      const out = { ...data, id: snap.id, applicantIds, pendingApplicantIds: pending, currentCount } as Round;
+      return applyScrubInPlace(out, scrub);
     });
   }
   async leaveRound(id: string, userId: string) {
