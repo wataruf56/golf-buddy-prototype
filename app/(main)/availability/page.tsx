@@ -70,12 +70,12 @@ export default function AvailabilityPage() {
   async function save(next: { dates?: string[]; car?: 'have' | 'none'; seats?: number | null; bags?: number | null }, revert: Resp) {
     setBusy(true);
     try {
-      const body = {
-        dates: next.dates ?? revert.mine,
-        car: next.car ?? revert.car,
-        seats: next.seats === undefined ? revert.seats : next.seats,
-        bags: next.bags === undefined ? revert.bags : next.bags,
-      };
+      const car = next.car ?? revert.car;
+      let seats = next.seats === undefined ? revert.seats : next.seats;
+      let bags = next.bags === undefined ? revert.bags : next.bags;
+      // 車を出せる人は、画面に出ている初期値（4人・3個）をそのまま保存する（未設定のままにしない）
+      if (car === 'have') { seats = seats || 4; bags = bags || 3; }
+      const body = { dates: next.dates ?? revert.mine, car, seats, bags };
       const r = await fetch('/api/availability', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(body),
       });
@@ -86,6 +86,8 @@ export default function AvailabilityPage() {
         toast(j?.message || '保存できませんでした', 'error');
         return;
       }
+      // サーバーが持っている値に合わせる（初期値を入れた分など）
+      setData((cur) => (cur ? { ...cur, seats: j?.seats ?? cur.seats, bags: j?.bags ?? cur.bags } : cur));
       if (next.car && next.car !== revert.car) { store.refreshMe().catch(() => {}); }
     } catch {
       setData(revert);
@@ -235,7 +237,7 @@ export default function AvailabilityPage() {
                     <span>{d}</span>
                     <span className="flex gap-[2px] pb-1 h-2 items-center">
                       {dots.map((p, j) => (
-                        <i key={j} className={`block w-1.5 h-1.5 rounded-full ${p.gender === 'female' ? 'bg-sakura' : 'bg-blue'} ${p.car ? 'ring-[1.5px] ring-border' : ''} ${on ? 'ring-white' : ''}`} />
+                        <i key={j} className={`block w-1.5 h-1.5 rounded-full ${p.gender === 'female' ? 'bg-sakura' : 'bg-blue'} ${p.car ? (on ? 'ring-[1.5px] ring-white' : 'ring-[1.5px] ring-border') : ''}`} />
                       ))}
                       {others.length > 4 && <i className="not-italic text-[8px] text-sub leading-none">+{others.length - 4}</i>}
                     </span>

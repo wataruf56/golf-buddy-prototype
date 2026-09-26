@@ -57,10 +57,13 @@ export async function POST(req: NextRequest) {
 
   let body: any = {};
   try { body = await req.json(); } catch { /* noop */ }
+  if (!body || typeof body !== 'object') body = {};
   // dates を送ってこない（車の設定だけ変える）ときは、いまの日付を残す
-  const dates = Array.isArray(body?.dates) ? normalizeDates(body.dates) : ((await getAvailability(meId))?.dates || []);
-  const car = body?.car === 'have' ? 'have' : body?.car === 'none' ? 'none' : null;
-  const seats = clampCarNum(body?.seats); const bags = clampCarNum(body?.bags);
+  const dates = Array.isArray(body.dates) ? normalizeDates(body.dates) : ((await getAvailability(meId))?.dates || []);
+  const car = body.car === 'have' ? 'have' : body.car === 'none' ? 'none' : null;
+  // seats / bags は「送ってこない＝触らない」「null や 2〜8 の外＝消す」
+  const seats = 'seats' in body ? (clampCarNum(body.seats) ?? null) : undefined;
+  const bags = 'bags' in body ? (clampCarNum(body.bags) ?? null) : undefined;
 
   const saved = await saveAvailability(meId, dates, { seats, bags });
   if (car && car !== me.car) {

@@ -58,14 +58,22 @@ export async function getAvailability(userId: string): Promise<AvailabilityDoc |
   } catch { return null; }
 }
 
+/**
+ * 保存。seats / bags は undefined＝触らない、null や 2〜8 の外＝消す、数字＝入れる。
+ * 返すのは保存後の状態（触らなかった値は existing から引き継ぐ）。
+ */
 export async function saveAvailability(
-  userId: string, dates: string[], car?: { seats?: number; bags?: number },
+  userId: string, dates: string[], car?: { seats?: number | null; bags?: number | null },
 ): Promise<AvailabilityDoc> {
   const adb = getAdminDb() as any;
-  const seats = clampCarNum(car?.seats); const bags = clampCarNum(car?.bags);
-  const doc: AvailabilityDoc = { userId, dates: normalizeDates(dates), ...(seats ? { seats } : {}), ...(bags ? { bags } : {}), updatedAt: Date.now() };
-  if (adb && userId) await adb.collection(COLL).doc(userId).set(doc, { merge: true });
-  return doc;
+  const existing = await getAvailability(userId);
+  const write: Record<string, unknown> = { userId, dates: normalizeDates(dates), updatedAt: Date.now() };
+  if (car && car.seats !== undefined) write.seats = clampCarNum(car.seats) ?? null;
+  if (car && car.bags !== undefined) write.bags = clampCarNum(car.bags) ?? null;
+  if (adb && userId) await adb.collection(COLL).doc(userId).set(write, { merge: true });
+  const seats = car && car.seats !== undefined ? clampCarNum(car.seats) : existing?.seats;
+  const bags = car && car.bags !== undefined ? clampCarNum(car.bags) : existing?.bags;
+  return { userId, dates: write.dates as string[], ...(seats ? { seats } : {}), ...(bags ? { bags } : {}), updatedAt: write.updatedAt as number };
 }
 
 /**
