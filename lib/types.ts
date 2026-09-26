@@ -362,6 +362,9 @@ export type RoundGroup = {
 export type RoundGuest = {
   id: string;   // "gst_..." 形式
   name: string;
+  // 組み分けボードから足したときに選ぶ。知り合い枠（externalMale/Female）を男女で持つため。
+  // 編集画面の「知り合い枠に名前を付けた」ゲストには無いことがある。
+  gender?: 'male' | 'female';
 };
 
 // 参加の取りやめの記録。理由は本人が選ぶ（lib/leaveReasons）。主催者にだけ見せる。

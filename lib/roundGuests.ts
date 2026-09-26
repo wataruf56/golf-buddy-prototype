@@ -13,7 +13,7 @@ export function reconcileGuests(existing: RoundGuest[] | undefined, names: strin
   names.slice(0, 60).forEach((raw, i) => {
     const name = String(raw ?? '').trim().slice(0, 30) || `知り合い${i + 1}`;
     const keep = prev[i];
-    out.push({ id: keep?.id || `gst_${Date.now().toString(36)}${i}${Math.random().toString(36).slice(2, 7)}`, name });
+    out.push({ id: keep?.id || `gst_${Date.now().toString(36)}${i}${Math.random().toString(36).slice(2, 7)}`, name, ...(keep?.gender ? { gender: keep.gender } : {}) });
   });
   return out;
 }

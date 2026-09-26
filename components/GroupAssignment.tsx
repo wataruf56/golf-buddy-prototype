@@ -21,6 +21,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   );
   const [guests, setGuests] = useState<RoundGuest[]>(round.guests || []);
   const [guestName, setGuestName] = useState('');
+  const [guestGender, setGuestGender] = useState<'male' | 'female'>('male');   // 知り合い枠を男女で数えるため
   // 組み分け対象 = 登録参加者 ＋ ゲスト。
   const participantIds = useMemo(
     () => [...registeredIds, ...guests.map((g) => g.id)],
@@ -274,7 +275,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   function addGuest() {
     const name = guestName.trim();
     if (!name) return;
-    setGuests((prev) => [...prev, { id: newGuestId(), name: name.slice(0, 30) }]);
+    setGuests((prev) => [...prev, { id: newGuestId(), name: name.slice(0, 30), gender: guestGender }]);
     setGuestName('');
     setDirty(true);
   }
@@ -512,6 +513,15 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
       {/* ゲスト（ゴルトモ未登録）追加 */}
       <div className="border border-border rounded-xl p-2.5 mt-2.5 bg-card">
         <div className="text-[13px] font-black mb-1.5">👤 ゲストを追加 <span className="text-[10px] text-muted font-normal">（ゴルトモ未登録の人）</span></div>
+        <div className="text-[10px] text-sub mb-1.5">追加した人は「主催者の知り合い」として1席に数えます（募集人数が1つ増えます）。あとでゴルトモに登録したら「登録者に置換」で本人に付け替えられ、人数は変わりません。</div>
+        <div className="flex gap-1.5 mb-1.5">
+          {([['male', '👨 男性'], ['female', '👩 女性']] as const).map(([v, label]) => (
+            <button key={v} type="button" onClick={() => setGuestGender(v)}
+              className={'px-3 py-1.5 rounded-lg text-xs font-bold border-[1.5px] ' + (guestGender === v ? 'bg-green text-white border-green' : 'bg-bg text-sub border-border')}>
+              {label}
+            </button>
+          ))}
+        </div>
         <div className="flex gap-1.5 mb-2">
           <input
             value={guestName}
@@ -527,7 +537,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
           <div className="flex flex-wrap gap-1.5">
             {guests.map((g) => (
               <span key={g.id} className="inline-flex items-center gap-1 bg-bg border border-border rounded-full pl-2 pr-1 py-0.5 text-[11px] font-bold">
-                👤 {g.name}
+                {g.gender === 'female' ? '👩' : g.gender === 'male' ? '👨' : '👤'} {g.name}
                 <button onClick={() => removeGuest(g.id)} aria-label="削除" className="w-4 h-4 rounded-full bg-red-100 text-red-600 text-[11px] leading-none flex items-center justify-center">×</button>
               </span>
             ))}

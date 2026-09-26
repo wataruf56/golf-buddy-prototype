@@ -190,32 +190,28 @@ class MemoryDB implements DB {
     const already = r.applicantIds.includes(userId);
     r.pendingApplicantIds = (r.pendingApplicantIds || []).filter((x) => x !== userId);
     if (!already) r.applicantIds.push(userId);
+    // 席を「知り合い枠」から「ゴルトモの枠」へ移すだけ。**人数は変えない**。
+    // ゲストは種類を問わず最初から1席を占めている（ボードから足したゲストも知り合い枠に数える）ので、
+    // 本人に置き換わっても頭数は同じ。知り合い枠を1つ減らし、本人の性別の募集枠を1つ増やす
+    // （こうすると 募集枠 = 1 + 知り合い + 性別枠 の式が崩れない）。
+    const g = guestId ? (r.guests || []).find((x) => x.id === guestId) : undefined;
     if (guestId) {
-      // guests[] は知り合い枠の名札で、先頭 external 人ぶんが枠の人（lib/roundGuests）。
-      // それより後ろは組み分けボードから足した「枠に数えていないゲスト」。
-      const guestIdx = (r.guests || []).findIndex((g) => g.id === guestId);
-      r.guests = (r.guests || []).filter((g) => g.id !== guestId);
-      r.groups = (r.groups || []).map((g) => ({ ...g, memberIds: (g.memberIds || []).map((m) => (m === guestId ? userId : m)) }));
-      if (r.groupsBack?.length) r.groupsBack = r.groupsBack.map((g) => ({ ...g, memberIds: (g.memberIds || []).map((m) => (m === guestId ? userId : m)) }));
+      r.guests = (r.guests || []).filter((x) => x.id !== guestId);
+      r.groups = (r.groups || []).map((gr) => ({ ...gr, memberIds: (gr.memberIds || []).map((m) => (m === guestId ? userId : m)) }));
+      if (r.groupsBack?.length) r.groupsBack = r.groupsBack.map((gr) => ({ ...gr, memberIds: (gr.memberIds || []).map((m) => (m === guestId ? userId : m)) }));
       r.noShowIds = (r.noShowIds || []).map((x) => (x === guestId ? userId : x));
-      // 名前付きゲストが知り合い枠の中の人なら、枠を1つ減らす（currentCount は user+1/枠-1 で据え置き）。
-      // 組み分けボードから足したゲスト（枠に数えていない）なら、従来どおり登録者ぶんを足す。
-      let m = r.externalMale || 0, f = r.externalFemale || 0, c = r.externalCount || 0;
-      const inSlots = guestIdx > -1 && guestIdx < m + f + c;
-      if (inSlots) {
-        if (gender === 'female' && f > 0) f--; else if (gender === 'male' && m > 0) m--;
-        else if (f > 0) f--; else if (m > 0) m--; else if (c > 0) c--;
-        r.externalMale = m; r.externalFemale = f; r.externalCount = c;
-        if (already) r.currentCount = Math.max(1, r.currentCount - 1);
-      } else if (!already) {
-        r.currentCount += 1;
-      }
+    }
+    let m = r.externalMale || 0, f = r.externalFemale || 0, c = r.externalCount || 0;
+    const gd = g?.gender || gender;
+    if (gd === 'female' && f > 0) f--; else if (gd === 'male' && m > 0) m--;
+    else if (f > 0) f--; else if (m > 0) m--; else if (c > 0) c--;
+    r.externalMale = m; r.externalFemale = f; r.externalCount = c;
+    if (!already) {
+      if (gender === 'male') r.spotsMale = (r.spotsMale || 0) + 1;
+      else if (gender === 'female') r.spotsFemale = (r.spotsFemale || 0) + 1;
+      else r.spotsAny = (r.spotsAny || 0) + 1;
     } else {
-      let m = r.externalMale || 0, f = r.externalFemale || 0, c = r.externalCount || 0;
-      if (gender === 'female' && f > 0) f--; else if (gender === 'male' && m > 0) m--;
-      else if (f > 0) f--; else if (m > 0) m--; else if (c > 0) c--;
-      r.externalMale = m; r.externalFemale = f; r.externalCount = c;
-      if (already) r.currentCount = Math.max(1, r.currentCount - 1); // 新規時は user+1/external-1 で据え置き
+      r.currentCount = Math.max(1, r.currentCount - 1);   // すでに参加者だった人の重複を消しただけ
     }
     return r;
   }
@@ -722,38 +718,31 @@ class FirestoreDB implements DB {
       const pendingApplicantIds = (data.pendingApplicantIds || []).filter((x) => x !== userId);
       const patch: Record<string, unknown> = { applicantIds, pendingApplicantIds };
       let currentCount = data.currentCount || 1;
+      // 席を「知り合い枠」から「ゴルトモの枠」へ移すだけ。**人数は変えない**。
+      // ゲストは種類を問わず最初から1席を占めている（ボードから足したゲストも知り合い枠に数える）ので、
+      // 本人に置き換わっても頭数は同じ。知り合い枠を1つ減らし、本人の性別の募集枠を1つ増やす
+      // （募集枠 = 1 + 知り合い + 性別枠 の式が崩れない）。以前は未算入のゲストを置き換えると
+      // その瞬間に+1され、8人枠に10人と出ていた。
+      const g = guestId ? (data.guests || []).find((x) => x.id === guestId) : undefined;
       if (guestId) {
-        // guests[] は知り合い枠の名札で、先頭 external 人ぶんが枠の人（lib/roundGuests）。
-        // それより後ろは組み分けボードから足した「枠に数えていないゲスト」。並びで見分ける。
-        const guestIdx = (data.guests || []).findIndex((g) => g.id === guestId);
-        patch.guests = (data.guests || []).filter((g) => g.id !== guestId);
-        patch.groups = (data.groups || []).map((g: any) => ({ ...g, memberIds: (g.memberIds || []).map((m: string) => (m === guestId ? userId : m)) }));
-        // 後半の組（前半と入れ替えている場合）にもゲストが入っているので、同じく本人に付け替える
+        patch.guests = (data.guests || []).filter((x) => x.id !== guestId);
+        patch.groups = (data.groups || []).map((gr: any) => ({ ...gr, memberIds: (gr.memberIds || []).map((mm: string) => (mm === guestId ? userId : mm)) }));
         if (Array.isArray((data as any).groupsBack) && (data as any).groupsBack.length) {
-          patch.groupsBack = (data as any).groupsBack.map((g: any) => ({ ...g, memberIds: (g.memberIds || []).map((m: string) => (m === guestId ? userId : m)) }));
+          patch.groupsBack = (data as any).groupsBack.map((gr: any) => ({ ...gr, memberIds: (gr.memberIds || []).map((mm: string) => (mm === guestId ? userId : mm)) }));
         }
         patch.noShowIds = (data.noShowIds || []).map((x) => (x === guestId ? userId : x));
-        // 名前付きゲストは「知り合い枠に名前を付けた人」であることが多い。その場合、本人に
-        // 置き換えたら枠を1つ減らさないと、currentCount = 主催者+知り合い+参加者 の式で
-        // 同じ人を2回数える（8人枠に10人と出ていた原因）。
-        // 枠の並びより後ろのゲスト（組み分けボードから足した人）は枠に数えていないので、
-        // 従来どおり登録者ぶんを足す。
-        let m = data.externalMale || 0, f = data.externalFemale || 0, c = data.externalCount || 0;
-        const inSlots = guestIdx > -1 && guestIdx < m + f + c;
-        if (inSlots) {
-          if (gender === 'female' && f > 0) f--; else if (gender === 'male' && m > 0) m--;
-          else if (f > 0) f--; else if (m > 0) m--; else if (c > 0) c--;
-          patch.externalMale = m; patch.externalFemale = f; patch.externalCount = c;
-          if (already) currentCount = Math.max(1, currentCount - 1);
-        } else if (!already) {
-          currentCount += 1;
-        }
+      }
+      let m = data.externalMale || 0, f = data.externalFemale || 0, c = data.externalCount || 0;
+      const gd = g?.gender || gender;
+      if (gd === 'female' && f > 0) f--; else if (gd === 'male' && m > 0) m--;
+      else if (f > 0) f--; else if (m > 0) m--; else if (c > 0) c--;
+      patch.externalMale = m; patch.externalFemale = f; patch.externalCount = c;
+      if (!already) {
+        if (gender === 'male') patch.spotsMale = (data.spotsMale || 0) + 1;
+        else if (gender === 'female') patch.spotsFemale = (data.spotsFemale || 0) + 1;
+        else patch.spotsAny = (data.spotsAny || 0) + 1;
       } else {
-        let m = data.externalMale || 0, f = data.externalFemale || 0, c = data.externalCount || 0;
-        if (gender === 'female' && f > 0) f--; else if (gender === 'male' && m > 0) m--;
-        else if (f > 0) f--; else if (m > 0) m--; else if (c > 0) c--;
-        patch.externalMale = m; patch.externalFemale = f; patch.externalCount = c;
-        if (already) currentCount = Math.max(1, currentCount - 1);
+        currentCount = Math.max(1, currentCount - 1);   // すでに参加者だった人の重複を消しただけ
       }
       patch.currentCount = currentCount;
       tx.set(ref, patch, { merge: true });
