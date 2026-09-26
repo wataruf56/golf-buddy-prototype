@@ -74,7 +74,7 @@ export default function MyPage() {
     if (!meId) return;
     fetch(`/api/users/${encodeURIComponent(meId)}/track-record`, { cache: 'no-store' })
       .then((r) => r.json())
-      .then((d) => setTrackRecord({ roundedWith: d.roundedWith || 0, againCount: d.againCount || 0, neverCount: d.neverCount || 0, hostedCount: d.hostedCount || 0, joinedCount: d.joinedCount || 0 }))
+      .then((d) => setTrackRecord({ roundedWith: d.roundedWith || 0, againCount: d.againCount || 0, neverCount: d.neverCount || 0, mannerPenalty: d.mannerPenalty || 0, hostedCount: d.hostedCount || 0, joinedCount: d.joinedCount || 0 }))   // 運営ペナルティも取り込む（落としていて★が下がらなかった）
       .catch(() => {});
     track('mypage_render', {
       meId,
