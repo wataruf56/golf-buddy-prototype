@@ -17,28 +17,41 @@ export function isNoShow(round: Round, userId: string): boolean {
   return (round.noShowIds || []).includes(userId);
 }
 
-// userId が属する組。未割り当てなら undefined。
-export function groupOfUser(round: Round, userId: string): RoundGroup | undefined {
-  return (round.groups || []).find((g) => (g.memberIds || []).includes(userId));
+// 前半の組／後半の組。後半は「前半と入れ替えるときだけ」持つ（無ければ空）。
+export const groupsFront = (round: Round): RoundGroup[] => round.groups || [];
+export const groupsBack = (round: Round): RoundGroup[] =>
+  Array.isArray(round.groupsBack) && round.groupsBack.length ? round.groupsBack : [];
+export const hasBackGroups = (round: Round): boolean => groupsBack(round).length > 0;
+
+// userId が属する組。未割り当てなら undefined。half を省略すると前半。
+export function groupOfUser(round: Round, userId: string, half: 'front' | 'back' = 'front'): RoundGroup | undefined {
+  const gs = half === 'back' ? groupsBack(round) : groupsFront(round);
+  return gs.find((g) => (g.memberIds || []).includes(userId));
 }
 
 // 同じ組の「レビュー対象になり得る」相手。
-// 登録ユーザーのみ（ゲスト除外）・自分除外・当日来れなかった人は除外。
+// **前半か後半のどちらかで同じ組になった人**すべて（コンペで前半・後半のメンバーを
+// 入れ替えることがあるため）。登録ユーザーのみ（ゲスト除外）・自分除外・当日来れなかった人は除外。
 export function sameGroupPeerIds(round: Round, userId: string): string[] {
-  const g = groupOfUser(round, userId);
-  if (!g) return [];
   const registered = new Set(registeredParticipantIds(round));
-  return (g.memberIds || []).filter(
-    (id) => id !== userId && registered.has(id) && !isGuestId(id) && !isNoShow(round, id),
-  );
+  const out: string[] = [];
+  for (const g of [groupOfUser(round, userId, 'front'), groupOfUser(round, userId, 'back')]) {
+    for (const id of g?.memberIds || []) {
+      if (id === userId || !registered.has(id) || isGuestId(id) || isNoShow(round, id)) continue;
+      if (!out.includes(id)) out.push(id);
+    }
+  }
+  return out;
 }
 
-// meId から見て toUserId が「同じ組」か。
+// meId から見て toUserId が「同じ組」か（前半・後半のどちらかで同じ組なら true）。
 // 通常募集（コンペでない）は全員が実質同じ組として true。
 export function isSameGroup(round: Round, meId: string, toUserId: string): boolean {
   if (!round.isCompetition) return true;
-  const g = groupOfUser(round, meId);
-  return !!g && (g.memberIds || []).includes(toUserId);
+  return (['front', 'back'] as const).some((h) => {
+    const g = groupOfUser(round, meId, h);
+    return !!g && (g.memberIds || []).includes(toUserId);
+  });
 }
 
 // コンペの組み分けが「ラウンド完了に必要な条件」を満たすか。

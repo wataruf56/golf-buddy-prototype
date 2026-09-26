@@ -133,6 +133,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         if (round.groups?.length) {
           patch.groups = round.groups.map((g) => ({ ...g, memberIds: (g.memberIds || []).filter((m) => !dropped.includes(m)) }));
         }
+        if (round.groupsBack?.length) {
+          patch.groupsBack = round.groupsBack.map((g) => ({ ...g, memberIds: (g.memberIds || []).filter((m) => !dropped.includes(m)) }));
+        }
       }
     }
     patch.maxSpots = nextMax; patch.isCompetition = nextMax >= 5;

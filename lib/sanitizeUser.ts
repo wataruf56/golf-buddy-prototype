@@ -9,8 +9,9 @@ import type { User } from './types';
 // for everyone.
 export function stripPrivate(user: User, selfId?: string | null): User {
   if (selfId && user.id === selfId) return user;
-  // 実名・友達リストは本人以外に見せない。
-  const { realNameLast, realNameFirst, friendIds, ...rest } = user;
+  // 実名・友達リスト・最寄り駅は本人以外に見せない。
+  // 最寄り駅は運営がピックアップ調整に使うためのもので、会員同士では出さない約束（入力欄に明記）。
+  const { realNameLast, realNameFirst, friendIds, nearestStation, ...rest } = user;
   return rest as User;
 }
 

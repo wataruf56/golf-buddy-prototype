@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
         gender: u.gender || null,
         car: u.car || null,
         area: u.area || null,
+        nearestStation: u.nearestStation || null,   // 運営だけが見る（ピックアップ調整用）
         scoreRange: u.scoreRange || null,
         avatarUrl: !!u.avatarUrl,
         avatarEmoji: u.avatar || null,

@@ -29,8 +29,10 @@ export async function sameGroupPartnerIds(userId: string): Promise<Set<string>> 
       if (!members.includes(userId)) return;
       if (isNoShow(r, userId)) return;
       const groups: any[] = Array.isArray((r as any).groups) ? (r as any).groups : [];
+      // 後半で組を入れ替えたコンペは、前半・後半のどちらかで同じ組だった人を「一緒に回った」に含める
+      const backs: any[] = Array.isArray((r as any).groupsBack) ? (r as any).groupsBack : [];
       const myGroup: Set<string> | null = groups.length > 0
-        ? new Set(((groups.find((g: any) => (g?.memberIds || []).includes(userId))?.memberIds) || []) as string[])
+        ? new Set([...groups, ...backs].filter((g: any) => (g?.memberIds || []).includes(userId)).flatMap((g: any) => (g.memberIds || []) as string[]))
         : null;
       for (const id of members) {
         if (!id || id === userId) continue;

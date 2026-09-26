@@ -20,6 +20,7 @@ export type NotifyType =
   | 'rematch'          // 再会エンジン：また回りたい相手との再会のお知らせ・候補日の往復
   | 'groupChange'      // 参加者から「組分けの変更を希望」が届いた（主催者）
   | 'pickup'           // 主催者からピックアップ場所（駅）の提案が届いた
+  | 'participantLeft'  // 参加者が参加を取りやめた／申請を取り下げた（主催者・共同管理者）
   | 'unread';          // 未読メッセージのまとめ通知（1日3回・DM即時通知の代替）
 
 // Display metadata for the settings UI. Order = display order。
@@ -46,6 +47,7 @@ export const NOTIFY_TYPES: Array<{ key: NotifyType; label: string; desc: string;
   { key: 'rematch',          label: '🔁 再会のお知らせ', desc: 'また回りたい相手との再会・候補日のやり取りがあったとき', defaultOn: true },
   { key: 'groupChange',      label: '🔀 組分けの変更希望', desc: '自分のコンペで参加者が組分けの変更を希望したとき（主催者）', defaultOn: true },
   { key: 'pickup',           label: '🚉 ピックアップの提案', desc: '主催者からピックアップ場所の提案が届いたとき', defaultOn: true },
+  { key: 'participantLeft',  label: '🚪 参加者のキャンセル', desc: '自分の募集の参加者が参加を取りやめたとき（主催者・共同管理者）', defaultOn: true },
 ];
 
 const DEFAULTS: Record<NotifyType, boolean> = NOTIFY_TYPES.reduce((acc, t) => {

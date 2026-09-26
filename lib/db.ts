@@ -192,6 +192,7 @@ class MemoryDB implements DB {
     if (guestId) {
       r.guests = (r.guests || []).filter((g) => g.id !== guestId);
       r.groups = (r.groups || []).map((g) => ({ ...g, memberIds: (g.memberIds || []).map((m) => (m === guestId ? userId : m)) }));
+      if (r.groupsBack?.length) r.groupsBack = r.groupsBack.map((g) => ({ ...g, memberIds: (g.memberIds || []).map((m) => (m === guestId ? userId : m)) }));
       r.noShowIds = (r.noShowIds || []).map((x) => (x === guestId ? userId : x));
       if (!already) r.currentCount += 1; // ゲストは未算入・登録者は算入
     } else {
@@ -706,6 +707,10 @@ class FirestoreDB implements DB {
       if (guestId) {
         patch.guests = (data.guests || []).filter((g) => g.id !== guestId);
         patch.groups = (data.groups || []).map((g: any) => ({ ...g, memberIds: (g.memberIds || []).map((m: string) => (m === guestId ? userId : m)) }));
+        // 後半の組（前半と入れ替えている場合）にもゲストが入っているので、同じく本人に付け替える
+        if (Array.isArray((data as any).groupsBack) && (data as any).groupsBack.length) {
+          patch.groupsBack = (data as any).groupsBack.map((g: any) => ({ ...g, memberIds: (g.memberIds || []).map((m: string) => (m === guestId ? userId : m)) }));
+        }
         patch.noShowIds = (data.noShowIds || []).map((x) => (x === guestId ? userId : x));
         if (!already) currentCount += 1;
       } else {

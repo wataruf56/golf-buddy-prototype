@@ -40,8 +40,10 @@ export async function GET(_req: NextRequest) {
       // 組（groups）が設定されていれば必ず「自分と同じ組のメンバー」だけに絞る（コンペで組が
       // 分かれた場合の対策）。groups が無い通常募集は全員が一緒に回った扱い。
       const groups: any[] = Array.isArray((r as any).groups) ? (r as any).groups : [];
+      // 後半で組を入れ替えたコンペは、前半・後半のどちらかで同じ組だった人を含める
+      const backs: any[] = Array.isArray((r as any).groupsBack) ? (r as any).groupsBack : [];
       const myGroupIds: Set<string> | null = groups.length > 0
-        ? new Set(((groups.find((g: any) => (g?.memberIds || []).includes(meId))?.memberIds) || []) as string[])
+        ? new Set([...groups, ...backs].filter((g: any) => (g?.memberIds || []).includes(meId)).flatMap((g: any) => (g.memberIds || []) as string[]))
         : null;
       for (const id of members) {
         if (!id || id === meId) continue;

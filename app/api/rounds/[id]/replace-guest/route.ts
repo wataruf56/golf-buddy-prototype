@@ -22,9 +22,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!isRoundHost(existing, meId)) {
     return NextResponse.json({ error: 'forbidden', message: '主催者のみ置き換えできます' }, { status: 403 });
   }
-  if (existing.status === 'completed') {
-    return NextResponse.json({ error: 'completed', message: '完了した募集は編集できません。完了前に置き換えてください。' }, { status: 400 });
-  }
+  // 完了後でも置き換えられる。
+  // 別サイトで募集して来た人がゲスト枠のまま参加し、翌日にゴルトモへ登録するケースがある。
+  // その人を本人に置き換えると、同じ組だった人との間にレビューが新しく立つ（下の reReviewAfterChange）。
 
   let userId = '';
   let guestId = '';
@@ -59,12 +59,24 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const round = await db.replaceGuestWithUser(params.id, { userId, guestId: guestId || undefined, gender: gender || invitee.gender });
 
+  // 完了したラウンドなら、新しくできた「同じ組」のペアにレビューを立てる。
+  // 置き換わった本人と、その組にいた人の双方に未提出レビューが出る。
+  if (existing.status === 'completed') {
+    try {
+      const { reReviewAfterChange, notifyNewReviewPairs } = await import('@/lib/reReview');
+      const r = await reReviewAfterChange(params.id, existing, round);
+      await notifyNewReviewPairs(round, r.notify.filter((x) => x !== userId));   // 本人には下の通知でまとめて伝える
+    } catch (e) { console.warn('[replace-guest] re-review failed (non-fatal)', (e as Error).message); }
+  }
+
   // 置き換わった本人へ通知（アプリ内お知らせ＋LINE/Web push）。
   try {
     const host = await db.getUser(meId);
     const hostName = host?.displayName || '主催者';
     const link = `/round/${params.id}`;
-    const text = `🏌️ ${hostName}さんのラウンド「${existing.title}」に参加者として追加されました。`;
+    const text = existing.status === 'completed'
+      ? `🏌️ ${hostName}さんのラウンド「${existing.title}」の参加者として登録されました。一緒に回った人のレビューをお願いします。`
+      : `🏌️ ${hostName}さんのラウンド「${existing.title}」に参加者として追加されました。`;
     const { addNotification } = await import('@/lib/notifications');
     addNotification(userId, 'invited', text, link).catch(() => {});
     if (isNotifyEnabled(invitee as any, 'invited')) {

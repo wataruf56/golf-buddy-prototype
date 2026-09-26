@@ -66,6 +66,7 @@ export default function ProfileEditPage() {
   const [car, setCar] = useState<CarStatus | ''>('');
   const [bio, setBio] = useState('');
   const [instagram, setInstagram] = useState('');
+  const [nearestStation, setNearestStation] = useState('');   // 本人と運営だけが見る
   const [area, setArea] = useState('');
   const [scoreRange, setScoreRange] = useState('');
   const [golmotiType, setGolmotiType] = useState('');
@@ -103,6 +104,7 @@ export default function ProfileEditPage() {
     setCar(me.car || '');
     setBio(me.bio || '');
     setInstagram(me.instagram || '');
+    setNearestStation((me as any).nearestStation || '');
     setArea(me.area || '');
     setScoreRange(me.scoreRange || '');
     setGolmotiType(me.golmotiType || '');
@@ -215,6 +217,7 @@ export default function ProfileEditPage() {
         car: (car || undefined) as CarStatus | undefined,
         bio,
         instagram: instagram.trim(),
+        nearestStation: nearestStation.trim().slice(0, 30),
         area, scoreRange, frequency, avatar,
         avatarMode,
         golmotiType: golmotiType || '',
@@ -618,6 +621,26 @@ export default function ProfileEditPage() {
           </div>
           <div className="text-[10px] text-muted mt-1 leading-relaxed">
             プロフィールに「Instagram」ボタンが表示され、タップで開けます。空欄なら非表示。
+          </div>
+        </Field>
+
+        {/* 最寄り駅。本人と運営だけが見る（他の会員には API の段階で渡さない：lib/sanitizeUser）。
+            使い道を2つ、入力欄に明記する。書かないと「何に使うのか分からない項目」になって空のままになる。 */}
+        <Field label="最寄り駅" hint="（任意・他の会員には表示されません）">
+          <div className="flex items-center gap-2 p-3 border-[1.5px] border-border rounded-[10px] bg-bg">
+            <span className="text-lg flex-shrink-0">🚉</span>
+            <input
+              value={nearestStation}
+              onChange={(e) => setNearestStation(e.target.value)}
+              placeholder="例：新宿駅、大宮駅"
+              maxLength={30}
+              className="flex-1 min-w-0 bg-transparent text-sm outline-none"
+            />
+          </div>
+          <div className="text-[10px] text-muted mt-1 leading-relaxed">
+            🔒 ほかの会員には表示されません（運営だけが確認します）。<br />
+            (a) コンペ等でピックアップ等を調整する際に使用します<br />
+            (b) 今後リリースされる新サービスにおいて、地域限定のラウンド募集を表示する際などに使用します
           </div>
         </Field>
 

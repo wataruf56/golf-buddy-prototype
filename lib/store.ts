@@ -262,8 +262,10 @@ export const store = {
     setState({ rounds: state.rounds.map((r) => (r.id === roundId ? round : r)) });
   },
 
-  leaveRound: async (roundId: string) => {
-    const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/leave`, { method: 'POST' });
+  leaveRound: async (roundId: string, opts?: { reason?: string; text?: string }) => {
+    const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/leave`, {
+      method: 'POST', body: JSON.stringify(opts || {}),
+    });
     setState({ rounds: state.rounds.map((r) => (r.id === roundId ? round : r)) });
   },
 

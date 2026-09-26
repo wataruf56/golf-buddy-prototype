@@ -47,6 +47,15 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
     memberIds: (g.memberIds || []).filter((id) => validInit.has(id)),
   }));
   const [groups, setGroups] = useState<RoundGroup[]>(initial.length ? initial : []);
+  // 後半の組。前半と入れ替えるコンペ（後ろの組へ2人行き、後ろから2人来る等）のためのもの。
+  // 「入れ替えあり」にした瞬間に前半をコピーし、そこから動かす。保存時は backOn でなければ空。
+  // レビュー対象は前半・後半のどちらかで同じ組になった人すべて（lib/groups）。
+  const initialBack: RoundGroup[] = (round.groupsBack || []).map((g) => ({
+    id: g.id || newGroupId(), startTime: g.startTime, course: g.course,
+    memberIds: (g.memberIds || []).filter((id) => validInit.has(id)),
+  }));
+  const [backOn, setBackOn] = useState<boolean>(initialBack.length > 0);
+  const [groupsBack, setGroupsBack] = useState<RoundGroup[]>(initialBack);
   // 当日来れなかった人（登録ユーザーのみ・除外扱い）。組が無くてもエラーにならず、
   // レビュー対象からも外れる。
   const [noShow, setNoShow] = useState<string[]>(
@@ -77,11 +86,8 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   // ---------- read-only view (non-host) ----------
   if (!isHost) {
     if (!groups.length) return null;
-    return (
-      <div className="bg-card rounded-card p-4 shadow-card mb-4">
-        <div className="text-[13px] font-bold mb-2">⛳ 組分け・スタート時間</div>
-        <div className="flex flex-col gap-2">
-          {groups.map((g, gi) => (
+    const showBack = groupsBack.length > 0;
+    const listOf = (gs: RoundGroup[]) => gs.map((g, gi) => (
             <div key={g.id} className="bg-bg rounded-xl p-2.5">
               <div className="flex items-center justify-between mb-1.5 gap-2">
                 <span className="text-[12px] font-bold">組{gi + 1}{g.course && <span className="ml-1.5 text-[11px] font-bold text-blue">⛳ {g.course}</span>}</span>
@@ -103,15 +109,26 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
                 })}
               </div>
             </div>
-          ))}
-        </div>
+          ));
+    return (
+      <div className="bg-card rounded-card p-4 shadow-card mb-4">
+        <div className="text-[13px] font-bold mb-2">⛳ 組分け・スタート時間{showBack && <span className="text-[11px] text-sub ml-1.5">（前半）</span>}</div>
+        <div className="flex flex-col gap-2">{listOf(groups)}</div>
+        {showBack && (
+          <>
+            <div className="text-[13px] font-bold mt-3 mb-2">🔁 後半の組<span className="text-[11px] text-sub ml-1.5">（前半と入れ替え）</span></div>
+            <div className="flex flex-col gap-2">{listOf(groupsBack)}</div>
+          </>
+        )}
       </div>
     );
   }
 
   // ---------- host editor with drag & drop ----------
   const ghostRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{ id: string; ox: number; oy: number } | null>(null);
+  const dragRef = useRef<{ id: string; ox: number; oy: number; board: 'front' | 'back' } | null>(null);
+  // 落とし先がどちらの盤か。後半の盤は 'back:<組id>' と 'backpool'。
+  const boardOf = (zone: string): 'front' | 'back' => (zone.startsWith('back') ? 'back' : 'front');
 
   function setGroupsDirty(next: RoundGroup[]) { setGroups(next); setDirty(true); }
 
@@ -139,6 +156,17 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   }
 
   function moveMember(id: string, toZone: string) {
+    // 後半の盤：後半の組の間だけで動かす（'backpool' は「後半のどの組にもいない」）。
+    if (boardOf(toZone) === 'back') {
+      const gid = toZone === 'backpool' ? '' : toZone.slice('back:'.length);
+      setGroupsBack((prev) => {
+        let next = prev.map((g) => ({ ...g, memberIds: g.memberIds.filter((m) => m !== id) }));
+        if (gid) next = next.map((g) => (g.id === gid ? { ...g, memberIds: [...g.memberIds, id] } : g));
+        return next;
+      });
+      setDirty(true);
+      return;
+    }
     // ゲストは「当日来れなかった人」にはできない（レビュー対象外なので不要）。
     const targetZone = toZone === 'noshow' && isGuest(id) ? 'pool' : toZone;
     setGroups((prev) => {
@@ -156,11 +184,11 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
     setDirty(true);
   }
 
-  function onPointerDown(e: React.PointerEvent, id: string) {
+  function onPointerDown(e: React.PointerEvent, id: string, board: 'front' | 'back' = 'front') {
     e.preventDefault();
     const el = e.currentTarget as HTMLElement;
     const r = el.getBoundingClientRect();
-    dragRef.current = { id, ox: e.clientX - r.left, oy: e.clientY - r.top };
+    dragRef.current = { id, ox: e.clientX - r.left, oy: e.clientY - r.top, board };
     const gh = ghostRef.current;
     if (gh) {
       gh.style.display = 'flex';
@@ -183,7 +211,8 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
     if (!dragRef.current) return;
     e.preventDefault();
     const zone = zoneUnder(e.clientX, e.clientY);
-    if (zone) moveMember(dragRef.current.id, zone);
+    // 前半の札を後半の盤に落とす（またはその逆）のは無効。盤をまたぐ移動は意味を持たないため。
+    if (zone && boardOf(zone) === dragRef.current.board) moveMember(dragRef.current.id, zone);
     cleanup();
   }
   function zoneUnder(x: number, y: number): string | null {
@@ -260,7 +289,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
     try {
       const res = await fetch(`/api/rounds/${round.id}/groups`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groups, guests, noShowIds: noShow }), cache: 'no-store',
+        body: JSON.stringify({ groups, groupsBack: backOn ? groupsBack : [], guests, noShowIds: noShow }), cache: 'no-store',
       });
       if (!res.ok) throw new Error(`${res.status}`);
       await store.refreshRounds();
@@ -275,12 +304,12 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   // setDraggingId による再レンダーでカードのDOMが作り直され、ポインターキャプチャが
   // 外れてドロップが効かなくなる（移動できないバグの原因）。key付き要素を直接返して
   // 同一DOMを保ち、キャプチャを維持する。
-  const renderMember = (id: string, inGroup?: boolean, inNoShow?: boolean) => {
+  const renderMember = (id: string, inGroup?: boolean, inNoShow?: boolean, board: 'front' | 'back' = 'front') => {
     const u = userOf(id);
     return (
       <div
         key={id}
-        onPointerDown={(e) => onPointerDown(e, id)}
+        onPointerDown={(e) => onPointerDown(e, id, board)}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={cleanup}
@@ -299,7 +328,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
             type="button"
             aria-label="未割り当てに戻す"
             onPointerDown={(e) => { e.stopPropagation(); }}
-            onClick={(e) => { e.stopPropagation(); moveMember(id, 'pool'); }}
+            onClick={(e) => { e.stopPropagation(); moveMember(id, board === 'back' ? 'backpool' : 'pool'); }}
             className="ml-auto w-5 h-5 rounded-full bg-red-100 text-red-600 text-[12px] leading-none flex items-center justify-center flex-shrink-0"
           >×</button>
         )}
@@ -408,6 +437,76 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
           </div>
           );
         })}
+      </div>
+
+      {/* ── 後半の組（前半と入れ替える場合だけ） ──
+          「入れ替えあり」にした瞬間に前半をコピーする。後半の盤は後半の組の間だけで動かせる。
+          前半で組にいるのに後半のどこにもいない人は「後半の未割り当て」に出る。 */}
+      <div className="border-2 border-dashed border-border rounded-xl p-2.5 mt-3 bg-card">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={backOn} className="accent-[#2A8C82] w-4 h-4"
+            onChange={(e) => {
+              const on = e.target.checked;
+              setBackOn(on);
+              if (on && groupsBack.length === 0) {
+                setGroupsBack(groups.map((g) => ({ id: g.id, startTime: g.startTime, course: g.course, memberIds: [...g.memberIds] })));
+              }
+              setDirty(true);
+            }} />
+          <span className="text-[13px] font-black">🔁 後半で組のメンバーを入れ替える</span>
+        </label>
+        <div className="text-[10px] text-muted mt-1">後半（イン／アウトの折り返し）で別の組に移る人がいるときに。前半・後半のどちらかで同じ組になった人が、お互いのレビュー対象になります。</div>
+
+        {backOn && (() => {
+          const inFront = groups.flatMap((g) => g.memberIds);
+          const inBack = new Set(groupsBack.flatMap((g) => g.memberIds));
+          const backPool = inFront.filter((id) => !inBack.has(id));
+          return (
+            <div className="mt-2.5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[12px] font-black">後半の組</span>
+                <button type="button"
+                  onClick={() => { setGroupsBack(groups.map((g) => ({ id: g.id, startTime: g.startTime, course: g.course, memberIds: [...g.memberIds] }))); setDirty(true); }}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold border border-border bg-bg">前半と同じに戻す</button>
+              </div>
+              <div className="flex flex-col gap-2">
+                {groupsBack.map((g, gi) => {
+                  const over = g.memberIds.length > GROUP_MAX;
+                  const frontIdx = groups.findIndex((x) => x.id === g.id);
+                  return (
+                    <div key={g.id} data-dz={`back:${g.id}`} className={`border-2 border-dashed rounded-xl p-2.5 ${over ? 'border-red-400 bg-red-50' : 'border-border'}`}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[12px] font-black">組{frontIdx >= 0 ? frontIdx + 1 : gi + 1}（後半） <span className={`text-[11px] ${over ? 'text-red-600 font-bold' : 'text-muted'}`}>({g.memberIds.length}/{GROUP_MAX})</span></span>
+                        <span className="text-[11px] text-sub font-bold">{g.startTime || ''}</span>
+                      </div>
+                      {over && <div className="text-[10px] text-red-600 font-bold mb-1.5">⚠️ 人数オーバーです（{g.memberIds.length}名 / 規定{GROUP_MAX}名）</div>}
+                      {avoidHits(g.memberIds).map(({ a, b, mutual }) => (
+                        <div key={`${a}|${b}`} className="text-[11px] text-red-600 font-bold mb-1.5 bg-red-50 border border-red-200 rounded-lg px-2 py-1.5 leading-relaxed">
+                          ⚠️ {mutual
+                            ? <>{nameOfUser(a)}さんと{nameOfUser(b)}さんは、お互いに同じ組を避けたい希望です</>
+                            : <>{nameOfUser(a)}さんは、{nameOfUser(b)}さんと同じ組を避けたい希望です</>}
+                        </div>
+                      ))}
+                      <div className="flex flex-col gap-1.5 min-h-[40px]">
+                        {g.memberIds.length === 0
+                          ? <div className="text-[11px] text-muted px-1 py-1.5">ここにドラッグ</div>
+                          : g.memberIds.map((id) => renderMember(id, true, false, 'back'))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div data-dz="backpool" className="border-2 border-dashed border-hair rounded-xl p-2.5 mt-2">
+                <div className="text-[11px] font-black text-sub mb-1.5">後半の未割り当て（前半にいる人で、後半の組がまだの人）</div>
+                <div className="flex flex-col gap-1.5 min-h-[32px]">
+                  {backPool.length === 0
+                    ? <div className="text-[11px] text-muted px-1 py-1">全員、後半の組に入っています</div>
+                    : backPool.map((id) => renderMember(id, false, false, 'back'))}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* ゲスト（ゴルトモ未登録）追加 */}

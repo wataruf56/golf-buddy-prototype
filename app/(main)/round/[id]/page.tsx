@@ -6,6 +6,8 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { confirmDialog } from '@/components/ConfirmDialog';
+import { LeaveDialog } from '@/components/LeaveDialog';
+import { leaveReasonLabel } from '@/lib/leaveReasons';
 import { Avatar } from '@/components/Avatar';
 import { track } from '@/lib/telemetry';
 import { chatIdFor, formatDate, revisitRatingLabel, carLabel, priceLabelForGender, isSplitPrice, timeAgo } from '@/lib/utils';
@@ -432,10 +434,18 @@ export default function RoundDetailPage() {
       window.prompt('このテキストをコピーして共有してください', text);
     }
   }
-  async function leave() {
-    if (!(await confirmDialog('このラウンドから抜けますか？'))) return;
-    try { await store.leaveRound(round!.id); toast('離脱しました'); router.push('/home'); }
-    catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
+  // 参加確定の人：理由を選び、キャンセル規約を確認してから（LeaveDialog）。
+  // 申請中の人：確認だけで取り下げられる（まだ参加が決まっていないので理由は聞かない）。
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  async function leaveNow(reason?: string, text?: string) {
+    setLeaving(true);
+    try { await store.leaveRound(round!.id, { reason, text }); toast('参加を取りやめました'); router.push('/home'); }
+    catch (e) { toast('失敗: ' + (e as Error).message, 'error'); setLeaving(false); }
+  }
+  async function withdraw() {
+    if (!(await confirmDialog('参加申請を取り下げますか？'))) return;
+    await leaveNow();
   }
   async function close() {
     if (!(await confirmDialog('この募集を閉じますか？'))) return;
@@ -769,12 +779,12 @@ export default function RoundDetailPage() {
         ) : isApproved ? (
           <div className="space-y-2 mb-4">
             <div className="text-center py-3 bg-green-light text-green rounded-xl text-sm font-bold">✅ 参加確定</div>
-            <button onClick={leave} className="w-full py-3 bg-card text-red border border-red rounded-xl text-sm font-bold">参加を取りやめる</button>
+            <button onClick={() => setLeaveOpen(true)} className="w-full py-3 bg-card text-red border border-red rounded-xl text-sm font-bold">参加を取りやめる</button>
           </div>
         ) : isPending ? (
           <div className="space-y-2 mb-4">
             <div className="text-center py-3 bg-yellow-light text-orange rounded-xl text-sm font-bold">⏳ 承認待ち</div>
-            <button onClick={leave} className="w-full py-3 bg-card text-sub border border-border rounded-xl text-sm font-bold">申請を取り下げる</button>
+            <button onClick={withdraw} className="w-full py-3 bg-card text-sub border border-border rounded-xl text-sm font-bold">申請を取り下げる</button>
           </div>
         ) : isFull ? (
           <div className="text-center py-3 bg-bg text-muted rounded-xl text-sm font-bold mb-4">満員のため受付終了</div>
@@ -977,7 +987,9 @@ export default function RoundDetailPage() {
                     <div className="text-[13px] font-semibold truncate">{g.name} <span className="text-[10px] text-muted font-bold">ゲスト</span></div>
                     <div className="text-[10px] text-sub">{pickupStatusLabel(round.participantPickups?.[g.id])}</div>
                   </div>
-                  {isHost && round.status !== 'completed' && (
+                  {/* 完了後も置き換えられる：翌日にゴルトモへ登録した人を本人に付け替えると、
+                      同じ組だった人との間にレビューが新しく立つ（API側 replace-guest）。 */}
+                  {isHost && (
                     <button onClick={() => setReplaceTarget({ guestId: g.id, label: `ゲスト「${g.name}」` })} className="px-2.5 py-1 bg-green text-white rounded text-[11px] font-bold flex-shrink-0">👤 登録者に置換</button>
                   )}
                 </div>
@@ -991,7 +1003,7 @@ export default function RoundDetailPage() {
             {(() => {
               const extTotal = (round.externalMale || 0) + (round.externalFemale || 0) + (round.externalCount || 0);
               const unnamed = Math.max(0, extTotal - (round.guests?.length ?? 0));
-              if (!isHost || round.status === 'completed' || unnamed <= 0) return null;
+              if (!isHost || unnamed <= 0) return null;   // 完了後も置き換えられる
               return (
                 <div className="flex items-center gap-2 p-2.5 bg-bg rounded-[10px] mb-1.5">
                   <div className="w-9 h-9 rounded-full bg-card flex items-center justify-center text-base flex-shrink-0 border border-border">🧑‍🤝‍🧑</div>
@@ -1003,6 +1015,26 @@ export default function RoundDetailPage() {
                 </div>
               );
             })()}
+          </div>
+        )}
+
+        {/* 参加の取りやめ・申請の取り下げ（主催者・共同管理者のみ）。
+            理由は本人が選んだもの。他の参加者には見せない。 */}
+        {isHost && (round.cancellations || []).length > 0 && (
+          <div className="mb-4">
+            <div className="text-[13px] font-bold mb-2">🚪 取りやめ・取り下げ（{(round.cancellations || []).length}件）<span className="text-[10px] text-muted font-bold ml-1.5">主催者のみ</span></div>
+            {(round.cancellations || []).slice().reverse().map((c, i) => (
+              <div key={`${c.userId}-${c.at}-${i}`} className="p-2.5 bg-bg rounded-[10px] mb-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-[12.5px] font-bold truncate">{users.find((u) => u.id === c.userId)?.displayName || c.name || 'メンバー'}</span>
+                  <span className={'text-[10px] font-bold ' + (c.wasApproved ? 'text-red' : 'text-sub')}>{c.wasApproved ? '参加確定を取りやめ' : '申請を取り下げ'}</span>
+                  <span className="text-[10px] text-muted ml-auto flex-shrink-0">{timeAgo(c.at)}</span>
+                </div>
+                {c.wasApproved && (
+                  <div className="text-[11.5px] text-sub mt-0.5">理由：{leaveReasonLabel(c.reason)}{c.text ? `（${c.text}）` : ''}</div>
+                )}
+              </div>
+            ))}
           </div>
         )}
 
@@ -1260,6 +1292,12 @@ export default function RoundDetailPage() {
       )}
 
       {/* ゲスト枠 → 登録ユーザー 置き換えモーダル（主催者） */}
+      {leaveOpen && (
+        <LeaveDialog roundTitle={round.title} busy={leaving}
+          onConfirm={(reason, text) => leaveNow(reason, text)}
+          onClose={() => { if (!leaving) setLeaveOpen(false); }} />
+      )}
+
       {replaceTarget && isHost && (
         <PickerModal title={`👤 ${replaceTarget.label}を登録者に置き換え`} onClose={() => setReplaceTarget(null)}>
           <div className="mb-3 text-[12px] text-sub bg-bg rounded-xl p-3 leading-relaxed">

@@ -82,6 +82,11 @@ export type User = {
   // ストリップされ、募集者へは /api/rounds/[id]/participant-names 経由でのみ渡る。
   realNameLast?: string;       // 名字（姓）
   realNameFirst?: string;      // 名前（名）
+  /**
+   * 最寄り駅（自由入力）。**本人と運営以外には見せない**（lib/sanitizeUser で落とす）。
+   * 使い道：コンペ等のピックアップ調整／今後の地域限定の募集表示。
+   */
+  nearestStation?: string;
   // Per-month free swing analysis usage. Whitelisted users (isSwingAllowed)
   // bypass this counter entirely; everyone else gets SWING_FREE_LIMIT runs
   // per calendar month (default 1). Reset semantics live in lib/swingQuota.
@@ -221,6 +226,11 @@ export type Round = {
   // 当日来れなかった参加者（登録ユーザーのID）。組に入っていなくても「組み分け完了」の
   // 妨げにならず、レビュー対象からも除外される（相互レビューは同組のみのため）。
   noShowIds?: string[];
+  // 後半の組。**前半と入れ替えるときだけ**持つ（無い・空なら後半も前半と同じ）。
+  // レビュー対象は「前半か後半のどちらかで同じ組になった人」全員（lib/groups の sameGroupPeerIds）。
+  groupsBack?: RoundGroup[];
+  // 参加の取りやめ・申請の取り下げの記録。主催者と共同管理者だけが見る。
+  cancellations?: RoundCancellation[];
   // コンペの組み分け希望。各参加者が「同じ組は避けたい人（最大2人）」「一緒だと嬉しい人
   // （最大1人）」を選ぶ。キー = 参加者の userId。集計は主催者だけが閲覧できる（本人以外の
   // 参加者には見えない）。組み分け（groups）の参考用で、強制ではない。
@@ -349,6 +359,16 @@ export type RoundGroup = {
 export type RoundGuest = {
   id: string;   // "gst_..." 形式
   name: string;
+};
+
+// 参加の取りやめの記録。理由は本人が選ぶ（lib/leaveReasons）。主催者にだけ見せる。
+export type RoundCancellation = {
+  userId: string;
+  name?: string;        // 取りやめた時点の表示名（あとで名前が変わっても分かるように）
+  reason: string;       // lib/leaveReasons のキー。申請中の取り下げは 'withdraw'
+  text?: string;        // 「その他」の自由入力
+  wasApproved: boolean; // 参加確定だったか（false＝申請中の取り下げ）
+  at: number;
 };
 
 // ラウンド後の相手への判定。星評価は廃止し、この4択に。
