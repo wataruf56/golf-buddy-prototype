@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { stripPrivate } from '@/lib/sanitizeUser';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 
@@ -72,7 +73,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const rating = ratingCount ? Math.round((ratingSum / ratingCount) * 2) / 2 : 0;
 
   // Strip the private kanji real name + friend list before returning to any viewer.
-  const { realNameLast, realNameFirst, friendIds, ...safe } = user;
+  // 本人以外に見せない項目は lib/sanitizeUser に一元化してある。
+  // ここだけ手書きで剥がしていたため、最寄り駅を足したときに漏れた（本番E2Eで発覚）。
+  const safe = stripPrivate(user, null);
   const publicUser = { ...safe, roundCount, reviewCount, reviewAvg, rating, ratingCount };
 
   // Enrich reviews with the reviewer's anonymised demographics (age bucket
