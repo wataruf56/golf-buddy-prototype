@@ -34,10 +34,12 @@ export function AvailPersonChip({ p }: { p: AvailPerson }) {
       {p.car && <span className="text-[10px]" aria-label={carTitle}>🚗</span>}
     </>
   );
+  // 読み上げ用の名前（見た目は札のまま）。title だけだと車の説明が名前になってしまう
+  const label = `${p.me ? 'あなた' : p.name || (female ? '女性' : '男性')} ${p.age}歳${p.car ? '・車を出せる' : ''}`;
   if (p.id && !p.me) {
-    return <Link href={`/profile/${p.id}`} className={cls} title={carTitle}>{inner}</Link>;
+    return <Link href={`/profile/${p.id}`} className={cls} title={carTitle} aria-label={label}>{inner}</Link>;
   }
-  return <span className={cls} title={carTitle}>{inner}</span>;
+  return <span className={cls} title={carTitle} aria-label={label}>{inner}</span>;
 }
 
 /** 札の見方（青・ピンク・枠つき）。ホームとカレンダーで同じものを出す。 */
