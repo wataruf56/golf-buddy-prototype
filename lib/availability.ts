@@ -2,6 +2,8 @@ import 'server-only';
 import { getAdminDb } from './firebase';
 import { getCohort, type Cohort } from './ageGate';
 import type { User } from './types';
+import { clampCarNum, type AvailPerson } from './availabilityShared';
+export type { AvailPerson } from './availabilityShared';
 
 // 「行ける日」。会員が3か月先までのカレンダーから、行ける日を選んで置いておく。
 //
@@ -17,13 +19,15 @@ import type { User } from './types';
 //   ・車あり／なしはプロフィールの値。この画面で変えるとプロフィールも変わる
 //   ・過ぎた日は自動で消える。3か月より先は選べない
 //
-// 保存先：_availability/{userId} = { dates: ['YYYY-MM-DD'...], updatedAt }
+// 保存先：_availability/{userId} = { dates: ['YYYY-MM-DD'...], seats?, bags?, updatedAt }
 // 車はプロフィール（users.car）が正。ここには持たない（二重管理を避ける）。
+// 乗れる人数（seats・運転手込み）とバッグの数（bags）は車を出せる人だけの値で、ここに持つ（2〜8）。
+// 「行ける日」を出せるのは最寄り駅を登録した人だけ（API 側で弾く：lib/availabilityShared.needsStation）。
 
 const COLL = '_availability';
 export const WINDOW_DAYS = 92;   // 今日から約3か月
 
-export type AvailabilityDoc = { userId: string; dates: string[]; updatedAt: number };
+export type AvailabilityDoc = { userId: string; dates: string[]; seats?: number; bags?: number; updatedAt: number };
 
 /** JST の今日 'YYYY-MM-DD' */
 export function todayJst(): string {
@@ -49,24 +53,20 @@ export async function getAvailability(userId: string): Promise<AvailabilityDoc |
     if (!s.exists) return null;
     const d = s.data() || {};
     // 読むときにも過去を落とす（保存時に落としても、日は進む）
-    return { userId, dates: normalizeDates(d.dates), updatedAt: d.updatedAt || 0 };
+    const seats = clampCarNum(d.seats); const bags = clampCarNum(d.bags);
+    return { userId, dates: normalizeDates(d.dates), ...(seats ? { seats } : {}), ...(bags ? { bags } : {}), updatedAt: d.updatedAt || 0 };
   } catch { return null; }
 }
 
-export async function saveAvailability(userId: string, dates: string[]): Promise<AvailabilityDoc> {
+export async function saveAvailability(
+  userId: string, dates: string[], car?: { seats?: number; bags?: number },
+): Promise<AvailabilityDoc> {
   const adb = getAdminDb() as any;
-  const doc = { userId, dates: normalizeDates(dates), updatedAt: Date.now() };
+  const seats = clampCarNum(car?.seats); const bags = clampCarNum(car?.bags);
+  const doc: AvailabilityDoc = { userId, dates: normalizeDates(dates), ...(seats ? { seats } : {}), ...(bags ? { bags } : {}), updatedAt: Date.now() };
   if (adb && userId) await adb.collection(COLL).doc(userId).set(doc, { merge: true });
   return doc;
 }
-
-/** 一覧に載せる1人ぶん。誰に見せるかで、名前を付けるか付けないかが変わる。 */
-export type AvailPerson = {
-  age: number; gender: 'male' | 'female'; car: boolean;
-  me?: boolean;
-  // 女性が見るときだけ
-  id?: string; name?: string; avatar?: string; avatarUrl?: string; avatarMode?: string; color?: string; golmotiType?: string;
-};
 
 /**
  * 日付ごとの「行ける人」。viewer と同じ年代（cohort）の会員だけを集める。
@@ -75,9 +75,11 @@ export type AvailPerson = {
  */
 export async function listAvailabilityFor(viewer: User): Promise<{
   cohort: Cohort | null; byDate: Record<string, AvailPerson[]>; mine: string[];
+  /** 自分の車の設定（乗れる人数・バッグ数）。未設定なら undefined */
+  mineCar: { seats?: number; bags?: number };
 }> {
   const cohort = getCohort(viewer.age);
-  const empty = { cohort, byDate: {} as Record<string, AvailPerson[]>, mine: [] as string[] };
+  const empty = { cohort, byDate: {} as Record<string, AvailPerson[]>, mine: [] as string[], mineCar: {} };
   if (cohort !== 'a') return empty;   // 20〜30代だけ。それ以外には機能自体を出さない
   const adb = getAdminDb() as any;
   if (!adb) return empty;
@@ -100,12 +102,17 @@ export async function listAvailabilityFor(viewer: User): Promise<{
 
   const byDate: Record<string, AvailPerson[]> = {};
   let mine: string[] = [];
+  let mineCar: { seats?: number; bags?: number } = {};
   snap.docs.forEach((d: any) => {
     const x = d.data() || {};
     const uid: string = x.userId || d.id;
     const u = userOf[uid];
     if (!u) return;
-    if (uid === viewer.id) { mine = normalizeDates(x.dates); }
+    if (uid === viewer.id) {
+      mine = normalizeDates(x.dates);
+      const s = clampCarNum(x.seats); const b = clampCarNum(x.bags);
+      mineCar = { ...(s ? { seats: s } : {}), ...(b ? { bags: b } : {}) };
+    }
     if (banned.has(uid) || u.banned) return;
     if (hideTest && isTestId(uid)) return;
     if (getCohort(u.age) !== 'a') return;                         // 同じ年代だけ
@@ -113,6 +120,11 @@ export async function listAvailabilityFor(viewer: User): Promise<{
     const dates: string[] = normalizeDates(x.dates).filter((dt) => dt >= lo);
     if (!dates.length) return;
     const person: AvailPerson = { age: u.age, gender: u.gender, car: u.car === 'have', ...(uid === viewer.id ? { me: true } : {}) };
+    if (person.car) {
+      // 乗れる人数・バッグ数は車を出せる人だけ。誰が見ても出す（名前とは別の、車の情報）
+      const s = clampCarNum(x.seats); const b = clampCarNum(x.bags);
+      if (s) person.seats = s; if (b) person.bags = b;
+    }
     if (reveal || uid === viewer.id) {
       Object.assign(person, {
         id: uid, name: u.displayName || 'メンバー', avatar: u.avatar || '', avatarUrl: u.avatarUrl || '',
@@ -125,12 +137,12 @@ export async function listAvailabilityFor(viewer: User): Promise<{
   for (const dt of Object.keys(byDate)) {
     byDate[dt].sort((a, b) => (a.gender === b.gender ? a.age - b.age : a.gender === 'female' ? -1 : 1));
   }
-  return { cohort, byDate, mine };
+  return { cohort, byDate, mine, mineCar };
 }
 
 /** 運営向け：日付ごとに、誰が行けるか（名前・年齢・性別・車・エリア・最寄り駅）。テスト垢は除く。 */
 export async function listAvailabilityForAdmin(opts?: { includeTest?: boolean }): Promise<{
-  byDate: Record<string, Array<{ id: string; name: string; age: number; gender: string; car: string; area: string; nearestStation: string; avatarUrl: string; updatedAt: number }>>;
+  byDate: Record<string, Array<{ id: string; name: string; age: number; gender: string; car: string; seats?: number; bags?: number; area: string; nearestStation: string; avatarUrl: string; updatedAt: number }>>;
   people: number;
 }> {
   const adb = getAdminDb() as any;
@@ -157,8 +169,10 @@ export async function listAvailabilityForAdmin(opts?: { includeTest?: boolean })
     const dates = normalizeDates(x.dates).filter((dt) => dt >= lo);
     if (!dates.length) return;
     people.add(uid);
+    const seats = clampCarNum(x.seats); const bags = clampCarNum(x.bags);
     const row = {
       id: uid, name: u.displayName || 'メンバー', age: u.age || 0, gender: u.gender || '', car: u.car || '',
+      ...(u.car === 'have' && seats ? { seats } : {}), ...(u.car === 'have' && bags ? { bags } : {}),
       area: u.area || '', nearestStation: u.nearestStation || '', avatarUrl: u.avatarUrl || '', updatedAt: x.updatedAt || 0,
     };
     for (const dt of dates) (byDate[dt] = byDate[dt] || []).push(row);

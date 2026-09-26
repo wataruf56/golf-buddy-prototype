@@ -7,7 +7,7 @@ import { appProfileUrl } from '@/lib/adminLinks';
 
 // 運営向け：会員が出した「行ける日」を、日付ごとに名前・年齢・性別・車・エリア・最寄り駅つきで見る。
 // ここを見て、運営がコースの予約とピックアップの調整をする（会員側には名前を出さない日付もある）。
-type Row = { id: string; name: string; age: number; gender: string; car: string; area: string; nearestStation: string; avatarUrl: string; updatedAt: number };
+type Row = { id: string; name: string; age: number; gender: string; car: string; seats?: number; bags?: number; area: string; nearestStation: string; avatarUrl: string; updatedAt: number };
 type Resp = { byDate: Record<string, Row[]>; people: number; generatedAt: number };
 
 const W = ['日', '月', '火', '水', '木', '金', '土'];
@@ -89,12 +89,15 @@ function Inner() {
         const m = rows.filter((r) => r.gender === 'male').length;
         const f = rows.filter((r) => r.gender === 'female').length;
         const cars = rows.filter((r) => r.car === 'have').length;
+        // 運べる人数＝各車の「乗れる人数」の合計（未設定の車は4人と見なす）
+        const seatsTotal = rows.filter((r) => r.car === 'have').reduce((n, r) => n + (r.seats || 4), 0);
         return (
           <div key={iso} className="bg-card rounded-xl shadow-card p-3 mb-3 border-2 border-border">
             <div className="flex items-center gap-2 flex-wrap mb-2">
               <span className={'text-[16px] font-black ' + (l.dow === 0 ? 'text-orange' : l.dow === 6 ? 'text-blue' : '')}>{l.md}（{l.w}）</span>
               <span className="text-[12px] font-black bg-white border border-border rounded-full px-2 py-0.5">{rows.length}人</span>
-              <span className="text-[11px] font-bold text-sub">男{m}・女{f}・車あり{cars}</span>
+              <span className="text-[11px] font-bold text-sub">男{m}・女{f}・車あり{cars}{cars > 0 && <>（{seatsTotal}人まで運べる）</>}</span>
+              {cars > 0 && seatsTotal < rows.length && <span className="text-[11px] font-black text-orange bg-orange-light border border-orange rounded-full px-2 py-0.5">車が足りない</span>}
               {rows.length >= 4 && <span className="text-[11px] font-black text-green bg-green-light border border-green rounded-full px-2 py-0.5">1組できる</span>}
             </div>
             <div className="overflow-x-auto">
@@ -112,7 +115,7 @@ function Inner() {
                       </td>
                       <td className="py-1.5 pr-2">{r.age || '-'}</td>
                       <td className={'py-1.5 pr-2 font-bold ' + (r.gender === 'female' ? 'text-sakura' : 'text-blue')}>{r.gender === 'female' ? '女' : r.gender === 'male' ? '男' : '-'}</td>
-                      <td className="py-1.5 pr-2">{r.car === 'have' ? '🚗 あり' : r.car === 'none' ? 'なし' : '-'}</td>
+                      <td className="py-1.5 pr-2 whitespace-nowrap">{r.car === 'have' ? `🚗 あり${r.seats ? `（${r.seats}人乗り${r.bags ? `・バッグ${r.bags}` : ''}）` : ''}` : r.car === 'none' ? 'なし' : '-'}</td>
                       <td className="py-1.5 pr-2 whitespace-nowrap">{r.area || '-'}</td>
                       <td className="py-1.5 pr-2 whitespace-nowrap">{r.nearestStation || <span className="text-muted">未入力</span>}</td>
                     </tr>
