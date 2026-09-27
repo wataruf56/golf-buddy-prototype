@@ -25,7 +25,7 @@ export type PublishResult =
 
 export async function advancePublish(p: IgPost): Promise<PublishResult> {
   if (p.mediaType !== 'REELS') {
-    const mediaId = await igPublishPost(p.imageUrls, p.caption);
+    const mediaId = await igPublishPost(p.imageUrls, p.caption, p.altTexts);
     return { state: 'published', mediaId };
   }
 

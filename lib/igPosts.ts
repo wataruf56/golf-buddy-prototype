@@ -24,6 +24,10 @@ export type IgPost = {
   imageUrl: string;
   /** カルーセルのときの全ページ。1枚投稿では imageUrl と同じ1件だけ入る。 */
   imageUrls: string[];
+  /** 画像1枚ごとの代替テキスト。imageUrls と同じ並び。
+   *  Instagram は検索で代替テキストも見ているので、公開前に必ず入れる。
+   *  リールには付けられない（APIが画像のみ対応）。 */
+  altTexts: string[];
   /** リールのときだけ。mp4 の公開URL。 */
   videoUrl?: string | null;
   /** リールの表紙画像（任意）。一覧のサムネイルにも使う。 */
@@ -61,6 +65,9 @@ function toPost(id: string, d: any): IgPost {
   const urls: string[] = Array.isArray(d?.imageUrls)
     ? d.imageUrls.map((u: any) => String(u)).filter(Boolean)
     : [];
+  const alts: string[] = Array.isArray(d?.altTexts)
+    ? d.altTexts.map((t: any) => String(t || ''))
+    : [];
   const first = String(d?.imageUrl || urls[0] || '');
   const videoUrl = d?.videoUrl ? String(d.videoUrl) : null;
   const mediaType: IgMediaType = d?.mediaType
@@ -71,6 +78,7 @@ function toPost(id: string, d: any): IgPost {
     roundId: d?.roundId || undefined,
     imageUrl: first,
     imageUrls: urls.length ? urls : (first ? [first] : []),
+    altTexts: alts,
     videoUrl,
     coverUrl: d?.coverUrl ? String(d.coverUrl) : null,
     mediaType,
@@ -101,7 +109,7 @@ export async function getIgPost(id: string): Promise<IgPost | null> {
 }
 
 export async function createIgPost(input: {
-  roundId?: string; imageUrl?: string; imageUrls?: string[];
+  roundId?: string; imageUrl?: string; imageUrls?: string[]; altTexts?: string[];
   videoUrl?: string; coverUrl?: string;
   caption: string; signature?: string;
 }): Promise<IgPost> {
@@ -115,6 +123,7 @@ export async function createIgPost(input: {
     // リールは表紙をサムネイルに使う。無ければ空。
     imageUrl: video ? (input.coverUrl || '') : urls[0],
     imageUrls: video ? [] : urls,
+    altTexts: video ? [] : (input.altTexts || []).map((t) => String(t || '')),
     videoUrl: video || null,
     coverUrl: input.coverUrl || null,
     mediaType,
@@ -137,7 +146,7 @@ export async function createIgPost(input: {
 
 export async function updateIgPost(id: string, patch: Partial<IgPost>): Promise<void> {
   const clean: any = { updatedAt: Date.now() };
-  for (const k of ['caption', 'imageUrl', 'imageUrls', 'videoUrl', 'coverUrl', 'mediaType',
+  for (const k of ['caption', 'imageUrl', 'imageUrls', 'altTexts', 'videoUrl', 'coverUrl', 'mediaType',
     'containerId', 'containerAt', 'status', 'scheduledAt', 'publishedAt', 'igMediaId', 'error',
     'hidden'] as const) {
     if (k in patch) clean[k] = (patch as any)[k];

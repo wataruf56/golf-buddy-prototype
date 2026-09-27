@@ -3,7 +3,7 @@ import 'server-only';
 // Instagram への投稿（Instagram API with Instagram Login）。
 //
 // 公開は必ず2段階：
-//   1) コンテナ作成  POST /me/media           （image_url + caption）
+//   1) コンテナ作成  POST /me/media           （image_url + caption + alt_text）
 //   2) 完了待ち      GET  /{container-id}     （status_code=FINISHED まで）
 //   3) 公開          POST /me/media_publish   （creation_id）
 //
@@ -136,8 +136,21 @@ async function publishContainer(token: string, containerId: string): Promise<str
   return mediaId;
 }
 
+/** 代替テキスト。Instagram は検索で画像の代替テキストも見ているので、
+ *  空にせず必ず入れる（読み上げ対応としても正しい）。
+ *  API が受け付けるのは画像だけ。リールとストーリーズには付けられない。
+ *  上限は公式に明記がないため、長すぎるものは安全側で切る。 */
+const ALT_TEXT_LIMIT = 1000;
+
+function altParam(alt?: string | null): Record<string, string> {
+  const t = (alt || '').trim().slice(0, ALT_TEXT_LIMIT);
+  return t ? { alt_text: t } : {};
+}
+
 /** 画像1枚のフィード投稿を公開する。成功すると投稿の media id を返す。 */
-export async function igPublishImage(imageUrl: string, caption: string): Promise<string> {
+export async function igPublishImage(
+  imageUrl: string, caption: string, altText?: string | null,
+): Promise<string> {
   const token = igToken();
   if (!token) throw new Error('IG_ACCESS_TOKEN が未設定です');
   assertUrl(imageUrl);
@@ -148,6 +161,7 @@ export async function igPublishImage(imageUrl: string, caption: string): Promise
     body: new URLSearchParams({
       image_url: imageUrl,
       caption: (caption || '').slice(0, IG_CAPTION_LIMIT),
+      ...altParam(altText),
       access_token: token,
     }),
   });
@@ -164,7 +178,9 @@ export async function igPublishImage(imageUrl: string, caption: string): Promise
  * それらを children に渡して media_type=CAROUSEL の親コンテナを作る。
  * キャプションは親にだけ付ける。
  */
-export async function igPublishCarousel(imageUrls: string[], caption: string): Promise<string> {
+export async function igPublishCarousel(
+  imageUrls: string[], caption: string, altTexts?: (string | null)[],
+): Promise<string> {
   const token = igToken();
   if (!token) throw new Error('IG_ACCESS_TOKEN が未設定です');
   const urls = (imageUrls || []).filter(Boolean);
@@ -174,11 +190,14 @@ export async function igPublishCarousel(imageUrls: string[], caption: string): P
 
   // 1) 子コンテナ（順番が投稿の並び順になるので直列に作る）
   const children: string[] = [];
-  for (const url of urls) {
+  for (const [i, url] of urls.entries()) {
     const c = await call(`${GRAPH}/me/media`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ image_url: url, is_carousel_item: 'true', access_token: token }),
+      body: new URLSearchParams({
+        image_url: url, is_carousel_item: 'true',
+        ...altParam(altTexts?.[i]), access_token: token,
+      }),
     });
     if (!c?.id) throw new Error(`子コンテナの作成に失敗しました（${url.slice(-40)}）`);
     children.push(c.id);
@@ -203,12 +222,14 @@ export async function igPublishCarousel(imageUrls: string[], caption: string): P
 }
 
 /** 1枚でもカルーセルでも、枚数に応じて正しい方で公開する。 */
-export async function igPublishPost(imageUrls: string[], caption: string): Promise<string> {
+export async function igPublishPost(
+  imageUrls: string[], caption: string, altTexts?: (string | null)[],
+): Promise<string> {
   const urls = (imageUrls || []).filter(Boolean);
   if (!urls.length) throw new Error('画像がありません');
   return urls.length === 1
-    ? igPublishImage(urls[0], caption)
-    : igPublishCarousel(urls, caption);
+    ? igPublishImage(urls[0], caption, altTexts?.[0])
+    : igPublishCarousel(urls, caption, altTexts);
 }
 
 /** 長期トークンを更新する。新しいトークンと残り日数を返す（保存は呼び出し側）。 */

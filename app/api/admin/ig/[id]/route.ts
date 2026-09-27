@@ -47,6 +47,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         patch.caption = body.caption;
       }
       if (typeof body.imageUrl === 'string' && body.imageUrl.trim()) patch.imageUrl = body.imageUrl.trim();
+      // 代替テキスト（画像と同じ並び）。公開前ならあとから足せる。
+      if (Array.isArray(body.altTexts)) {
+        patch.altTexts = body.altTexts.map((t: any) => String(t || '').trim());
+      }
       await updateIgPost(id, patch);
       return NextResponse.json({ ok: true }, { headers: noStore });
     }

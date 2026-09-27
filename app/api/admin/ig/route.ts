@@ -7,7 +7,7 @@ import { pushToMany } from '@/lib/linePush';
 //
 //   GET  /api/admin/ig?token=...            投稿一覧＋画像対応表
 //   POST /api/admin/ig?token=...            新規下書き作成 / 画像の紐付け
-//        body {action:'create', imageUrl, caption, roundId?}
+//        body {action:'create', imageUrl, caption, roundId?, altTexts?}
 //        body {action:'setImage', roundId, imageUrl}
 
 export const dynamic = 'force-dynamic';
@@ -61,6 +61,10 @@ export async function POST(req: NextRequest) {
       const videoUrl = String(body?.videoUrl || '').trim();     // 渡すとリールになる
       const coverUrl = String(body?.coverUrl || '').trim();
       const caption = String(body?.caption || '').trim();
+      // 代替テキスト。画像と同じ並びで受ける。足りない分は空のまま（公開前に足せる）。
+      const altTexts: string[] = Array.isArray(body?.altTexts)
+        ? body.altTexts.map((t: any) => String(t || '').trim())
+        : [];
       if ((!imageUrls.length && !videoUrl) || !caption) {
         return NextResponse.json(
           { error: 'imageUrl(s) か videoUrl、および caption が必要です' },
@@ -71,7 +75,7 @@ export async function POST(req: NextRequest) {
           { error: `画像は${IG_CAROUSEL_MAX}枚までです` }, { status: 400, headers: noStore });
       }
       const post = await createIgPost({
-        imageUrls, videoUrl: videoUrl || undefined, coverUrl: coverUrl || undefined, caption,
+        imageUrls, altTexts, videoUrl: videoUrl || undefined, coverUrl: coverUrl || undefined, caption,
         roundId: String(body?.roundId || '').trim() || undefined,
         signature: String(body?.signature || '').trim() || undefined,
       });
