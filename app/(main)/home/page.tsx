@@ -13,6 +13,7 @@ import { toast } from '@/components/Toast';
 import { RESTRICTION_MSG } from '@/lib/restrictions';
 import { isRoundHost } from '@/lib/roundHost';
 import { isOfficialThread } from '@/lib/officialShared';
+import { isAvailRoom } from '@/lib/availabilityShared';
 
 function relTime(ts: number): string {
   const diff = Date.now() - ts;
@@ -143,14 +144,15 @@ export default function HomePage() {
   //     同じ枠が2か所に並んで「別の募集が2つある」ように見える）
   //   ・満員も外す（「募集してるやつ」だけを並べる）
   const rounds = useStore((s) => s.rounds.filter(
-    (r) => r.status === 'open' && !isOfficialThread(r) && (r.currentCount || 0) < r.maxSpots,
+    (r) => r.status === 'open' && !isOfficialThread(r) && !isAvailRoom(r) && (r.currentCount || 0) < r.maxSpots,
   ));
   const allRounds = useStore((s) => s.rounds);
   const users = useStore((s) => s.users);
   // 自分が「主催 or 参加/申請中」で、まだ完了していない（開催前の）ラウンド。
   // 開催日の昇順（日程未定は末尾）。ホーム上部の「参加予定」枠に出す。
+  // 「行ける日」の集まりは参加予定に並べない（入口は上の行ける日カード）
   const myUpcoming = allRounds
-    .filter((r) => r.status !== 'completed' && (r.hostId === me.id || (r.applicantIds || []).includes(me.id) || (r.pendingApplicantIds || []).includes(me.id)))
+    .filter((r) => r.status !== 'completed' && !isAvailRoom(r) && (r.hostId === me.id || (r.applicantIds || []).includes(me.id) || (r.pendingApplicantIds || []).includes(me.id)))
     .slice()
     .sort((a, b) => {
       const am = a.date ? new Date(a.date).getTime() : Infinity;

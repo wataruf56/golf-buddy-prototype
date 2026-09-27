@@ -18,6 +18,7 @@ export async function GET(_req: NextRequest) {
     ]);
     const seen = new Set<string>();
     let rounds = [...open, ...official].filter((r) => {
+      if ((r as any).availDate) return false;   // 「行ける日」の集まりは公開一覧に出さない
       if (!r || seen.has(r.id)) return false;
       seen.add(r.id);
       return r.status === 'open';

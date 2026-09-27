@@ -53,4 +53,17 @@ export function needsStation(u: { nearestStation?: string } | null | undefined):
   return !String(u?.nearestStation || '').trim();
 }
 
+/** 同じ日に「行ける」を押した人がこの人数になったら、その日のチャット部屋ができる。 */
+export const AVAIL_ROOM_MIN = 4;
+
+/** 「行ける日」の集まり（日付ごとのチャット部屋）か。運営主催のラウンドの形で作られる。 */
+export function isAvailRoom(r: { availDate?: string } | null | undefined): boolean {
+  return !!r?.availDate;
+}
+
+export function availRoomTitle(iso: string): string {
+  const l = dateLabel(iso);
+  return `${l.md}（${l.w}）に行ける人の集まり`;
+}
+
 export const NEEDS_STATION_MSG = '行ける日を出すには、プロフィールで最寄り駅を登録してください（他の会員には表示されません）';

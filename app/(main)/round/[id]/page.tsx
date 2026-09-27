@@ -14,6 +14,8 @@ import { chatIdFor, formatDate, revisitRatingLabel, carLabel, priceLabelForGende
 import { levelConditionLabel } from '@/lib/roundEligibility';
 import { isRoundHost } from '@/lib/roundHost';
 import { OfficialThreadPanel } from '@/components/OfficialThreadPanel';
+import { AvailRoomPanel } from '@/components/AvailRoomPanel';
+import { isAvailRoom } from '@/lib/availabilityShared';
 import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
 import { GroupAssignment } from '@/components/GroupAssignment';
 import { GroupPrefs } from '@/components/GroupPrefs';
@@ -549,6 +551,17 @@ export default function RoundDetailPage() {
         <button onClick={() => router.back()} className="text-sm text-blue font-semibold">← 戻る</button>
         <h1 className="text-[20px] font-black mt-3 mb-4 leading-snug">{round.title}</h1>
         <OfficialThreadPanel roundId={round.id} />
+      </div>
+    );
+  }
+  // 「行ける日」の集まり（日付ごとのチャット部屋）。募集の画面は出さず、顔ぶれとチャットの入口だけ。
+  // 運営（主催者）にはふつうの画面（組み分け・配車ボードなどが使える）。
+  if (isAvailRoom(round) && !isHost) {
+    return (
+      <div className="px-5 py-3">
+        <button onClick={() => router.back()} className="text-sm text-blue font-semibold">← 戻る</button>
+        <h1 className="text-[20px] font-black mt-3 leading-snug">{round.title}</h1>
+        <AvailRoomPanel round={round} users={users} meId={meId} />
       </div>
     );
   }

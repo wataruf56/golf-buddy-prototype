@@ -12,6 +12,8 @@ import { dateLabel, type AvailPerson } from '@/lib/availabilityShared';
 type Resp = {
   enabled: boolean; needsStation?: boolean;
   byDate: Record<string, AvailPerson[]>; mine: string[];
+  /** 自分が入っている日付ごとのチャット部屋 */
+  rooms?: Record<string, { id: string; count: number }>;
 };
 const SHOW_DAYS = 5;
 
@@ -43,9 +45,25 @@ export function AvailabilityHomeCard() {
         </div>
         <div className="mt-2"><AvailLegend /></div>
         <div className="text-[11px] text-sub font-bold mt-1.5 leading-relaxed">
-          行ける日を出しておくと、運営が日付ごとに人をまとめて、コースを押さえて案内します。
+          同じ日に4人集まると、その日のチャットが始まります。
           {data.needsStation && <><br />※ 行ける日を出すには、プロフィールの最寄り駅が必要です。</>}
         </div>
+
+        {Object.keys(data.rooms || {}).length > 0 && (
+          <div className="mt-3 flex flex-col gap-1.5">
+            {Object.keys(data.rooms!).sort().map((iso) => {
+              const l = dateLabel(iso); const room = data.rooms![iso];
+              return (
+                <Link key={iso} href={`/round/${room.id}/chat`} className="flex items-center gap-2 bg-green-light border-2 border-green rounded-xl px-3 py-2">
+                  <span className="text-base">💬</span>
+                  <span className="text-[13px] font-black text-green flex-1">{l.md}（{l.w}）のチャット</span>
+                  <span className="text-[11px] font-bold text-sub">{room.count}人</span>
+                  <span className="text-green">›</span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
 
         {shown.length === 0 ? (
           <div className="mt-3 text-[12px] font-bold text-sub bg-bg rounded-xl px-3 py-2.5">

@@ -187,6 +187,10 @@ export type Round = {
   // isAdminUserId — cannot be spoofed by the client). Official rounds render
   // with a dedicated icon + "ゴルトモ公式" name + badge.
   isOfficial?: boolean;
+  // 「行ける日」の集まり（日付ごとのチャット部屋）。その日に「行ける」を押した人が
+  // 4人以上で自動で作られる、運営主催のラウンド。lib/availRooms
+  availDate?: string;
+  availTest?: boolean;
   createdAt: number;
   // Per-participant scores recorded after the round completes. Optional and
   // sparse — any participant may fill in their own or each other's score, and

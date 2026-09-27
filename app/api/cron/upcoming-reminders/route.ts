@@ -58,6 +58,7 @@ export async function GET(req: NextRequest) {
   if (daysBefore.length) {
     for (const r of allRounds) {
       if (r.status !== 'open') continue;        // 募集中のみ（締切/完了は対象外）
+      if ((r as any).availDate) continue;       // 「行ける日」の集まり（日付だけの部屋）にはリマインドしない
       if (!r.date) continue;                     // 日程未確定（範囲のみ）は対象外
       const target = targetMs(r.date, r.startTime);
       if (target === null) continue;

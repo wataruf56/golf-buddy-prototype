@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { AvailLegend, AvailPersonChip } from '@/components/AvailPersonChip';
-import { dateLabel, isoOf, monthsBetween, WEEKDAYS, type AvailPerson } from '@/lib/availabilityShared';
+import { AVAIL_ROOM_MIN, dateLabel, isoOf, monthsBetween, WEEKDAYS, type AvailPerson } from '@/lib/availabilityShared';
 
 // 「行ける日」カレンダー（モック3版・2026-09-27）。
 //   ・1か月ずつ。‹ › で月を切り替える（今日から約3か月先まで）
@@ -22,6 +22,8 @@ type Resp = {
   car: 'have' | 'none'; seats: number | null; bags: number | null;
   canOpenProfiles: boolean;
   window: { from: string; to: string; days: number };
+  /** 自分が入っている日付ごとのチャット部屋 */
+  rooms?: Record<string, { id: string; count: number }>;
 };
 const NUMS = [2, 3, 4, 5, 6, 7, 8];
 const RETURN_TO = '/mypage/edit?returnTo=' + encodeURIComponent('/availability');
@@ -86,8 +88,12 @@ export default function AvailabilityPage() {
         toast(j?.message || '保存できませんでした', 'error');
         return;
       }
-      // サーバーが持っている値に合わせる（初期値を入れた分など）
-      setData((cur) => (cur ? { ...cur, seats: j?.seats ?? cur.seats, bags: j?.bags ?? cur.bags } : cur));
+      // サーバーが持っている値に合わせる（初期値を入れた分・できた部屋など）
+      setData((cur) => (cur ? { ...cur, seats: j?.seats ?? cur.seats, bags: j?.bags ?? cur.bags, rooms: j?.rooms ?? cur.rooms } : cur));
+      if (j?.rooms && next.dates) {
+        const opened = next.dates.filter((d) => j.rooms[d] && !(revert.rooms || {})[d]);
+        if (opened.length) toast(`${dateLabel(opened[0]).md} のチャットが始まりました`);
+      }
       if (next.car && next.car !== revert.car) { store.refreshMe().catch(() => {}); }
     } catch {
       setData(revert);
@@ -150,8 +156,8 @@ export default function AvailabilityPage() {
       </div>
       <div className="text-2xl font-black tracking-tight">📅 行ける日</div>
       <div className="text-[12px] text-sub font-bold mt-1 leading-relaxed">
-        行ける日を押しておくと、運営が日付ごとに人をまとめて、コースを押さえて案内します。
-        同年代（20〜30代）の会員だけに出ます。
+        同じ日に「行ける」を押した人が{AVAIL_ROOM_MIN}人集まると、その日のチャットが始まります。
+        コースや集合場所は、そのチャットで相談してください。同年代（20〜30代）の会員だけに出ます。
       </div>
 
       {data.needsStation && (
@@ -273,6 +279,13 @@ export default function AvailabilityPage() {
                 )}
               </>
             )}
+            {data.rooms?.[focusIso] ? (
+              <Link href={`/round/${data.rooms[focusIso].id}/chat`} className="block w-full mt-2.5 py-2.5 rounded-xl border-2 border-green bg-green-light text-green text-center text-[14px] font-black">
+                💬 この日のチャットを開く（{data.rooms[focusIso].count}人）
+              </Link>
+            ) : listFor(focusIso).length > 0 && listFor(focusIso).length < AVAIL_ROOM_MIN ? (
+              <div className="text-[11px] text-sub font-bold mt-2">あと{AVAIL_ROOM_MIN - listFor(focusIso).length}人でこの日のチャットが始まります</div>
+            ) : null}
             {data.needsStation ? (
               <Link href={RETURN_TO} className="block w-full mt-2.5 py-2.5 rounded-xl border-2 border-orange bg-white text-orange text-center text-[14px] font-black">
                 最寄り駅を登録すると「行ける」を出せます

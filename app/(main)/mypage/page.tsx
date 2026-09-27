@@ -26,9 +26,10 @@ export default function MyPage() {
   const [showNotifySettings, setShowNotifySettings] = useState(false);
   const myRounds = useStore((s) =>
     s.rounds.filter((r) =>
+      !(r as any).availDate && (   // 「行ける日」の集まりは並べない（入口はホームの行ける日カード）
       r.hostId === s.meId ||
       r.applicantIds.includes(s.meId) ||
-      (r.pendingApplicantIds || []).includes(s.meId)
+      (r.pendingApplicantIds || []).includes(s.meId))
     )
   );
   // 「参加予定」= 自分が主催 or 参加/申請中で、まだ完了していないラウンド（募集中open＋
