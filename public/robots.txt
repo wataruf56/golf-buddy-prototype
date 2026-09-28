@@ -33,6 +33,12 @@ Disallow: /poll
 Disallow: /qr
 Disallow: /add-friend
 Disallow: /friends/confirm
+# 会員の「行ける日」カレンダー（app.goltomo.com/availability）。ログイン後に使う
+# 会員専用ページで、検索需要が無い。page 側は 'use client' なので metadata を
+# 持てず、塞がないと layout.tsx のサイト共通文言を継承する＝指名検索「ゴルトモ」で
+# トップページと同じタイトルのページが競合してしまう（/profile・/poll と同じ理由）。
+# 前方一致で巻き込む公開URLは無い（/admin/availability は上の /admin で既に対象）。
+Disallow: /availability
 # 末尾スラッシュ付き＝アプリ内の /rounds/past・/rounds/upcoming だけを対象にし、
 # インスタbio用の短縮URL goltomo.com/rounds は塞がない。
 Disallow: /rounds/
@@ -74,6 +80,7 @@ Disallow: /poll
 Disallow: /qr
 Disallow: /add-friend
 Disallow: /friends/confirm
+Disallow: /availability
 Disallow: /rounds/
 
 # サイトの要約と主要ページの一覧（LLM向け）
