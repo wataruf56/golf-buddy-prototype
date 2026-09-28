@@ -150,7 +150,7 @@ function Inner() {
     <div className="min-h-screen bg-bg p-4 max-w-md mx-auto">
       <div className="flex items-center gap-2 mb-3">
         <Link href={`/admin?token=${token}`} className="text-blue text-sm font-bold">← 管理</Link>
-        <div className="flex-1 text-center text-base font-black">🏆 ラウンド募集</div>
+        <div className="flex-1 text-center text-base font-black">🏆 募集の一覧</div>
         <button onClick={load} className="text-blue text-sm font-bold">🔄</button>
       </div>
         <AdminTabs token={token} group="rounds" current="/admin/rounds" />

@@ -102,7 +102,7 @@ function Inner() {
   return (
     <div className="min-h-screen bg-bg p-4 max-w-md mx-auto pb-16">
       <Link href={`/admin?token=${token}`} className="text-muted text-sm">‹ 管理</Link>
-      <div className="text-2xl font-black mb-1 mt-1">🧪 テストアカウント管理</div>
+      <div className="text-2xl font-black mb-1 mt-1">🧪 テスト垢・段階公開</div>
       <div className="text-[12px] text-muted mb-4 leading-relaxed">
         検証用のアカウントを一般ユーザーと分けて管理します。ここに登録したアカウントは<b>一般ユーザーから隠す</b>ことができ、<b>新機能を先行して見せる</b>対象にもなります。
       </div>

@@ -192,7 +192,7 @@ function Inner() {
         <button onClick={() => load()} className="ml-auto text-[11px] px-2.5 py-1 rounded-full bg-card shadow-card font-bold">{loading ? '更新中…' : '↻ 更新'}</button>
       </div>
         <AdminTabs token={token} group="lp" current="/admin/lp-funnel" />
-      <div className="text-2xl font-black mb-1">🧭 LP流入ファネル</div>
+      <div className="text-2xl font-black mb-1">🧭 LP・診断の流入</div>
       <div className="text-[11px] text-muted mb-3">
         どの入口から来た人が、どこまで進んで、どこで落ちたか。数字はすべて<b>ユニーク</b>（同じ人が何回来ても1人）。ゴールは<b>LINE公式へ進んだ</b>こと。
       </div>

@@ -81,7 +81,7 @@ function Inner() {
   return (
     <div className="min-h-screen bg-bg p-4 max-w-md mx-auto pb-24">
       <Link href={`/admin?token=${token}`} className="text-muted text-sm">‹ 管理</Link>
-      <div className="text-2xl font-black mb-1 mt-1">🛡️ 管理人チャット</div>
+      <div className="text-2xl font-black mb-1 mt-1">🛡️ 管理人としてDM</div>
       <div className="text-[12px] text-muted mb-3">通報者やユーザーと「管理人」名義でDMできます。ユーザー側は「ゴル友」に管理人が表示されます。</div>
 
       {!active ? (

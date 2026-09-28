@@ -61,7 +61,7 @@ function Inner() {
   return (
     <div className="min-h-screen bg-bg p-4 max-w-md mx-auto pb-16">
       <Link href={`/admin?token=${token}`} className="text-muted text-sm">‹ 管理</Link>
-      <div className="text-2xl font-black mb-1 mt-1">📨 LINE送信レポート</div>
+      <div className="text-2xl font-black mb-1 mt-1">📨 LINE配信の通数</div>
       <div className="text-[12px] text-muted mb-3 leading-relaxed">
         全体に送っているLINEを種別ごとに集計。<b className="text-text">通数</b>が課金対象（延べ宛先数）の目安です。
       </div>

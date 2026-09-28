@@ -80,25 +80,47 @@ function Inner() {
     );
   }
 
-  const items = [
-    { href: `/admin/activity?token=${token}`, emoji: '📊', title: '利用レポート', desc: 'よく開かれている画面 / アクティブユーザー / 操作ログ / 登録推移・カレンダー / スイング' },
-    { href: `/admin/line-stats?token=${token}`, emoji: '📨', title: 'LINE送信レポート', desc: '種別ごとの送信通数・月別推移（LINE有料化の通数把握）' },
-    { href: `/admin/lp-funnel?token=${token}`, emoji: '📊', title: 'LPレポート', desc: '流入ファネル（入口別・離脱ポイント・LINE到達）/ 診断の中身・需要プール' },
-    { href: `/admin/dm?token=${token}`, emoji: '💬', title: 'メッセージ', desc: 'DMログ（誰↔誰・本文）/ 未読ユーザー・未読通知の設定' },
-    { href: `/admin/users?token=${token}`, emoji: '👥', title: 'ユーザー管理', desc: 'LINE登録ユーザー一覧 / Swing許可リスト編集' },
-    { href: `/admin/rounds?token=${token}`, emoji: '🏆', title: 'ラウンド募集', desc: '全募集の一覧・削除 / タイトル定型文の編集' },
-    { href: `/admin/availability?token=${token}`, emoji: '📅', title: '行ける日（会員の空き）', desc: '会員が出した「行ける日」を日付ごとに。名前・車・最寄り駅つき（コース予約・ピックアップ調整用）' },
-    { href: `/admin/official?token=${token}`, emoji: '🚗', title: '代理ラウンド募集', desc: '運営が代わりに立てる募集。枠を立てる / ホームの声かけ / レポート' },
-    { href: `/admin/audit?token=${token}`, emoji: '📒', title: '操作ログ', desc: '誰が・誰に・何をしたか（自動の再会通知も含む）' },
-    { href: `/admin/reminders?token=${token}`, emoji: '⏰', title: '開催前リマインド設定', desc: '参加ラウンドの何日前に全体通知するか（1ヶ月前/1週間前/前日など）' },
-    { href: `/admin/rematch?token=${token}`, emoji: '🔁', title: '再会エンジン', desc: '再会通知のタイミング設定・今すぐ実行（テスト）・5段ファネル' },
-    { href: `/admin/test-accounts?token=${token}`, emoji: '🧪', title: 'テストアカウント管理', desc: '検証用アカウントの登録 / 一般ユーザーから隠す / 新機能の段階公開' },
-    { href: `/admin/notification-templates?token=${token}`, emoji: '✉️', title: '通知メッセージ編集', desc: 'アプリ内 / LINE / スマホ通知の文面をすべて編集' },
-    { href: `/admin/ratings?token=${token}`, emoji: '🛡️', title: '信頼・トラブル対応', desc: '評価の状況（全員）/ 通報 / ドタキャン・マナー / レビュー' },
-    { href: `/admin/support?token=${token}`, emoji: '🛡️', title: '管理人チャット', desc: 'ユーザーと「管理人」名義でDM（サポート窓口）' },
-    { href: `/admin/hobby-tags?token=${token}`, emoji: '🎯', title: '趣味タグの管理', desc: 'ユーザーが追加した趣味タグの確認・不適切タグの削除' },
-    { href: `/admin/swing?token=${token}`, emoji: '🏌️', title: 'スイング解析モニタ', desc: '解析履歴・状態確認・スタック復旧' },
-    { href: `/admin/system?token=${token}`, emoji: '🔧', title: 'システム状態', desc: '環境変数 / GCS / LINE Bot 接続確認' },
+  // 管理画面の入口は3つに寄せる（2026-09-28・本人要望）。
+  //   📊 レポート … 数字を見る
+  //   👥 運用     … 会員・募集・トラブルに手を動かす
+  //   ⚙️ 設定     … 通知の文面・仕組み・システム
+  // 項目が並びすぎて「どれを開けばいいか」が分からなくなっていたため。
+  // 各グループは、閉じていても中の項目名（押せる札）が見える。開くと説明つきの一覧。
+  const q = `?token=${token}`;
+  const groups: MenuGroup[] = [
+    {
+      key: 'report', emoji: '📊', name: 'レポート', lead: '数字を見る。使われ方・流入・LINEの通数・操作の記録',
+      items: [
+        { href: `/admin/activity${q}`, emoji: '📈', title: '利用状況', desc: 'よく開かれる画面 / アクティブ会員 / 登録の推移・カレンダー / スイング' },
+        { href: `/admin/lp-funnel${q}`, emoji: '🧭', title: 'LP・診断の流入', desc: '入口別のファネル・離脱ポイント・LINE到達 / 診断の中身・需要プール' },
+        { href: `/admin/line-stats${q}`, emoji: '📨', title: 'LINE配信の通数', desc: '種別ごとの送信数・月別の推移（有料枠の把握）' },
+        { href: `/admin/audit${q}`, emoji: '📒', title: '操作ログ', desc: '誰が・誰に・何をしたか（自動の再会通知も含む）' },
+      ],
+    },
+    {
+      key: 'ops', emoji: '👥', name: '運用', lead: '会員・募集・行ける日・トラブルに手を動かす',
+      items: [
+        { href: `/admin/users${q}`, emoji: '👥', title: '会員一覧', desc: 'LINE登録ユーザーの一覧 / Swing許可リスト' },
+        { href: `/admin/rounds${q}`, emoji: '🏆', title: '募集の一覧', desc: '全募集の一覧・削除 / タイトル定型文の編集' },
+        { href: `/admin/availability${q}`, emoji: '📅', title: '行ける日', desc: '日付ごとに誰が行けるか（名前・車・最寄り駅つき）' },
+        { href: `/admin/official${q}`, emoji: '📣', title: '運営が立てる枠', desc: '代理募集を立てる / ホームの声かけ / レポート' },
+        { href: `/admin/ratings${q}`, emoji: '⭐', title: '評価・通報・マナー', desc: '★の状況（全員）/ 通報 / ドタキャン・マナー / レビュー' },
+        { href: `/admin/dm${q}`, emoji: '💬', title: 'DMログ・未読', desc: '誰↔誰の本文 / 未読ユーザー・未読通知の設定' },
+        { href: `/admin/support${q}`, emoji: '🛡️', title: '管理人としてDM', desc: '「管理人」名義でユーザーとやりとり（サポート窓口）' },
+        { href: `/admin/hobby-tags${q}`, emoji: '🎯', title: '趣味タグ', desc: 'ユーザーが足した趣味タグの確認・不適切なものの削除' },
+      ],
+    },
+    {
+      key: 'settings', emoji: '⚙️', name: '設定', lead: '通知の文面・タイミング・テスト垢・システム',
+      items: [
+        { href: `/admin/notification-templates${q}`, emoji: '✉️', title: '通知の文面', desc: 'アプリ内 / LINE / スマホ通知の文面をすべて編集' },
+        { href: `/admin/reminders${q}`, emoji: '⏰', title: '開催前リマインド', desc: '参加ラウンドの何日前に知らせるか（1ヶ月前 / 1週間前 / 前日など）' },
+        { href: `/admin/rematch${q}`, emoji: '🔁', title: '再会通知', desc: '再会通知のタイミング・今すぐ実行（テスト）・5段ファネル' },
+        { href: `/admin/test-accounts${q}`, emoji: '🧪', title: 'テスト垢・段階公開', desc: '検証用アカウントの登録 / 一般から隠す / 新機能を一部にだけ出す' },
+        { href: `/admin/swing${q}`, emoji: '🏌️', title: 'スイング解析の状態', desc: '解析の履歴・状態確認・止まった解析の復旧' },
+        { href: `/admin/system${q}`, emoji: '🔧', title: 'システム状態', desc: '環境変数 / GCS / LINE Bot の接続確認' },
+      ],
+    },
   ];
 
   return (
@@ -115,35 +137,26 @@ function Inner() {
       {/* 事業サマリー：見るべき数字だけをここに集約（詳細は各レポートへ） */}
       <KpiSummary token={token} />
 
-      <div className="flex flex-col gap-2">
-        {items.map((it) => (
-          <Link
-            key={it.href}
-            href={it.href}
-            className="flex items-center gap-3 p-4 bg-card rounded-xl shadow-card"
-          >
-            <span className="text-2xl">{it.emoji}</span>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-bold">{it.title}</div>
-              <div className="text-[11px] text-sub mt-0.5 truncate">{it.desc}</div>
-            </div>
-            <span className="text-muted">›</span>
-          </Link>
+      <div className="flex flex-col gap-3">
+        {groups.map((g) => (
+          <MenuSection key={g.key} group={g}>
+            {g.key === 'settings' && (
+              /* 通知の一括OFF移行（1回限り）。設定の中の末尾に置く */
+              <div className="bg-bg rounded-xl p-3 mt-2">
+                <div className="text-[12px] font-black mb-1">🔕 「気になる系」通知を全員OFF（1回限り）</div>
+                <div className="text-[11px] text-sub mb-2 leading-relaxed">
+                  既存ユーザー全員の <b>「💚 気になるが押された」「⏰ 締切間近」</b> のLINE通知を一括OFFにします（初期値OFFへの移行）。ユーザーは自分で再度ONにできます。<b>1回だけ</b>押してください。
+                </div>
+                <button
+                  onClick={migrateInterestOff}
+                  disabled={migrating}
+                  className="w-full py-2.5 bg-sub text-white rounded-xl text-[12px] font-black disabled:opacity-50"
+                >{migrating ? '実行中…' : '既存ユーザーを一括OFFにする'}</button>
+                {migrateMsg && <div className="text-[12px] text-center mt-2 font-bold">{migrateMsg}</div>}
+              </div>
+            )}
+          </MenuSection>
         ))}
-      </div>
-
-      {/* 通知の一括OFF移行（1回限り・見つけやすいよう管理トップに配置） */}
-      <div className="bg-card rounded-xl shadow-card p-4 mt-4">
-        <div className="text-[13px] font-black mb-1">🔕 「気になる系」通知を全員OFF（1回限り）</div>
-        <div className="text-[11px] text-sub mb-3 leading-relaxed">
-          既存ユーザー全員の <b>「💚 気になるが押された」「⏰ 締切間近」</b> のLINE通知を一括OFFにします（初期値OFFへの移行）。ユーザーは自分で再度ONにできます。<b>1回だけ</b>押してください。
-        </div>
-        <button
-          onClick={migrateInterestOff}
-          disabled={migrating}
-          className="w-full py-3 bg-sub text-white rounded-xl text-sm font-black disabled:opacity-50"
-        >{migrating ? '実行中…' : '既存ユーザーを一括OFFにする'}</button>
-        {migrateMsg && <div className="text-[12px] text-center mt-2 font-bold">{migrateMsg}</div>}
       </div>
 
       <button
@@ -153,6 +166,67 @@ function Inner() {
 
       <div className="text-center text-[11px] text-muted py-3">管理画面 ver {APP_VERSION}</div>
     </div>
+  );
+}
+
+// ── メニュー（3つのグループ） ─────────────────────────────────
+type MenuItem = { href: string; emoji: string; title: string; desc: string };
+type MenuGroup = { key: string; emoji: string; name: string; lead: string; items: MenuItem[] };
+
+/**
+ * 1グループぶん。閉じていても中の項目名が札で見え、札はそのまま押せる。
+ * 「詳しく」で説明つきの一覧に開く。開いた状態はこの端末に覚える。
+ */
+function MenuSection({ group, children }: { group: MenuGroup; children?: React.ReactNode }) {
+  const key = `gb_admin_menu_open_${group.key}`;
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    try { setOpen(localStorage.getItem(key) === '1'); } catch { /* 覚えられなくても動く */ }
+  }, [key]);
+  function toggle() {
+    setOpen((v) => {
+      try { localStorage.setItem(key, v ? '0' : '1'); } catch { /* noop */ }
+      return !v;
+    });
+  }
+  return (
+    <section className="bg-card rounded-xl shadow-card overflow-hidden">
+      <button type="button" onClick={toggle} aria-expanded={open}
+        className="w-full flex items-center gap-3 p-4 text-left">
+        <span className="text-2xl">{group.emoji}</span>
+        <div className="flex-1 min-w-0">
+          <div className="text-[15px] font-black">{group.name}
+            <span className="text-[11px] font-bold text-muted ml-2">{group.items.length}項目</span>
+          </div>
+          <div className="text-[11px] text-sub mt-0.5">{group.lead}</div>
+        </div>
+        <span className="text-[11px] font-bold text-sub whitespace-nowrap">{open ? '閉じる ▴' : '詳しく ▾'}</span>
+      </button>
+      {!open ? (
+        <div className="flex flex-wrap gap-1.5 px-4 pb-4 -mt-1">
+          {group.items.map((it) => (
+            <Link key={it.href} href={it.href}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-bg border border-border text-[12px] font-bold">
+              <span>{it.emoji}</span><span>{it.title}</span>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <div className="px-3 pb-3 flex flex-col gap-1.5">
+          {group.items.map((it) => (
+            <Link key={it.href} href={it.href} className="flex items-center gap-3 p-3 bg-bg rounded-xl">
+              <span className="text-xl">{it.emoji}</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-bold">{it.title}</div>
+                <div className="text-[11px] text-sub mt-0.5 leading-snug">{it.desc}</div>
+              </div>
+              <span className="text-muted">›</span>
+            </Link>
+          ))}
+          {children}
+        </div>
+      )}
+    </section>
   );
 }
 

@@ -106,7 +106,7 @@ function Inner() {
   return (
     <div className="min-h-screen bg-bg p-4 max-w-md mx-auto pb-16">
       <Link href={`/admin?token=${token}`} className="text-muted text-sm">‹ 管理</Link>
-      <div className="text-2xl font-black mb-1 mt-1">⏰ 開催前リマインド設定</div>
+      <div className="text-2xl font-black mb-1 mt-1">⏰ 開催前リマインド</div>
       <div className="text-[12px] text-muted mb-4 leading-relaxed">
         参加ラウンドの開催が近づいたら、参加者全員へ自動でLINE＋アプリ内通知します。<br />
         「開催の何日前に通知するか」を選んでください（複数可）。

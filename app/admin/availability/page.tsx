@@ -56,7 +56,7 @@ function Inner() {
   return (
     <div className="p-4 max-w-3xl mx-auto">
       <Link href={`/admin?token=${token}`} className="text-sm text-blue font-bold">← 管理トップ</Link>
-      <div className="text-2xl font-black mt-1 mb-1">📅 行ける日（会員の空き）</div>
+      <div className="text-2xl font-black mt-1 mb-1">📅 行ける日</div>
       <div className="text-[12px] text-sub font-bold mb-3 leading-relaxed">
         会員が「行ける」と出した日ごとに、誰が行けるかを並べています（20〜30代のみ）。
         会員側には年齢・性別・車だけが並び、名前とプロフィールは女性の会員にだけ開きます。

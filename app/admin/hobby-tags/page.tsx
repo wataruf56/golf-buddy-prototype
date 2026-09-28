@@ -68,7 +68,7 @@ function Inner() {
   return (
     <div className="min-h-screen bg-bg p-4 max-w-md mx-auto pb-16">
       <Link href={`/admin?token=${token}`} className="text-muted text-sm">‹ 管理</Link>
-      <div className="text-2xl font-black mb-1 mt-1">🎯 趣味タグの管理</div>
+      <div className="text-2xl font-black mb-1 mt-1">🎯 趣味タグ</div>
       <div className="text-[12px] text-muted mb-3">ユーザーが追加した趣味タグ（人気順）。不適切なものを削除できます。</div>
 
       <div className="flex gap-2 mb-3">

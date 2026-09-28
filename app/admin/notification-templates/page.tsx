@@ -149,7 +149,7 @@ function Inner() {
   return (
     <div className="min-h-screen bg-bg p-4 max-w-2xl mx-auto pb-24">
       <Link href={`/admin?token=${token}`} className="text-muted text-sm">‹ 管理</Link>
-      <div className="text-2xl font-black mb-1 mt-1">✉️ 通知メッセージ編集</div>
+      <div className="text-2xl font-black mb-1 mt-1">✉️ 通知の文面</div>
       <div className="text-[12px] text-muted mb-4 leading-relaxed">
         ユーザーに届く「アプリ内お知らせ」と「LINE通知」の文面を編集できます。<b>LINE通知の本文は、スマホのバナー通知（LINEを使っていない人向け）にもそのまま使われます</b>（本文は共通・見出しだけ「LINE通知タイトル」で指定）。文中の <b>{'{◯◯}'}</b> は送信時に実際の値へ置き換わる差し込み枠です（消さないでください）。項目を空欄にすると初期の文面に戻ります。<br />
         上のタブで種類を切り替えられます。<b>保存はすべてのタブの変更をまとめて反映</b>します。<br />
