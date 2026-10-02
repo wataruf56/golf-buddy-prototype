@@ -20,6 +20,18 @@ export const dynamic = 'force-dynamic';
 
 const SITE = 'https://goltomo.com';
 const PAGE_URL = `${SITE}/data`;
+
+// このページの「文章・構成を最後に直した日」。sitemap.xml の lastmod と同じ日を
+// 名乗らせるための固定値（直したらここと sitemap を同じコミットで上げる）。
+//
+// 日付が2種類あるので混ぜないこと：
+//   - Dataset の dateModified … 下の `iso`（＝今日）。数字は開くたび本当に再集計
+//     されるので、データの更新日としては今日が正しい。表示の「集計日」も同じ。
+//   - Article の dateModified … この MODIFIED。文章そのものを直した日であって、
+//     数字が動いた日ではない。ここを `iso` にすると「毎日更新している記事」を
+//     名乗ることになり、sitemap の lastmod（実際の更新日）と食い違う。
+//     2026-09-25 に他13ページで直したのと同じ趣旨。
+const MODIFIED = '2026-08-22';
 const TITLE = 'ゴルフ友達マッチングの実データ｜満員率・また回りたい率・年齢・男女比';
 const DESC =
   'ゴルトモ（20〜30代限定のゴルフ友達マッチング）で実際に計測している数値を公開します。募集の満員率、ラウンド後の「また回りたい」率、参加者の平均年齢、男女比、のべ参加人数。すべて集計日と母数つき、計算方法も公開しています。出典を明記すれば引用は自由です。';
@@ -96,6 +108,7 @@ export default async function Page() {
       license: 'https://creativecommons.org/licenses/by/4.0/',
       creator: PUBLISHER,
       publisher: PUBLISHER,
+      // データ自体は毎日再集計されるので、ここは今日で正しい（上の MODIFIED 参照）。
       dateModified: iso,
       temporalCoverage: `2026-05/${iso.slice(0, 7)}`,
       spatialCoverage: { '@type': 'Place', name: '日本（主に関東圏）' },
@@ -116,7 +129,7 @@ export default async function Page() {
       url: PAGE_URL,
       inLanguage: 'ja',
       datePublished: '2026-08-22',
-      dateModified: iso,
+      dateModified: MODIFIED,
       author: AUTHOR,
       publisher: PUBLISHER,
       image: `${SITE}/ogp-golmoti.png`,
