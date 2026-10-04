@@ -8,7 +8,6 @@ import { TabBar } from '@/components/TabBar';
 import { ReviewOverlay } from '@/components/ReviewOverlay';
 import { GroupGate } from '@/components/GroupGate';
 import { CompletionGate } from '@/components/CompletionGate';
-import { LineFollowPrompt } from '@/components/LineFollowPrompt';
 import { BlockerPopup } from '@/components/BlockerPopup';
 import { ToastHost } from '@/components/Toast';
 import { ConfirmHost } from '@/components/ConfirmDialog';
@@ -130,7 +129,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       {overlayOpen && pendingCount > 0 && <ReviewOverlay />}
       <GroupGate />
       <CompletionGate />
-      <LineFollowPrompt />
+      {/* 友だち追加の案内（LineFollowPrompt）はホームの関所（FriendGate）に置き換えた（2026-10-04） */}
       <ToastHost />
       <ConfirmHost />
       <TabBar onBlock={onTabBlock} />

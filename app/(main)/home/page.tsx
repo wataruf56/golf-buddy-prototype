@@ -9,6 +9,7 @@ import { Avatar } from '@/components/Avatar';
 import { HomeUpdateCard } from '@/components/HomeUpdateCard';
 import { OfficialHomeCard } from '@/components/OfficialHomeCard';
 import { AvailabilityHomeCard } from '@/components/AvailabilityHomeCard';
+import { FriendGate } from '@/components/FriendGate';
 import { toast } from '@/components/Toast';
 import { RESTRICTION_MSG } from '@/lib/restrictions';
 import { isRoundHost } from '@/lib/roundHost';
@@ -36,6 +37,9 @@ const SHOW_ACTIVE_NOW = false;
 export default function HomePage() {
   const router = useRouter();
   const me = useStore(getMe);
+  // LINE公式アカウントをまだ友だち追加していない会員には、ホームを開いた時点で追加を求める（2026-10-04 本人判断）。
+  // 判定はサーバー。追加済み・判定不能の人には何も出ない。追加したら（戻ってくると）自動で通る。
+  const [friendPassed, setFriendPassed] = useState(false);
   const restrictions = useStore((s) => s.restrictions);
   const notifications = useStore((s) => s.notifications);
   // Capture the "last read" timestamp ONCE on mount so unread highlights stay
@@ -302,6 +306,10 @@ export default function HomePage() {
             className="block mx-auto mt-1 text-[11px] text-muted underline"
           >通知は不要（閉じる）</button>
         </div>
+      )}
+
+      {!!me?.id && !friendPassed && (me as any).botFollowed !== true && (
+        <FriendGate reason="お知らせ・参加の承認・メッセージ・前日のリマインドはLINEで届きます。" onPass={() => setFriendPassed(true)} />
       )}
 
       <HomeUpdateCard />
