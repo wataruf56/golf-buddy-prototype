@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { AvailPersonChip } from '@/components/AvailPersonChip';
 import { getMe, useStore } from '@/lib/store';
@@ -23,6 +24,11 @@ export function AvailabilityIntro({ needsStation, onDone }: { needsStation: bool
   const me = useStore(getMe);
   const [page, setPage] = useState(0);
   const [busy, setBusy] = useState(false);
+  // body に直接描く（ポータル）。画面の中身（.screen）は iOS で -webkit-overflow-scrolling: touch が
+  // 効いており、その中の position: fixed は画面ではなく中身に閉じ込められて、下のタブバーに
+  // 「次へ」が隠れた（2026-10-04 本人スクショ）。body に出せばタブバーより手前・画面基準になる。
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const mePerson: AvailPerson = { age: me.age || 30, gender: me.gender === 'female' ? 'female' : 'male', car: me.car === 'have', me: true, id: me.id, name: 'あなた', avatar: me.avatar, avatarUrl: me.avatarUrl, avatarMode: me.avatarMode, color: me.color, golmotiType: me.golmotiType };
 
   async function finish(go: 'calendar' | 'station' | 'close') {
@@ -82,13 +88,14 @@ export function AvailabilityIntro({ needsStation, onDone }: { needsStation: bool
   ];
   const last = page === pages.length - 1;
   const p = pages[page];
+  if (!mounted) return null;
 
-  return (
+  return createPortal(
     // 画面の中央に出し、縦が足りない端末では中身がスクロールする。ボタンは下に貼り付けて常に見える
     // （下寄せ＋固定高さだと、LINE内ブラウザやタブバーの下に「次へ」が隠れた：2026-10-04 本人報告）。
     <div className="fixed inset-0 z-[300] bg-text/55 flex items-center justify-center p-3" style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))' }}
       role="dialog" aria-modal="true" aria-labelledby="avail-intro-title">
-      <div className="w-full max-w-[400px] bg-card border-[3px] border-border rounded-2xl shadow-lg flex flex-col overflow-hidden" style={{ maxHeight: 'min(84dvh, 84vh)' }}>
+      <div className="w-full max-w-[400px] bg-card border-[3px] border-border rounded-2xl shadow-lg flex flex-col overflow-hidden" style={{ maxHeight: 'min(82dvh, 82vh)' }}>
         <div className="overflow-y-auto px-4 pt-4 pb-1">
           <div className="text-[11px] font-black text-green tracking-wide">新しい機能 {page + 1}/{pages.length}</div>
           <h2 id="avail-intro-title" className="text-[17px] font-black leading-snug mt-0.5 mb-1">{p.title}</h2>
@@ -114,6 +121,7 @@ export function AvailabilityIntro({ needsStation, onDone }: { needsStation: bool
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
