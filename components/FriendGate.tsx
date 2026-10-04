@@ -29,13 +29,18 @@ export function FriendGate({ reason = '参加の承認やメッセージ、前�
   const [state, setState] = useState<'checking' | 'blocked'>('checking');
   const [busy, setBusy] = useState(false);
   const passed = useRef(false);
+  // onPass は親の再描画のたびに新しい関数になる。ref に持って check の識別を固定し、
+  // 開いた瞬間の「黙って確かめる」が何度も走らないようにする（ホームで3回呼んでいた）。
+  const onPassRef = useRef(onPass);
+  useEffect(() => { onPassRef.current = onPass; }, [onPass]);
+  const checkedOnce = useRef(false);
 
   const pass = useCallback(() => {
     if (passed.current) return;
     passed.current = true;
     store.refreshMe().catch(() => {});
-    onPass();
-  }, [onPass]);
+    onPassRef.current();
+  }, []);
 
   const check = useCallback(async (silent: boolean) => {
     setBusy(true);
@@ -51,8 +56,8 @@ export function FriendGate({ reason = '参加の承認やメッセージ、前�
     } finally { setBusy(false); }
   }, [pass]);
 
-  // 開いた瞬間に黙って確かめる
-  useEffect(() => { check(true); }, [check]);
+  // 開いた瞬間に黙って確かめる（1回だけ）
+  useEffect(() => { if (checkedOnce.current) return; checkedOnce.current = true; check(true); }, [check]);
 
   // LINE の追加画面から戻ってきたら自動で確かめ直す
   useEffect(() => {
