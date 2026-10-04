@@ -84,28 +84,35 @@ export function AvailabilityIntro({ needsStation, onDone }: { needsStation: bool
   const p = pages[page];
 
   return (
-    <div className="fixed inset-0 z-[200] bg-text/55 flex items-end justify-center p-3" role="dialog" aria-modal="true" aria-labelledby="avail-intro-title">
-      <div className="w-full max-w-[400px] bg-card border-[3px] border-border rounded-2xl shadow-lg p-4">
-        <div className="text-[11px] font-black text-green tracking-wide">新しい機能 {page + 1}/{pages.length}</div>
-        <h2 id="avail-intro-title" className="text-[18px] font-black leading-snug mt-0.5 mb-1.5">{p.title}</h2>
-        <p className="text-[12.5px] text-sub font-bold leading-relaxed m-0">{p.body}</p>
-        <div className="mt-3 mb-2 border-2 border-border rounded-xl bg-white p-3 min-h-[112px] flex items-center justify-center">{p.hero}</div>
-        <div className="flex justify-center gap-1.5 my-2" aria-hidden>
-          {pages.map((_, i) => <i key={i} className={`block h-2 rounded-full ${i === page ? 'w-[22px] bg-green' : 'w-2 bg-hair'}`} />)}
+    // 画面の中央に出し、縦が足りない端末では中身がスクロールする。ボタンは下に貼り付けて常に見える
+    // （下寄せ＋固定高さだと、LINE内ブラウザやタブバーの下に「次へ」が隠れた：2026-10-04 本人報告）。
+    <div className="fixed inset-0 z-[300] bg-text/55 flex items-center justify-center p-3" style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))' }}
+      role="dialog" aria-modal="true" aria-labelledby="avail-intro-title">
+      <div className="w-full max-w-[400px] bg-card border-[3px] border-border rounded-2xl shadow-lg flex flex-col overflow-hidden" style={{ maxHeight: 'min(84dvh, 84vh)' }}>
+        <div className="overflow-y-auto px-4 pt-4 pb-1">
+          <div className="text-[11px] font-black text-green tracking-wide">新しい機能 {page + 1}/{pages.length}</div>
+          <h2 id="avail-intro-title" className="text-[17px] font-black leading-snug mt-0.5 mb-1">{p.title}</h2>
+          <p className="text-[12px] text-sub font-bold leading-relaxed m-0">{p.body}</p>
+          <div className="mt-2.5 border-2 border-border rounded-xl bg-white p-2.5 min-h-[88px] flex items-center justify-center">{p.hero}</div>
+          <div className="flex justify-center gap-1.5 mt-2 mb-1" aria-hidden>
+            {pages.map((_, i) => <i key={i} className={`block h-2 rounded-full ${i === page ? 'w-[22px] bg-green' : 'w-2 bg-hair'}`} />)}
+          </div>
         </div>
-        {!last ? (
-          <button type="button" onClick={() => setPage(page + 1)}
-            className="block w-full py-3 rounded-xl border-2 border-border bg-green text-white text-[15px] font-black">次へ</button>
-        ) : (
-          <>
-            <button type="button" disabled={busy} onClick={() => finish(needsStation ? 'station' : 'calendar')}
-              className="block w-full py-3 rounded-xl border-2 border-border bg-green text-white text-[15px] font-black disabled:opacity-60">
-              {needsStation ? '最寄り駅を登録する' : 'カレンダーを開く'}
-            </button>
-            <button type="button" disabled={busy} onClick={() => finish('close')}
-              className="block w-full mt-1.5 py-2 text-[12px] font-bold text-sub">閉じる</button>
-          </>
-        )}
+        <div className="px-4 pb-3 pt-1 bg-card border-t border-hair flex-shrink-0">
+          {!last ? (
+            <button type="button" onClick={() => setPage(page + 1)}
+              className="block w-full py-3 rounded-xl border-2 border-border bg-green text-white text-[15px] font-black">次へ</button>
+          ) : (
+            <>
+              <button type="button" disabled={busy} onClick={() => finish(needsStation ? 'station' : 'calendar')}
+                className="block w-full py-3 rounded-xl border-2 border-border bg-green text-white text-[15px] font-black disabled:opacity-60">
+                {needsStation ? '最寄り駅を登録する' : 'カレンダーを開く'}
+              </button>
+              <button type="button" disabled={busy} onClick={() => finish('close')}
+                className="block w-full mt-1 py-1.5 text-[12px] font-bold text-sub">閉じる</button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
