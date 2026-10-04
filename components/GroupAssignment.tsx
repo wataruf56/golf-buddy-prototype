@@ -46,6 +46,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   const initial: RoundGroup[] = (round.groups || []).map((g) => ({
     id: g.id || newGroupId(),
     startTime: g.startTime,
+    course: g.course,   // 保存はされていたのに、ここで落としていて開き直すと消えて見えた（2026-10-04）
     memberIds: (g.memberIds || []).filter((id) => validInit.has(id)),
   }));
   const [groups, setGroups] = useState<RoundGroup[]>(initial.length ? initial : []);

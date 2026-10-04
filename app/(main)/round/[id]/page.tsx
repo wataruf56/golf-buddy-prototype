@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { Portal } from '@/components/Portal';
-import { useEffect, useState } from 'react';
+import { FriendGate } from '@/components/FriendGate';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
@@ -60,6 +61,10 @@ export default function RoundDetailPage() {
   const joinReady = profileReady && hasKanjiName;
   // 参加申込時のピックアップ回答モーダル。
   const [pickupOpen, setPickupOpen] = useState(false);
+  // LINE公式アカウントの友だち追加（必須）の関所。通ったら続きの処理を実行する。
+  // friendOk は「この画面で一度通った」印（store の botFollowed が更新されるまでの間、二重に出さない）
+  const friendOk = useRef(false);
+  const [friendGateNext, setFriendGateNext] = useState<null | (() => void)>(null);
   const autoJoinHandled = useState({ done: false })[0];
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -217,8 +222,10 @@ export default function RoundDetailPage() {
     const full = r.currentCount >= r.maxSpots;
     if (participating || full || r.status !== 'open') return;
     if (!joinReady) return; // 名前がまだ未入力なら開かない
+    // プロフィール登録から戻ってきた直後でも、友だち追加の関所は通す
+    if (!friendOk.current && (me as any)?.botFollowed !== true) { setFriendGateNext(() => () => setPickupOpen(true)); return; }
     setPickupOpen(true);
-  }, [hydrated, meId, search, storeRound, fetchedRound, joinReady, router, autoJoinHandled]);
+  }, [hydrated, meId, search, storeRound, fetchedRound, joinReady, router, autoJoinHandled, me]);
 
   // Merge users so the host/applicant lookups work whether the data came from
   // the store (bootstrap) or the fallback fetch.
@@ -337,6 +344,8 @@ export default function RoundDetailPage() {
 
   async function join() {
     if (requireLogin()) return;
+    // 友だち追加が確認できていない人は、先に関所へ（通ったらもう一度 join）。
+    if (!friendOk.current && (me as any)?.botFollowed !== true) { setFriendGateNext(() => join); return; }
     // 制限がかかっている場合は、申請の前に止める。
     if (restrictions.noApplyAll) { toast(RESTRICTION_MSG.noApplyAll, 'error'); return; }
     if ((restrictions.applyBlockHostIds || []).includes(round!.hostId)) { toast(RESTRICTION_MSG.applyBlockHostIds, 'error'); return; }
@@ -1185,6 +1194,12 @@ export default function RoundDetailPage() {
           initialPrice={round.price}
           onClose={() => setConfirmOpen(false)}
         />
+      )}
+
+      {friendGateNext && (
+
+        <FriendGate onPass={() => { friendOk.current = true; const next = friendGateNext; setFriendGateNext(null); next(); }} />
+
       )}
 
       {pickupOpen && (

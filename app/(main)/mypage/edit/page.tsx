@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { FriendGate } from '@/components/FriendGate';
 import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { Avatar } from '@/components/Avatar';
@@ -52,6 +53,7 @@ export default function ProfileEditPage() {
   const requireName = returnTo.includes('/round/');
   const hydrated = useStore((s) => s.hydrated);
   const me = useStore(getMe);
+  const [friendOk, setFriendOk] = useState(false);   // 友だち追加の関所を通ったか
   const meId = useStore((s) => s.meId);
   // Once hydration completes we can populate the form. If meId is missing
   // (e.g. transient session loading) we still allow the form so the user
@@ -257,6 +259,10 @@ export default function ProfileEditPage() {
 
   return (
     <div className="px-5 py-3">
+      {/* 本登録（まだ年齢が無い＝初めての登録）の人は、先に LINE公式アカウントの友だち追加を必須にする（2026-10-04） */}
+      {!friendOk && !me.age && (me as any).botFollowed !== true && (
+        <FriendGate reason="登録のあと、参加の承認やメッセージ、前日のリマインドはLINEで届きます。" onPass={() => setFriendOk(true)} />
+      )}
       <button onClick={() => router.back()} className="text-sm text-blue font-semibold mb-4">← 戻る</button>
       <div className="text-2xl font-black mb-5">プロフィール編集</div>
 
