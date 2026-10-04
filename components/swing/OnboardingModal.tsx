@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Portal } from '@/components/Portal';
 
 const KEY = 'gb_swing_onboarded_v1';
 
@@ -46,7 +47,7 @@ export function OnboardingModal() {
   const isLast = step === STEPS.length - 1;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+    <Portal><div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
       <div className="bg-card rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
         <div className="p-6 text-center">
           <div className="text-5xl mb-3">{s.emoji}</div>
@@ -76,6 +77,6 @@ export function OnboardingModal() {
 
         <button onClick={close} className="block w-full pb-3 text-[10px] text-muted">スキップ</button>
       </div>
-    </div>
+    </div></Portal>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { Portal } from '@/components/Portal';
 import { useParams, useRouter } from 'next/navigation';
 import { Avatar } from '@/components/Avatar';
 import { toast } from '@/components/Toast';
@@ -153,7 +154,7 @@ export default function Page() {
       </div>
 
       {confirmOpen && (
-        <div className="fixed inset-0 bg-black/45 z-[150] flex items-center justify-center p-5">
+        <Portal><div className="fixed inset-0 bg-black/45 z-[150] flex items-center justify-center p-5">
           <div className="bg-card border-[3px] border-border rounded-card shadow-lg p-5 w-full max-w-[340px]">
             <div className="text-[17px] font-black text-center leading-snug">この内容で確定しますか？</div>
             <div className="text-[12px] font-bold text-sub text-center mt-1.5 leading-relaxed">
@@ -183,7 +184,7 @@ export default function Page() {
               もどる
             </button>
           </div>
-        </div>
+        </div></Portal>
       )}
     </div>
   );

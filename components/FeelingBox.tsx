@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Portal } from '@/components/Portal';
 import { toast } from '@/components/Toast';
 
 // 再会の画面の先頭に置く「いまの気持ち」の確認。
@@ -134,7 +135,7 @@ export function FeelingBox({
       </div>
 
       {confirm && (
-        <div className="fixed inset-0 bg-black/45 z-[150] flex items-center justify-center p-5">
+        <Portal><div className="fixed inset-0 bg-black/45 z-[150] flex items-center justify-center p-5">
           <div className="bg-card border-[3px] border-border rounded-card shadow-lg p-5 w-full max-w-[330px]">
             <div className="text-[16.5px] font-black text-center leading-snug">
               「{label(confirm)}」に<br />変えますか？
@@ -151,7 +152,7 @@ export function FeelingBox({
               もどる
             </button>
           </div>
-        </div>
+        </div></Portal>
       )}
     </>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Portal } from '@/components/Portal';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/components/Toast';
 import { track } from '@/lib/telemetry';
@@ -105,7 +106,7 @@ export function DriverAskCard() {
 
       {/* 最初の声かけ */}
       {popup && (
-        <div className="fixed inset-0 bg-black/45 z-[150] flex items-center justify-center p-5" onClick={later}>
+        <Portal><div className="fixed inset-0 bg-black/45 z-[150] flex items-center justify-center p-5" onClick={later}>
           <div className="bg-card border-[3px] border-border rounded-card shadow-lg p-5 w-full max-w-[330px]"
             onClick={(e) => e.stopPropagation()}>
             <div className="text-center text-[34px] leading-none">🚗</div>
@@ -125,12 +126,12 @@ export function DriverAskCard() {
               あとで
             </button>
           </div>
-        </div>
+        </div></Portal>
       )}
 
       {/* 駅を選ぶ */}
       {open && (
-        <div className="fixed inset-0 bg-black/45 z-[150] flex items-end sm:items-center justify-center"
+        <Portal><div className="fixed inset-0 bg-black/45 z-[150] flex items-end sm:items-center justify-center"
           onClick={() => setOpen(false)}>
           <div className="bg-card border-t-[3px] sm:border-[3px] border-border sm:rounded-card rounded-t-card
             shadow-lg p-5 w-full sm:max-w-[360px] max-h-[85vh] overflow-y-auto"
@@ -169,7 +170,7 @@ export function DriverAskCard() {
               あとで
             </button>
           </div>
-        </div>
+        </div></Portal>
       )}
     </>
   );

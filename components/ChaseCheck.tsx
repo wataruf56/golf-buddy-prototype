@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { Portal } from '@/components/Portal';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/components/Toast';
 
@@ -101,7 +102,7 @@ export function ChaseCheck({ chatId, meId, otherId, otherName, messages }: {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/45 z-[150] flex items-center justify-center p-5" onClick={keep}>
+    <Portal><div className="fixed inset-0 bg-black/45 z-[150] flex items-center justify-center p-5" onClick={keep}>
       <div className="bg-card rounded-card shadow-card w-full max-w-[360px] p-5" onClick={(e) => e.stopPropagation()}>
         <div className="text-center text-[30px] leading-none">🤔</div>
         <div className="text-[16px] font-black text-center mt-2">ちょっと確認させてください</div>
@@ -123,6 +124,6 @@ export function ChaseCheck({ chatId, meId, otherId, otherName, messages }: {
           変更しても、{otherName}さんには通知されません。
         </div>
       </div>
-    </div>
+    </div></Portal>
   );
 }

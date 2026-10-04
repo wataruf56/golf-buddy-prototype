@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Portal } from '@/components/Portal';
 import { NOTIFY_TYPES, defaultNotifyPrefs, type NotifyType } from '@/lib/notifyPrefs';
 import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
@@ -35,7 +36,7 @@ export function NotifySettings({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-5 backdrop-blur-sm">
+    <Portal><div className="fixed inset-0 bg-black/50 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-5 backdrop-blur-sm">
       {/* Use FIXED (viewport-anchored) not ABSOLUTE: the page lives inside a
           scrollable `.screen` (overflow-y:auto) that would clip an absolutely
           positioned bottom sheet, pushing the footer (保存 button) behind the
@@ -116,7 +117,7 @@ export function NotifySettings({ onClose }: { onClose: () => void }) {
           <div className="h-40" />
         </div>
       </div>
-    </div>
+    </div></Portal>
   );
 }
 

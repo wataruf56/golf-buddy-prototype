@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import { Portal } from '@/components/Portal';
 import type { Round, RoundGroup, RoundGuest, User } from '@/lib/types';
 import { Avatar } from '@/components/Avatar';
 import { store } from '@/lib/store';
@@ -463,7 +464,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
         const g = arr[gi];
         const over = !!g && g.memberIds.length >= GROUP_MAX;
         return (
-          <div className="fixed inset-0 z-[150] bg-black/45 flex items-end justify-center" onClick={() => setPickerFor(null)}>
+          <Portal><div className="fixed inset-0 z-[150] bg-black/45 flex items-end justify-center" onClick={() => setPickerFor(null)}>
             <div className="bg-card rounded-t-2xl w-full max-w-[480px] p-4 pb-8 max-h-[75vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-2">
                 <div className="text-[14px] font-black">組{gi + 1}{isBack ? '（後半）' : ''}に追加 <span className="text-[11px] text-sub font-bold">（{g?.memberIds.length ?? 0}/{GROUP_MAX}）</span></div>
@@ -492,7 +493,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
                 </div>
               )}
             </div>
-          </div>
+          </div></Portal>
         );
       })()}
 

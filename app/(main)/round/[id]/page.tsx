@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Portal } from '@/components/Portal';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { getMe, store, useStore } from '@/lib/store';
@@ -1333,7 +1334,7 @@ export default function RoundDetailPage() {
 
       {/* 個別招待モーダル：この人にだけメッセージを添えて招待を送る（1人ずつ） */}
       {inviteTarget && (
-        <div className="fixed inset-0 bg-black/50 z-[210] flex items-center justify-center p-5 backdrop-blur-sm" onClick={() => { if (!inviteBusy) setInviteTarget(null); }}>
+        <Portal><div className="fixed inset-0 bg-black/50 z-[210] flex items-center justify-center p-5 backdrop-blur-sm" onClick={() => { if (!inviteBusy) setInviteTarget(null); }}>
           <div onClick={(e) => e.stopPropagation()} className="bg-card rounded-card w-full max-w-[340px] p-5 shadow-lg">
             <div className="text-base font-black mb-1">💌 {inviteTarget.name}さんを招待</div>
             <div className="text-[12px] text-sub mb-3 leading-relaxed">この人へのメッセージを添えて招待できます（任意）。</div>
@@ -1353,7 +1354,7 @@ export default function RoundDetailPage() {
               >{inviteBusy ? '送信中…' : '招待を送る'}</button>
             </div>
           </div>
-        </div>
+        </div></Portal>
       )}
     </div>
   );
@@ -1363,7 +1364,7 @@ export default function RoundDetailPage() {
 // same fix as the notification settings sheet). Header + scrollable body.
 function PickerModal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div className="fixed inset-0 bg-black/50 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-5 backdrop-blur-sm">
+    <Portal><div className="fixed inset-0 bg-black/50 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-5 backdrop-blur-sm">
       <div
         style={{ maxHeight: '85dvh' }}
         className="bg-card rounded-t-3xl sm:rounded-card w-full max-w-[420px] max-h-[85vh] flex flex-col shadow-lg overflow-hidden"
@@ -1379,7 +1380,7 @@ function PickerModal({ title, onClose, children }: { title: string; onClose: () 
           <div className="h-40" />
         </div>
       </div>
-    </div>
+    </div></Portal>
   );
 }
 

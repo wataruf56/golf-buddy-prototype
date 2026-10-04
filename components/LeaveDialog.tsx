@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Portal } from '@/components/Portal';
 import { LEAVE_REASONS, type LeaveReasonKey } from '@/lib/leaveReasons';
 
 /**
@@ -24,7 +25,7 @@ export function LeaveDialog({ roundTitle, busy, onConfirm, onClose }: {
   const ready = !!reason && (!needText || text.trim().length > 0) && policyOk;
 
   return (
-    <div className="fixed inset-0 bg-black/45 z-[150] flex items-end sm:items-center justify-center p-4" onClick={onClose}>
+    <Portal><div className="fixed inset-0 bg-black/45 z-[150] flex items-end sm:items-center justify-center p-4" onClick={onClose}>
       <div className="bg-card rounded-card shadow-card w-full max-w-[400px] p-5 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="text-[16px] font-black">参加を取りやめますか？</div>
         <div className="text-[12px] font-bold text-sub mt-1 truncate">「{roundTitle}」</div>
@@ -71,6 +72,6 @@ export function LeaveDialog({ roundTitle, busy, onConfirm, onClose }: {
           やめておく
         </button>
       </div>
-    </div>
+    </div></Portal>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Portal } from '@/components/Portal';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/components/Toast';
 import { track } from '@/lib/telemetry';
@@ -178,7 +179,7 @@ export function OfficialHomeCard() {
       })}
 
       {popup && (
-        <div className="fixed inset-0 bg-black/45 z-[150] flex items-center justify-center p-5" onClick={() => snooze(popup)}>
+        <Portal><div className="fixed inset-0 bg-black/45 z-[150] flex items-center justify-center p-5" onClick={() => snooze(popup)}>
           <div className="bg-card border-[3px] border-border rounded-card shadow-lg p-5 w-full max-w-[330px]"
             onClick={(e) => e.stopPropagation()}>
             <div className="text-center text-[34px] leading-none">{colorOf(popup.pattern).face}</div>
@@ -218,7 +219,7 @@ export function OfficialHomeCard() {
               あとで
             </button>
           </div>
-        </div>
+        </div></Portal>
       )}
     </>
   );

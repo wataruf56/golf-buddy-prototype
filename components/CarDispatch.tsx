@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import { Portal } from '@/components/Portal';
 import type { Round, CarAssignment, User } from '@/lib/types';
 import { Avatar } from '@/components/Avatar';
 import { store } from '@/lib/store';
@@ -383,7 +384,7 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
         const cap = capacityOf(pickerFor);
         const riders = (car?.passengerIds.length ?? 0) + 1;
         return (
-          <div className="fixed inset-0 z-[150] bg-black/45 flex items-end justify-center" onClick={() => setPickerFor(null)}>
+          <Portal><div className="fixed inset-0 z-[150] bg-black/45 flex items-end justify-center" onClick={() => setPickerFor(null)}>
             <div className="bg-card rounded-t-2xl w-full max-w-[480px] p-4 pb-8 max-h-[75vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-2">
                 <div className="text-[14px] font-black">🚗 {nameOf(pickerFor)}の車に乗せる <span className="text-[11px] text-sub font-bold">（{riders}{cap ? `/${cap}` : ''}名{defaultStationOf(pickerFor) ? `・${defaultStationOf(pickerFor)}駅発` : ''}）</span></div>
@@ -417,7 +418,7 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
                 </div>
               )}
             </div>
-          </div>
+          </div></Portal>
         );
       })()}
 

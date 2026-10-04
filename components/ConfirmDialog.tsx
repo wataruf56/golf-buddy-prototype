@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Portal } from '@/components/Portal';
 
 // ネイティブの confirm()/alert() は「app.goltomo.com」等のURLが出て見栄えが悪いため、
 // アプリ内の見た目に合わせた確認/通知モーダルに置き換える。Toast と同じ命令的API。
@@ -40,7 +41,7 @@ export function ConfirmHost() {
   const close = (v: boolean) => { item.resolve(v); setItem(null); };
 
   return (
-    <div
+    <Portal><div
       className="fixed inset-0 z-[300] bg-black/50 flex items-center justify-center p-6 backdrop-blur-sm"
       onClick={() => close(false)}
     >
@@ -63,6 +64,6 @@ export function ConfirmHost() {
           </button>
         </div>
       </div>
-    </div>
+    </div></Portal>
   );
 }
