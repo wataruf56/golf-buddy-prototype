@@ -23,6 +23,24 @@ function Inner() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  // 新しくDMを送る相手を探す（名前・ID・エリアで絞る）。会話が無い相手にもここから始められる
+  const [query, setQuery] = useState('');
+  const [people, setPeople] = useState<Array<{ id: string; displayName: string; age: number | null; area: string | null; avatarEmoji: string | null }>>([]);
+  const [peopleLoaded, setPeopleLoaded] = useState(false);
+  async function loadPeople() {
+    if (peopleLoaded) return;
+    try {
+      const r = await fetch(`/api/admin/users?token=${encodeURIComponent(token)}`, { cache: 'no-store' });
+      const j = await r.json();
+      setPeople((j?.users || []).map((u: any) => ({ id: u.id, displayName: u.displayName || '', age: u.age, area: u.area, avatarEmoji: u.avatarEmoji })));
+      setPeopleLoaded(true);
+    } catch { /* 探せなくても一覧は使える */ }
+  }
+  const hits = (() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return people.filter((u) => (u.displayName || '').toLowerCase().includes(q) || u.id.toLowerCase().includes(q) || (u.area || '').includes(q)).slice(0, 12);
+  })();
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -86,9 +104,35 @@ function Inner() {
 
       {!active ? (
         <>
+          <div className="bg-card rounded-xl shadow-card p-3 mb-3">
+            <div className="text-[12px] font-black mb-1.5">✉️ 新しくDMを送る</div>
+            <input
+              id="support-user-search"
+              value={query}
+              onFocus={loadPeople}
+              onChange={(e) => { setQuery(e.target.value); loadPeople(); }}
+              placeholder="名前・ID・エリアで探す"
+              className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-[13px]"
+            />
+            {query.trim() && (
+              <div className="mt-2 flex flex-col gap-1">
+                {!peopleLoaded ? <div className="text-[11px] text-muted py-2">読み込み中…</div>
+                  : hits.length === 0 ? <div className="text-[11px] text-muted py-2">見つかりません</div>
+                  : hits.map((u) => (
+                    <button key={u.id} onClick={() => { setQuery(''); openChat(u.id, u.displayName); }}
+                      className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-bg text-left">
+                      <span className="w-7 h-7 rounded-full bg-card flex items-center justify-center text-sm flex-shrink-0">{u.avatarEmoji || '⛳'}</span>
+                      <span className="text-[13px] font-bold truncate">{u.displayName || '(no name)'}</span>
+                      <span className="text-[11px] text-muted truncate">{[u.age ? `${u.age}歳` : '', u.area || ''].filter(Boolean).join('・')}</span>
+                      <span className="ml-auto text-[11px] font-black text-green flex-shrink-0">DMする ›</span>
+                    </button>
+                  ))}
+              </div>
+            )}
+          </div>
           <button onClick={() => loadList()} className="px-3 py-1.5 bg-card border border-border rounded-lg text-xs font-bold mb-3">🔄 更新</button>
           {chats.length === 0 ? (
-            <div className="text-center text-sm text-muted py-10">まだ会話はありません。通報一覧の「通報者とチャット」から開始できます。</div>
+            <div className="text-center text-sm text-muted py-10">まだ会話はありません。上の検索から相手を選ぶと始められます。</div>
           ) : (
             <div className="flex flex-col gap-2">
               {chats.map((c) => (

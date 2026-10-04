@@ -85,19 +85,25 @@ function ParticipantEditor({
           const isAvoid = avoid.includes(id);
           const isPrefer = prefer === id;
           return (
+            // ボタンは小さく（「一緒」「避ける」）、名前は2行まで折り返す。
+            // 以前は「一緒がいい」「避けたい」の2つで幅を取り、スマホでは名前が1〜2文字しか出なかった。
             <div key={id} className="flex items-center gap-2 p-2 bg-bg rounded-[10px]">
-              {u ? <Avatar user={u} size={32} /> : <div className="w-8 h-8 rounded-full bg-card" />}
-              <div className="flex-1 min-w-0 text-[13px] font-semibold truncate">{nameOf(id)}</div>
+              {u ? <Avatar user={u} size={28} emojiSize={14} /> : <div className="w-7 h-7 rounded-full bg-card" />}
+              <div className="flex-1 min-w-0 text-[12.5px] font-bold leading-tight break-all line-clamp-2">{nameOf(id)}</div>
               <button
                 type="button"
                 onClick={() => togglePrefer(id)}
-                className={'px-2.5 py-1.5 rounded-lg text-[11px] font-bold border-[1.5px] flex-shrink-0 ' + (isPrefer ? 'bg-green text-white border-green' : 'bg-card border-border text-sub')}
-              >🙆 一緒がいい</button>
+                aria-pressed={isPrefer}
+                aria-label={`${nameOf(id)}と一緒がいい`}
+                className={'px-2 py-1.5 rounded-lg text-[11px] font-bold border-[1.5px] flex-shrink-0 whitespace-nowrap ' + (isPrefer ? 'bg-green text-white border-green' : 'bg-card border-border text-sub')}
+              >🙆 一緒</button>
               <button
                 type="button"
                 onClick={() => toggleAvoid(id)}
-                className={'px-2.5 py-1.5 rounded-lg text-[11px] font-bold border-[1.5px] flex-shrink-0 ' + (isAvoid ? 'bg-red-500 text-white border-red-500' : 'bg-card border-border text-sub')}
-              >🙅 避けたい</button>
+                aria-pressed={isAvoid}
+                aria-label={`${nameOf(id)}を避けたい`}
+                className={'px-2 py-1.5 rounded-lg text-[11px] font-bold border-[1.5px] flex-shrink-0 whitespace-nowrap ' + (isAvoid ? 'bg-red-500 text-white border-red-500' : 'bg-card border-border text-sub')}
+              >🙅 避ける</button>
             </div>
           );
         })}

@@ -243,6 +243,9 @@ function Inner() {
                   ].filter(Boolean).join(' ・ ') || '未入力'}
                 </div>
               </div>
+              {/* 運営からこの人にDM（管理人名義）。会話が無くてもここから始められる */}
+              <Link href={`/admin/support?token=${encodeURIComponent(token)}&userId=${encodeURIComponent(u.id)}`}
+                className="flex-shrink-0 px-2.5 py-1.5 rounded-lg border-[1.5px] border-border bg-bg text-[11px] font-black">💬 DM</Link>
             </div>
 
             <button

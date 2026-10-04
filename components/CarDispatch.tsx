@@ -386,7 +386,7 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
           <div className="fixed inset-0 z-[150] bg-black/45 flex items-end justify-center" onClick={() => setPickerFor(null)}>
             <div className="bg-card rounded-t-2xl w-full max-w-[480px] p-4 pb-8 max-h-[75vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-2">
-                <div className="text-[14px] font-black">🚗 {nameOf(pickerFor)}の車に乗せる <span className="text-[11px] text-sub font-bold">（{riders}{cap ? `/${cap}` : ''}名）</span></div>
+                <div className="text-[14px] font-black">🚗 {nameOf(pickerFor)}の車に乗せる <span className="text-[11px] text-sub font-bold">（{riders}{cap ? `/${cap}` : ''}名{defaultStationOf(pickerFor) ? `・${defaultStationOf(pickerFor)}駅発` : ''}）</span></div>
                 <button type="button" onClick={() => setPickerFor(null)} className="px-3 py-1.5 rounded-lg border border-border text-[12px] font-bold bg-bg">閉じる</button>
               </div>
               {cap > 0 && riders >= cap && <div className="text-[11px] text-red-600 font-bold mb-2">⚠️ 定員（{cap}名）に達しています（乗せることはできます）</div>}
@@ -396,13 +396,18 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
                 <div className="flex flex-col gap-1.5">
                   {pool.filter((id) => id !== pickerFor).map((id) => {
                     const u = userOf(id);
+                    // 希望している駅（ピックアップの回答）。拾いやすい車を選ぶ手がかりなのでここにも出す
+                    const wants = (pp[id]?.stations || []).filter(Boolean).slice(0, 2);
                     return (
                       <button key={id} type="button" onClick={() => movePassenger(id, pickerFor)}
                         className="flex items-center gap-2 bg-bg border border-border rounded-[10px] px-2.5 py-2.5 text-[13px] font-bold text-left">
                         {u
                           ? <Avatar user={u} size={24} emojiSize={12} />
                           : <span className="w-[24px] h-[24px] rounded-full bg-card border border-border flex items-center justify-center text-[12px]">👤</span>}
-                        <span className="truncate">{nameOf(id)}</span>
+                        <span className="min-w-0">
+                          <span className="block truncate">{nameOf(id)}</span>
+                          {wants.length > 0 && <span className="block text-[10px] text-sub font-bold truncate">🚉 {wants.map((s) => `${s}駅`).join('・')}{driverSet.has(id) ? '（自分の車の出発駅）' : 'で拾ってほしい'}</span>}
+                        </span>
                         {driverSet.has(id) && <span className="text-[9px] font-bold text-green bg-green-light border border-green rounded px-1 flex-shrink-0">🚗車あり</span>}
                         {isGuest(id) && <span className="text-[9px] font-bold text-sub bg-card border border-border rounded px-1 flex-shrink-0">ゲスト</span>}
                         <span className="ml-auto text-green font-black text-[12px] flex-shrink-0">＋ 乗せる</span>
