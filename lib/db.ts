@@ -1191,7 +1191,7 @@ class FirestoreDB implements DB {
  * give each route its own MemoryDB. We pin the instance on globalThis so
  * writes from /api/me are visible to reads from /api/bootstrap.
  */
-const GLOBAL_KEY = '__golfbuddy_db__';
+const GLOBAL_KEY = '__goltomo_db__';
 function getDb(): DB {
   const g = globalThis as unknown as Record<string, DB | undefined>;
   if (g[GLOBAL_KEY]) return g[GLOBAL_KEY] as DB;
