@@ -65,8 +65,15 @@ export function buildCaption(input: CaptionInput): string {
   const start = r.startTime ? ` ${night}${r.startTime} START` : '';
   const area = r.area ? `（${r.area}）` : '';
 
+  // 1行目は Instagram の折り畳みより前に出る唯一の行で、検索にも使われる。
+  // 以前は「10/17(土) 千葉県、あと4名です。」で「ゴルフ」も「ラウンド募集」も
+  // 無く、何の募集か分からなかった（毎回インスタ側で手直しが発生していた）。
+  const lead = r.area
+    ? `${date} ${r.area}でゴルフのラウンド募集`
+    : `${date} ゴルフのラウンド募集`;
+
   return [
-    `${date}${r.area ? ` ${r.area}` : ''}、あと${rest}名です。`,
+    `${lead}、あと${rest}名です。`,
     '',
     '20代・30代だけの、気楽なラウンドです。',
     '',
@@ -129,4 +136,37 @@ export function buildFullCaption(input: CaptionInput): string {
     '※写真はイメージです',
     HASHTAGS,
   ].filter((l, i, a) => !(l === '' && a[i - 1] === '')).join('\n');
+}
+
+// 投稿画像の代替テキスト（alt_text）。
+//
+// 画像は make_round_images.py が焼いていて、重ねる文字は
+// 「ラウンド募集」「日付」「コース名」「県名」「残りN名募集」（満員なら満員スタンプ）
+// 「開始時刻 START」「note」「20代・30代 / 初めての人も歓迎」
+// 「ピックアップ相談可 / 車がなくてもOK」で固定なので、ラウンドのデータだけから
+// 画像に実在する文字を正確に書き起こせる。
+//
+// ★ 背景写真そのものの中身（誰がどこで何をしているか）は毎回違い、データからは
+//   分からないので書かない。足したいときは /admin/ig で画像を見ながら編集する。
+//   空のまま公開されるよりは、文字情報だけでも読み上げられるほうがよい。
+export function buildAltText(input: CaptionInput, opts?: { full?: boolean }): string {
+  const r = input.round;
+  const rest = Math.max(0, (r.maxSpots || 0) - (r.currentCount || 0));
+  const date = fmtDate(r.date);
+  const place = r.courseName || r.venue || '';
+  const where = place ? `${place}${r.area ? `（${r.area}）` : ''}` : (r.area || '');
+
+  const head = opts?.full
+    ? `${date}に${where || '会場未定'}で行うゴルフのラウンドが満員になったことを知らせる画像。`
+    : `${date}に${where || '会場未定'}で行うゴルフのラウンド募集の告知画像。`;
+
+  const facts = [
+    opts?.full ? `定員${r.maxSpots}名で満員` : `残り${rest}名募集`,
+    r.startTime ? `${isNight(r.startTime) ? 'ナイター ' : ''}${r.startTime}スタート` : '',
+    input.note || '',
+    '20代・30代で初めての人も歓迎',
+    'ピックアップ相談可で車がなくてもOK',
+  ].filter(Boolean);
+
+  return `${head}写真の上に、${facts.join('、')}、という文字が重ねてあります。`;
 }

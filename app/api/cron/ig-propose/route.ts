@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { pushToMany } from '@/lib/linePush';
 import {
-  buildCaption, buildFullCaption, captionSignature, fullSignature, GenderMix,
+  buildCaption, buildFullCaption, buildAltText, captionSignature, fullSignature, GenderMix,
 } from '@/lib/igCaption';
 import { createIgPost, getRoundImage, signatureExists } from '@/lib/igPosts';
 
@@ -103,10 +103,14 @@ export async function GET(req: NextRequest) {
         if (await signatureExists(sig)) { skipped.push({ id: r.id, why: '満員（提案済み）' }); continue; }
         if (!img.fullImageUrl) { needImage.push({ id: r.id, label: `${label}（満員用の画像）` }); continue; }
         const mix = await genderMix(r);
+        const capInput = { round: { ...r, isOfficial: !!r.isOfficial }, mix,
+                           note: img.note || undefined };
         const post = await createIgPost({
           roundId: r.id, imageUrl: img.fullImageUrl,
-          caption: buildFullCaption({ round: { ...r, isOfficial: !!r.isOfficial }, mix,
-                                     note: img.note || undefined }),
+          caption: buildFullCaption(capInput),
+          // 空のまま公開されないよう、画像に焼かれた文字から下書きしておく。
+          // 背景写真の中身は /admin/ig で画像を見ながら足す。
+          altTexts: [buildAltText(capInput, { full: true })],
           signature: sig,
         });
         createdFull.push(post.id);
@@ -129,10 +133,13 @@ export async function GET(req: NextRequest) {
       }
 
       const mix = await genderMix(r);
+      const capInput = { round: { ...r, isOfficial: !!r.isOfficial }, mix,
+                         note: img.note || undefined };
       const post = await createIgPost({
         roundId: r.id, imageUrl: img.imageUrl,
-        caption: buildCaption({ round: { ...r, isOfficial: !!r.isOfficial }, mix,
-                               note: img.note || undefined }),
+        caption: buildCaption(capInput),
+        // 同上。代替テキストが空の下書きを作らない。
+        altTexts: [buildAltText(capInput)],
         signature: sig,
       });
       created.push(post.id);
