@@ -185,16 +185,19 @@ export default function ProfilePage() {
             <span className="text-2xl font-black tracking-tight">{user.displayName}</span>
             {user.gender === 'male' ? <span className="text-base">👨</span> : user.gender === 'female' ? <span className="text-base">👩</span> : null}
           </div>
-          <div className="mt-1.5 flex items-center gap-2.5 flex-wrap">
-            {/* ★は「また回りたい率」を5段階に写像（旧★平均は廃止）。3/3 → ★5.0 */}
-            <GolfBallRating value={revisitStar(track?.roundedWith, track?.neverCount, track?.mannerPenalty)} count={track?.roundedWith || 0} rated={hasRevisitStar(track)} size={18} />
-            {track && track.roundedWith > 0 && (
-              <span className="inline-flex items-center gap-1 text-[12px] font-black text-green bg-green-light border border-green rounded-full px-2.5 py-0.5">
-                🏌️ また回りたい {track.againCount}/{track.roundedWith}
-              </span>
-            )}
-          </div>
-          {track && track.roundedWith > 0 && (
+          {/* 評価（★・また回りたい）は他人が見たときだけ。自分で自分を開いたときは出さない（2026-10-04 本人判断） */}
+          {!isMe && (
+            <div className="mt-1.5 flex items-center gap-2.5 flex-wrap">
+              {/* ★は「また回りたい率」を5段階に写像（旧★平均は廃止）。3/3 → ★5.0 */}
+              <GolfBallRating value={revisitStar(track?.roundedWith, track?.neverCount, track?.mannerPenalty)} count={track?.roundedWith || 0} rated={hasRevisitStar(track)} size={18} />
+              {track && track.roundedWith > 0 && (
+                <span className="inline-flex items-center gap-1 text-[12px] font-black text-green bg-green-light border border-green rounded-full px-2.5 py-0.5">
+                  🏌️ また回りたい {track.againCount}/{track.roundedWith}
+                </span>
+              )}
+            </div>
+          )}
+          {!isMe && track && track.roundedWith > 0 && (
             <div className="text-[11px] text-sub mt-1">この人をレビューした{track.roundedWith}人のうち{track.againCount}人が「また回りたい」と回答</div>
           )}
           {/* マナー/信頼度（運営が通報・ドタキャンを確認して下げる指標）。良好時は控えめに表示。

@@ -8,11 +8,10 @@ import { getMe, store, useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { FriendTodoBanner } from '@/components/FriendTodoBanner';
 import { GolmotiBadge } from '@/components/GolmotiBadge';
-import { GolfBallRating } from '@/components/GolfBallRating';
 import { NotifySettings } from '@/components/NotifySettings';
 import { AppUpdateButton } from '@/components/AppUpdateButton';
 import { track } from '@/lib/telemetry';
-import { formatDate, instagramUrl, revisitStar, hasRevisitStar } from '@/lib/utils';
+import { formatDate, instagramUrl } from '@/lib/utils';
 import { ProfileDetails } from '@/components/ProfileDetails';
 
 const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
@@ -154,18 +153,8 @@ export default function MyPage() {
                 <span className="text-2xl font-black tracking-tight">{me.displayName || 'プロフィール'}</span>
                 {me.gender === 'male' ? <span className="text-base">👨</span> : me.gender === 'female' ? <span className="text-base">👩</span> : null}
               </div>
-              <div className="mt-1.5 flex items-center gap-2.5 flex-wrap">
-                {/* ★は「また回りたい率」を5段階に写像（旧★平均は廃止）。3/3 → ★5.0 */}
-                <GolfBallRating value={revisitStar(trackRecord?.roundedWith, trackRecord?.neverCount, trackRecord?.mannerPenalty)} count={trackRecord?.roundedWith || 0} rated={hasRevisitStar(trackRecord)} size={18} />
-                {trackRecord && trackRecord.roundedWith > 0 && (
-                  <span className="inline-flex items-center gap-1 text-[12px] font-black text-green bg-green-light border border-green rounded-full px-2.5 py-0.5">
-                    🏌️ また回りたい {trackRecord.againCount}/{trackRecord.roundedWith}
-                  </span>
-                )}
-              </div>
-              {trackRecord && trackRecord.roundedWith > 0 && (
-                <div className="text-[11px] text-sub mt-1">あなたをレビューした{trackRecord.roundedWith}人のうち{trackRecord.againCount}人が「また回りたい」と回答</div>
-              )}
+              {/* 自分への評価（★・また回りたい）は本人には出さない（2026-10-04 本人判断）。
+                  他の人のプロフィールでだけ見える。※ 2026-09-19 の「下がった★を本人にも出す」はここで取り下げ。 */}
               <div className="text-[13px] text-sub mt-1.5">
                 {[me.age ? `${me.age}歳` : null, me.scoreRange ? `スコア ${me.scoreRange}` : null, me.area || null].filter(Boolean).join(' ・ ') || 'プロフィールを編集してください'}
               </div>

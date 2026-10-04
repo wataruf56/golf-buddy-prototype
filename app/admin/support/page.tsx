@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { AutoGrowTextarea } from '@/components/AutoGrowTextarea';
 import { useSearchParams } from 'next/navigation';
 import { appProfileUrl } from '@/lib/adminLinks';
 
@@ -172,7 +173,7 @@ function Inner() {
             <div ref={endRef} />
           </div>
           <div className="flex gap-2">
-            <textarea value={text} onChange={(e) => setText(e.target.value.slice(0, 2000))} placeholder="管理人としてメッセージを送信" className="flex-1 h-14 p-2.5 border-[1.5px] border-border rounded-[10px] text-sm bg-card outline-none resize-none" />
+            <AutoGrowTextarea value={text} onChange={(e) => setText(e.target.value.slice(0, 2000))} maxRows={4} placeholder="管理人としてメッセージを送信" className="flex-1 p-2.5 border-[1.5px] border-border rounded-[10px] text-sm bg-card outline-none resize-none" />
             <button onClick={send} disabled={sending || !text.trim()} className="px-4 bg-green text-white rounded-[10px] text-sm font-black disabled:opacity-50">{sending ? '…' : '送信'}</button>
           </div>
         </>

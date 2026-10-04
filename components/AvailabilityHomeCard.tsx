@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { AvailLegend, AvailPersonChip } from '@/components/AvailPersonChip';
 import { AvailabilityIntro } from '@/components/AvailabilityIntro';
-import { dateLabel, type AvailPerson } from '@/lib/availabilityShared';
+import { AVAIL_ROOM_MIN, dateLabel, type AvailPerson } from '@/lib/availabilityShared';
 
 // ホーム上部の「行ける日が出ている人」。
 //   ・20〜30代の会員にだけ出る（API が enabled:false を返したら何も出さない）
@@ -51,7 +51,7 @@ export function AvailabilityHomeCard() {
         </div>
         <div className="mt-2"><AvailLegend /></div>
         <div className="text-[11px] text-sub font-bold mt-1.5 leading-relaxed">
-          同じ日に4人集まると、その日のチャットが始まります。
+          同じ日に{AVAIL_ROOM_MIN}人集まると、その日のチャットが始まります。
           {data.needsStation && <><br />※ 行ける日を出すには、プロフィールの最寄り駅が必要です。</>}
         </div>
 

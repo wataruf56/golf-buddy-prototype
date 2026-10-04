@@ -181,6 +181,37 @@ export async function roomsFor(userId: string, dates: string[]): Promise<Record<
   return out;
 }
 
+/**
+ * 部屋がまだ無いのに人数がそろっている日を探して作る（運営用）。
+ * 基準人数を下げたとき（4→3）など、誰かが押し直すまで部屋ができないのを埋める。
+ */
+export async function sweepRooms(): Promise<{ created: string[]; checked: number }> {
+  const adb = getAdminDb() as any;
+  if (!adb) return { created: [], checked: 0 };
+  const isTest = await testChecker();
+  const snap = await adb.collection(AVAIL).where('updatedAt', '>', 0).limit(2000).get();
+  const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+  const byDate: Record<string, Set<string>> = {};
+  snap.docs.forEach((d: any) => {
+    const x = d.data() || {}; const uid: string = x.userId || d.id;
+    (Array.isArray(x.dates) ? x.dates : []).forEach((dt: string) => { if (dt >= today) (byDate[dt] = byDate[dt] || new Set()).add(uid); });
+  });
+  const created: string[] = [];
+  let checked = 0;
+  for (const [date, uids] of Object.entries(byDate)) {
+    for (const test of [false, true]) {
+      checked += 1;
+      if (await db.getRound(roomIdFor(date, test))) continue;
+      const members = await eligibleFor(date, test, isTest);
+      if (members.length < AVAIL_ROOM_MIN) continue;
+      const first = members.find((u) => uids.has(u.id)) || members[0];
+      await onAvailabilityAdded(first, date);
+      if (await db.getRound(roomIdFor(date, test))) created.push(roomIdFor(date, test));
+    }
+  }
+  return { created, checked };
+}
+
 /** その日に「行ける」を出している人数（部屋ができる前の「あと何人」表示用）。本人と同じ側（テスト／一般）だけ。 */
 export async function countEligible(me: User, date: string): Promise<number> {
   try {

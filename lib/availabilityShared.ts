@@ -53,8 +53,8 @@ export function needsStation(u: { nearestStation?: string } | null | undefined):
   return !String(u?.nearestStation || '').trim();
 }
 
-/** 同じ日に「行ける」を押した人がこの人数になったら、その日のチャット部屋ができる。 */
-export const AVAIL_ROOM_MIN = 4;
+/** 同じ日に「行ける」を押した人がこの人数になったら、その日のチャット部屋ができる（2026-10-04 に 4→3）。 */
+export const AVAIL_ROOM_MIN = 3;
 
 /** 「行ける日」の集まり（日付ごとのチャット部屋）か。運営主催のラウンドの形で作られる。 */
 export function isAvailRoom(r: { availDate?: string } | null | undefined): boolean {

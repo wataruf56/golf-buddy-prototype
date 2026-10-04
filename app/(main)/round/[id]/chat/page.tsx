@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
+import { AutoGrowTextarea } from '@/components/AutoGrowTextarea';
 import { toast } from '@/components/Toast';
 import { track } from '@/lib/telemetry';
 import { markRoundChatSeen } from '@/lib/useUnread';
@@ -450,12 +451,12 @@ export default function RoundChatPage() {
           onChange={(e) => { const f = e.target.files?.[0]; if (f) onPickImage(f); if (fileRef.current) fileRef.current.value = ''; }}
         />
         {/* 改行はEnterで入力可。送信は右の送信ボタンのみ（Enterでは送らない）。 */}
-        <textarea
+        <AutoGrowTextarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          rows={1}
+          maxRows={4}
           placeholder={activeThread ? `「${activeThreadObj?.name || 'スレッド'}」に返信...` : 'メッセージを入力...（改行OK）'}
-          className="flex-1 px-4 py-2.5 border-[1.5px] border-border rounded-[18px] text-sm outline-none bg-bg resize-none max-h-28"
+          className="flex-1 px-4 py-2.5 border-[1.5px] border-border rounded-[18px] text-sm outline-none bg-bg resize-none"
         />
         <button onClick={send} disabled={sending} aria-label="送信" className="self-end flex-shrink-0 w-10 h-10 bg-green text-white rounded-full text-base font-bold disabled:opacity-50">➤</button>
       </div>
