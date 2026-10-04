@@ -68,6 +68,8 @@ export type User = {
   // 「お知らせ」(アプリ内通知インボックス) を最後に既読にした時刻。これより
   // 新しい createdAt の通知が未読扱い。
   notifReadAt?: number;
+  // 「行ける日」の使い方ポップアップを最後まで見た時刻（1回だけ出すため）
+  availIntroSeenAt?: number;
   golfHistory?: string;        // 「1年未満」「1年」…「5年以上」
   // 行ける曜日（平日 / 土日 / どちらも / シフト制）。プロフィールに表示。
   availableDays?: string;

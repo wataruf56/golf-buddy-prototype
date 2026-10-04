@@ -32,6 +32,8 @@ export async function GET(_req: NextRequest) {
   return NextResponse.json({
     enabled: true,
     needsStation: needsStation(me),
+    // 使い方ポップアップを見終わったか（false なら1回出す）
+    introSeen: !!(me as any).availIntroSeenAt,
     byDate: r.byDate,
     mine: r.mine,
     rooms,

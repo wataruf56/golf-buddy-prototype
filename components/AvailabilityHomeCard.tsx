@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { AvailLegend, AvailPersonChip } from '@/components/AvailPersonChip';
+import { AvailabilityIntro } from '@/components/AvailabilityIntro';
 import { dateLabel, type AvailPerson } from '@/lib/availabilityShared';
 
 // ホーム上部の「行ける日が出ている人」。
@@ -11,6 +12,8 @@ import { dateLabel, type AvailPerson } from '@/lib/availabilityShared';
 //   ・入口は「カレンダーを開く」ひとつ。最寄り駅が未登録の人には、その旨だけ添える
 type Resp = {
   enabled: boolean; needsStation?: boolean;
+  /** 使い方ポップアップを見終わったか。false なら1回出す（20〜30代の全員に） */
+  introSeen?: boolean;
   byDate: Record<string, AvailPerson[]>; mine: string[];
   /** 自分が入っている日付ごとのチャット部屋 */
   rooms?: Record<string, { id: string; count: number }>;
@@ -36,6 +39,9 @@ export function AvailabilityHomeCard() {
 
   return (
     <div className="px-5 pb-3">
+      {data.introSeen === false && (
+        <AvailabilityIntro needsStation={!!data.needsStation} onDone={() => setData((cur) => (cur ? { ...cur, introSeen: true } : cur))} />
+      )}
       <div className="bg-card rounded-card shadow-card border-2 border-border p-4">
         <div className="flex items-center gap-2">
           <span className="text-base font-black">📅 行ける日が出ている人</span>
