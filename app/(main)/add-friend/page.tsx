@@ -10,6 +10,7 @@ import { readApiError } from '@/lib/apiError';
 import { chatIdFor } from '@/lib/utils';
 import { track } from '@/lib/telemetry';
 import type { User } from '@/lib/types';
+import { goLogin } from '@/lib/loginLink';
 
 // QRを読み取った側が開く「友達になる」確認ページ。/add-friend?u={userId}
 export default function AddFriendPage() {
@@ -47,7 +48,7 @@ function Inner() {
 
   async function addFriend() {
     if (!meId) {
-      router.push(`/liff?to=${encodeURIComponent(`/add-friend?u=${targetId}`)}`);
+      goLogin(`/add-friend?u=${targetId}`);   // LINEの外のブラウザでも LIFF（LINEの中）で開き直す
       return;
     }
     setBusy(true);

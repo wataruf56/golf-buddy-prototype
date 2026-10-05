@@ -12,6 +12,7 @@ import { track } from '@/lib/telemetry';
 import type { Round, RoundType, DateType } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Stepper } from '@/components/Stepper';
+import { goLogin } from '@/lib/loginLink';
 
 // 毎回タイトルを考えなくて済むよう、よく使う募集タイトルの定型文。
 // 既定値。管理画面で編集された場合は /api/round-titles の内容で上書きされる。
@@ -178,7 +179,7 @@ export default function CreatePage() {
 
   // 「まず日程調整する」→ 新しいポールを作って日程調整ページへ。
   async function startPoll() {
-    if (!meId) { router.push(`/liff?to=${encodeURIComponent('/create')}`); return; }
+    if (!meId) { goLogin('/create'); return; }   // LINEの外のブラウザでも LIFF（LINEの中）で開き直す
     try {
       const res = await fetch('/api/polls', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
       if (!res.ok) { toast('日程調整の作成に失敗しました', 'error'); return; }

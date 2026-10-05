@@ -7,6 +7,7 @@ import { useStore, getMe } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { toast } from '@/components/Toast';
 import { track } from '@/lib/telemetry';
+import { goLogin, loginHref } from '@/lib/loginLink';
 
 // QRコードで友達になるページ。
 //  - 「マイQRコード」：自分のQR（friend追加URL）を表示 → 相手に読み取ってもらう
@@ -46,7 +47,7 @@ function QrInner() {
   }
 
   async function scan() {
-    if (!meId) { router.push(`/liff?to=${encodeURIComponent('/qr')}`); return; }
+    if (!meId) { goLogin('/qr'); return; }   // LINEの外のブラウザでも LIFF（LINEの中）で開き直す
     setScanning(true);
     try {
       const liff = (await import('@line/liff')).default;
@@ -112,7 +113,7 @@ function QrInner() {
           ) : hydrated ? (
             <div className="py-10 text-sub text-sm">
               ログインするとQRコードが表示されます。
-              <a href={`/liff?to=${encodeURIComponent('/qr')}`} className="block mt-3 mx-auto max-w-[200px] py-2.5 bg-green text-white rounded-xl text-sm font-black">ログインする →</a>
+              <a href={loginHref('/qr')} className="block mt-3 mx-auto max-w-[200px] py-2.5 bg-green text-white rounded-xl text-sm font-black">ログインする →</a>
             </div>
           ) : (
             <div className="py-10 text-muted text-sm">読み込み中...</div>

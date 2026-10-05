@@ -30,6 +30,7 @@ import { RESTRICTION_MSG } from '@/lib/restrictions';
 import { readApiError } from '@/lib/apiError';
 import { MatchPicker } from '@/components/MatchPicker';
 import { RoundAlbum } from '@/components/RoundAlbum';
+import { goLogin, loginHrefHere } from '@/lib/loginLink';
 import type { Round, User, PickupStatus } from '@/lib/types';
 
 // Brand launch URL — handled by middleware, redirects to liff.line.me/{id}
@@ -336,7 +337,8 @@ export default function RoundDetailPage() {
   // until they actually act. Returns true if it redirected to login.
   function requireLogin(): boolean {
     if (meId) return false;
-    router.push(`/login?callbackUrl=${encodeURIComponent(`/round/${round!.id}`)}`);
+    // LINEの外のブラウザ（Safari 等）からは LIFF（LINEの中）で開き直す。/login だと Safari のまま戻ってきていた（2026-10-06）
+    goLogin(`/round/${round!.id}`);
     return true;
   }
 
@@ -637,7 +639,7 @@ export default function RoundDetailPage() {
             ログインすると、参加申込・ピックアップの登録・「気になる」などの操作ができます。
           </div>
           <a
-            href={`/liff?to=${encodeURIComponent(typeof window !== 'undefined' ? window.location.pathname + window.location.search : `/round/${params.id}`)}`}
+            href={loginHrefHere(`/round/${params.id}`)}   /* LINEの外のブラウザでも LIFF（LINEの中）で開き直す（2026-10-06） */
             className="block w-full py-3 bg-green text-white rounded-xl text-sm font-black text-center"
           >
             ここからログインする →

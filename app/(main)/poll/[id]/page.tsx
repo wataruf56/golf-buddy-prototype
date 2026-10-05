@@ -10,6 +10,7 @@ import { track } from '@/lib/telemetry';
 import { formatDate } from '@/lib/utils';
 import { readApiError } from '@/lib/apiError';
 import type { SchedulePoll, User, ScheduleAnswer } from '@/lib/types';
+import { goLogin, loginHref } from '@/lib/loginLink';
 
 // プロフィール保存済みの近似判定（年齢が入っていれば保存済み）。募集参加と同じ基準。
 function isProfileComplete(age?: number): boolean {
@@ -119,7 +120,7 @@ export default function PollPage() {
 
   function ensureReady(): boolean {
     if (!meId) {
-      router.push(`/liff?to=${encodeURIComponent(pollPath)}`);
+      goLogin(pollPath);   // LINEの外のブラウザでも LIFF（LINEの中）で開き直す
       return false;
     }
     if (!profileReady) {
@@ -278,7 +279,7 @@ export default function PollPage() {
           <div className="text-[12px] text-sub leading-relaxed mb-3">
             みんなの回答は今すぐ見られます。あなたが回答（◯△✕）する時だけ、かんたんな登録をお願いします。
           </div>
-          <a href={`/liff?to=${encodeURIComponent(pollPath)}`} className="block w-full py-3 bg-green text-white rounded-xl text-sm font-black text-center">
+          <a href={loginHref(pollPath)} className="block w-full py-3 bg-green text-white rounded-xl text-sm font-black text-center">
             登録して回答する →
           </a>
         </div>
