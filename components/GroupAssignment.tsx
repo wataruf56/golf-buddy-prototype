@@ -327,13 +327,16 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
         className={`flex items-center gap-2 bg-bg border border-border rounded-[10px] px-2.5 py-2 text-[13px] font-bold select-none ${draggingId === id ? 'opacity-30' : ''}`}
         style={{ touchAction: 'none', cursor: 'grab' }}
       >
-        <span className="text-muted text-[15px] leading-none">⠿</span>
+        <span className="text-muted text-[15px] leading-none flex-shrink-0">⠿</span>
         {u
           ? <Avatar user={u} size={22} emojiSize={12} />
-          : <span className="w-[22px] h-[22px] rounded-full bg-bg border border-border flex items-center justify-center text-[12px]">👤</span>}
-        <span className="truncate">{nameOf(id)}</span>
-        {metaOf(id) && <span className="text-[10px] text-muted font-normal flex-shrink-0">（{metaOf(id)}）</span>}
-        {isGuest(id) && <span className="text-[9px] font-bold text-sub bg-bg border border-border rounded px-1 ml-0.5 flex-shrink-0">ゲスト</span>}
+          : <span className="w-[22px] h-[22px] rounded-full bg-bg border border-border flex items-center justify-center text-[12px] flex-shrink-0">👤</span>}
+        {/* 名前は縮み、補足は折り返す（枠からはみ出さない） */}
+        <span className="min-w-0 flex-1 flex items-center gap-1.5 flex-wrap">
+          <span className="truncate min-w-0 max-w-full">{nameOf(id)}</span>
+          {metaOf(id) && <span className="text-[10px] text-muted font-normal break-words">（{metaOf(id)}）</span>}
+          {isGuest(id) && <span className="text-[9px] font-bold text-sub bg-bg border border-border rounded px-1 flex-shrink-0">ゲスト</span>}
+        </span>
         {(inGroup || inNoShow) && (
           <button
             type="button"

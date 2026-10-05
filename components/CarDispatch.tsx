@@ -32,13 +32,15 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
   const driverIds = useMemo(() => {
     const set = new Set<string>();
     if ((round.pickupStations?.length ?? 0) > 0) set.add(round.hostId);
-    for (const id of registeredIds) {
+    // ゲストも主催者が代わりに「ピックアップできます」と答えられる。登録者だけ見ていたので、
+    // 車ありのゲストが車にも未割り当てにも出ず、盤面から消えていた（2026-10-05 本人報告）。
+    for (const id of allPeople) {
       const v = pp[id];
       const st = v?.status || (v?.stations?.length ? 'can' : undefined);
       if (st === 'can') set.add(id);
     }
     return Array.from(set);
-  }, [round.hostId, round.pickupStations, registeredIds, pp]);
+  }, [round.hostId, round.pickupStations, allPeople, pp]);
 
   const capacityOf = (id: string) => {
     if (id === round.hostId && (round.pickupStations?.length ?? 0) > 0) return round.pickupCapacity || 0;
@@ -291,13 +293,18 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
         className={`flex items-center gap-2 bg-bg border border-border rounded-[10px] px-2.5 py-2 text-[13px] font-bold select-none ${draggingId === id ? 'opacity-30' : ''}`}
         style={{ touchAction: 'none', cursor: 'grab' }}
       >
-        <span className="text-muted text-[15px] leading-none">⠿</span>
-        {u ? <Avatar user={u} size={22} emojiSize={12} /> : <span className="w-[22px] h-[22px] rounded-full bg-bg border border-border flex items-center justify-center text-[12px]">👤</span>}
-        <span className="truncate">{nameOf(id)}</span>
-        {st === 'want' && <span className="text-[9px] font-bold text-orange bg-orange-light border border-orange rounded px-1 flex-shrink-0">🙋希望</span>}
-        {driverSet.has(id) && <span className="text-[9px] font-bold text-green bg-green-light border border-green rounded px-1 flex-shrink-0">🚗車あり</span>}
-        {isGuest(id) && <span className="text-[9px] font-bold text-sub bg-bg border border-border rounded px-1 flex-shrink-0">ゲスト</span>}
-        {v?.stations?.length ? <span className="text-[9px] text-muted font-normal flex-shrink-0">{v.stations[0]}駅</span> : null}
+        <span className="text-muted text-[15px] leading-none flex-shrink-0">⠿</span>
+        {u ? <Avatar user={u} size={22} emojiSize={12} /> : <span className="w-[22px] h-[22px] rounded-full bg-bg border border-border flex items-center justify-center text-[12px] flex-shrink-0">👤</span>}
+        {/* 名前と札は1行目（名前だけ縮む）、駅は2行目で折り返す。長い自由入力の駅名でも枠からはみ出さない */}
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1.5 min-w-0">
+            <span className="truncate min-w-0">{nameOf(id)}</span>
+            {st === 'want' && <span className="text-[9px] font-bold text-orange bg-orange-light border border-orange rounded px-1 flex-shrink-0">🙋希望</span>}
+            {driverSet.has(id) && <span className="text-[9px] font-bold text-green bg-green-light border border-green rounded px-1 flex-shrink-0">🚗車あり</span>}
+            {isGuest(id) && <span className="text-[9px] font-bold text-sub bg-bg border border-border rounded px-1 flex-shrink-0">ゲスト</span>}
+          </span>
+          {v?.stations?.length ? <span className="block text-[10px] text-muted font-normal leading-snug break-words">🚉 {v.stations.slice(0, 2).map((s: string) => `${s}駅`).join('・')}</span> : null}
+        </span>
         {inCar && (
           <button type="button" aria-label="未割り当てに戻す"
             onPointerDown={(e) => e.stopPropagation()}
