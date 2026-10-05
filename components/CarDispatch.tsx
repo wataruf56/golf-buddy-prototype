@@ -104,6 +104,11 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
   });
 
   // ---------- read-only view (participants) ----------
+  // ドラッグ用の ref。もとは下の「host editor」側（閲覧用の早期 return の後ろ）で宣言していたため、
+  // 読み込み中は閲覧用→主催者と分かって編集用、と切り替わる瞬間に hook の数が増えて React #310 で落ちうる
+  // （2026-10-06・round ページの同種バグの横展開。hook は必ず早期 return より前に置く）。
+  const ghostRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ id: string; ox: number; oy: number } | null>(null);
   if (!isHost) {
     // 抜けた人の車・同乗は出さない（データ側でも消すようにしたが、古い募集には残っていることがある）
     const saved = (round.carAssignments || [])
@@ -142,8 +147,6 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
   }
 
   // ---------- host editor with drag & drop ----------
-  const ghostRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{ id: string; ox: number; oy: number } | null>(null);
 
   function setCarsDirty(next: CarAssignment[]) { setCars(next); setDirty(true); }
 

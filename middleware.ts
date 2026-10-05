@@ -201,6 +201,8 @@ export default async function middleware(req: NextRequest) {
       // ここに入れないと middleware が 404（本文はJSONでない）を返し、
       // 画面側は JSON parse に失敗して意味の分からないエラーを出す。
       path === '/api/official' || path.startsWith('/api/official/') ||
+      // 画面側の例外の記録（app/error.tsx・ClientErrorReporter）。管理画面で落ちたときも残す。
+      path === '/api/client-error' ||
       path.startsWith('/api/lp/') ||
       path.startsWith('/api/auth/') ||
       path === '/liff' || path.startsWith('/liff/') ||

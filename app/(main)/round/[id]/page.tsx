@@ -82,6 +82,11 @@ export default function RoundDetailPage() {
   const [replaceBusy, setReplaceBusy] = useState(false);
   // 主催者向け「ラウンドは完了しましたか？」プロンプトを「まだ」で閉じたか（この画面表示中のみ）。
   const [completionDismissed, setCompletionDismissed] = useState(false);
+  // 「参加を取りやめる」ダイアログ。もとは早期 return（募集が無いとき）の後ろで宣言していたため、
+  // 募集が後から届くと hook の数が増えて React #310 で画面ごと落ちていた
+  // （2026-10-06・シェアURLを未ログインの Safari で開くと「Application error」。hook は必ず return より前に置く）。
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   // 詳細のセクション切り替えタブ（参加してる人／ピックアップ／組み分け／入金）。
   const [tab, setTab] = useState<'people' | 'pickup' | 'groups' | 'hostnote' | 'album' | 'payment'>(
     () => {
@@ -449,8 +454,7 @@ export default function RoundDetailPage() {
   }
   // 参加確定の人：理由を選び、キャンセル規約を確認してから（LeaveDialog）。
   // 申請中の人：確認だけで取り下げられる（まだ参加が決まっていないので理由は聞かない）。
-  const [leaveOpen, setLeaveOpen] = useState(false);
-  const [leaving, setLeaving] = useState(false);
+  // ※ leaveOpen / leaving の useState は上（早期 return より前）にある。
   async function leaveNow(reason?: string, text?: string) {
     setLeaving(true);
     try { await store.leaveRound(round!.id, { reason, text }); toast('参加を取りやめました'); router.push('/home'); }

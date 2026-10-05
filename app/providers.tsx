@@ -5,6 +5,7 @@ import { ReactNode, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { store } from '@/lib/store';
 import { SwGuard } from '@/components/SwGuard';
+import { ClientErrorReporter } from '@/components/ClientErrorReporter';
 
 const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
@@ -40,6 +41,8 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <SessionProvider>
       <SwGuard />
+      {/* 画面側の例外を /api/client-error に送る（原因が実機でしか分からなかった 2026-10-06） */}
+      <ClientErrorReporter />
       <StoreHydrator>{children}</StoreHydrator>
     </SessionProvider>
   );

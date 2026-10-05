@@ -98,6 +98,11 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   const needed = Math.ceil(Math.max(0, participantIds.length - noShow.length) / GROUP_MAX);
 
   // ---------- read-only view (non-host) ----------
+  // ドラッグ用の ref。もとは下の「host editor」側（閲覧用の早期 return の後ろ）で宣言していたため、
+  // 読み込み中は閲覧用→主催者と分かって編集用、と切り替わる瞬間に hook の数が増えて React #310 で落ちうる
+  // （2026-10-06・round ページの同種バグの横展開。hook は必ず早期 return より前に置く）。
+  const ghostRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ id: string; ox: number; oy: number; board: 'front' | 'back' } | null>(null);
   if (!isHost) {
     if (!groups.length) return null;
     const showBack = groupsBack.length > 0;
@@ -139,8 +144,6 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   }
 
   // ---------- host editor with drag & drop ----------
-  const ghostRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{ id: string; ox: number; oy: number; board: 'front' | 'back' } | null>(null);
   // 落とし先がどちらの盤か。後半の盤は 'back:<組id>' と 'backpool'。
   const boardOf = (zone: string): 'front' | 'back' => (zone.startsWith('back') ? 'back' : 'front');
 
