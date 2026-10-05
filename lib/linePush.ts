@@ -65,8 +65,14 @@ async function logSend(kind: string | undefined, recipients: number): Promise<vo
 }
 
 // 最後の引数 kind は送信種別（管理画面の集計用）。未指定は 'other'。
+// LINE の userId（U＋32桁の16進）だけを宛先にする。
+// 管理人（admin_manager）・システム・テスト垢の id を渡すと、1件ずつの push は 400 で落ち、
+// まとめ送信（multicast）は**宛先に1つでも混ざると丸ごと失敗して誰にも届かない**。
+// 運営主催のチャット（運営枠・行ける日の部屋）で「@全員」が届かなかった原因（2026-10-05）。
+export const isLineUserId = (id: string | undefined | null): id is string => !!id && /^U[0-9a-f]{32}$/.test(id);
+
 export async function pushTo(userId: string, text: string, link?: string, kind?: string): Promise<void> {
-  if (!userId || !text) return;
+  if (!isLineUserId(userId) || !text) return;
   const body = link ? `${text}\n${link}` : text;
   const messages: LineMessage[] = [{ type: 'text', text: body.slice(0, 4900) }];
   const r = await callLine(PUSH_ENDPOINT, { to: userId, messages });
@@ -80,7 +86,8 @@ export async function pushTo(userId: string, text: string, link?: string, kind?:
 }
 
 export async function pushToMany(userIds: string[], text: string, link?: string, kind?: string): Promise<void> {
-  const ids = userIds.filter(Boolean);
+  // 重複を除き、LINE の userId だけに絞る（上のコメント参照）
+  const ids = Array.from(new Set(userIds.filter(isLineUserId)));
   if (!ids.length || !text) return;
   const body = link ? `${text}\n${link}` : text;
   const messages: LineMessage[] = [{ type: 'text', text: body.slice(0, 4900) }];
@@ -89,8 +96,16 @@ export async function pushToMany(userIds: string[], text: string, link?: string,
   for (let i = 0; i < ids.length; i += 500) {
     const slice = ids.slice(i, i + 500);
     const r = await callLine(MULTICAST_ENDPOINT, { to: slice, messages });
-    if (!r.ok) console.warn('[linePush] multicast failed', { count: slice.length, status: r.status, detail: r.detail?.slice(0, 200) });
-    else sent += slice.length;
+    if (r.ok) { sent += slice.length; continue; }
+    console.warn('[linePush] multicast failed', { count: slice.length, status: r.status, detail: r.detail?.slice(0, 200) });
+    // まとめ送信が落ちたら1件ずつ送り直す（1人の不正な宛先で全員が届かない、を二重に防ぐ）
+    if (r.status === 400) {
+      for (const id of slice) {
+        const one = await callLine(PUSH_ENDPOINT, { to: id, messages });
+        if (one.ok) sent += 1;
+        else console.warn('[linePush] push fallback failed', { id, status: one.status });
+      }
+    }
   }
   await logSend(kind, sent);
 }
