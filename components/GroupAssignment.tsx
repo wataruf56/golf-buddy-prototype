@@ -71,6 +71,9 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   // 画面の下の「未割り当て」から上の組までドラッグで運ぶのはスクロールできず難しい、
   // という指摘があったので、組の側から選んで入れられるようにした。
   const [pickerFor, setPickerFor] = useState<string | null>(null);
+  // 「＋ 追加」で、ほかの組に入っている人も選べるようにする（2026-10-05 本人要望）。
+  // まず未割り当てだけを出し、「割り当て済みの人から選ぶ」を開くとほかの組の人が出る。選ぶと元の組から抜ける。
+  const [pickerShowAssigned, setPickerShowAssigned] = useState(false);
   // 自由記入モードの組（コースがプリセット以外、または「自由記入」を選んだ組）。
   const [freeCourse, setFreeCourse] = useState<Set<string>>(() => {
     const s = new Set<string>();
@@ -468,11 +471,11 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
         const g = arr[gi];
         const over = !!g && g.memberIds.length >= GROUP_MAX;
         return (
-          <Portal><div className="fixed inset-0 z-[150] bg-black/45 flex items-end justify-center" onClick={() => setPickerFor(null)}>
+          <Portal><div className="fixed inset-0 z-[150] bg-black/45 flex items-end justify-center" onClick={() => { setPickerFor(null); setPickerShowAssigned(false); }}>
             <div className="bg-card rounded-t-2xl w-full max-w-[480px] p-4 pb-8 max-h-[75vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-2">
                 <div className="text-[14px] font-black">組{gi + 1}{isBack ? '（後半）' : ''}に追加 <span className="text-[11px] text-sub font-bold">（{g?.memberIds.length ?? 0}/{GROUP_MAX}）</span></div>
-                <button type="button" onClick={() => setPickerFor(null)} className="px-3 py-1.5 rounded-lg border border-border text-[12px] font-bold bg-bg">閉じる</button>
+                <button type="button" onClick={() => { setPickerFor(null); setPickerShowAssigned(false); }} className="px-3 py-1.5 rounded-lg border border-border text-[12px] font-bold bg-bg">閉じる</button>
               </div>
               {over && <div className="text-[11px] text-red-600 font-bold mb-2">⚠️ この組は規定の{GROUP_MAX}名に達しています（入れることはできます）</div>}
               {list.length === 0 ? (
@@ -487,15 +490,52 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
                         {u
                           ? <Avatar user={u} size={24} emojiSize={12} />
                           : <span className="w-[24px] h-[24px] rounded-full bg-card border border-border flex items-center justify-center text-[12px]">👤</span>}
-                        <span className="truncate">{nameOf(id)}</span>
-                        {metaOf(id) && <span className="text-[10px] text-muted font-normal flex-shrink-0">（{metaOf(id)}）</span>}
-                        {isGuest(id) && <span className="text-[9px] font-bold text-sub bg-card border border-border rounded px-1 flex-shrink-0">ゲスト</span>}
-                        <span className="ml-auto text-green font-black text-[12px] flex-shrink-0">＋ 入れる</span>
+                        <span className="min-w-0 flex-1 flex items-center gap-1.5 flex-wrap">
+                          <span className="truncate min-w-0 max-w-full">{nameOf(id)}</span>
+                          {metaOf(id) && <span className="text-[10px] text-muted font-normal">（{metaOf(id)}）</span>}
+                          {isGuest(id) && <span className="text-[9px] font-bold text-sub bg-card border border-border rounded px-1 flex-shrink-0">ゲスト</span>}
+                        </span>
+                        <span className="text-green font-black text-[12px] flex-shrink-0">＋ 入れる</span>
                       </button>
                     );
                   })}
                 </div>
               )}
+              {/* ほかの組に入っている人。開いたときだけ出す。選ぶと元の組から抜けてこの組へ */}
+              {(() => {
+                const others = arr.filter((x) => x.id !== gid).flatMap((x, xi) => x.memberIds.map((id) => ({ id, label: `組${arr.findIndex((y) => y.id === x.id) + 1}` })));
+                if (others.length === 0) return null;
+                return (
+                  <div className="mt-3">
+                    <button type="button" onClick={() => setPickerShowAssigned((v) => !v)}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-border bg-card text-[12px] font-bold text-sub">
+                      <span>ほかの組に入っている人から選ぶ（{others.length}人）</span>
+                      <span>{pickerShowAssigned ? '▴' : '▾'}</span>
+                    </button>
+                    {pickerShowAssigned && (
+                      <div className="flex flex-col gap-1.5 mt-1.5">
+                        {others.map(({ id, label }) => {
+                          const u = userOf(id);
+                          return (
+                            <button key={id} type="button" onClick={() => moveMember(id, isBack ? `back:${gid}` : gid)}
+                              className="flex items-center gap-2 bg-card border border-dashed border-border rounded-[10px] px-2.5 py-2.5 text-[13px] font-bold text-left">
+                              {u
+                                ? <Avatar user={u} size={24} emojiSize={12} />
+                                : <span className="w-[24px] h-[24px] rounded-full bg-bg border border-border flex items-center justify-center text-[12px]">👤</span>}
+                              <span className="min-w-0 flex-1 flex items-center gap-1.5 flex-wrap">
+                                <span className="truncate min-w-0 max-w-full">{nameOf(id)}</span>
+                                <span className="text-[9px] font-bold text-blue bg-blue-light border border-blue rounded px-1 flex-shrink-0">{label}</span>
+                                {isGuest(id) && <span className="text-[9px] font-bold text-sub bg-bg border border-border rounded px-1 flex-shrink-0">ゲスト</span>}
+                              </span>
+                              <span className="text-green font-black text-[12px] flex-shrink-0">→ 移す</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div></Portal>
         );
