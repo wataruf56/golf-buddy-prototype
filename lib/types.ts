@@ -419,6 +419,8 @@ export type Message = {
   read: boolean;
   // 画像メッセージ（リサイズ済みのデータURL）。テキストは空でも可。
   imageUrl?: string;
+  // 運営（管理人）が送信後に本文を直したとき（管理画面の「修正」）。ユーザー側には出さない。
+  editedAt?: number;
   // For round group chat: which thread this message belongs to. Undefined/empty
   // = the main (本流) chat. Set = a named sub-thread (e.g. 配車相談).
   threadId?: string;

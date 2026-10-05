@@ -7,7 +7,7 @@ import { useSearchParams } from 'next/navigation';
 import { appProfileUrl } from '@/lib/adminLinks';
 
 type ChatRow = { userId: string; displayName: string; avatar: string; avatarUrl: string; lastMessage: string; lastMessageAt: number; unread: number };
-type Msg = { id: string; senderId: string; text: string; imageUrl?: string; createdAt: number };
+type Msg = { id: string; senderId: string; text: string; imageUrl?: string; createdAt: number; editedAt?: number };
 
 export default function AdminSupportPage() {
   return <Suspense fallback={null}><Inner /></Suspense>;
@@ -24,6 +24,10 @@ function Inner() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  // 送った後の修正（管理人の発言だけ）。誤字や言い回しを直したいという要望（2026-10-05）
+  const [editingId, setEditingId] = useState('');
+  const [editText, setEditText] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
   // 新しくDMを送る相手を探す（名前・ID・エリアで絞る）。会話が無い相手にもここから始められる
   const [query, setQuery] = useState('');
   const [people, setPeople] = useState<Array<{ id: string; displayName: string; age: number | null; area: string | null; avatarEmoji: string | null }>>([]);
@@ -95,6 +99,23 @@ function Inner() {
     finally { setSending(false); }
   }
 
+  async function saveEdit() {
+    const t = editText.trim();
+    if (!t || !active || !editingId || savingEdit) return;
+    setSavingEdit(true);
+    try {
+      const r = await fetch(`/api/admin/support-chat?token=${encodeURIComponent(token)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: active, messageId: editingId, text: t }), cache: 'no-store',
+      });
+      if (!r.ok) throw new Error(`${r.status}`);
+      setEditingId(''); setEditText('');
+      await openChat(active);
+      await loadList();
+    } catch (e) { alert('修正失敗: ' + (e as Error).message); }
+    finally { setSavingEdit(false); }
+  }
+
   if (!token) return <div className="min-h-screen bg-bg p-5 max-w-md mx-auto flex items-center justify-center text-sm text-muted">⚙️ 読み込み中...</div>;
 
   return (
@@ -163,10 +184,27 @@ function Inner() {
               <div className="text-center text-[12px] text-muted py-10">まだメッセージはありません。下から送信してください。</div>
             ) : messages.map((m) => {
               const fromAdmin = m.senderId === 'admin_manager';
+              const editing = editingId === m.id;
               return (
                 <div key={m.id} className={'max-w-[80%] px-3 py-2 rounded-2xl text-[13px] ' + (fromAdmin ? 'self-end bg-green text-white' : 'self-start bg-bg text-text')}>
-                  {m.text}
-                  <div className={'text-[9px] mt-0.5 ' + (fromAdmin ? 'text-white/70' : 'text-muted')}>{m.createdAt ? new Date(m.createdAt).toLocaleString('ja-JP') : ''}</div>
+                  {editing ? (
+                    <div className="flex flex-col gap-1.5 min-w-[240px]">
+                      <AutoGrowTextarea value={editText} onChange={(e) => setEditText(e.target.value.slice(0, 2000))} maxRows={10} className="w-full p-2 border-[1.5px] border-border rounded-[10px] text-[13px] bg-card text-text outline-none resize-none" />
+                      <div className="flex gap-1.5 justify-end">
+                        <button onClick={() => { setEditingId(''); setEditText(''); }} className="px-2.5 py-1 rounded-lg bg-card text-text text-[11px] font-bold">やめる</button>
+                        <button onClick={saveEdit} disabled={savingEdit || !editText.trim()} className="px-2.5 py-1 rounded-lg bg-orange text-white text-[11px] font-black disabled:opacity-50">{savingEdit ? '…' : '保存'}</button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* 改行をそのまま出す。送った文面の改行が消えて見えていた（2026-10-05）。ユーザー側は元から pre-wrap */
+                    <div className="whitespace-pre-wrap break-words">{m.text}</div>
+                  )}
+                  <div className={'text-[9px] mt-0.5 flex items-center gap-2 ' + (fromAdmin ? 'text-white/70' : 'text-muted')}>
+                    <span>{m.createdAt ? new Date(m.createdAt).toLocaleString('ja-JP') : ''}{m.editedAt ? '・修正済み' : ''}</span>
+                    {fromAdmin && !editing && (
+                      <button onClick={() => { setEditingId(m.id); setEditText(m.text); }} className="underline font-bold">✏️ 修正</button>
+                    )}
+                  </div>
                 </div>
               );
             })}

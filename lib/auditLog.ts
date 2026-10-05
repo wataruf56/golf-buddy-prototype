@@ -45,6 +45,7 @@ export const AUDIT_ACTION = {
   userRestrict: 'user.restrict',
   swingAllow: 'user.swing_allow',
   supportSend: 'user.support_send',
+  supportEdit: 'user.support_edit',
   pushTest: 'user.push_test',
   broadcast: 'broadcast.send',
   reviewBlast: 'broadcast.review_blast',

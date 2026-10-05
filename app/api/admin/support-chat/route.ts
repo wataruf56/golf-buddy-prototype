@@ -8,6 +8,7 @@ import { audit, adminActor, AUDIT_ACTION } from '@/lib/auditLog';
 //   GET  ?token=..            → 管理人チャット一覧（相手ユーザー・最終メッセージ・未読）
 //   GET  ?token=..&userId=..  → そのユーザーとの会話（メッセージ全件）
 //   POST ?token=..  { userId, text } → 管理人としてメッセージ送信（ユーザーへ通知）
+//   PATCH ?token=.. { userId, messageId, text } → 管理人が送った本文を後から修正（通知なし）
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 
 function authed(req: NextRequest): boolean {
@@ -97,6 +98,41 @@ export async function POST(req: NextRequest) {
       }, req);
     } catch { /* noop */ }
     return NextResponse.json({ ok: true, message }, { headers: noStore });
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
+  }
+}
+
+// 送った後に誤字や言い回しを直したい、という運営の要望（2026-10-05）。直せるのは管理人の発言だけ。
+// ユーザーへ通知は出さず静かに差し替える。ユーザー側のDM画面は3秒ごとに再取得するので、そのまま新しい本文になる。
+export async function PATCH(req: NextRequest) {
+  if (!authed(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
+  let body: any = {};
+  try { body = (await req.json()) || {}; } catch {}
+  const userId = String(body.userId || '');
+  const messageId = String(body.messageId || '');
+  const text = String(body.text || '').trim().slice(0, 2000);
+  if (!userId || !messageId || !text) return NextResponse.json({ error: 'bad_request' }, { status: 400, headers: noStore });
+
+  const chatId = chatIdFor(ADMIN_MANAGER_ID, userId);
+  try {
+    const chat = await db.getChat(chatId);
+    const msg = chat?.messages.find((m) => m.id === messageId);
+    if (!msg) return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStore });
+    if (msg.senderId !== ADMIN_MANAGER_ID) return NextResponse.json({ error: 'not_admin_message' }, { status: 403, headers: noStore });
+    const before = msg.text;
+    const updated = await db.updateMessageText(chatId, messageId, text);
+    try {
+      const name = (await db.getUser(userId))?.displayName || '';
+      await audit({
+        ...(await adminActor(null)),
+        action: AUDIT_ACTION.supportEdit,
+        targetKind: 'user', targetId: userId, targetName: name,
+        summary: `「${name || userId}」さんへの管理人メッセージを修正した`,
+        detail: { 修正前: String(before).slice(0, 120), 修正後: text.slice(0, 120) },
+      }, req);
+    } catch { /* noop */ }
+    return NextResponse.json({ ok: true, message: updated }, { headers: noStore });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
   }

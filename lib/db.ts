@@ -89,6 +89,8 @@ export interface DB {
   getChat(chatId: string): Promise<Chat | null>;
   sendMessage(chatId: string, participants: [string, string], senderId: string, text: string, imageUrl?: string): Promise<Message>;
   markChatRead(chatId: string, userId: string): Promise<void>;
+  // 管理人のDM本文を送信後に差し替える（管理画面の「修正」）。見つからなければ null。
+  updateMessageText(chatId: string, messageId: string, text: string): Promise<Message | null>;
 }
 
 /* ===== In-memory demo backend ===== */
@@ -405,6 +407,14 @@ class MemoryDB implements DB {
   async markChatRead(chatId: string, userId: string) {
     const chat = this.chats.find((c) => c.id === chatId);
     if (chat) chat.unreadCount[userId] = 0;
+  }
+  async updateMessageText(chatId: string, messageId: string, text: string) {
+    const chat = this.chats.find((c) => c.id === chatId);
+    const msg = chat?.messages.find((m) => m.id === messageId);
+    if (!chat || !msg) return null;
+    msg.text = text; msg.editedAt = Date.now();
+    if (chat.lastMessageAt === msg.createdAt) chat.lastMessage = text;
+    return msg;
   }
   async listRoundMessages(roundId: string) {
     return [...(this.roundChats.get(roundId) || [])];
@@ -1119,6 +1129,20 @@ class FirestoreDB implements DB {
     const unread = { ...(data.unreadCount || {}) };
     unread[userId] = 0;
     await ref.set({ unreadCount: unread }, { merge: true });
+  }
+  // 管理人のDM本文を送信後に差し替える（管理画面の「修正」）。最後のメッセージなら一覧のプレビューも揃える。
+  async updateMessageText(chatId: string, messageId: string, text: string) {
+    const ref = this.fs.collection('chats').doc(chatId);
+    const msgRef = ref.collection('messages').doc(messageId);
+    const snap = await msgRef.get();
+    if (!snap.exists) return null;
+    const prev = (snap.data() as any) || {};
+    const now = Date.now();
+    await msgRef.set({ text, editedAt: now }, { merge: true });
+    const chatSnap = await ref.get();
+    const chatData = (chatSnap.data() as any) || {};
+    if (chatData.lastMessageAt === prev.createdAt) await ref.set({ lastMessage: text }, { merge: true });
+    return { id: snap.id, ...prev, text, editedAt: now } as Message;
   }
   async listRoundMessages(roundId: string) {
     try {
