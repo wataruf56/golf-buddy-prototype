@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
 
 // ---------------------------------------------------------------------------
 // Multi-domain routing + auth.
@@ -50,6 +49,11 @@ export default async function middleware(req: NextRequest) {
   // the host-based routing below working after the GCP migration.
   const host = (req.headers.get('x-forwarded-host') || req.headers.get('host') || '').toLowerCase();
   const path = url.pathname;
+  // Web の LINE ログイン（NextAuth）は廃止（2026-10-06）。サインイン系の口は 404 にする。
+  // /api/auth/session（SessionProvider が叩く）と /api/auth/liff・/api/auth/test-login は通す。
+  if (/^\/api\/auth\/(signin|callback|signout|providers|csrf)(\/|$)/.test(path)) {
+    return new NextResponse('Not Found', { status: 404 });
+  }
 
   // -------- 検索エンジンに見せるホストを1つに絞る --------
   // 同じページが goltomo.com / app.goltomo.com のほかに
@@ -232,15 +236,13 @@ export default async function middleware(req: NextRequest) {
   // LINE in-app webview this stays in-webview; in a normal browser it stays
   // in that browser. No cross-origin hops, no Safari hand-off.
   if (!isDemoMode && shouldRequireAppAuth(path)) {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    // Also accept the LIFF-issued session cookie as proof of login.
-    // Cookie name must match lib/liffSession.ts (now "__session" so Firebase
-    // Hosting forwards it to Cloud Run instead of stripping it).
+    // ログインの証拠は LIFF が発行する __session Cookie だけ（2026-10-06：NextAuth の Web ログインは廃止）。
+    // Cookie が無ければ LIFF の入口へ（以前は存在しない /login へ飛ばして 404 になっていた）。
+    // スマホでは LINE アプリが開いて自動ログインし、同じページに戻る。PC では /liff が「スマホのLINEで」と案内する。
     const liffCookie = req.cookies.get('__session');
-    if (!token && !liffCookie) {
-      const loginUrl = new URL('/login', req.url);
-      loginUrl.searchParams.set('callbackUrl', path + (url.search || ''));
-      return NextResponse.redirect(loginUrl);
+    if (!liffCookie) {
+      const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '2009973733-P5UdNex9';
+      return NextResponse.redirect(`https://liff.line.me/${liffId}?to=${encodeURIComponent(path + (url.search || ''))}`);
     }
   }
 

@@ -16,6 +16,11 @@ export async function POST(req: NextRequest) {
   let body: any = {};
   try { body = await req.json(); } catch {}
 
+  // 2026-10-06：管理トークン（ADMIN_LOG_TOKEN）が無いと使えない。誰でも test_ 垢を作って Web から入れていた。
+  const adminToken = String(body?.token || new URL(req.url).searchParams.get('token') || '');
+  const expected = process.env.ADMIN_LOG_TOKEN || '';
+  if (!expected || adminToken !== expected) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+
   const userId = String(body?.userId || '').trim();
   if (!userId.startsWith('test_')) {
     return NextResponse.json({ error: 'テスト用IDは "test_" で始める必要があります' }, { status: 400 });

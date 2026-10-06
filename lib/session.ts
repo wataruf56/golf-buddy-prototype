@@ -1,16 +1,12 @@
 import 'server-only';
-import { getServerSession } from 'next-auth';
 import { cookies } from 'next/headers';
-import { authOptions, isDemoMode } from './auth';
+import { isDemoMode } from './auth';
 import { verifySessionToken, LIFF_COOKIE_NAME } from './liffSession';
 
 export async function getMeId(): Promise<string | null> {
   if (isDemoMode) return 'me';
-  // 1) NextAuth session (PWA / OAuth path)
-  const session = await getServerSession(authOptions);
-  const id = (session?.user as { id?: string } | undefined)?.id;
-  if (id) return id;
-  // 2) LIFF cookie (in-LINE webview path)
+  // ログインは LIFF（LINE の中）で発行する __session Cookie だけ（2026-10-06）。
+  // 以前は NextAuth（Web の LINE ログイン）のセッションも通していたが、Web のまま操作できる抜け道になるので外した。
   try {
     const c = cookies().get(LIFF_COOKIE_NAME);
     if (c?.value) {

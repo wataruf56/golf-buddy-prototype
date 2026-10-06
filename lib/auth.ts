@@ -1,19 +1,13 @@
 import type { NextAuthOptions } from 'next-auth';
-import LineProvider from 'next-auth/providers/line';
 import { isDemoMode } from './demoMode';
 import { db } from './db';
 
 export { isDemoMode };
 
 export const authOptions: NextAuthOptions = {
-  providers: isDemoMode
-    ? []
-    : [
-        LineProvider({
-          clientId: process.env.LINE_CLIENT_ID || '',
-          clientSecret: process.env.LINE_CLIENT_SECRET || '',
-        }),
-      ],
+  // Web の LINE ログイン（NextAuth の LINE プロバイダ）は廃止（2026-10-06）。登録・ログインは LIFF（/liff）だけ。
+  // SessionProvider が /api/auth/session を叩くので NextAuth 自体は残すが、サインインできる手段は無い。
+  providers: [],
   secret: process.env.NEXTAUTH_SECRET || 'demo-secret-do-not-use-in-prod',
   callbacks: {
     async signIn({ user, account, profile }) {

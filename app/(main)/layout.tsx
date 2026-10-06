@@ -12,6 +12,7 @@ import { BlockerPopup } from '@/components/BlockerPopup';
 import { ToastHost } from '@/components/Toast';
 import { ConfirmHost } from '@/components/ConfirmDialog';
 import { AgeGateScreen } from '@/components/AgeGateScreen';
+import { LoginButtons } from '@/components/LoginButtons';
 import { MatchingBanner } from '@/components/MatchingBanner';
 import { UpdateBanner } from '@/components/UpdateBanner';
 import { getMe, store, useStore } from '@/lib/store';
@@ -24,6 +25,14 @@ import { isMatchingAllowedByAge } from '@/lib/ageGate';
 // /poll (日程調整) works the same way: the shared poll must be viewable without
 // login/profile, and the answer buttons enforce the profile gate themselves.
 const ALWAYS_ALLOWED = ['/guide', '/swing', '/mypage', '/profile', '/admin', '/legal', '/round', '/rounds', '/poll', '/qr', '/add-friend'];
+
+// ログインが無いと中身を出せない画面（middleware の APP_PROTECTED_PREFIXES と同じ範囲＋/availability）。
+// Cookie はあるが期限切れ・無効（2026-10-06 の一括無効化など）のとき middleware は通してしまうので、
+// ここで「ログインし直してください」を出す。募集・日程調整・プロフィールなどは未ログインでも読める。
+const LOGIN_REQUIRED_PREFIXES = ['/home', '/search', '/create', '/buddies', '/mypage', '/chat', '/swing', '/rematch', '/availability'];
+function requiresLogin(pathname: string): boolean {
+  return LOGIN_REQUIRED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
+}
 
 function needsMatchingAccess(pathname: string): boolean {
   if (!pathname) return false;
@@ -42,6 +51,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   const matchingAllowed = isMatchingAllowedByAge(me?.age);
   const ageGated = hydrated && needsMatchingAccess(pathname) && !matchingAllowed;
+  const loggedOut = hydrated && !me?.id && requiresLogin(pathname);
   const banned = useStore((s) => s.banned);
   // 赤バン（アカウント停止）は全画面を遮断（ログイン中でも一切使えない状態にする）。
   const banGated = hydrated && banned;
@@ -109,6 +119,18 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             <div className="text-[13px] text-sub leading-relaxed">
               募集・参加・チャットなどのコミュニティ機能の利用が制限されています。<br />
               お心当たりがない場合は運営までお問い合わせください。
+            </div>
+          </div>
+        ) : loggedOut ? (
+          <div className="flex flex-col items-center justify-center h-full px-6 text-center">
+            <div className="text-4xl mb-3">🔒</div>
+            <div className="text-base font-black mb-2">ログインが必要です</div>
+            <div className="text-[13px] text-sub leading-relaxed mb-5">
+              ログインの有効期限が切れたか、まだ登録していません。<br />
+              新規登録もログインもLINEで開きます（無料）。
+            </div>
+            <div className="w-full max-w-[320px] text-left">
+              <LoginButtons to={typeof window !== 'undefined' ? window.location.pathname + window.location.search : pathname} />
             </div>
           </div>
         ) : ageGated ? (

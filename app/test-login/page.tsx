@@ -20,6 +20,8 @@ const ACCOUNTS: Acct[] = [
 export default function TestLoginPage() {
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
+  // 管理トークン（/admin の「システム状態」にあるもの）。無いと API が 403（2026-10-06）
+  const [token, setToken] = useState(() => { try { return localStorage.getItem('gb_test_token') || ''; } catch { return ''; } });
 
   async function login(a: Acct) {
     setBusy(a.userId); setErr('');
@@ -27,7 +29,7 @@ export default function TestLoginPage() {
       const res = await fetch('/api/auth/test-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: a.userId, displayName: a.displayName, gender: a.gender, car: a.car }),
+        body: JSON.stringify({ userId: a.userId, displayName: a.displayName, gender: a.gender, car: a.car, token }),
         cache: 'no-store',
         credentials: 'include',
       });
@@ -48,6 +50,8 @@ export default function TestLoginPage() {
       </div>
 
       {err && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm mb-4">{err}</div>}
+      <input value={token} onChange={(e) => { setToken(e.target.value); try { localStorage.setItem('gb_test_token', e.target.value); } catch {} }}
+        placeholder="管理トークン（必須）" className="w-full mb-3 px-3 py-2 rounded-lg border border-border bg-card text-[13px]" />
 
       <div className="flex flex-col gap-2">
         {ACCOUNTS.map((a) => (

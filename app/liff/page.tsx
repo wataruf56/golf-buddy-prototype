@@ -210,7 +210,8 @@ function LiffEntryInner() {
         // PC は QR、スマホは「LINEで開く」ボタン（liff.line.me → LINE アプリが開いて続きから）。
         if (!liff.isInClient()) {
           liffTrack('liff_pc', ctx, { note: isDesktopBrowser() ? 'pc' : 'external_browser' });
-          if (isDesktopBrowser()) setPc(true); else setOutside(true);
+          // PC でのログインは想定しない（本人方針 2026-10-06）。PC も QR は出さず、同じ案内で止める。
+          setOutside(true);
           return;
         }
         if (!liff.isLoggedIn()) {
@@ -315,8 +316,8 @@ function LiffEntryInner() {
     return () => { cancelled = true; };
   }, [router, to, retried]);
 
-  if (pc) return <PcQr to={to} />;
   if (outside) return <OpenInLine to={to} />;
+  if (pc) return <PcQr to={to} />;   // 旧：LINEの中でPC判定になった場合だけ（通常は通らない）
   return (
     <>
       <LiffLoading status={status} errorMsg={errorMsg} />
@@ -347,7 +348,8 @@ function OpenInLine({ to }: { to: string }) {
       <div className="text-[19px] font-black mb-1">💬 LINEで開いてください</div>
       <div className="text-[12.5px] text-sub font-bold leading-relaxed mb-5 max-w-[300px]">
         ゴルトモの新規登録・ログインは、LINE公式アカウント経由だけです。<br />
-        下のボタンでLINEアプリが開き、そのまま続きのページに戻ります。
+        スマホで下のボタンを押すとLINEアプリが開き、そのまま続きのページに戻ります。<br />
+        （パソコンでは使えません。スマホのLINEで開いてください）
       </div>
       <a href={href}
         className="flex items-center justify-center gap-2 w-full max-w-[300px] py-3.5 rounded-xl border-2 border-border font-black text-white text-[16px]"
