@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { webPushText } from '@/lib/webPush';
+import { ADMIN_MANAGER_ID } from '@/lib/adminManagerId';
 import { isMatchingAllowedByAge } from '@/lib/ageGate';
 
 export async function GET(req: NextRequest) {
@@ -65,5 +66,25 @@ export async function POST(req: NextRequest) {
   // 代わりに /api/cron/unread-digest が9/15/21時に「未読があれば1通」まとめて送る。
   // ここではアプリ内お知らせ＋Web push（LINE上限と無関係）のみ。
   webPushText(otherUserId, n.webTitle, n.webBody, dmLink, `chat-${chatId}`).catch(() => {});
+
+  // 管理人（運営）宛てのDMは、運営本人の LINE にすぐ知らせる（2026-10-06 本人要望）。
+  // 管理人は LINE の userId ではないので、上の通知はどこにも届かない。新規登録の通知と同じ
+  // ADMIN_NOTIFY_USER_IDS へ送り、タップで管理画面のそのDMが開く。配信上限の対策（DMはまとめ通知）は
+  // 一般ユーザー同士の話で、運営宛ては件数が少ないので即時でよい。
+  if (otherUserId === ADMIN_MANAGER_ID) {
+    const adminIds = (process.env.ADMIN_NOTIFY_USER_IDS || '').split(',').map((s) => s.trim()).filter(Boolean);
+    if (adminIds.length) {
+      try {
+        const { pushToMany } = await import('@/lib/linePush');
+        pushToMany(
+          adminIds,
+          `🛡️ 管理人DMに返信が届きました
+${senderName}「${preview}」`,
+          `https://admin.goltomo.com/admin/support?userId=${encodeURIComponent(meId)}`,
+          'dm',
+        ).catch(() => {});
+      } catch { /* 通知に失敗しても送信は成立させる */ }
+    }
+  }
   return NextResponse.json({ message });
 }
