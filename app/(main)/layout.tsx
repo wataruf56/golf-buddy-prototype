@@ -51,7 +51,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   const matchingAllowed = isMatchingAllowedByAge(me?.age);
   const ageGated = hydrated && needsMatchingAccess(pathname) && !matchingAllowed;
-  const loggedOut = hydrated && !me?.id && requiresLogin(pathname);
+  // getMe は未ログインでも仮の人（id='me'）を返すので、ログイン有無は meId で見る
+  const meIdForGate = useStore((s) => s.meId);
+  const loggedOut = hydrated && !meIdForGate && requiresLogin(pathname);
   const banned = useStore((s) => s.banned);
   // 赤バン（アカウント停止）は全画面を遮断（ログイン中でも一切使えない状態にする）。
   const banGated = hydrated && banned;
