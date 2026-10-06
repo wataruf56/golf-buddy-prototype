@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { track } from '@/lib/telemetry';
 import { takeLpOrigin } from '@/lib/lpOrigin';
 import { QRCodeSVG } from 'qrcode.react';
+import { FriendGate } from '@/components/FriendGate';
 
 // LIFF entry: initialize SDK → ensure logged in → exchange idToken for our cookie → redirect.
 // Default redirect target is /home, override with ?to=/round/xxx etc.
@@ -136,6 +137,10 @@ function LiffEntryInner() {
   const [status, setStatus] = useState<string>('LIFFを起動中...');
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [pc, setPc] = useState(false);
+  // LINE アプリの外（Safari / Chrome / LINE内ブラウザ）で開かれた：ここではログインさせず「LINEで開く」を出す
+  const [outside, setOutside] = useState(false);
+  // ログインはできたが公式アカウント未追加：友だち追加（必須）を先に通す
+  const [needFriend, setNeedFriend] = useState(false);
 
   useEffect(() => {
     const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '';
@@ -199,9 +204,17 @@ function LiffEntryInner() {
 
         liffTrack('liff_sdk', ctx);
 
+        // LINE アプリの外（Safari / Chrome / LINE内ブラウザ）では、ここでログインさせない（2026-10-06 本人方針：
+        // Web でのログインはやめ、登録・ログインは必ず LINE 公式アカウント＝LINE アプリの中からだけ）。
+        // 以前は liff.login() で LINE ログイン（Web）を通し、Safari のままセッションが発行されていた。
+        // PC は QR、スマホは「LINEで開く」ボタン（liff.line.me → LINE アプリが開いて続きから）。
+        if (!liff.isInClient()) {
+          liffTrack('liff_pc', ctx, { note: isDesktopBrowser() ? 'pc' : 'external_browser' });
+          if (isDesktopBrowser()) setPc(true); else setOutside(true);
+          return;
+        }
         if (!liff.isLoggedIn()) {
-          // PCはここで止める。この先の liff.login() がLINEの赤いエラー画面に着き、
-          // 戻り道が無いまま終わってしまう。代わりにQRを出してスマホへ渡す。
+          // LINE の中でまだログインしていない（まれ）。LINE ログインへ。
           if (isDesktopBrowser()) {
             liffTrack('liff_pc', ctx);
             setPc(true);
@@ -283,6 +296,14 @@ function LiffEntryInner() {
 
         liffTrack('liff_auth', ctx);
         liffTrack(isNew ? 'liff_new' : 'liff_return', ctx);
+        // 公式アカウント未追加なら、先に友だち追加（必須）。判定できなかった人は通す（閉じ込めない）。
+        let followed: boolean | undefined = undefined;
+        try { followed = (await res.clone().json())?.botFollowed; } catch { /* 旧レスポンス互換 */ }
+        if (followed === false) {
+          setStatus('あと1ステップ：LINE公式アカウントの友だち追加');
+          setNeedFriend(true);
+          return;
+        }
         setStatus('完了。ホームへ移動します...');
         router.replace(to);
       } catch (e) {
@@ -295,7 +316,52 @@ function LiffEntryInner() {
   }, [router, to, retried]);
 
   if (pc) return <PcQr to={to} />;
-  return <LiffLoading status={status} errorMsg={errorMsg} />;
+  if (outside) return <OpenInLine to={to} />;
+  return (
+    <>
+      <LiffLoading status={status} errorMsg={errorMsg} />
+      {needFriend && (
+        <FriendGate
+          reason="ゴルトモからの連絡（参加の承認・メッセージ・前日のリマインド）はLINEで届きます。"
+          onPass={() => router.replace(to)}
+        />
+      )}
+    </>
+  );
+}
+
+/**
+ * LINE アプリの外（Safari / Chrome / LINE内ブラウザ）で開かれた人に出す画面。
+ * ここでは LINE ログインをさせない（Web のまま使えてしまうため）。LINE アプリの中で開き直してもらう。
+ * ボタンは liff.line.me のURL：スマホでは LINE アプリが立ち上がり、自動ログインして続きのページに戻る。
+ */
+function OpenInLine({ to }: { to: string }) {
+  const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '2009973733-P5UdNex9';
+  const href = `https://liff.line.me/${liffId}?to=${encodeURIComponent(to || '/home')}`;
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-bg">
+      <div className="flex items-center gap-2 mb-6">
+        <span className="w-9 h-9 rounded-full bg-orange text-white border-2 border-border grid place-items-center text-[17px]">⛳</span>
+        <span className="text-[19px] font-black">ゴルトモ</span>
+      </div>
+      <div className="text-[19px] font-black mb-1">💬 LINEで開いてください</div>
+      <div className="text-[12.5px] text-sub font-bold leading-relaxed mb-5 max-w-[300px]">
+        ゴルトモの新規登録・ログインは、LINE公式アカウント経由だけです。<br />
+        下のボタンでLINEアプリが開き、そのまま続きのページに戻ります。
+      </div>
+      <a href={href}
+        className="flex items-center justify-center gap-2 w-full max-w-[300px] py-3.5 rounded-xl border-2 border-border font-black text-white text-[16px]"
+        style={{ background: '#06C755' }}>
+        LINEで開く
+      </a>
+      <a href="https://line.me/R/ti/p/@711xiyrs" className="mt-4 text-[12.5px] font-black text-blue underline">
+        まだ友だち追加していない方はこちら（新規登録）
+      </a>
+      <div className="text-[11px] text-muted font-bold mt-5 leading-relaxed max-w-[300px]">
+        LINEが開かないときは、LINEアプリで「ゴルトモ」のトークを開き、メニューから進んでください。
+      </div>
+    </div>
+  );
 }
 
 /**

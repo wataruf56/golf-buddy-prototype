@@ -33,6 +33,7 @@ import { RoundAlbum } from '@/components/RoundAlbum';
 import { goLogin, loginHrefHere } from '@/lib/loginLink';
 import type { Round, User, PickupStatus } from '@/lib/types';
 import { Linkify } from '@/components/Linkify';
+import { LoginButtons } from '@/components/LoginButtons';
 
 // Brand launch URL — handled by middleware, redirects to liff.line.me/{id}
 // while preserving the ?to= query so the recipient lands directly on the
@@ -635,17 +636,12 @@ export default function RoundDetailPage() {
           参加・ピックアップなどの操作ができる。ログイン後はこのページへ戻る。 */}
       {hydrated && !meId && (
         <div className="mb-4 bg-orange-light border-[1.5px] border-orange rounded-card p-4">
-          <div className="text-[13px] font-black text-orange mb-1">🔒 未ログインです</div>
+          <div className="text-[13px] font-black text-orange mb-1">🔒 参加・操作には新規登録／ログインが必要です</div>
           <div className="text-[12px] text-sub leading-relaxed mb-3">
-            ログインすると、参加申込・ピックアップの登録・「気になる」などの操作ができます。
+            募集の内容はこのまま読めます。参加申込・ピックアップの登録・「気になる」は、LINEでの新規登録（無料）またはログインのあとに使えます。
           </div>
-          <a
-            href={loginHrefHere(`/round/${params.id}`)}   /* LINEの外のブラウザでも LIFF（LINEの中）で開き直す（2026-10-06） */
-            className="block w-full py-3 bg-green text-white rounded-xl text-sm font-black text-center"
-          >
-            ここからログインする →
-          </a>
-          <div className="text-[10px] text-muted text-center mt-1.5">ログイン後、このページに戻ります</div>
+          {/* どちらも LIFF（LINEの中）で開き、このページに戻る（2026-10-06 本人方針：Webログインは無し） */}
+          <LoginButtons to={typeof window !== 'undefined' ? window.location.pathname + window.location.search : `/round/${params.id}`} note="どちらもLINEアプリで開き、このページに戻ります（無料）" />
         </div>
       )}
 
@@ -831,15 +827,18 @@ export default function RoundDetailPage() {
                 周りのカードもティール系だったため背景に溶けていた。
                 文言も「◯◯を登録して参加する」をやめる。参加の前に“作業”を
                 置くと、そこで止まってしまう（名前の登録は押したあとに聞く）。 */}
+            {!meId ? (
+              /* 未ログイン：参加の前に「新規登録／ログイン」（2026-10-06 本人方針）。押すと LINE で開き、戻ってきて参加できる */
+              <LoginButtons to={`/round/${round.id}`} note={`参加するには新規登録／ログイン（LINE）が必要です${isDrink ? '' : `・残り${remaining}枠`}`} />
+            ) : (
             <button onClick={join}
               className="w-full py-4 rounded-xl text-[16px] font-black text-white bg-orange border-2 border-[#C24E2C] shadow-[0_3px_0_#C24E2C]">
               {(() => {
                 const slots = isDrink ? '' : `（残り${remaining}枠）`;
-                return !meId
-                  ? `LINEで参加する${slots}`
-                  : isInvited ? `招待を承認して参加する${slots}` : `この募集に参加する${slots}`;
+                return isInvited ? `招待を承認して参加する${slots}` : `この募集に参加する${slots}`;
               })()}
             </button>
+            )}
             {/* 押す前にいちばん気になること（確定するのか・取り消せるのか・
                 お金がかかるのか）を先に潰す。 */}
             <div className="flex flex-wrap gap-1.5 justify-center mt-2.5">
@@ -1225,12 +1224,12 @@ export default function RoundDetailPage() {
                 {!isDrink && <span className="text-orange"> ・残り{remaining}枠</span>}
               </div>
               <div className="text-[10px] font-bold text-sub mt-0.5">
-                {joinReady ? 'あとで取り消せます' : '登録はすぐ終わります'}
+                {!meId ? '新規登録／ログイン（LINE）' : joinReady ? 'あとで取り消せます' : '登録はすぐ終わります'}
               </div>
             </div>
             <button onClick={join}
               className="flex-none px-5 py-3 rounded-xl text-[14.5px] font-black text-white bg-orange border-2 border-[#C24E2C] shadow-[0_3px_0_#C24E2C]">
-              {!meId ? 'LINEで参加' : joinReady ? (isInvited ? '招待を承認' : '参加する') : '参加する'}
+              {!meId ? 'ログイン' : joinReady ? (isInvited ? '招待を承認' : '参加する') : '参加する'}
             </button>
           </div>
         </div>

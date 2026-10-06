@@ -11,6 +11,7 @@ import { formatDate } from '@/lib/utils';
 import { readApiError } from '@/lib/apiError';
 import type { SchedulePoll, User, ScheduleAnswer } from '@/lib/types';
 import { goLogin, loginHref } from '@/lib/loginLink';
+import { LoginButtons } from '@/components/LoginButtons';
 
 // プロフィール保存済みの近似判定（年齢が入っていれば保存済み）。募集参加と同じ基準。
 function isProfileComplete(age?: number): boolean {
@@ -275,13 +276,11 @@ export default function PollPage() {
       {/* 未ログイン案内 */}
       {hydrated && !meId && (
         <div className="mb-4 bg-orange-light border-[1.5px] border-orange rounded-card p-4">
-          <div className="text-[13px] font-black text-orange mb-1">🔒 回答にはログインが必要です</div>
+          <div className="text-[13px] font-black text-orange mb-1">🔒 回答には新規登録／ログインが必要です</div>
           <div className="text-[12px] text-sub leading-relaxed mb-3">
-            みんなの回答は今すぐ見られます。あなたが回答（◯△✕）する時だけ、かんたんな登録をお願いします。
+            みんなの回答は今すぐ見られます。あなたが回答（◯△✕）する時だけ、LINEでの新規登録（無料）またはログインをお願いします。
           </div>
-          <a href={loginHref(pollPath)} className="block w-full py-3 bg-green text-white rounded-xl text-sm font-black text-center">
-            登録して回答する →
-          </a>
+          <LoginButtons to={pollPath} note="どちらもLINEで開き、この日程調整に戻ります" />
         </div>
       )}
 

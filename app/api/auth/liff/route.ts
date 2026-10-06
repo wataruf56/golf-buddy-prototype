@@ -141,6 +141,7 @@ export async function POST(req: NextRequest) {
   // サーバー側で Messaging API のプロフィール取得を叩いて判定する
   // （友だち=200 / 未追加=404。メッセージは送らない）。
   // 判定できると、未追加の人にだけアプリ内で友だち追加をすすめられる。
+  let followed: boolean | undefined = friendFlag;   // クライアントへ返す（未追加なら /liff で友だち追加を先に通す）
   try {
     let follow: boolean | undefined = friendFlag;
     if (follow === undefined) {
@@ -158,6 +159,7 @@ export async function POST(req: NextRequest) {
         }
       }
     }
+    followed = follow;
     if (follow !== undefined) {
       await db.upsertUser({ id: userId, botFollowed: follow, botFollowedAt: Date.now() } as any);
     }
@@ -185,7 +187,7 @@ export async function POST(req: NextRequest) {
   const token = makeSessionToken(userId, secret);
   // isNewUser を返すのは計測のため。これが無いと、クライアントは「セッション発行に
   // 成功した」ことしか分からず、既存会員の再ログインまで「登録完了」に数えてしまう。
-  const res = NextResponse.json({ ok: true, userId, isNewUser });
+  const res = NextResponse.json({ ok: true, userId, isNewUser, botFollowed: followed });
   // Host-only cookie — matches pre-domain-migration behaviour. Admin uses its
   // own gb_admin_session cookie now (lib/adminSession.ts), so we no longer
   // need to scope this to the parent .goltomo.com domain.

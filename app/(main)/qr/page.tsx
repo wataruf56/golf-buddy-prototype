@@ -8,6 +8,7 @@ import { Avatar } from '@/components/Avatar';
 import { toast } from '@/components/Toast';
 import { track } from '@/lib/telemetry';
 import { goLogin, loginHref } from '@/lib/loginLink';
+import { LoginButtons } from '@/components/LoginButtons';
 
 // QRコードで友達になるページ。
 //  - 「マイQRコード」：自分のQR（friend追加URL）を表示 → 相手に読み取ってもらう
@@ -112,8 +113,8 @@ function QrInner() {
             </div>
           ) : hydrated ? (
             <div className="py-10 text-sub text-sm">
-              ログインするとQRコードが表示されます。
-              <a href={loginHref('/qr')} className="block mt-3 mx-auto max-w-[200px] py-2.5 bg-green text-white rounded-xl text-sm font-black">ログインする →</a>
+              新規登録／ログインするとQRコードが表示されます。
+              <div className="mt-3 mx-auto max-w-[280px] text-left"><LoginButtons to="/qr" /></div>
             </div>
           ) : (
             <div className="py-10 text-muted text-sm">読み込み中...</div>
