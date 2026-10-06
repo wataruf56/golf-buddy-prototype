@@ -843,7 +843,7 @@ export default function RoundDetailPage() {
                 お金がかかるのか）を先に潰す。 */}
             <div className="flex flex-wrap gap-1.5 justify-center mt-2.5">
               {(!meId
-                ? ['まずは閲覧だけでもOK', '参加するときだけログイン']
+                ? []   /* 未ログインは LoginButtons の一言だけ（重複して読みにくかった） */
                 : isInvited
                   ? ['承認するとすぐ参加確定']
                   : ['主催者の承認制', 'あとで取り消せます', 'いま費用はかかりません']
@@ -855,7 +855,7 @@ export default function RoundDetailPage() {
             </div>
             <div className="text-[11px] text-muted text-center mt-2">
               {!meId
-                ? '参加する時だけLINEログインが必要です'
+                ? ''
                 : joinReady
                   ? (isInvited
                       ? '招待されています。承認するとすぐに参加確定になります'
