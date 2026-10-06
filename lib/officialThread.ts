@@ -129,6 +129,7 @@ export async function createThread(input: {
     applicantIds: [],
     levelCondition: '誰でも',
     status: 'open',
+    assignmentsPublished: false,   // 組み分け・配車は運営が「公開する」を押すまで見せない（2026-10-06）
     isCompetition: false,
     isOfficial: true,
     createdAt: Date.now(),

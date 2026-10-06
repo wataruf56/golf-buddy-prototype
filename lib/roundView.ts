@@ -41,6 +41,17 @@ export function stripInvitesForViewer(round: Round, viewerId: string | null): Ro
  * 1つずつ呼ぶ形にしていたら、新しく足した口で掛け忘れる
  * （実際 /api/rounds/[id]/interest は掛かっていなかった）。まとめてある。
  */
+// 組み分け・配車は、主催者が「公開する」を押すまで参加者に見せない（2026-10-06）。
+// 未公開（assignmentsPublished === false）のとき、主催者以外へは groups / groupsBack / carAssignments を空にし、
+// 何かしら入っていれば assignmentsHidden=true を付けて「主催者が準備中」と出せるようにする。
+// 旧データ（未設定）はこれまでどおり見せる。
+export function stripAssignmentsForViewer(round: Round, viewerId: string | null): Round {
+  if (round.assignmentsPublished !== false) return round;
+  if (isRoundHost(round, viewerId)) return round;
+  const has = (round.groups?.length || 0) + (round.groupsBack?.length || 0) + (round.carAssignments?.length || 0) > 0;
+  return { ...round, groups: [], groupsBack: [], carAssignments: [], assignmentsHidden: has };
+}
+
 export function stripRoundForViewer(round: Round, viewerId: string | null): Round {
-  return stripViews(stripGroupPrefsForViewer(stripInvitesForViewer(round, viewerId), viewerId));
+  return stripAssignmentsForViewer(stripViews(stripGroupPrefsForViewer(stripInvitesForViewer(round, viewerId), viewerId)), viewerId);
 }

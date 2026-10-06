@@ -6,6 +6,7 @@ import type { Round, RoundGroup, RoundGuest, User } from '@/lib/types';
 import { Avatar } from '@/components/Avatar';
 import { store } from '@/lib/store';
 import { toast } from '@/components/Toast';
+import { AssignmentsPublishBar } from '@/components/AssignmentsPublishBar';
 
 const GROUP_MAX = 4;
 let uidSeq = 0;
@@ -104,7 +105,18 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   const ghostRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ id: string; ox: number; oy: number; board: 'front' | 'back' } | null>(null);
   if (!isHost) {
-    if (!groups.length) return null;
+    if (!groups.length) {
+      // 組み分けはあるが主催者がまだ公開していない（2026-10-06）
+      if (round.assignmentsHidden) {
+        return (
+          <div className="bg-card rounded-card p-4 shadow-card mb-4">
+            <div className="text-[13px] font-bold mb-1">⛳ 組分け・スタート時間</div>
+            <div className="text-[12px] text-sub leading-relaxed">主催者が準備中です。公開されるとここに表示され、お知らせが届きます。</div>
+          </div>
+        );
+      }
+      return null;
+    }
     const showBack = groupsBack.length > 0;
     const listOf = (gs: RoundGroup[]) => gs.map((g, gi) => (
             <div key={g.id} className="bg-bg rounded-xl p-2.5">
@@ -358,6 +370,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
 
   return (
     <div className="bg-card rounded-card p-4 shadow-card mb-4">
+      <AssignmentsPublishBar round={round} />
       <div className="text-[13px] font-bold mb-0.5">⛳ 組分け・スタート時間（主催者）</div>
       <div className="text-[10px] text-muted mb-2.5">各組の「＋ 追加」から未割り当ての人を選んで入れられます（ドラッグでも可）。メンバーの「×」または外へドラッグで未割り当てに戻せます。</div>
 

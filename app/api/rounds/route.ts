@@ -144,6 +144,8 @@ export async function POST(req: NextRequest) {
       ? Math.min(8, Math.floor(body.pickupCapacity)) : undefined),
     pickupOffered: isDrink ? false : (typeof body.pickupOffered === 'boolean' ? body.pickupOffered : undefined),
     status: 'open',
+    // 組み分け・配車は主催者が「公開する」を押すまで参加者に見せない（2026-10-06）
+    assignmentsPublished: false,
     // 知り合い枠（external）の人数ぶんの「名前つきゲスト」。募集人数タブで入力された名前。
     // 人数は externalMale/Female でカウント済みなので、ここでは名札を作るだけ。
     guests: guestList,
