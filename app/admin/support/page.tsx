@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { AutoGrowTextarea } from '@/components/AutoGrowTextarea';
 import { useSearchParams } from 'next/navigation';
 import { appProfileUrl } from '@/lib/adminLinks';
+import { Linkify } from '@/components/Linkify';
 
 type ChatRow = { userId: string; displayName: string; avatar: string; avatarUrl: string; lastMessage: string; lastMessageAt: number; unread: number };
 type Msg = { id: string; senderId: string; text: string; imageUrl?: string; createdAt: number; editedAt?: number };
@@ -197,7 +198,7 @@ function Inner() {
                     </div>
                   ) : (
                     /* 改行をそのまま出す。送った文面の改行が消えて見えていた（2026-10-05）。ユーザー側は元から pre-wrap */
-                    <div className="whitespace-pre-wrap break-words">{m.text}</div>
+                    <div className="whitespace-pre-wrap break-words"><Linkify text={m.text} mine={fromAdmin} /></div>
                   )}
                   <div className={'text-[9px] mt-0.5 flex items-center gap-2 ' + (fromAdmin ? 'text-white/70' : 'text-muted')}>
                     <span>{m.createdAt ? new Date(m.createdAt).toLocaleString('ja-JP') : ''}{m.editedAt ? '・修正済み' : ''}</span>

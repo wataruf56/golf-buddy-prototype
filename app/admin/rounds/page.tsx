@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { AdminTabs } from '@/components/AdminTabs';
 import { useSearchParams } from 'next/navigation';
 import { appRoundUrl } from '@/lib/adminLinks';
+import { Linkify } from '@/components/Linkify';
 
 type Round = {
   id: string;
@@ -291,7 +292,7 @@ function RoundMessages({ token, roundId }: { token: string; roundId: string }) {
                 <span className="text-[10px] font-bold truncate">{u.avatar} {u.displayName}{m.threadId ? ' ・スレッド' : ''}</span>
                 <button onClick={() => del(m.id)} className="text-[10px] font-bold text-red-600 px-2 py-0.5 bg-red-50 rounded flex-shrink-0">削除</button>
               </div>
-              <div className="text-[12px] mt-0.5 whitespace-pre-wrap break-words">{m.text}</div>
+              <div className="text-[12px] mt-0.5 whitespace-pre-wrap break-words"><Linkify text={m.text} /></div>
               <div className="text-[9px] text-muted mt-0.5">{m.createdAt ? new Date(m.createdAt).toLocaleString('ja-JP') : ''}</div>
             </div>
           );

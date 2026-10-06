@@ -11,6 +11,7 @@ import { revisitStar, hasRevisitStar } from '@/lib/utils';
 import { ChaseCheck } from '@/components/ChaseCheck';
 import { resizeImage } from '@/lib/resizeImage';
 import { track } from '@/lib/telemetry';
+import { Linkify } from '@/components/Linkify';
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 // メッセージの日付区切り用。年月日＋曜日を必ず出す（何年のメッセージか一目で分かるように）。
@@ -218,7 +219,7 @@ export default function ChatPage() {
                       <img src={(m as any).imageUrl} alt="画像" className="rounded-lg max-w-full max-h-60 object-cover" />
                     </a>
                   )}
-                  {m.text && <div className="whitespace-pre-wrap">{m.text}</div>}
+                  {m.text && <div className="whitespace-pre-wrap"><Linkify text={m.text} mine={mine} /></div>}
                   <div className={`text-[10px] mt-1 text-right ${mine ? 'text-white/60' : 'text-muted'}`}>
                     {new Date(m.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
                   </div>

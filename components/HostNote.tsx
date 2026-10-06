@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { Round } from '@/lib/types';
 import { store } from '@/lib/store';
 import { toast } from '@/components/Toast';
+import { Linkify } from '@/components/Linkify';
 
 // 主催者から参加者への連絡（注意事項・ルール等）。主催者のみ編集・参加者は閲覧。
 // 長文・改行OK。コンペで「当日の集合・進行・表彰の説明」等をまとめて伝えるのに使う。
@@ -31,7 +32,7 @@ export function HostNote({ round, isHost }: { round: Round; isHost: boolean }) {
       <div className="bg-card rounded-card p-4 shadow-card mb-4">
         <div className="text-[13px] font-black mb-2">📣 主催者からの連絡</div>
         {round.hostNote
-          ? <div className="text-[13px] leading-relaxed whitespace-pre-wrap">{round.hostNote}</div>
+          ? <div className="text-[13px] leading-relaxed whitespace-pre-wrap"><Linkify text={round.hostNote || ''} /></div>
           : <div className="text-[12px] text-muted py-6 text-center">まだ連絡はありません。</div>}
       </div>
     );

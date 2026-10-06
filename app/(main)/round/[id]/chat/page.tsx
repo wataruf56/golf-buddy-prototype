@@ -11,6 +11,7 @@ import { track } from '@/lib/telemetry';
 import { markRoundChatSeen } from '@/lib/useUnread';
 import type { Message, Round, RoundThread } from '@/lib/types';
 import { ADMIN_MANAGER_AVATAR, ADMIN_MANAGER_ID, ADMIN_MANAGER_NAME, SYSTEM_SENDER_ID } from '@/lib/adminManagerId';
+import { linkifyNodes } from '@/components/Linkify';
 
 // Branded launch URL (handled in middleware → LIFF). Lets us share a friendly
 // goltomo.com/app link that deep-links to this group chat after login.
@@ -117,10 +118,9 @@ export default function RoundChatPage() {
     return names.sort((a, b) => b.length - a.length);
   }, [round, users]);
 
-  // 本文中の「@表示名 / ＠表示名」を青くハイライト（LINE風）。
-  function renderText(text: string, mine: boolean) {
-    if (!text) return null;
-    if (!memberNames.length) return text;
+  // 本文中の「@表示名 / ＠表示名」を青くハイライト（LINE風）。URL はタップで開けるリンクにする（2026-10-06）。
+  function highlightMentions(text: string, mine: boolean, keyPrefix: string) {
+    if (!memberNames.length) return <span key={keyPrefix}>{text}</span>;
     const esc = memberNames.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
     // 「@全員」も青くハイライトする。
     const re = new RegExp(`[@＠](?:全員|${esc.join('|')})`, 'g');
@@ -128,11 +128,15 @@ export default function RoundChatPage() {
     let last = 0; let k = 0; let m: RegExpExecArray | null;
     while ((m = re.exec(text)) !== null) {
       if (m.index > last) out.push(text.slice(last, m.index));
-      out.push(<span key={k++} className={mine ? 'font-black underline' : 'text-blue font-black'}>{m[0]}</span>);
+      out.push(<span key={`${keyPrefix}-m${k++}`} className={mine ? 'font-black underline' : 'text-blue font-black'}>{m[0]}</span>);
       last = m.index + m[0].length;
     }
     if (last < text.length) out.push(text.slice(last));
-    return out;
+    return <span key={keyPrefix}>{out}</span>;
+  }
+  function renderText(text: string, mine: boolean) {
+    if (!text) return null;
+    return linkifyNodes(text, { mine, plain: (s, key) => highlightMentions(s, mine, key) });
   }
 
   // メンション候補：このラウンドの参加者（主催者＋承認済み）から自分を除く。

@@ -9,6 +9,7 @@ import { chatIdFor } from '@/lib/utils';
 import { resizeImage } from '@/lib/resizeImage';
 import { MEET_OPTIONS, meetLabelOf } from '@/lib/meetOptions';
 import { FeelingBox } from '@/components/FeelingBox';
+import { Linkify } from '@/components/Linkify';
 
 // 再会エンジンの画面：候補日カレンダー → 3色重なり → この日で決定 → ラウンド投稿へ。
 type Data = {
@@ -523,7 +524,7 @@ export default function RematchPage() {
                           <img src={m.imageUrl} alt="画像" className="rounded-lg max-w-full max-h-52 object-cover" />
                         </a>
                       )}
-                      {m.text && <span className="whitespace-pre-wrap">{m.text}</span>}
+                      {m.text && <span className="whitespace-pre-wrap"><Linkify text={m.text} mine={mineMsg} /></span>}
                     </div>
                   </div>
                 );

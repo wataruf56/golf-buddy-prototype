@@ -5,6 +5,7 @@ import type { Round, User } from '@/lib/types';
 import { store } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { Avatar } from '@/components/Avatar';
+import { Linkify } from '@/components/Linkify';
 
 // 入金管理（主催者が事前にお金を集めてまとめて払うケース用の簡易チェック機能）。
 //   主催者・共同管理者 … 各メンバーの「入金済み」をタップでON/OFF＋案内文の編集
@@ -123,7 +124,7 @@ export function PaymentTracker({
       ) : round.paymentNote ? (
         <div className="bg-card rounded-card p-4 shadow-card mb-2.5">
           <div className="text-[12px] font-black mb-1">📝 入金の案内</div>
-          <div className="text-[13px] leading-relaxed whitespace-pre-wrap">{round.paymentNote}</div>
+          <div className="text-[13px] leading-relaxed whitespace-pre-wrap"><Linkify text={round.paymentNote || ''} /></div>
         </div>
       ) : null}
 

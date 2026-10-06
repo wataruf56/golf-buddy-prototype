@@ -32,6 +32,7 @@ import { MatchPicker } from '@/components/MatchPicker';
 import { RoundAlbum } from '@/components/RoundAlbum';
 import { goLogin, loginHrefHere } from '@/lib/loginLink';
 import type { Round, User, PickupStatus } from '@/lib/types';
+import { Linkify } from '@/components/Linkify';
 
 // Brand launch URL — handled by middleware, redirects to liff.line.me/{id}
 // while preserving the ?to= query so the recipient lands directly on the
@@ -624,7 +625,7 @@ export default function RoundDetailPage() {
           <div className="text-[13px] font-black text-green mb-1.5">💌 {host?.displayName || '主催者'}さんから招待されています</div>
           {(round.inviteMessages || {})[meId] && (
             <div className="text-[13px] text-text bg-card rounded-xl p-3 whitespace-pre-wrap leading-relaxed shadow-card">
-              {(round.inviteMessages || {})[meId]}
+              <Linkify text={(round.inviteMessages || {})[meId] || ''} />
             </div>
           )}
         </div>
@@ -662,7 +663,7 @@ export default function RoundDetailPage() {
 
         {/* 自由記入のコメント（投稿の一番上に表示） */}
         {round.description && (
-          <div className="mb-4 p-3 bg-bg rounded-xl text-[13px] text-text leading-relaxed whitespace-pre-wrap">{round.description}</div>
+          <div className="mb-4 p-3 bg-bg rounded-xl text-[13px] text-text leading-relaxed whitespace-pre-wrap"><Linkify text={round.description || ''} /></div>
         )}
 
         {officialActive && <OfficialThreadPanel roundId={round.id} />}
@@ -682,7 +683,7 @@ export default function RoundDetailPage() {
         {round.meetingInfo && (
           <div className="mb-4 bg-green-light rounded-xl p-3 border-[1.5px] border-green">
             <div className="text-[11px] text-green font-black mb-1">📍 集合場所・集合時間</div>
-            <div className="text-sm font-bold text-text whitespace-pre-wrap">{round.meetingInfo}</div>
+            <div className="text-sm font-bold text-text whitespace-pre-wrap"><Linkify text={round.meetingInfo || ''} /></div>
           </div>
         )}
 

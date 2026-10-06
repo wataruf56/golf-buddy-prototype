@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AdminTabs } from '@/components/AdminTabs';
 import { useSearchParams } from 'next/navigation';
+import { Linkify } from '@/components/Linkify';
 
 type Thread = {
   chatId: string;
@@ -103,7 +104,7 @@ function Inner() {
                     <span className="text-[12px] font-bold text-text">{m.senderName}</span>
                     <span className="text-[10px] text-muted">{jst(m.createdAt)}</span>
                   </div>
-                  {m.text && <div className="text-[13px] whitespace-pre-wrap break-words">{m.text}</div>}
+                  {m.text && <div className="text-[13px] whitespace-pre-wrap break-words"><Linkify text={m.text} /></div>}
                   {m.imageUrl && <div className="text-[12px] text-sub mt-0.5">📷 画像</div>}
                 </div>
               ))}
