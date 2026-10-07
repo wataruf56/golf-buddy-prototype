@@ -1,4 +1,7 @@
 export type Gender = 'male' | 'female' | 'other';
+
+// 空き待ちの1件（2026-10-07）
+export type RoundWaitEntry = { userId: string; gender: 'male' | 'female'; at: number };
 export type CarStatus = 'have' | 'none';
 
 // 参加者ごとのピックアップ回答ステータス。
@@ -240,6 +243,12 @@ export type Round = {
   assignmentsPublishedAt?: number;
   // 配信時にだけ付く印：組み分け・配車があるのに未公開で伏せた（参加者向けの「準備中」表示用）
   assignmentsHidden?: boolean;
+  // 「空きが出たら参加したい」（2026-10-07）。自分の性別の枠が満員のときに登録する。
+  // 主催者には全員ぶん、それ以外には自分のぶんだけ配信（lib/roundView）。
+  waitlist?: RoundWaitEntry[];
+  // 配信時に付ける：男女別の空き待ち人数と、見ている人の順番（同じ性別の中で何人目か）
+  waitlistCounts?: { male: number; female: number };
+  waitlistRank?: number;
   // 当日来れなかった参加者（登録ユーザーのID）。組に入っていなくても「組み分け完了」の
   // 妨げにならず、レビュー対象からも除外される（相互レビューは同組のみのため）。
   noShowIds?: string[];

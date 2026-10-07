@@ -19,8 +19,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   // 性別ごとの募集枠ガード：承認で枠が消費されるため、ここでも空きを確認する。
   {
     const applicant = await db.getUser(userId);
-    const approved = await Promise.all((round.applicantIds || []).map((id) => db.getUser(id)));
-    const approvedGenders = approved.map((u) => u?.gender);
+    const { memberGendersFromDb } = await import('@/lib/genderSlotsServer');
+    const approvedGenders = await memberGendersFromDb(round);   // 主催者＋参加確定＋知り合い枠（2026-10-07）
     if (!canGenderJoin(round, approvedGenders, applicant?.gender)) {
       return NextResponse.json({ error: 'gender_full', message: genderFullMessage(applicant?.gender) }, { status: 403 });
     }

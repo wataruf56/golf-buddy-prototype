@@ -167,6 +167,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   try {
     await db.updateRound(params.id, patch);
     const updated = await db.getRound(params.id);
+    // 主催者が枠を増やして空きが出たら、空き待ちの人へ（2026-10-07）
+    try { const { notifyWaitlistIfOpened } = await import('@/lib/genderSlotsServer'); await notifyWaitlistIfOpened(round, updated); } catch { /* noop */ }
     return NextResponse.json({ round: updated }, { headers: noStore });
   } catch (e) {
     const msg = (e as Error).message;

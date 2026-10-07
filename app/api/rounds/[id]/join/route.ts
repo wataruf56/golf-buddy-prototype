@@ -79,14 +79,19 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   // 性別ごとの募集枠ガード：承認済み参加者（主催者を除く）の性別を集計し、
   // 申込者の性別の枠（＋どちらでも枠）に空きがあるかを確認する。
   {
-    const approved = await Promise.all((existing.applicantIds || []).map((id) => db.getUser(id)));
-    const approvedGenders = approved.map((u) => u?.gender);
+    // 数える人＝主催者＋参加確定＋知り合い枠（以前は参加確定だけで、主催者ぶんが抜けていた。2026-10-07）
+    const { memberGendersFromDb } = await import('@/lib/genderSlotsServer');
+    const approvedGenders = await memberGendersFromDb(existing);
     if (!canGenderJoin(existing, approvedGenders, me?.gender)) {
       return NextResponse.json({ error: 'gender_full', message: genderFullMessage(me?.gender) }, { status: 403 });
     }
   }
 
   const round = await db.joinRound(params.id, meId);
+  // 空き待ちしていた人が申請したら、空き待ちからは外す
+  if ((existing.waitlist || []).some((e) => e.userId === meId)) {
+    try { await db.updateRound(params.id, { waitlist: (existing.waitlist || []).filter((e) => e.userId !== meId) } as any); } catch { /* noop */ }
+  }
 
   // 参加申込と同時に送られてきたピックアップ回答を保存する（あれば）。updateRound は
   // void を返すので、クライアントに返す round にはローカルでマージする。

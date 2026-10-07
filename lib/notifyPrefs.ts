@@ -21,7 +21,8 @@ export type NotifyType =
   | 'groupChange'      // 参加者から「組分けの変更を希望」が届いた（主催者）
   | 'pickup'           // 主催者からピックアップ場所（駅）の提案が届いた
   | 'participantLeft'  // 参加者が参加を取りやめた／申請を取り下げた（主催者・共同管理者）
-  | 'unread';          // 未読メッセージのまとめ通知（1日3回・DM即時通知の代替）
+  | 'unread'
+  | 'waitlist';        // 空き待ちした募集に空きが出た（2026-10-07）          // 未読メッセージのまとめ通知（1日3回・DM即時通知の代替）
 
 // Display metadata for the settings UI. Order = display order。
 // hidden=true は設定画面に出さない（＝一般ユーザーには非公開。LINE通知も止めている項目）。
@@ -47,6 +48,7 @@ export const NOTIFY_TYPES: Array<{ key: NotifyType; label: string; desc: string;
   { key: 'rematch',          label: '🔁 再会のお知らせ', desc: 'また回りたい相手との再会・候補日のやり取りがあったとき', defaultOn: true },
   { key: 'groupChange',      label: '🔀 組分けの変更希望', desc: '自分のコンペで参加者が組分けの変更を希望したとき（主催者）', defaultOn: true },
   { key: 'pickup',           label: '🚉 ピックアップの提案', desc: '主催者からピックアップ場所の提案が届いたとき', defaultOn: true },
+  { key: 'waitlist',         label: '🔔 空き待ちのお知らせ', desc: '「空きが出たら参加したい」と登録した募集に空きが出たとき', defaultOn: true },
   { key: 'participantLeft',  label: '🚪 参加者のキャンセル', desc: '自分の募集の参加者が参加を取りやめたとき（主催者・共同管理者）', defaultOn: true },
 ];
 

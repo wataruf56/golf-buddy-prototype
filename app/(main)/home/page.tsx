@@ -15,6 +15,7 @@ import { RESTRICTION_MSG } from '@/lib/restrictions';
 import { isRoundHost } from '@/lib/roundHost';
 import { isOfficialThread } from '@/lib/officialShared';
 import { isAvailRoom } from '@/lib/availabilityShared';
+import { viewerSlotFull } from '@/lib/genderSlots';
 
 function relTime(ts: number): string {
   const diff = Date.now() - ts;
@@ -179,9 +180,13 @@ export default function HomePage() {
   // 残りは開催日の昇順（日程未定は末尾）。満員も表示する（カード側でグレーアウト＋
   // 「満員」表示）。
   const displayRounds = (() => {
+    // 自分の性別の枠だけ満員の募集は、募集中の後ろに回す（満員は一覧から外してあるので、その手前）2026-10-07
+    const tier = (r: typeof rounds[number]) => (viewerSlotFull(r, users, me?.gender) ? 1 : 0);
     const rest = rounds
       .filter((r) => r.id !== officialComp?.id)
       .sort((a, b) => {
+        const t = tier(a) - tier(b);
+        if (t) return t;
         const am = a.date ? new Date(a.date).getTime() : Infinity;
         const bm = b.date ? new Date(b.date).getTime() : Infinity;
         return am - bm;

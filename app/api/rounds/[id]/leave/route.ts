@@ -22,6 +22,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const text = String(body?.text || '').trim().slice(0, 300);
 
   const updated = await db.leaveRound(params.id, meId);
+  // 空き待ちの人へ「空きが出ました」（その性別の枠が満員→空きになったときだけ。2026-10-07）
+  try { const { notifyWaitlistIfOpened } = await import('@/lib/genderSlotsServer'); await notifyWaitlistIfOpened(round, updated as any); } catch { /* noop */ }
 
   // 記録して、主催者と共同管理者に知らせる。
   // 運営が代理で立てた枠（主催者＝運営アカウント）は、抜けても誰にも知らせない約束なので除く。

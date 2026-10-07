@@ -24,6 +24,7 @@ export const LINE_KIND_LABEL: Record<string, string> = {
   dm: 'DM・管理人チャット',
   match: 'マッチ成立',
   pickup: '送迎（ピックアップ）',
+  waitlist: '空き待ち',
   friend: 'QR友達追加',
   survey: 'アンケート一致のお知らせ',
   swing: 'スイング解析',

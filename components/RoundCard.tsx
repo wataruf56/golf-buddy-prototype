@@ -5,6 +5,7 @@ import type { Round, User } from '@/lib/types';
 import { useStore, getMe } from '@/lib/store';
 import { useUnreadCounts } from '@/lib/useUnread';
 import { formatDate, priceLabelForGender } from '@/lib/utils';
+import { viewerSlotFull, genderSlotStatus } from '@/lib/genderSlots';
 
 // コンパクトな募集カード。投稿者名は表示しない。参加状況バーの上に男女比を出す。
 export function RoundCard({ round }: { round: Round; host?: User }) {
@@ -39,15 +40,24 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
   const pct = Math.round((round.currentCount / Math.max(1, round.maxSpots)) * 100);
   // 飲み会は定員なし → 満員表示・進捗バーは出さず、参加人数だけ表示する。
   const isFull = !isDrink && round.currentCount >= round.maxSpots;
+  // 自分の性別の枠だけ満員（全体はまだ空きがある）：札を付けて少し薄く。女性には普通の募集に見える（2026-10-07）
+  const mineFullG = viewerSlotFull(round, users, me?.gender);
+  const mineFull = !isFull && !!mineFullG;
+  const slots = genderSlotStatus(round, users);
 
   return (
     <Link
       href={`/round/${round.id}`}
       className="relative block bg-card rounded-card p-3 mb-2 shadow-card cursor-pointer overflow-hidden"
-      style={isFull ? { borderLeft: '5px solid #B9B4A8' } : round.isOfficial ? { borderLeft: '5px solid #2A8C82' } : isComp ? { borderLeft: '5px solid #E8643C' } : undefined}
+      style={isFull ? { borderLeft: '5px solid #B9B4A8' } : mineFull ? { borderLeft: '5px solid #C9A24A' } : round.isOfficial ? { borderLeft: '5px solid #2A8C82' } : isComp ? { borderLeft: '5px solid #E8643C' } : undefined}
     >
       {/* 満員は中身をグレーアウト＋「満員」を中央に大きく重ねる。背後は通常の投稿。 */}
-      <div className={isFull ? 'grayscale opacity-40' : ''}>
+      {mineFull && (
+        <span className="absolute top-2 right-2 z-10 px-2 py-[2px] rounded-full text-[10px] font-black" style={{ background: '#FFF1C9', color: '#8A5A00', border: '1px solid #C9A24A' }}>
+          {mineFullG === 'male' ? '👨 男性枠 満員' : '👩 女性枠 満員'}
+        </span>
+      )}
+      <div className={isFull ? 'grayscale opacity-40' : mineFull ? 'opacity-75' : ''}>
       {(round.isOfficial || isComp || isDrink || (round.pendingApplicantIds || []).length > 0 || hasUnread) && (
         <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
           {round.isOfficial && (
@@ -81,7 +91,9 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
       {/* 参加費（左）＋男女比 → 参加状況バー */}
       <div className="mt-2 flex items-center gap-2.5 text-[11px] font-bold">
         {priceLabel && <span className="text-orange whitespace-nowrap">参加費 {priceLabel}</span>}
-        <span className="text-sub">👨 男性 {male} ・ 👩 女性 {female}</span>
+        <span className="text-sub">{slots.has
+          ? `👨 男性 ${slots.male.used}/${slots.male.cap} ・ 👩 女性 ${slots.female.used}/${slots.female.cap}${slots.any.cap ? ` ・ どちらでも ${slots.any.used}/${slots.any.cap}` : ''}`
+          : `👨 男性 ${male} ・ 👩 女性 ${female}`}</span>
       </div>
       {isDrink ? (
         <div className="flex items-center justify-end mt-1">
@@ -94,6 +106,9 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
           </div>
           <span className="text-[12px] font-black text-orange whitespace-nowrap">{round.currentCount}/{round.maxSpots}人</span>
         </div>
+      )}
+      {mineFull && (
+        <div className="mt-1.5 text-[10px] font-black" style={{ color: '#8A5A00' }}>🔔 空きが出たら参加したい → 詳細で登録できます</div>
       )}
       </div>
       {isFull && (

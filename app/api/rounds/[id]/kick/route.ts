@@ -16,6 +16,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: 'cannot_kick_cohost', message: '共同管理者は外せません' }, { status: 400 });
   }
   const updated = await db.kickApplicant(params.id, userId);
+  try { const { notifyWaitlistIfOpened } = await import('@/lib/genderSlotsServer'); await notifyWaitlistIfOpened(round, updated as any); } catch { /* noop */ }
 
   // 出入りのログ。自分から抜けたのか外されたのかが後で分かるように by を残す。
   try {

@@ -52,6 +52,17 @@ export function stripAssignmentsForViewer(round: Round, viewerId: string | null)
   return { ...round, groups: [], groupsBack: [], carAssignments: [], assignmentsHidden: has };
 }
 
+// 空き待ち（2026-10-07）：主催者には全員ぶん。それ以外には自分のぶんだけ＋男女別の人数＋自分の順番。
+export function stripWaitlistForViewer(round: Round, viewerId: string | null): Round {
+  const list = round.waitlist || [];
+  if (!list.length) return round;
+  const counts = { male: list.filter((e) => e.gender === 'male').length, female: list.filter((e) => e.gender === 'female').length };
+  if (isRoundHost(round, viewerId)) return { ...round, waitlistCounts: counts };
+  const mine = viewerId ? list.filter((e) => e.userId === viewerId) : [];
+  const rank = mine.length ? list.filter((e) => e.gender === mine[0].gender).findIndex((e) => e.userId === viewerId) + 1 : 0;
+  return { ...round, waitlist: mine, waitlistCounts: counts, ...(rank > 0 ? { waitlistRank: rank } : {}) };
+}
+
 export function stripRoundForViewer(round: Round, viewerId: string | null): Round {
-  return stripAssignmentsForViewer(stripViews(stripGroupPrefsForViewer(stripInvitesForViewer(round, viewerId), viewerId)), viewerId);
+  return stripWaitlistForViewer(stripAssignmentsForViewer(stripViews(stripGroupPrefsForViewer(stripInvitesForViewer(round, viewerId), viewerId)), viewerId), viewerId);
 }

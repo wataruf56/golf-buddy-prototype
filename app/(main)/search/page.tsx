@@ -8,6 +8,7 @@ import { isOfficialThread } from '@/lib/officialShared';
 import { isAvailRoom } from '@/lib/availabilityShared';
 import type { Round } from '@/lib/types';
 import { cn, priceValueForGender } from '@/lib/utils';
+import { viewerSlotFull } from '@/lib/genderSlots';
 
 type Period = 'all' | 'upcoming' | 'past' | 'thisWeek' | 'thisMonth';
 type CategoryFilter = 'all' | 'golf' | 'drink';
@@ -53,6 +54,8 @@ export default function SearchPage() {
   const rounds = useStore((s) => s.rounds.filter((r) => !isOfficialThread(r) && !isAvailRoom(r)));
   const users = useStore((s) => s.users);
   const me = useStore(getMe);
+  // 並びの段：0=募集中 / 1=自分の性別の枠だけ満員 / 2=満員（2026-10-07）
+  const tierOf = (r: Round) => (isFullRound(r) ? 2 : viewerSlotFull(r, users, me?.gender) ? 1 : 0);
 
   // Draft = what's in the form. Applied = what actually filters the list.
   const [draft, setDraft] = useState<Filters>(defaultFilters);
@@ -155,8 +158,8 @@ export default function SearchPage() {
     if (sortBy === 'date') {
       list.sort((a, b) => {
         // 満員は日付ソートを保ったまま一番下へ。
-        const af = isFullRound(a), bf = isFullRound(b);
-        if (af !== bf) return af ? 1 : -1;
+        const af = tierOf(a), bf = tierOf(b);
+        if (af !== bf) return af - bf;
         const am = parseDate(a.date) || 0;
         const bm = parseDate(b.date) || 0;
         // future first ascending, past after descending
@@ -167,8 +170,8 @@ export default function SearchPage() {
       });
     } else {
       list.sort((a, b) => {
-        const af = isFullRound(a), bf = isFullRound(b);
-        if (af !== bf) return af ? 1 : -1;
+        const af = tierOf(a), bf = tierOf(b);
+        if (af !== bf) return af - bf;
         return (b.createdAt || 0) - (a.createdAt || 0);
       });
     }
@@ -182,8 +185,8 @@ export default function SearchPage() {
     if (filterPeriod === 'thisWeek' || filterPeriod === 'thisMonth') return [];
     return rounds.filter((r) => matches(r) && !r.date)
       .sort((a, b) => {
-        const af = isFullRound(a), bf = isFullRound(b);
-        if (af !== bf) return af ? 1 : -1;
+        const af = tierOf(a), bf = tierOf(b);
+        if (af !== bf) return af - bf;
         return (b.createdAt || 0) - (a.createdAt || 0);
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps

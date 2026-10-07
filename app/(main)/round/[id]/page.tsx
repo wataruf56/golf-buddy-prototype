@@ -34,6 +34,9 @@ import { goLogin, loginHrefHere } from '@/lib/loginLink';
 import type { Round, User, PickupStatus } from '@/lib/types';
 import { Linkify } from '@/components/Linkify';
 import { LoginButtons } from '@/components/LoginButtons';
+import { GenderSlots } from '@/components/GenderSlots';
+import { WaitlistBox } from '@/components/WaitlistBox';
+import { viewerSlotFull, isWaitlisted, slotGenderLabel } from '@/lib/genderSlots';
 
 // Brand launch URL — handled by middleware, redirects to liff.line.me/{id}
 // while preserving the ?to= query so the recipient lands directly on the
@@ -287,6 +290,9 @@ export default function RoundDetailPage() {
   // インラインのボタンはそのまま残し、常に押せる導線を下に足す。
   const isFull = !isDrink && round.currentCount >= round.maxSpots;
   const remaining = round.maxSpots - round.currentCount;
+  // 自分の性別の枠だけ満員（全体はまだ空きがある）。参加ボタンの代わりに「空きが出たら参加したい」を出す（2026-10-07）
+  const mySlotGender = (!!meId && !isHost && !isApproved && !isPending && !isFull) ? viewerSlotFull(round, users as User[], me?.gender) : null;
+  const mySlotFull = !!mySlotGender;
   const isComp = !isDrink && round.maxSpots >= 5;
   // 招待された本人（まだ参加していない）。招待者は承認待ちを経由せず即参加できる。
   const isInvited = !!meId && (round.invitedIds || []).includes(meId) && !isHost && !isApproved && !isPending;
@@ -463,6 +469,20 @@ export default function RoundDetailPage() {
     setLeaving(true);
     try { await store.leaveRound(round!.id, { reason, text }); toast('参加を取りやめました'); router.push('/home'); }
     catch (e) { toast('失敗: ' + (e as Error).message, 'error'); setLeaving(false); }
+  }
+  // 空き待ちの人を「枠を1つ増やして承認」（2026-10-07）
+  async function approveFromWaitlist(userId: string, name: string, g: 'male' | 'female') {
+    if (!(await confirmDialog(`${name}さんを承認しますか？\n${slotGenderLabel(g)}枠と募集人数を1つ増やして、そのまま参加確定にします。`))) return;
+    try {
+      const res = await fetch(`/api/rounds/${round!.id}/waitlist/approve`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }), cache: 'no-store', credentials: 'include',
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j?.message || `${res.status}`);
+      await store.refreshRounds();
+      toast(`${name}さんを承認しました（${slotGenderLabel(g)}枠 +1）`);
+    } catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }
   async function withdraw() {
     if (!(await confirmDialog('参加申請を取り下げますか？'))) return;
@@ -715,8 +735,8 @@ export default function RoundDetailPage() {
           );
         })()}
 
-        {/* 募集の性別内訳（ターゲット枠）は詳細画面では非表示。主催者の編集画面でのみ扱う
-            （ぱっと見で「実際の参加内訳」と混同して分かりにくいため）。 */}
+        {/* 募集枠（男女別）：男性 2/2 満員・女性 1/2 あと1。押す前に「自分の枠が空いているか」が分かる（2026-10-07） */}
+        <GenderSlots round={round} users={users as User[]} />
 
         {/* 参加状況。飲み会は定員なしなので人数だけ、ゴルフは「何人中何人」＋バー。
             参加ボタンをオレンジにしたので、ここは主役を譲って落ち着いた色にする。
@@ -819,6 +839,8 @@ export default function RoundDetailPage() {
             <div className="text-center py-3 bg-yellow-light text-orange rounded-xl text-sm font-bold">⏳ 承認待ち</div>
             <button onClick={withdraw} className="w-full py-3 bg-card text-sub border border-border rounded-xl text-sm font-bold">申請を取り下げる</button>
           </div>
+        ) : mySlotGender ? (
+          <WaitlistBox round={round} gender={mySlotGender} />
         ) : isFull ? (
           <div className="text-center py-3 bg-bg text-muted rounded-xl text-sm font-bold mb-4">満員のため受付終了</div>
         ) : (
@@ -1098,6 +1120,34 @@ export default function RoundDetailPage() {
           </div>
         )}
 
+        {/* 空きが出たら参加したい人（主催者だけに見せる）。男女別の枠が満員のときに登録される（2026-10-07） */}
+        {isHost && (round.waitlist || []).length > 0 && (['male', 'female'] as const).map((g) => {
+          const entries = (round.waitlist || []).filter((e) => e.gender === g);
+          if (!entries.length) return null;
+          return (
+            <div key={g} className="mb-4">
+              <div className="text-[13px] font-bold mb-2" style={{ color: '#8A5A00' }}>⏳ 空き待ち（{slotGenderLabel(g)}枠）{entries.length}人</div>
+              {entries.map((e, i) => {
+                const u = users.find((x) => x.id === e.userId);
+                return (
+                  <div key={e.userId} className="flex items-center gap-2 p-2.5 rounded-[10px] mb-1.5 flex-wrap" style={{ background: '#FFF7E0', border: '1px solid #E6D3A0' }}>
+                    <Link href={`/profile/${e.userId}`} className="flex items-center gap-2.5 flex-1 min-w-0">
+                      {u ? <Avatar user={u as User} size={36} /> : <span className="w-9 h-9 rounded-full bg-bg border border-border flex items-center justify-center">👤</span>}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px] font-semibold truncate">{u?.displayName || 'メンバー'} <span className="text-[10px] text-muted font-normal">（{i + 1}人目）</span></div>
+                        <div className="text-[10px] text-sub">{u ? describeUser(u as User) : ''}{e.at ? ` ・ ${new Date(e.at).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })} 登録` : ''}</div>
+                      </div>
+                    </Link>
+                    <Link href={`/chat/${chatIdFor(meId, e.userId)}?other=${e.userId}`} className="px-2.5 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
+                    <button onClick={() => approveFromWaitlist(e.userId, u?.displayName || 'メンバー', g)} className="px-2.5 py-1.5 bg-green text-white rounded-lg text-[11px] font-bold flex-shrink-0">枠を増やして承認</button>
+                  </div>
+                );
+              })}
+              <div className="text-[11px] text-sub leading-relaxed mt-1 px-1">{slotGenderLabel(g)}枠を増やす、または{slotGenderLabel(g)}の参加者が辞退して空きが出ると、空き待ちの人に「空きが出ました」とお知らせが届きます。</div>
+            </div>
+          );
+        })}
+
         {/* 招待中は主催者（＋共同管理者）だけに見せる。
             まだ参加していない人なので、他の閲覧者には「参加者」と紛らわしく、
             未ログインで募集を見に来た人にも無関係な人の名前が並んでしまう。
@@ -1221,16 +1271,24 @@ export default function RoundDetailPage() {
             <div className="min-w-0 flex-1">
               <div className="text-[11.5px] font-black leading-tight truncate">
                 {dateLabel}{round.startTime ? ` ${round.startTime}` : ''}
-                {!isDrink && <span className="text-orange"> ・残り{remaining}枠</span>}
+                {!isDrink && (mySlotGender
+                  ? <span style={{ color: '#8A5A00' }}> ・{slotGenderLabel(mySlotGender)}枠 満員</span>
+                  : <span className="text-orange"> ・残り{remaining}枠</span>)}
               </div>
               <div className="text-[10px] font-bold text-sub mt-0.5">
-                {!meId ? '新規登録／ログイン（LINE）' : joinReady ? 'あとで取り消せます' : '登録はすぐ終わります'}
+                {mySlotGender
+                  ? (isWaitlisted(round, meId) ? `空き待ち登録済み${round.waitlistRank ? `（${round.waitlistRank}人目）` : ''}` : '空きが出たら参加したい人は登録を')
+                  : !meId ? '新規登録／ログイン（LINE）' : joinReady ? 'あとで取り消せます' : '登録はすぐ終わります'}
               </div>
             </div>
+            {mySlotGender ? (
+              <WaitlistBox round={round} gender={mySlotGender} compact />
+            ) : (
             <button onClick={join}
               className="flex-none px-5 py-3 rounded-xl text-[14.5px] font-black text-white bg-orange border-2 border-[#C24E2C] shadow-[0_3px_0_#C24E2C]">
               {!meId ? 'ログイン' : joinReady ? (isInvited ? '招待を承認' : '参加する') : '参加する'}
             </button>
+            )}
           </div>
         </div>
       )}
