@@ -240,7 +240,22 @@ export default function RoundDetailPage() {
 
   // Merge users so the host/applicant lookups work whether the data came from
   // the store (bootstrap) or the fallback fetch.
-  const users = storeRound ? storeUsers : [...storeUsers, ...fetchedUsers.filter((u) => !storeUsers.find((s) => s.id === u.id))];
+  const users = fetchedUsers.length ? [...storeUsers, ...fetchedUsers.filter((u) => !storeUsers.find((s) => s.id === u.id))] : storeUsers;
+
+  // 空き待ちの人のプロフィールが手元に無いとき（主催者が開いたまま登録された直後など）は取り直す（2026-10-07）
+  const waitlistFetched = useRef('');
+  useEffect(() => {
+    const r = storeRound || fetchedRound;
+    if (!r || !isRoundHost(r, meId)) return;
+    const have = new Set([...storeUsers, ...fetchedUsers].map((u) => u.id));
+    const key = (r.waitlist || []).map((e) => e.userId).filter((id) => !have.has(id)).sort().join(',');
+    if (!key || waitlistFetched.current === key) return;
+    waitlistFetched.current = key;
+    fetch(`/api/rounds/${r.id}`, { cache: 'no-store' }).then((res) => (res.ok ? res.json() : null)).then((j) => {
+      const got: User[] = j?.users || [];
+      if (got.length) setFetchedUsers((prev) => [...prev.filter((p) => !got.find((u) => u.id === p.id)), ...got]);
+    }).catch(() => {});
+  }, [storeRound, fetchedRound, meId, storeUsers, fetchedUsers]);
 
   if (!round) {
     if (fetchState === 'loading') {

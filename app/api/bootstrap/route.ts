@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { isDemoMode } from '@/lib/demoMode';
+import { isRoundHost } from '@/lib/roundHost';
 
 export async function GET() {
   const meId = await getMeId();
@@ -98,6 +99,8 @@ export async function GET() {
     userIds.add(r.hostId);
     for (const a of r.applicantIds || []) userIds.add(a);
     for (const a of r.pendingApplicantIds || []) userIds.add(a);
+    // 空き待ち（2026-10-07）の人のプロフィールは主催者だけに（名前入りで「枠を増やして承認」できるように）
+    if (isRoundHost(r, meId)) for (const e of r.waitlist || []) userIds.add(e.userId);
   }
   for (const c of chats) for (const p of c.participants) userIds.add(p);
   for (const p of pendingReviews) userIds.add(p.revieweeId);

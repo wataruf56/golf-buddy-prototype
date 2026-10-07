@@ -29,6 +29,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   // 招待した相手の**プロフィール**も主催者だけ。round.invitedIds は上で
   // 絞ってあるので、ここをそのまま回せば非主催者には自分ぶんしか入らない。
   for (const a of round.invitedIds || []) userIds.add(a);
+  // 空き待ちの人も（round は閲覧者向けに絞ってあるので、主催者以外には自分の分しか入らない）
+  for (const e of round.waitlist || []) userIds.add(e.userId);
   const users = await db.listUsers(Array.from(userIds));
   // Strip private real names — the round host gets participant names via the
   // dedicated /api/rounds/[id]/participant-names endpoint instead.
