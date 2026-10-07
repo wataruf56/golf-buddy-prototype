@@ -74,9 +74,11 @@ export async function GET(req: NextRequest) {
         car: u.car || '',
         reviewAvg: u.reviewAvg || 0,
         reviewCount: u.reviewCount || 0,
+        createdAt: u.createdAt || 0,
         ...(withRealName && realNameOf(u) ? { realName: realNameOf(u) } : {}),
       }))
-      .sort((a: any, b: any) => (b.reviewCount || 0) - (a.reviewCount || 0))
+      // 置き換え（主催者・roundId 付き）は「当日登録した本人」を探す用途なので登録が新しい順。招待候補は従来どおりレビュー数順。
+      .sort((a: any, b: any) => withRealName ? ((b.createdAt || 0) - (a.createdAt || 0)) : ((b.reviewCount || 0) - (a.reviewCount || 0)))
       .slice(0, 80);
 
     return NextResponse.json({ count: items.length, items }, { headers: noStore });
