@@ -16,7 +16,8 @@ export function GenderSlots({ round, users }: { round: Round; users: User[] }) {
   if (!cols.length) return null;
   return (
     <div className="mb-4">
-      <div className="text-[11px] font-bold text-sub mb-1.5">募集枠（男女別）</div>
+      <div className="text-[11px] font-bold text-sub mb-0.5">募集枠（男女別）</div>
+      <div className="text-[10px] text-muted mb-1.5">※ 主催者と知り合い枠を除いた、ゴルトモから募集する人数</div>
       <div className="flex gap-2">
         {cols.map((c) => (
           <div key={c.key} className="flex-1 min-w-0 bg-card border border-hair rounded-xl px-2.5 py-2">

@@ -3,9 +3,9 @@ import { db } from './db';
 import type { Round, User, Gender } from './types';
 import { memberGendersForSlots, slotFullFor, slotGenderLabel, type SlotGender } from './genderSlots';
 
-/** 枠の判定に要る人（主催者＋参加確定）を DB から引く。 */
+/** 枠の判定に要る人（参加確定）を DB から引く。 */
 export async function membersAsUsers(round: Round): Promise<User[]> {
-  const ids = Array.from(new Set([round.hostId, ...(round.applicantIds || [])].filter(Boolean)));
+  const ids = Array.from(new Set((round.applicantIds || []).filter(Boolean)));
   const users = await Promise.all(ids.map((id) => db.getUser(id).catch(() => null)));
   return users.filter(Boolean) as User[];
 }

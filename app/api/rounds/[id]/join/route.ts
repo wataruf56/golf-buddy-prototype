@@ -79,7 +79,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   // 性別ごとの募集枠ガード：承認済み参加者（主催者を除く）の性別を集計し、
   // 申込者の性別の枠（＋どちらでも枠）に空きがあるかを確認する。
   {
-    // 数える人＝主催者＋参加確定＋知り合い枠（以前は参加確定だけで、主催者ぶんが抜けていた。2026-10-07）
+    // 数える人＝参加確定（spots は主催者・知り合い枠を除いた募集枠）。判定は lib/genderSlots と共通（2026-10-07）
     const { memberGendersFromDb } = await import('@/lib/genderSlotsServer');
     const approvedGenders = await memberGendersFromDb(existing);
     if (!canGenderJoin(existing, approvedGenders, me?.gender)) {

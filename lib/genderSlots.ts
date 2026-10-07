@@ -4,9 +4,9 @@ import { canGenderJoin } from './roundEligibility';
 // 男女別の募集枠（spotsMale / spotsFemale / spotsAny）の「いまの埋まり具合」。
 // 画面（一覧カード・詳細・主催者の空き待ち一覧）とサーバー（参加申請・承認のガード）で同じ判定を使う。
 //
-// 数える人＝主催者＋参加確定（applicantIds）＋知り合い枠（externalMale/Female）。
-// ※ 以前の参加申請ガードは参加確定だけを数えていて主催者と知り合い枠が抜けていた（内訳は「自分を含めた全体」なので
-//   主催者も1席使う）。2026-10-07 の「空き待ち」実装で揃えた。
+// 保存されている spotsMale/Female/Any は「これから募集する人数」（主催者と知り合い枠は含まない。
+// 募集作成の API が maxSpots = 1(主催者) + 知り合い枠 + 募集枠 と組み立てる）。
+// だから数える人＝参加確定（applicantIds）だけ。主催者・知り合い枠を足すと枠が1〜2人ぶん早く「満員」になる（最初の版で踏んだ）。
 // 旧データ（内訳が全部0）は男女の制限なし（合計枠 maxSpots だけ）。
 
 export type SlotGender = 'male' | 'female';
@@ -17,13 +17,11 @@ export const asSlotGender = (g: Gender | undefined | null): SlotGender | undefin
 export function memberGendersForSlots(round: Round, users: User[]): Array<Gender | undefined> {
   const out: Array<Gender | undefined> = [];
   const seen = new Set<string>();
-  for (const id of [round.hostId, ...(round.applicantIds || [])]) {
+  for (const id of round.applicantIds || []) {
     if (!id || seen.has(id)) continue;
     seen.add(id);
     out.push(users.find((u) => u.id === id)?.gender);
   }
-  for (let i = 0; i < (round.externalMale || 0); i++) out.push('male');
-  for (let i = 0; i < (round.externalFemale || 0); i++) out.push('female');
   return out;
 }
 

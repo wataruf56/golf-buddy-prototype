@@ -20,7 +20,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   {
     const applicant = await db.getUser(userId);
     const { memberGendersFromDb } = await import('@/lib/genderSlotsServer');
-    const approvedGenders = await memberGendersFromDb(round);   // 主催者＋参加確定＋知り合い枠（2026-10-07）
+    const approvedGenders = await memberGendersFromDb(round);   // 参加確定だけ（spots は募集枠）。lib/genderSlots と共通（2026-10-07）
     if (!canGenderJoin(round, approvedGenders, applicant?.gender)) {
       return NextResponse.json({ error: 'gender_full', message: genderFullMessage(applicant?.gender) }, { status: 403 });
     }

@@ -5,7 +5,7 @@ import type { Round, User } from '@/lib/types';
 import { useStore, getMe } from '@/lib/store';
 import { useUnreadCounts } from '@/lib/useUnread';
 import { formatDate, priceLabelForGender } from '@/lib/utils';
-import { viewerSlotFull, genderSlotStatus } from '@/lib/genderSlots';
+import { viewerSlotFull } from '@/lib/genderSlots';
 
 // コンパクトな募集カード。投稿者名は表示しない。参加状況バーの上に男女比を出す。
 export function RoundCard({ round }: { round: Round; host?: User }) {
@@ -43,7 +43,6 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
   // 自分の性別の枠だけ満員（全体はまだ空きがある）：札を付けて少し薄く。女性には普通の募集に見える（2026-10-07）
   const mineFullG = viewerSlotFull(round, users, me?.gender);
   const mineFull = !isFull && !!mineFullG;
-  const slots = genderSlotStatus(round, users);
 
   return (
     <Link
@@ -91,9 +90,7 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
       {/* 参加費（左）＋男女比 → 参加状況バー */}
       <div className="mt-2 flex items-center gap-2.5 text-[11px] font-bold">
         {priceLabel && <span className="text-orange whitespace-nowrap">参加費 {priceLabel}</span>}
-        <span className="text-sub">{slots.has
-          ? `👨 男性 ${slots.male.used}/${slots.male.cap} ・ 👩 女性 ${slots.female.used}/${slots.female.cap}${slots.any.cap ? ` ・ どちらでも ${slots.any.used}/${slots.any.cap}` : ''}`
-          : `👨 男性 ${male} ・ 👩 女性 ${female}`}</span>
+        <span className="text-sub">👨 男性 {male} ・ 👩 女性 {female}</span>
       </div>
       {isDrink ? (
         <div className="flex items-center justify-end mt-1">
