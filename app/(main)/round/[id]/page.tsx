@@ -1419,6 +1419,7 @@ export default function RoundDetailPage() {
             当日アプリ登録した本人を選ぶと、その人が<b className="text-text">参加確定</b>に入り、完了時に<b className="text-text">レビュー</b>できます。除外→再招待は不要です。
           </div>
           <GuestReplacePicker
+            roundId={round.id}
             excludeIds={new Set<string>([round.hostId, ...(round.applicantIds || []), ...(round.pendingApplicantIds || [])])}
             busy={replaceBusy}
             onPick={(id, name) => doReplaceGuest(id, name)}
@@ -1585,7 +1586,7 @@ function ScoreEntryCard({ round, host, applicants }: {
 
 // 招待候補の検索。登録している全ユーザー（同年代）から性別・年齢・名前で絞り込み、
 // 招待ボタンを出す。検索は /api/users/search。
-type SearchUser = { id: string; displayName: string; avatar: string; avatarUrl?: string; age?: number; gender?: string; area?: string; scoreRange?: string; car?: string; reviewAvg?: number; reviewCount?: number };
+type SearchUser = { id: string; displayName: string; avatar: string; avatarUrl?: string; age?: number; gender?: string; area?: string; scoreRange?: string; car?: string; reviewAvg?: number; reviewCount?: number; realName?: string };
 function InviteSearch({ inviteState, onInvite, onUninvite }: { inviteState: (id: string) => 'joined' | 'invited' | 'open'; onInvite: (id: string, name: string) => void; onUninvite: (id: string, name: string) => void }) {
   const [gender, setGender] = useState<'' | 'male' | 'female'>('');
   const [q, setQ] = useState('');
@@ -1669,7 +1670,7 @@ function InviteSearch({ inviteState, onInvite, onUninvite }: { inviteState: (id:
 
 // ゲスト枠の置き換え先を、登録ユーザーから選ぶピッカー。/api/users/search を使う。
 // すでに参加している人（excludeIds）は候補から外す。
-function GuestReplacePicker({ excludeIds, busy, onPick }: { excludeIds: Set<string>; busy: boolean; onPick: (id: string, name: string) => void }) {
+function GuestReplacePicker({ roundId, excludeIds, busy, onPick }: { roundId: string; excludeIds: Set<string>; busy: boolean; onPick: (id: string, name: string) => void }) {
   const [gender, setGender] = useState<'' | 'male' | 'female'>('');
   const [q, setQ] = useState('');
   const [items, setItems] = useState<SearchUser[]>([]);
@@ -1684,6 +1685,7 @@ function GuestReplacePicker({ excludeIds, busy, onPick }: { excludeIds: Set<stri
         const p = new URLSearchParams();
         if (gender) p.set('gender', gender);
         if (q.trim()) p.set('q', q.trim());
+        if (roundId) p.set('roundId', roundId);   // 主催者には本名（📋）も返る
         const res = await fetch(`/api/users/search?${p.toString()}`, { cache: 'no-store', credentials: 'include' });
         const d = await res.json();
         if (cancelled) return;
@@ -1717,6 +1719,7 @@ function GuestReplacePicker({ excludeIds, busy, onPick }: { excludeIds: Set<stri
             <Avatar user={{ id: u.id, displayName: u.displayName, avatar: u.avatar, avatarUrl: u.avatarUrl, color: '#2A8C82' } as any} size={36} />
             <div className="flex-1 min-w-0">
               <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
+              {u.realName && <div className="text-[10px] text-green font-bold truncate">📋 {u.realName}</div>}
               <div className="text-[10px] text-sub truncate">
                 {[u.gender === 'male' ? '👨男性' : u.gender === 'female' ? '👩女性' : '', u.age ? `${u.age}歳` : '', u.area].filter(Boolean).join(' ・ ')}
               </div>

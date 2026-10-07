@@ -177,7 +177,7 @@ export async function POST(req: NextRequest) {
         pushToMany(
           adminIds,
           `🆕 新規ユーザー登録\n${pretty}\nuserId: ${userId.slice(0, 12)}...`,
-          liffUrl(`/admin/users`),
+          liffUrl(`/profile/${userId}`),   // タップでその人のプロフィールへ（2026-10-08）
           'signup',
         ).catch(() => {});
       } catch { /* noop */ }

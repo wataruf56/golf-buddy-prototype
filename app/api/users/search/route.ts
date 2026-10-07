@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getMeId } from '@/lib/session';
 import { getAdminDb } from '@/lib/firebase';
 import { getCohort, COHORT_RANGES } from '@/lib/ageGate';
+import { db as appDb } from '@/lib/db';
+import { isRoundHost } from '@/lib/roundHost';
 
 // ログイン中ユーザー向けのユーザー検索。ラウンド招待で「登録している全ユーザー」
 // から性別・年齢などで絞り込むのに使う。年代(コホート)はラウンドの分離単位なので
@@ -17,6 +19,7 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const gender = url.searchParams.get('gender') || '';     // 'male' | 'female' | ''
   const q = (url.searchParams.get('q') || '').trim().toLowerCase();
+  const roundId = (url.searchParams.get('roundId') || '').trim();   // 主催者が「ゲストを登録者に置き換え」で呼ぶとき
   const minAge = parseInt(url.searchParams.get('minAge') || '', 10);
   const maxAge = parseInt(url.searchParams.get('maxAge') || '', 10);
 
@@ -41,6 +44,15 @@ export async function GET(req: NextRequest) {
     const isTestId = (id: string) => !!id && (id.startsWith('test_') || tset.has(id));
     const hideTest = tcfg.hideFromGeneral && !isTestMe;
 
+    // 本名は非公開項目。募集の主催者が「ゲストを登録者に置き換え」で本人を探すときだけ、候補に本名を添えて本名でも検索できるようにする（2026-10-08）。
+    let withRealName = false;
+    if (roundId) {
+      const round = await appDb.getRound(roundId).catch(() => null);
+      withRealName = !!round && isRoundHost(round, meId);
+    }
+    const realNameOf = (u: any) => [u.realNameLast, u.realNameFirst].filter(Boolean).join(' ').trim();
+    const qc = q.replace(/\s+/g, '');
+
     const snap = await db.collection('users').limit(2000).get();
     const items = snap.docs
       .map((d: any) => ({ id: d.id, ...d.data() }))
@@ -48,7 +60,7 @@ export async function GET(req: NextRequest) {
       .filter((u: any) => !(hideTest && isTestId(u.id)))
       .filter((u: any) => typeof u.age === 'number' && u.age >= lo && u.age <= hi)
       .filter((u: any) => (gender ? u.gender === gender : true))
-      .filter((u: any) => (q ? String(u.displayName || '').toLowerCase().includes(q) : true))
+      .filter((u: any) => (q ? (String(u.displayName || '').toLowerCase().includes(q) || (withRealName && realNameOf(u).replace(/\s+/g, '').toLowerCase().includes(qc))) : true))
       .filter((u: any) => !u.banned && !bset.has(u.id))
       .map((u: any) => ({
         id: u.id,
@@ -62,6 +74,7 @@ export async function GET(req: NextRequest) {
         car: u.car || '',
         reviewAvg: u.reviewAvg || 0,
         reviewCount: u.reviewCount || 0,
+        ...(withRealName && realNameOf(u) ? { realName: realNameOf(u) } : {}),
       }))
       .sort((a: any, b: any) => (b.reviewCount || 0) - (a.reviewCount || 0))
       .slice(0, 80);
