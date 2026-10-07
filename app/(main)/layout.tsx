@@ -24,12 +24,12 @@ import { isMatchingAllowedByAge } from '@/lib/ageGate';
 // round page itself enforces the profile gate.
 // /poll (日程調整) works the same way: the shared poll must be viewable without
 // login/profile, and the answer buttons enforce the profile gate themselves.
-const ALWAYS_ALLOWED = ['/guide', '/swing', '/mypage', '/profile', '/admin', '/legal', '/round', '/rounds', '/poll', '/qr', '/add-friend'];
+const ALWAYS_ALLOWED = ['/guide', '/swing', '/mypage', '/profile', '/admin', '/legal', '/round', '/rounds', '/poll', '/qr', '/add-friend', '/invite'];
 
 // ログインが無いと中身を出せない画面（middleware の APP_PROTECTED_PREFIXES と同じ範囲＋/availability）。
 // Cookie はあるが期限切れ・無効（2026-10-06 の一括無効化など）のとき middleware は通してしまうので、
 // ここで「ログインし直してください」を出す。募集・日程調整・プロフィールなどは未ログインでも読める。
-const LOGIN_REQUIRED_PREFIXES = ['/home', '/search', '/create', '/buddies', '/mypage', '/chat', '/swing', '/rematch', '/availability'];
+const LOGIN_REQUIRED_PREFIXES = ['/home', '/search', '/create', '/buddies', '/mypage', '/chat', '/swing', '/rematch', '/availability', '/invite', '/timeline'];
 function requiresLogin(pathname: string): boolean {
   return LOGIN_REQUIRED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
 }

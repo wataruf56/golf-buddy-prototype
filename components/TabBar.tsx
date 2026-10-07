@@ -5,13 +5,14 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useUnreadCounts } from '@/lib/useUnread';
 
-// モック準拠の5タブ（絵文字アイコン・クリーム地・インク枠・アクティブはティール）。
+// モック準拠の6タブ（2026-10-08 タイムラインを追加）（絵文字アイコン・クリーム地・インク枠・アクティブはティール）。
 // 「募集」はホームのタイルから、「マイ」はホームのプロフィールカードから到達する。
 type Tab = { id: string; label: string; href: string; emoji: string; external?: boolean };
 
 const tabs: Tab[] = [
   { id: 'home', label: 'ホーム', href: '/home', emoji: '🏠' },
   { id: 'search', label: 'さがす', href: '/search', emoji: '🔍' },
+  { id: 'timeline', label: 'タイムライン', href: '/timeline', emoji: '📰' },
   { id: 'swing', label: 'スイング', href: '/swing', emoji: '🏌️' },
   { id: 'buddies', label: 'ゴル友', href: '/buddies', emoji: '👥' },
   { id: 'guide', label: '使い方', href: '/guide', emoji: '📖' },
@@ -33,7 +34,7 @@ export function TabBar({ onBlock }: { onBlock?: (href: string) => boolean }) {
         );
         const inner = (
           <>
-            <div className={cn('relative px-3 py-0.5 rounded-full transition-colors text-[20px] leading-none', active && 'bg-green-light')}>
+            <div className={cn('relative px-2.5 py-0.5 rounded-full transition-colors text-[20px] leading-none', active && 'bg-green-light')}>
               <span>{t.emoji}</span>
               {badge > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red text-white text-[9px] font-black rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
@@ -41,7 +42,7 @@ export function TabBar({ onBlock }: { onBlock?: (href: string) => boolean }) {
                 </span>
               )}
             </div>
-            <span className={cn('text-[10px]', active ? 'font-bold' : 'font-medium')}>{t.label}</span>
+            <span className={cn('text-[9.5px] whitespace-nowrap tracking-tight', active ? 'font-bold' : 'font-medium')}>{t.label}</span>
           </>
         );
         if (t.external) return <a key={t.id} href={t.href} className={cls}>{inner}</a>;

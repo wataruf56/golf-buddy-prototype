@@ -26,7 +26,7 @@ const ADMIN_HOSTS = new Set(['admin.goltomo.com']);
 // gated (handled in shouldRequireAppAuth).
 const APP_PROTECTED_PREFIXES = [
   '/home', '/search', '/create', '/buddies', '/mypage',
-  '/chat', '/swing', '/rematch',
+  '/chat', '/swing', '/rematch', '/invite', '/timeline',
 ];
 
 const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';

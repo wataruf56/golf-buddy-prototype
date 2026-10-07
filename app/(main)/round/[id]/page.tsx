@@ -85,6 +85,8 @@ export default function RoundDetailPage() {
   const [viewersOpen, setViewersOpen] = useState(false);
   // ゲスト枠→登録ユーザーの置き換え（主催者）。target: 名前付きゲスト(guestId) or 知り合い枠(external)。
   const [replaceTarget, setReplaceTarget] = useState<{ guestId?: string; label: string } | null>(null);
+  // ゲスト招待リンク（2026-10-08）：そのゲスト専用のリンクを出すシート
+  const [guestLink, setGuestLink] = useState<{ name: string; url: string } | null>(null);
   const [replaceBusy, setReplaceBusy] = useState(false);
   // 主催者向け「ラウンドは完了しましたか？」プロンプトを「まだ」で閉じたか（この画面表示中のみ）。
   const [completionDismissed, setCompletionDismissed] = useState(false);
@@ -565,6 +567,17 @@ export default function RoundDetailPage() {
     } catch (e) { toast((e as Error).message, 'error'); }
   }
   // ゲスト枠（名前付きゲスト or 知り合い枠）を登録ユーザーに置き換える。
+  // ゲスト専用の招待リンクを取得してシートを開く（2026-10-08）
+  async function openGuestLink(guestId: string, name: string) {
+    try {
+      const res = await fetch(`/api/rounds/${round!.id}/guest-invite`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ guestId }) });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || !j?.url) { toast('招待リンクを作れませんでした', 'error'); return; }
+      setGuestLink({ name: name || 'ゲスト', url: j.url });
+      track('guest_invite_link_open', { roundId: round!.id });
+    } catch { toast('招待リンクを作れませんでした', 'error'); }
+  }
+
   async function doReplaceGuest(userId: string, name: string) {
     if (!replaceTarget) return;
     setReplaceBusy(true);
@@ -1063,7 +1076,10 @@ export default function RoundDetailPage() {
                   {/* 完了後も置き換えられる：翌日にゴルトモへ登録した人を本人に付け替えると、
                       同じ組だった人との間にレビューが新しく立つ（API側 replace-guest）。 */}
                   {isHost && (
-                    <button onClick={() => setReplaceTarget({ guestId: g.id, label: `ゲスト「${g.name}」` })} className="px-2.5 py-1 bg-green text-white rounded text-[11px] font-bold flex-shrink-0">👤 登録者に置換</button>
+                    <div className="flex flex-col gap-1 flex-shrink-0">
+                      <button onClick={() => openGuestLink(g.id, g.name)} className="px-2.5 py-1 bg-green text-white rounded text-[11px] font-bold">🔗 招待リンク</button>
+                      <button onClick={() => setReplaceTarget({ guestId: g.id, label: `ゲスト「${g.name}」` })} className="px-2.5 py-1 bg-card text-sub border border-border rounded text-[10.5px] font-bold">👤 登録者に置換</button>
+                    </div>
                   )}
                 </div>
                 {isHost && round.status !== 'completed' && (
@@ -1411,6 +1427,33 @@ export default function RoundDetailPage() {
         <LeaveDialog roundTitle={round.title} busy={leaving}
           onConfirm={(reason, text) => leaveNow(reason, text)}
           onClose={() => { if (!leaving) setLeaveOpen(false); }} />
+      )}
+
+      {guestLink && isHost && (
+        <PickerModal title={`🔗 ${guestLink.name}さんの招待リンク`} onClose={() => setGuestLink(null)}>
+          <div className="text-[12px] text-sub leading-relaxed mb-2">
+            このリンクから登録すると、<b className="text-text">{guestLink.name}さんの枠に自動で入ります</b>。配車・入金のチェックもそのまま引き継ぎます。
+          </div>
+          <div className="bg-bg border-[1.5px] border-dashed border-green rounded-lg p-2 text-[10.5px] break-all font-mono mb-3">{guestLink.url}</div>
+          <a
+            href={`https://line.me/R/share?text=${encodeURIComponent(`${round.title}
+このリンクから登録すると参加確定になります👇
+${guestLink.url}`)}`}
+            onClick={() => track('guest_invite_link_share', { roundId: round.id, via: 'line' })}
+            className="block w-full text-center py-3 rounded-xl font-black text-white text-sm mb-2" style={{ background: '#06C755' }}
+          >💬 LINEで送る</a>
+          <button
+            onClick={async () => {
+              try { await navigator.clipboard.writeText(guestLink.url); toast('リンクをコピーしました'); track('guest_invite_link_share', { roundId: round.id, via: 'copy' }); }
+              catch { toast('コピーできませんでした。上のリンクを長押ししてコピーしてください', 'error'); }
+            }}
+            className="block w-full py-3 rounded-xl font-bold text-sm bg-card border-[1.5px] border-border text-sub"
+          >📋 リンクをコピー</button>
+          <div className="text-[11px] text-muted leading-relaxed mt-3">
+            ※ リンクは LINE公式アカウント経由で開きます。友だち追加がまだの人には、先に友だち追加の案内が出ます（追加を確認できるまで先へ進めません）。<br />
+            ※ リンクを使って参加すると、このゲスト枠は本人に置き換わり、リンクは使えなくなります。
+          </div>
+        </PickerModal>
       )}
 
       {replaceTarget && isHost && (
