@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 const SITE = 'https://goltomo.com';
+const APP = 'https://app.goltomo.com';
 
 export const metadata: Metadata = {
   title: 'プライバシーポリシー - ゴルトモ',
@@ -13,7 +14,9 @@ export const metadata: Metadata = {
 export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-bg max-w-2xl mx-auto px-5 py-6">
-      <Link href="/mypage" className="text-sm text-blue font-bold">← 戻る</Link>
+      {/* 戻り先はアプリ側のマイページ（絶対URL）。相対 `/mypage` だと、検索から goltomo.com/legal/... に
+          直接来た人には LP ホストに /mypage が無く 404 になっていた（2026-10-07）。app ホスト上では従来と同じ挙動。 */}
+      <Link href={`${APP}/mypage`} className="text-sm text-blue font-bold">← 戻る</Link>
       <h1 className="text-2xl font-black mt-3 mb-1">プライバシーポリシー</h1>
       <div className="text-[11px] text-muted mb-6">最終更新: 2026年5月</div>
 
