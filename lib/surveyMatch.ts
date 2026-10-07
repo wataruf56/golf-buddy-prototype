@@ -63,6 +63,10 @@ export async function notifyMatchingSignals(round: Round): Promise<void> {
     // すでにこのラウンドに関わっている人（参加/申請中）は通知対象から外す。
     for (const uid of [round.hostId, ...(round.applicantIds || []), ...(round.pendingApplicantIds || [])]) userIds.delete(uid);
     if (userIds.size === 0) return;
+    // テスト隔離：テスト垢の募集なら、テスト垢と管理者以外には一切知らせない（2026-10-08）
+    const { isolateRecipients } = await import('./testIsolation');
+    const targets = await isolateRecipients(Array.from(userIds), `/round/${round.id}`, 'surveyMatch');
+    if (!targets.length) return;
 
     const { addNotification } = await import('./notifications');
     const { pushTo, liffUrl } = await import('./linePush');
@@ -73,7 +77,7 @@ export async function notifyMatchingSignals(round: Round): Promise<void> {
     const { renderNotif } = await import('./notificationTemplateStore');
     const n = await renderNotif('surveyMatch', { '募集タイトル': title, 'エリア': rawArea });
 
-    await Promise.all(Array.from(userIds).map(async (uid) => {
+    await Promise.all(targets.map(async (uid) => {
       try {
         const user = await db.getUser(uid);
         // 退会・存在しないユーザーはスキップ。アプリ内通知は記録、LINE/Webは設定ON時のみ。

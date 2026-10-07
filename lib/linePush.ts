@@ -73,6 +73,9 @@ export const isLineUserId = (id: string | undefined | null): id is string => !!i
 
 export async function pushTo(userId: string, text: string, link?: string, kind?: string): Promise<void> {
   if (!isLineUserId(userId) || !text) return;
+  // テスト隔離：テスト垢の操作／テスト垢の募集の通知は、テスト垢と管理者以外に送らない（2026-10-08）
+  const { isolateRecipients } = await import('./testIsolation');
+  if (!(await isolateRecipients([userId], link, 'pushTo')).length) return;
   const body = link ? `${text}\n${link}` : text;
   const messages: LineMessage[] = [{ type: 'text', text: body.slice(0, 4900) }];
   const r = await callLine(PUSH_ENDPOINT, { to: userId, messages });
@@ -87,7 +90,8 @@ export async function pushTo(userId: string, text: string, link?: string, kind?:
 
 export async function pushToMany(userIds: string[], text: string, link?: string, kind?: string): Promise<void> {
   // 重複を除き、LINE の userId だけに絞る（上のコメント参照）
-  const ids = Array.from(new Set(userIds.filter(isLineUserId)));
+  const { isolateRecipients } = await import('./testIsolation');
+  const ids = await isolateRecipients(Array.from(new Set(userIds.filter(isLineUserId))), link, 'pushToMany');
   if (!ids.length || !text) return;
   const body = link ? `${text}\n${link}` : text;
   const messages: LineMessage[] = [{ type: 'text', text: body.slice(0, 4900) }];

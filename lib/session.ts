@@ -2,6 +2,7 @@ import 'server-only';
 import { cookies } from 'next/headers';
 import { isDemoMode } from './auth';
 import { verifySessionToken, LIFF_COOKIE_NAME } from './liffSession';
+import { enterRequestActor } from './testIsolation';
 
 export async function getMeId(): Promise<string | null> {
   if (isDemoMode) return 'me';
@@ -12,7 +13,8 @@ export async function getMeId(): Promise<string | null> {
     if (c?.value) {
       const secret = process.env.NEXTAUTH_SECRET || '';
       const userId = verifySessionToken(c.value, secret);
-      if (userId) return userId;
+      // テスト隔離：操作した人をこのリクエストの文脈に記録（await の前・同期）。lib/testIsolation 参照。
+      if (userId) { enterRequestActor(userId); return userId; }
     }
   } catch { /* noop */ }
   return null;

@@ -32,6 +32,13 @@ export async function addNotification(
   link?: string,
 ): Promise<void> {
   if (!userId || !text) return;
+  // テスト隔離：テスト垢の操作／テスト垢の募集の通知は、テスト垢と管理者以外に残さない（2026-10-08）
+  const { isolateRecipients } = await import('./testIsolation');
+  if (!(await isolateRecipients([userId], link, 'addNotification')).length) return;
+  await addNotificationRaw(userId, type, text, link);
+}
+
+async function addNotificationRaw(userId: string, type: NotifyType, text: string, link?: string): Promise<void> {
   const doc = { type, text: String(text).slice(0, 300), link: link || '', createdAt: Date.now() };
   const db = getAdminDb();
   if (!db) {
@@ -53,8 +60,10 @@ export async function addNotificationMany(
   text: string,
   link?: string,
 ): Promise<void> {
-  const ids = Array.from(new Set((userIds || []).filter(Boolean)));
-  await Promise.all(ids.map((u) => addNotification(u, type, text, link)));
+  const { isolateRecipients } = await import('./testIsolation');
+  const ids = await isolateRecipients(Array.from(new Set((userIds || []).filter(Boolean))), link, 'addNotificationMany');
+  if (!text) return;
+  await Promise.all(ids.map((u) => addNotificationRaw(u, type, text, link)));
 }
 
 export async function listNotifications(userId: string, limit = 30): Promise<AppNotification[]> {

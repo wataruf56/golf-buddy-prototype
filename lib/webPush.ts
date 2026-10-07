@@ -64,6 +64,9 @@ export type PushPayload = {
  * Prunes subscriptions that the push service reports as gone (404/410).
  */
 export async function webPushTo(userId: string, payload: PushPayload): Promise<void> {
+  // テスト隔離：テスト垢の操作／テスト垢の募集の通知は、テスト垢と管理者以外に送らない（2026-10-08）
+  const { isolateRecipients } = await import('./testIsolation');
+  if (!(await isolateRecipients([userId], (payload as any)?.url, 'webPushTo')).length) return;
   if (!ensureConfigured()) return;
   const db = getAdminDb();
   if (!db || !userId) return;
