@@ -741,6 +741,30 @@ class FirestoreDB implements DB {
           patch.groupsBack = (data as any).groupsBack.map((gr: any) => ({ ...gr, memberIds: (gr.memberIds || []).map((mm: string) => (mm === guestId ? userId : mm)) }));
         }
         patch.noShowIds = (data.noShowIds || []).map((x) => (x === guestId ? userId : x));
+        // 配車（誰の車に乗るか）・入金チェック・ゲスト宛てのピックアップ提案も本人に付け替える（2026-10-08）。
+        // 以前はここが抜けていて、置き換えた瞬間に本人が車から消え、入金済みの印も消えていた。
+        const swap = (x: string) => (x === guestId ? userId : x);
+        if (Array.isArray((data as any).carAssignments) && (data as any).carAssignments.length) {
+          patch.carAssignments = (data as any).carAssignments.map((a: any) => ({
+            ...a, driverId: swap(String(a?.driverId || '')), passengerIds: (a?.passengerIds || []).map(swap),
+          }));
+        }
+        if (Array.isArray((data as any).paidIds) && (data as any).paidIds.includes(guestId)) {
+          patch.paidIds = Array.from(new Set((data as any).paidIds.map(swap)));
+        }
+        // ゲストの送迎回答（主催者が代わりに入力）とスコアも本人に付け替える
+        for (const key of ['participantPickups', 'scores'] as const) {
+          const mp = (data as any)[key];
+          if (mp && typeof mp === 'object' && guestId in mp) {
+            const { [guestId]: moved, ...rest } = mp;
+            patch[key] = { ...rest, [userId]: moved };
+          }
+        }
+        const pp = (data as any).pickupProposals;
+        if (pp && typeof pp === 'object' && guestId in pp) {
+          const { [guestId]: moved, ...rest } = pp;
+          patch.pickupProposals = { ...rest, [userId]: moved };
+        }
       }
       let m = data.externalMale || 0, f = data.externalFemale || 0, c = data.externalCount || 0;
       const gd = g?.gender || gender;
