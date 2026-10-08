@@ -767,7 +767,8 @@ function GolfCourseExport({ text, onClose, dirty }: { text: string; onClose: () 
       setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     } catch { toast('保存できませんでした。コピーを使ってください', 'error'); }
   }
-  const missing = (text.match(/（本名未登録）/g) || []).length;
+  // 前半・後半の両方に出る人を二重に数えない
+  const missing = new Set(text.split(String.fromCharCode(10)).map((l) => l.trim()).filter((l) => l.endsWith('（本名未登録）'))).size;
   return (
     <Portal>
       <div className="fixed inset-0 z-[1000] bg-black/40 flex items-end justify-center" onClick={onClose}>
