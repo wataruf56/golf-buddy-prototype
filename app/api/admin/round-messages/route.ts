@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase';
 
 // 管理者用：ラウンドのグループチャットのメッセージを詳細閲覧し、不適切な発言を
-// 個別削除する。メッセージは Firestore roundChats/{roundId}/messages に保存。
+// 個別削除する。メッセージは Firestore rounds/{roundId}/chat に保存。
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 
 function checkToken(req: NextRequest): boolean {
@@ -21,7 +21,8 @@ export async function GET(req: NextRequest) {
   if (!roundId) return NextResponse.json({ error: 'roundId required' }, { status: 400, headers: noStore });
 
   try {
-    const snap = await db.collection('roundChats').doc(roundId).collection('messages').limit(1000).get();
+    // 本体の保存先は rounds/{id}/chat（lib/db.addRoundMessage）。以前ここは roundChats/{id}/messages を読んでいて、管理画面に何も出ていなかった（2026-10-08 修正）
+    const snap = await db.collection('rounds').doc(roundId).collection('chat').limit(1000).get();
     const items = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
     items.sort((a: any, b: any) => (a.createdAt || 0) - (b.createdAt || 0));
 
@@ -58,7 +59,7 @@ export async function DELETE(req: NextRequest) {
   if (!roundId || !messageId) return NextResponse.json({ error: 'roundId & messageId required' }, { status: 400, headers: noStore });
 
   try {
-    await db.collection('roundChats').doc(roundId).collection('messages').doc(messageId).delete();
+    await db.collection('rounds').doc(roundId).collection('chat').doc(messageId).delete();
     return NextResponse.json({ ok: true }, { headers: noStore });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
