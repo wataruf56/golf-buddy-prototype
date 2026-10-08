@@ -28,6 +28,12 @@ export function cohortShort(c: Cohort | null | undefined): string {
   return COHORT_RANGES[c].short;
 }
 
+/** 見るときの年代（2026-10-08）。年齢未入力の新規会員にも20〜30代の画面を見せる（プロフィール入力で離脱させない）。
+ *  参加・募集など「する」ときは今まで通り getCohort / isMatchingAllowedByAge で年齢を必須にする。 */
+export function viewCohort(age: number | undefined | null): Cohort | null {
+  return getCohort(age) ?? ((!age || age <= 0) ? 'a' : null);
+}
+
 export function isMatchingAllowedByAge(age: number | undefined | null): boolean {
   return getCohort(age) !== null;
 }

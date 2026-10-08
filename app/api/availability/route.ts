@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { getAvailability, listAvailabilityFor, saveAvailability, normalizeDates, WINDOW_DAYS, todayJst, windowEndJst } from '@/lib/availability';
-import { clampCarNum, needsStation, NEEDS_STATION_MSG } from '@/lib/availabilityShared';
+import { clampCarNum, needsStation, profileMissingFor } from '@/lib/availabilityShared';
 import { onAvailabilityAdded, onAvailabilityRemoved, roomsFor } from '@/lib/availRooms';
 
 // 「行ける日」。
@@ -32,6 +32,8 @@ export async function GET(_req: NextRequest) {
   return NextResponse.json({
     enabled: true,
     needsStation: needsStation(me),
+    // プロフィールで足りないもの（2026-10-08）。足りなくても「行ける」は押せる。そろうと同じ日の人に表示され、部屋に入れる
+    profileMissing: profileMissingFor(me),
     // 使い方ポップアップを見終わったか（false なら1回出す）
     introSeen: !!(me as any).availIntroSeenAt,
     byDate: r.byDate,
@@ -53,15 +55,12 @@ export async function POST(req: NextRequest) {
   const ban = await blockedIfBanned(meId); if (ban) return ban;
   const me = await db.getUser(meId);
   if (!me) return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStore });
-  const { getCohort } = await import('@/lib/ageGate');
-  if (getCohort(me.age) !== 'a') {
+  const { viewCohort } = await import('@/lib/ageGate');
+  if (viewCohort(me.age) !== 'a') {
     return NextResponse.json({ ok: false, message: 'この機能は20〜30代の会員向けです' }, { status: 403, headers: noStore });
   }
-
-  if (needsStation(me)) {
-    // 最寄り駅が無いと運営が乗り合い・集合駅を組めない。案内して、登録が済んだら使える
-    return NextResponse.json({ ok: false, code: 'needs_station', message: NEEDS_STATION_MSG }, { status: 403, headers: noStore });
-  }
+  // 2026-10-08：プロフィール（年齢・性別・最寄り駅）が足りなくても「行ける」は保存する（入力で離脱させない）。
+  // 足りない間は同じ日の人の一覧・部屋には入らず、プロフィールがそろった時点で入る（/api/me の PATCH）。
 
   let body: any = {};
   try { body = await req.json(); } catch { /* noop */ }
@@ -91,7 +90,7 @@ export async function POST(req: NextRequest) {
   const rooms = await roomsFor(meId, saved.dates).catch(() => ({}));
 
   return NextResponse.json({
-    ok: true, dates: saved.dates, car: car || (me.car === 'have' ? 'have' : 'none'),
+    ok: true, dates: saved.dates, profileMissing: profileMissingFor(meNow), car: car || (me.car === 'have' ? 'have' : 'none'),
     seats: saved.seats ?? null, bags: saved.bags ?? null, rooms,
   }, { headers: noStore });
 }

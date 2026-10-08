@@ -58,10 +58,25 @@ export async function PATCH(req: NextRequest) {
     };
   }
 
+  const before = await db.getUser(meId);
   await db.updateUser(meId, patch as any);
   if (hobbyDelta && (hobbyDelta.added.length || hobbyDelta.removed.length)) {
     try { const { applyHobbyDelta } = await import('@/lib/hobbyTags'); await applyHobbyDelta(hobbyDelta.added, hobbyDelta.removed); } catch {}
   }
   const me = await db.getUser(meId);
+  // 2026-10-08：プロフィールが足りないまま「行ける日」を押していた人は、そろった時点で同じ日の部屋に入れる
+  try {
+    const { profileMissingFor } = await import('@/lib/availabilityShared');
+    if (me && before && profileMissingFor(before).length > 0 && profileMissingFor(me).length === 0) {
+      const { getAvailability, todayJst } = await import('@/lib/availability');
+      const av = await getAvailability(meId);
+      const lo = todayJst();
+      const dates = (av?.dates || []).filter((d) => d >= lo);
+      if (dates.length) {
+        const { onAvailabilityAdded } = await import('@/lib/availRooms');
+        for (const d of dates) await onAvailabilityAdded(me, d);
+      }
+    }
+  } catch (e) { console.warn('[me] avail rooms after profile failed', (e as Error).message); }
   return NextResponse.json({ me });
 }

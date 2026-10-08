@@ -17,7 +17,7 @@ import { AVAIL_ROOM_MIN, dateLabel, isoOf, monthsBetween, WEEKDAYS, type AvailPe
 //   ・最寄り駅が未登録の人は、見るのはできるが出せない。登録を案内し、済んだら使える
 //   ・20〜30代にだけ出る。並ぶのも同じ年代だけ（API 側で決まる）
 type Resp = {
-  enabled: boolean; needsStation?: boolean;
+  enabled: boolean; needsStation?: boolean; profileMissing?: string[];
   byDate: Record<string, AvailPerson[]>; mine: string[];
   car: 'have' | 'none'; seats: number | null; bags: number | null;
   canOpenProfiles: boolean;
@@ -84,12 +84,11 @@ export default function AvailabilityPage() {
       const j = await r.json().catch(() => ({}));
       if (!r.ok) {
         setData(revert);
-        if (j?.code === 'needs_station') { setData({ ...revert, needsStation: true }); }
         toast(j?.message || '保存できませんでした', 'error');
         return;
       }
       // サーバーが持っている値に合わせる（初期値を入れた分・できた部屋など）
-      setData((cur) => (cur ? { ...cur, seats: j?.seats ?? cur.seats, bags: j?.bags ?? cur.bags, rooms: j?.rooms ?? cur.rooms } : cur));
+      setData((cur) => (cur ? { ...cur, seats: j?.seats ?? cur.seats, bags: j?.bags ?? cur.bags, rooms: j?.rooms ?? cur.rooms, profileMissing: j?.profileMissing ?? cur.profileMissing } : cur));
       if (j?.rooms && next.dates) {
         const opened = next.dates.filter((d) => j.rooms[d] && !(revert.rooms || {})[d]);
         if (opened.length) toast(`${dateLabel(opened[0]).md} のチャットが始まりました`);
@@ -160,22 +159,21 @@ export default function AvailabilityPage() {
         コースや集合場所は、そのチャットで相談してください。同年代（20〜30代）の会員だけに出ます。
       </div>
 
-      {data.needsStation && (
+      {(data.profileMissing || []).length > 0 && (
         <div className="mt-3 bg-orange-light border-2 border-orange rounded-card p-4">
-          <div className="text-[14px] font-black text-orange">🚉 最寄り駅を登録してください</div>
+          <div className="text-[14px] font-black text-orange">📝 {(data.profileMissing || []).join('・')}を入れると、同じ日の人に表示されます</div>
           <div className="text-[12px] font-bold text-text mt-1.5 leading-relaxed">
-            「行ける日」は、最寄り駅の近さで乗り合いや集合駅を決めるために使います。
-            プロフィールで最寄り駅を登録すると、この画面から行ける日を出せるようになります。
-            最寄り駅はほかの会員には表示されません（運営だけが確認します）。
+            「行ける」はこのまま押せます（保存されます）。プロフィールがそろうと、同じ日に行ける人の一覧に並び、{AVAIL_ROOM_MIN}人集まったらその日のチャットに入れます。
+            最寄り駅はほかの会員には表示されません（運営だけが乗り合い・集合駅を決めるのに使います）。
           </div>
           <Link href={RETURN_TO} className="block w-full mt-3 py-3 rounded-xl border-2 border-border bg-orange text-white text-center text-[14px] font-black">
-            プロフィールで最寄り駅を登録する
+            プロフィールを入れる
           </Link>
         </div>
       )}
 
       <div className="mt-3 bg-card rounded-card shadow-card border-2 border-border p-4">
-        {!data.needsStation && (
+        {(
           <>
             <div className="grid grid-cols-2 gap-2" role="group" aria-label="車">
               <button type="button" aria-pressed={data.car === 'have'} disabled={busy} onClick={() => setCar('have')}
@@ -210,7 +208,7 @@ export default function AvailabilityPage() {
         )}
 
         {/* 1か月ずつのカレンダー */}
-        <div className={data.needsStation ? '' : 'mt-3'}>
+        <div className="mt-3">
           <div className="grid grid-cols-[36px_1fr_36px] items-center mb-2">
             <button type="button" aria-label="前の月" disabled={monthIdx <= 0} onClick={() => goMonth(-1)}
               className="w-9 h-9 rounded-lg border-2 border-border bg-white font-black text-base disabled:opacity-30">‹</button>
@@ -286,11 +284,7 @@ export default function AvailabilityPage() {
             ) : listFor(focusIso).length > 0 && listFor(focusIso).length < AVAIL_ROOM_MIN ? (
               <div className="text-[11px] text-sub font-bold mt-2">あと{AVAIL_ROOM_MIN - listFor(focusIso).length}人でこの日のチャットが始まります</div>
             ) : null}
-            {data.needsStation ? (
-              <Link href={RETURN_TO} className="block w-full mt-2.5 py-2.5 rounded-xl border-2 border-orange bg-white text-orange text-center text-[14px] font-black">
-                最寄り駅を登録すると「行ける」を出せます
-              </Link>
-            ) : (
+            {(
               <button type="button" disabled={busy} onClick={() => toggleDay(focusIso)}
                 className={`block w-full mt-2.5 py-2.5 rounded-xl border-2 text-center text-[14px] font-black disabled:opacity-60 ${focusOn ? 'border-orange bg-white text-orange' : 'border-border bg-green text-white'}`}>
                 {focusOn ? '✓ この日に行ける（押すと取り消し）' : 'この日に行ける'}

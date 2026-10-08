@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { ageGateReason } from '@/lib/ageGate';
 
-export function AgeGateScreen({ age }: { age: number | undefined | null }) {
+export function AgeGateScreen({ age, returnTo }: { age: number | undefined | null; returnTo?: string }) {
   const reason = ageGateReason(age);
   const isUnset = reason === 'unset';
   const tooYoung = reason === 'too_young';
@@ -15,7 +15,7 @@ export function AgeGateScreen({ age }: { age: number | undefined | null }) {
         <div className="text-4xl mb-3">{isUnset ? '📝' : '🔒'}</div>
         <div className="text-base font-black mb-2">
           {isUnset
-            ? '年齢を登録してください'
+            ? 'プロフィールを登録してください'
             : tooYoung
               ? '20歳以上の方限定です'
               : '60歳以上の方は今後対応予定です'}
@@ -23,8 +23,9 @@ export function AgeGateScreen({ age }: { age: number | undefined | null }) {
         <div className="text-[12px] text-sub leading-relaxed mb-4">
           {isUnset ? (
             <>
-              この機能を使うには<br />
-              プロフィールに年齢を登録してください。
+              募集を立てるには、<br />
+              プロフィール（年齢・性別など）の登録が必要です。<br />
+              登録が終わるとこの画面に戻ります。
             </>
           ) : (
             <>
@@ -39,8 +40,8 @@ export function AgeGateScreen({ age }: { age: number | undefined | null }) {
         </div>
         <div className="flex flex-col gap-2">
           {isUnset && (
-            <Link href="/mypage/edit" className="block w-full py-3 bg-green text-white rounded-xl text-sm font-bold">
-              プロフィールを編集する
+            <Link href={returnTo ? `/mypage/edit?returnTo=${encodeURIComponent(returnTo)}` : '/mypage/edit'} className="block w-full py-3 bg-green text-white rounded-xl text-sm font-bold">
+              プロフィールを登録する
             </Link>
           )}
           <Link href="/swing" className="block w-full py-3 bg-blue text-white rounded-xl text-sm font-bold">

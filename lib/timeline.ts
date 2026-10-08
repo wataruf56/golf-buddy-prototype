@@ -1,6 +1,6 @@
 import 'server-only';
 import { getAdminDb } from './firebase';
-import { getCohort } from './ageGate';
+import { getCohort, viewCohort } from './ageGate';
 import type { User } from './types';
 
 // タイムライン（2026-10-08）：みんなの動きを LINE のシステムメッセージ風に1行ずつ。
@@ -33,7 +33,7 @@ function dateLabel(d?: string): string {
 export async function buildTimeline(viewer: User, limit = 80): Promise<TimelineItem[]> {
   const adb = getAdminDb() as any;
   if (!adb) return [];
-  const cohort = getCohort(viewer.age);
+  const cohort = viewCohort(viewer.age);   // 年齢未入力の新規会員も20〜30代として見られる
   if (!cohort) return [];
   const since = Date.now() - WINDOW_MS;
 

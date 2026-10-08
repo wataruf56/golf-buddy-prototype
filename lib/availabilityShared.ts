@@ -53,6 +53,15 @@ export function needsStation(u: { nearestStation?: string } | null | undefined):
   return !String(u?.nearestStation || '').trim();
 }
 
+/** 「行ける日」で同じ日の人に表示・部屋に入るのに足りないプロフィール（2026-10-08）。空ならそろっている。 */
+export function profileMissingFor(u: { age?: number; gender?: string; nearestStation?: string } | null | undefined): string[] {
+  const out: string[] = [];
+  if (!u?.age || u.age <= 0) out.push('年齢');
+  if (u?.gender !== 'male' && u?.gender !== 'female') out.push('性別');
+  if (needsStation(u)) out.push('最寄り駅');
+  return out;
+}
+
 /** 同じ日に「行ける」を押した人がこの人数になったら、その日のチャット部屋ができる（2026-10-04 に 4→3）。 */
 export const AVAIL_ROOM_MIN = 3;
 

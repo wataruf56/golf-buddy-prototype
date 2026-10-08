@@ -50,7 +50,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const [blockerOpen, setBlockerOpen] = useState(false);
 
   const matchingAllowed = isMatchingAllowedByAge(me?.age);
-  const ageGated = hydrated && needsMatchingAccess(pathname) && !matchingAllowed;
+  // 年齢未入力（新規会員）は見るだけならOK。対象外の年齢と、募集を立てる画面（プロフィール必須）だけ止める（2026-10-08）
+  const ageUnset = !me?.age || me.age <= 0;
+  const needsProfileHere = pathname === '/create' || pathname.startsWith('/create/');
+  const ageGated = hydrated && needsMatchingAccess(pathname) && !matchingAllowed && (!ageUnset || needsProfileHere);
   // getMe は未ログインでも仮の人（id='me'）を返すので、ログイン有無は meId で見る
   const meIdForGate = useStore((s) => s.meId);
   const loggedOut = hydrated && !meIdForGate && requiresLogin(pathname);
@@ -136,7 +139,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
         ) : ageGated ? (
-          <AgeGateScreen age={me?.age} />
+          <AgeGateScreen age={me?.age} returnTo={pathname} />
         ) : (
           <>
             {/* DM（/chat）は固定ヘッダー＋入力欄でビューポートを使い切る全画面レイアウト。

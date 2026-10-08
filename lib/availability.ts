@@ -1,6 +1,6 @@
 import 'server-only';
 import { getAdminDb } from './firebase';
-import { getCohort, type Cohort } from './ageGate';
+import { getCohort, type Cohort, viewCohort } from './ageGate';
 import type { User } from './types';
 import { clampCarNum, type AvailPerson } from './availabilityShared';
 export type { AvailPerson } from './availabilityShared';
@@ -86,7 +86,7 @@ export async function listAvailabilityFor(viewer: User): Promise<{
   /** 自分の車の設定（乗れる人数・バッグ数）。未設定なら undefined */
   mineCar: { seats?: number; bags?: number };
 }> {
-  const cohort = getCohort(viewer.age);
+  const cohort = viewCohort(viewer.age);   // 年齢未入力でも20〜30代として見られる（2026-10-08）
   const empty = { cohort, byDate: {} as Record<string, AvailPerson[]>, mine: [] as string[], mineCar: {} };
   if (cohort !== 'a') return empty;   // 20〜30代だけ。それ以外には機能自体を出さない
   const adb = getAdminDb() as any;
