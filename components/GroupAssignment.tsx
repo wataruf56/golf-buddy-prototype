@@ -107,10 +107,14 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   // 主催者だけ：参加者の本名（ゴルフ場の予約サイトに登録する用。participant-names は主催者限定 API）（2026-10-08）
   const [realNames, setRealNames] = useState<Record<string, string>>({});
   const [exportOpen, setExportOpen] = useState(false);
+  const [pairHistory, setPairHistory] = useState<Record<string, { sameGroup: number; sameEvent: number }>>({});
   useEffect(() => {
     if (!isHost || !round.id) return;
     fetch(`/api/rounds/${round.id}/participant-names`, { cache: 'no-store', credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null)).then((j) => { if (j?.names) setRealNames(j.names); }).catch(() => {});
+    // 過去に同じ組／同じコンペだった回数（主催者だけ）（2026-10-08）
+    fetch(`/api/rounds/${round.id}/pair-history`, { cache: 'no-store', credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null)).then((j) => { if (j?.pairs) setPairHistory(j.pairs); }).catch(() => {});
   }, [isHost, round.id, round.applicantIds]);
   if (!isHost) {
     if (!groups.length) {
@@ -377,6 +381,35 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
     );
   };
 
+  // 同じ組になった人どうしの「つながり」（主催者が組を決める参考）。
+  //   🚗 今回の行きの車が一緒 ／ 🔁 過去に同じ組で回った ／ 👥 過去に同じコンペ（別の組）
+  function pairNotes(memberIds: string[]): string[] {
+    const carOf = new Map<string, number>();
+    (round.carAssignments || []).forEach((c, i) => { [c.driverId, ...(c.passengerIds || [])].forEach((id) => id && carOf.set(id, i)); });
+    const out: string[] = [];
+    for (let i = 0; i < memberIds.length; i++) {
+      for (let j = i + 1; j < memberIds.length; j++) {
+        const a = memberIds[i], b = memberIds[j];
+        const parts: string[] = [];
+        if (carOf.has(a) && carOf.get(a) === carOf.get(b)) parts.push('🚗 行きの車が一緒');
+        const h = pairHistory[a < b ? `${a}|${b}` : `${b}|${a}`];
+        if (h?.sameGroup) parts.push(`🔁 過去に同じ組で${h.sameGroup}回`);
+        if (h?.sameEvent) parts.push(`👥 過去に同じコンペ（別の組）${h.sameEvent}回`);
+        if (parts.length) out.push(`${nameOf(a)}さんと${nameOf(b)}さん：${parts.join('・')}`);
+      }
+    }
+    return out;
+  }
+  const renderPairNotes = (memberIds: string[]) => {
+    const notes = pairNotes(memberIds);
+    if (!notes.length) return null;
+    return (
+      <div className="mt-1.5 rounded-lg bg-[#F3F7FF] border border-[#C9D8F5] px-2 py-1.5">
+        {notes.map((n, i) => <div key={i} className="text-[10.5px] text-[#2F4A7A] leading-snug">{n}</div>)}
+      </div>
+    );
+  };
+
   // ゴルフ場に送る用のテキスト：本名（姓 名）で、組ごとにコース・スタート時間・メンバー。後半の入れ替えがあれば後半も。
   function buildCourseText(): string {
     const fullName = (id: string) => {
@@ -523,6 +556,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
                 ? <div className="text-[11px] text-muted px-1 py-1.5">「＋ 追加」で選ぶか、ここにドラッグ</div>
                 : g.memberIds.map((id) => renderMember(id, true))}
             </div>
+            {renderPairNotes(g.memberIds)}
             <button type="button" onClick={() => setPickerFor(g.id)} disabled={pool.length === 0}
               aria-label="この組に未割り当ての人を追加"
               className="w-full mt-1.5 py-2 rounded-lg border-2 border-dashed border-green text-green text-[12px] font-black bg-card disabled:opacity-30">
@@ -666,6 +700,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
                           ? <div className="text-[11px] text-muted px-1 py-1.5">「＋ 追加」で選ぶか、ここにドラッグ</div>
                           : g.memberIds.map((id) => renderMember(id, true, false, 'back'))}
                       </div>
+                      {renderPairNotes(g.memberIds)}
                       <button type="button" onClick={() => setPickerFor(`back:${g.id}`)} disabled={backPoolAll.length === 0}
                         aria-label="この組（後半）に未割り当ての人を追加"
                         className="w-full mt-1.5 py-2 rounded-lg border-2 border-dashed border-green text-green text-[12px] font-black bg-card disabled:opacity-30">
