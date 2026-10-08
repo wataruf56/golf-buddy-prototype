@@ -40,7 +40,20 @@ export async function GET(req: NextRequest) {
       } catch { users[uid as string] = { displayName: uid as string, avatar: '?' }; }
     }));
 
-    return NextResponse.json({ count: items.length, items, users }, { headers: noStore });
+    // いまこのチャットに入っている人（主催者＋参加確定）。管理人のメンション候補と参加者一覧に使う（2026-10-08）
+    const rs = await db.collection('rounds').doc(roundId).get();
+    const rd = rs.exists ? rs.data() : {};
+    const memberIds = Array.from(new Set([rd.hostId, ...(rd.applicantIds || [])].filter((x: any) => x && x !== 'admin_manager' && x !== 'system'))) as string[];
+    const members = (await Promise.all(memberIds.map(async (uid) => {
+      try {
+        const us = await db.collection('users').doc(uid).get();
+        if (!us.exists) return null;
+        const u = us.data();
+        return { id: uid, displayName: u.displayName || '', gender: u.gender || '', age: u.age || 0, car: u.car || '', avatar: u.avatar || '⛳', avatarUrl: u.avatarUrl || '' };
+      } catch { return null; }
+    }))).filter(Boolean);
+    const round = { title: rd.title || '', availDate: rd.availDate || '', date: rd.date || '', courseName: rd.courseName || '', maxSpots: rd.maxSpots || 0 };
+    return NextResponse.json({ count: items.length, items, users, members, round }, { headers: noStore });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
   }
