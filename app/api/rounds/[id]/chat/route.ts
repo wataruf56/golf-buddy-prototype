@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
-import { pushToMany, liffUrl } from '@/lib/linePush';
-import { webPushToMany } from '@/lib/webPush';
-import { isNotifyEnabled } from '@/lib/notifyPrefs';
 import { isMatchingAllowedByAge } from '@/lib/ageGate';
 
 const noStore = {
@@ -49,52 +46,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const trimmed = text ? String(text).trim() : '';
   if (!trimmed && !imageUrl) return NextResponse.json({ error: 'empty' }, { status: 400, headers: noStore });
   const message = await db.addRoundMessage(params.id, meId, trimmed, threadId, imageUrl);
-  // Notify other participants. A user mentioned via "@名前" gets a mention
-  // notification (gated on their "mention" pref); everyone else gets the
-  // general round-chat notification (gated on "roundChat", off by default).
-  const recipients = [round.hostId, ...(round.applicantIds || [])].filter((id) => id && id !== meId);
-  if (recipients.length) {
-    const me = await db.getUser(meId);
-    const senderName = me?.displayName || '参加者';
-    const preview = trimmed ? (trimmed.length > 60 ? trimmed.slice(0, 60) + '…' : trimmed) : '📷 画像';
-    const others = (await Promise.all(recipients.map((id) => db.getUser(id)))).filter(Boolean) as any[];
-
-    // A recipient is "mentioned" if their display name appears after an @.
-    // 「@全員」（＠全員）が入っていれば、参加者全員をメンション扱いにする。
-    const mentionAll = trimmed.includes('@全員') || trimmed.includes('＠全員');
-    const mentioned: any[] = [];
-    const rest: any[] = [];
-    for (const u of others) {
-      const name = (u.displayName || '').trim();
-      const isMentioned = mentionAll || (name && (trimmed.includes('@' + name) || trimmed.includes('＠' + name)));
-      (isMentioned ? mentioned : rest).push(u);
-    }
-
-    // Always record mentions in the in-app inbox (home screen), even if LINE is
-    // off. (General round-chat messages are intentionally NOT inboxed — they are
-    // already surfaced by the in-app round-chat unread badge, and inboxing every
-    // message would flood the お知らせ list.)
-    // スレッド内の発言なら、そのスレッドへ直接飛べるよう ?thread= を付ける。
-    const chatPath = `/round/${params.id}/chat${threadId ? `?thread=${encodeURIComponent(threadId)}` : ''}`;
-    const { renderNotif } = await import('@/lib/notificationTemplateStore');
-    if (mentioned.length) {
-      const nm = await renderNotif('mention', { '発言者名': senderName, '募集タイトル': round.title, '本文': preview });
-      const { addNotificationMany } = await import('@/lib/notifications');
-      if (nm.inApp) addNotificationMany(mentioned.map((u) => u.id), 'mention', nm.inApp, chatPath).catch(() => {});
-      const mentionTargets = mentioned.filter((u) => isNotifyEnabled(u, 'mention')).map((u) => u.id);
-      if (mentionTargets.length) {
-        pushToMany(mentionTargets, nm.line, liffUrl(chatPath), 'mention').catch(() => {});
-        webPushToMany(mentionTargets, nm.webTitle, nm.webBody, chatPath, `mention-${params.id}`).catch(() => {});
-      }
-    }
-
-    // Everyone else (not mentioned) → general round-chat pref.
-    const chatTargets = rest.filter((u) => isNotifyEnabled(u, 'roundChat')).map((u) => u.id);
-    if (chatTargets.length) {
-      const nc = await renderNotif('roundChat', { '募集タイトル': round.title, '発言者名': senderName, '本文': preview });
-      pushToMany(chatTargets, nc.line, liffUrl(chatPath), 'chat').catch(() => {});
-      webPushToMany(chatTargets, nc.webTitle, nc.webBody, chatPath, `roundchat-${params.id}`).catch(() => {});
-    }
-  }
+  // 参加者への通知（メンション／ふつうのチャット）。管理画面からの発言と共通（lib/roundChatNotify）
+  try {
+    const { notifyRoundChat } = await import('@/lib/roundChatNotify');
+    await notifyRoundChat(round, meId, (await db.getUser(meId))?.displayName || '参加者', trimmed, threadId);
+  } catch (e) { console.warn('[round chat] notify failed', (e as Error).message); }
   return NextResponse.json({ message }, { headers: noStore });
 }

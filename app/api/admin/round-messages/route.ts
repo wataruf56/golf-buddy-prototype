@@ -29,6 +29,8 @@ export async function GET(req: NextRequest) {
     const ids = Array.from(new Set(items.map((m: any) => m.senderId).filter(Boolean)));
     const users: Record<string, any> = {};
     await Promise.all(ids.map(async (uid) => {
+      if (uid === 'admin_manager') { users[uid] = { displayName: '管理人', avatar: '🛡️' }; return; }
+      if (uid === 'system') { users[uid] = { displayName: 'お知らせ（自動）', avatar: '📣' }; return; }
       try {
         const us = await db.collection('users').doc(uid as string).get();
         users[uid as string] = us.exists
@@ -61,4 +63,31 @@ export async function DELETE(req: NextRequest) {
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
   }
+}
+
+// POST /api/admin/round-messages?token=XXX  body: { roundId, text }
+// 管理画面から「管理人」としてグループチャットに発言する（行ける日の部屋など。2026-10-08）。
+// 参加者への通知はふつうの発言と同じ（@全員・@名前ならメンション通知）。
+export async function POST(req: NextRequest) {
+  if (!checkToken(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
+  let body: any;
+  try { body = await req.json(); } catch { return NextResponse.json({ error: 'bad json' }, { status: 400, headers: noStore }); }
+  const roundId = String(body?.roundId || '').trim();
+  const text = String(body?.text || '').trim().slice(0, 2000);
+  if (!roundId || !text) return NextResponse.json({ error: 'roundId & text required' }, { status: 400, headers: noStore });
+  const { db: appDb } = await import('@/lib/db');
+  const round = await appDb.getRound(roundId);
+  if (!round) return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStore });
+  const { ADMIN_MANAGER_ID, ADMIN_MANAGER_NAME } = await import('@/lib/adminManagerId');
+  const message = await appDb.addRoundMessage(roundId, ADMIN_MANAGER_ID, text);
+  try {
+    const { notifyRoundChat } = await import('@/lib/roundChatNotify');
+    await notifyRoundChat(round, ADMIN_MANAGER_ID, ADMIN_MANAGER_NAME, text);
+  } catch (e) { console.warn('[admin round-messages] notify failed', (e as Error).message); }
+  try {
+    const { audit, adminActor, AUDIT_ACTION } = await import('@/lib/auditLog');
+    await audit({ action: AUDIT_ACTION.supportSend, ...(await adminActor(null)),
+      targetKind: 'round', targetId: roundId, targetName: round.title, summary: `グループチャットに管理人として発言：${text.slice(0, 60)}` } as any, req);
+  } catch { /* noop */ }
+  return NextResponse.json({ ok: true, message }, { headers: noStore });
 }

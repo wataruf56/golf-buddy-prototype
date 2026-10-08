@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { appProfileUrl } from '@/lib/adminLinks';
+import { AdminRoundChat } from '@/components/AdminRoundChat';
 
 // 運営向け：会員が出した「行ける日」を、日付ごとに名前・年齢・性別・車・エリア・最寄り駅つきで見る。
 // ここを見て、運営がコースの予約とピックアップの調整をする（会員側には名前を出さない日付もある）。
@@ -51,6 +52,16 @@ function Inner() {
   }, [token, withTest]);
   useEffect(() => { load(); }, [load]);
 
+  // 行ける日の部屋（運営主催のグループチャット）。管理人として話しかけられる（2026-10-08）
+  const [rooms, setRooms] = useState<any[] | null>(null);
+  useEffect(() => {
+    if (!token) return;
+    fetch(`/api/admin/rounds?token=${encodeURIComponent(token)}&hostId=admin_manager`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setRooms(((d?.items || []) as any[]).filter((r) => r.availDate && (withTest || !r.availTest)).sort((a, b) => String(a.availDate).localeCompare(String(b.availDate)))))
+      .catch(() => setRooms([]));
+  }, [token, withTest]);
+
   const dates = Object.keys(data?.byDate || {}).sort().filter((d) => (data?.byDate[d]?.length || 0) >= onlyMin);
 
   return (
@@ -78,6 +89,27 @@ function Inner() {
         {data && <span className="text-[12px] text-sub font-bold ml-auto">出している人：{data.people}人 ／ 日付：{Object.keys(data.byDate).length}日</span>}
       </div>
       {err && <div className="text-[12px] text-red font-bold mb-2">{err}</div>}
+
+      <div className="bg-card rounded-xl shadow-card p-3 mb-4">
+        <div className="text-[14px] font-black mb-1">💬 行ける日の部屋（グループチャット）</div>
+        <div className="text-[11px] text-sub mb-2">各部屋のチャットを見て、🛡️ 管理人として発言できます。「@全員」を入れると全員にメンション通知が届きます。</div>
+        {rooms === null && <div className="text-[11px] text-muted">読み込み中...</div>}
+        {rooms && rooms.length === 0 && <div className="text-[11px] text-muted">いま部屋はありません。</div>}
+        {(rooms || []).map((r) => {
+          const dl = dateLabel(String(r.availDate));
+          return (
+            <div key={r.id} className="border-t border-border pt-2 mt-2">
+              <div className="flex items-center gap-2 text-[12.5px] font-black">
+                <span>{dl.md}（{dl.w}）</span>
+                <span className="text-sub font-bold text-[11px]">{(r.applicantIds || []).length + 0}人</span>
+                {r.status === 'completed' && <span className="text-[10px] text-muted font-bold">完了</span>}
+                <a href={`https://app.goltomo.com/round/${r.id}/chat`} target="_blank" rel="noreferrer" className="ml-auto text-[11px] text-blue font-bold">アプリで開く ›</a>
+              </div>
+              <AdminRoundChat token={token} roundId={r.id} label="💬 チャットを見る・管理人として送る" />
+            </div>
+          );
+        })}
+      </div>
 
       {data && dates.length === 0 && (
         <div className="bg-card rounded-xl shadow-card p-4 text-[13px] font-bold text-sub">まだ「行ける日」を出している人がいません。</div>
