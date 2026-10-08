@@ -118,7 +118,7 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
       .filter((c) => c.passengerIds.length > 0 || c.station);
     if (!saved.length) {
       // 配車はあるが主催者がまだ公開していない（2026-10-06）
-      if (round.assignmentsHidden) {
+      if (round.carsHidden) {
         return (
           <div className="bg-card rounded-card p-4 shadow-card mb-4">
             <div className="text-[13px] font-bold mb-1">🚗 配車（車の割り振り）</div>
@@ -342,7 +342,7 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
 
   return (
     <div className="bg-card rounded-card p-4 shadow-card mb-4">
-      <AssignmentsPublishBar round={round} />
+      <AssignmentsPublishBar round={round} target="cars" />
       <div className="text-[13px] font-bold mb-0.5">🚗 配車（車の割り振り）（主催者）</div>
       <div className="text-[10px] text-muted mb-2.5">各車の「＋ 乗せる」から未割り当ての人を選んで乗せられます（ドラッグでも可）。運転者は「ピックアップできます」と答えた人です。<b>車がある人をほかの車に乗せることもできます</b>（その人の車はその日は使わない扱い）。定員は運転者を含みます。<b>自分の車で行く人・送迎がいらない人は「🚶 自分で行く」へ。</b>ゲストのぶんはここでしか設定できません。</div>
 

@@ -239,10 +239,15 @@ export type Round = {
   //   false … 未公開（主催者だけに見える。新しく作った募集はここから）
   //   true  … 公開中
   //   未設定 … 旧データ。これまでどおり見えている扱い（急に隠さない）
+  // 2026-10-08：組み分けと配車（ピックアップ）の公開を分けた。assignmentsPublished は「組み分け」の公開。
   assignmentsPublished?: boolean;
   assignmentsPublishedAt?: number;
+  // 配車（ピックアップ）の公開。未設定なら旧仕様どおり assignmentsPublished に従う（lib/roundView.carsPublishedOf）。
+  carsPublished?: boolean;
+  carsPublishedAt?: number;
   // 配信時にだけ付く印：組み分け・配車があるのに未公開で伏せた（参加者向けの「準備中」表示用）
-  assignmentsHidden?: boolean;
+  assignmentsHidden?: boolean;   // 組み分けを伏せた
+  carsHidden?: boolean;          // 配車を伏せた
   // 「空きが出たら参加したい」（2026-10-07）。自分の性別の枠が満員のときに登録する。
   // 主催者には全員ぶん、それ以外には自分のぶんだけ配信（lib/roundView）。
   waitlist?: RoundWaitEntry[];

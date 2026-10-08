@@ -3,12 +3,13 @@ import { db } from '@/lib/db';
 import { isRoundHost } from '@/lib/roundHost';
 import { getMeId } from '@/lib/session';
 import { SYSTEM_SENDER_ID } from '@/lib/adminManagerId';
+import { carsPublishedOf, groupsPublishedOf } from '@/lib/roundView';
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 
-// POST /api/rounds/[id]/publish-assignments { published: boolean }
-// 主催者（共同管理者）のみ。組み分け・配車を参加者に「公開する／非公開に戻す」（2026-10-06 本人要望）。
-// 配信側（lib/roundView.stripAssignmentsForViewer）が assignmentsPublished === false のとき主催者以外に伏せる。
+// POST /api/rounds/[id]/publish-assignments { published: boolean, target?: 'groups' | 'cars' }
+// 主催者（共同管理者）のみ。組み分け／配車（ピックアップ）を参加者に「公開する／非公開に戻す」。
+// 2026-10-08：組み分けと配車を別々に公開するように（target）。target なし（古い画面）は両方まとめて。
 // 非公開→公開にしたときだけ、参加者（主催者以外の確定メンバー）へ お知らせ＋LINE＋グループチャットの一言。
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const meId = await getMeId();
@@ -21,24 +22,33 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   let body: any = {};
   try { body = (await req.json()) || {}; } catch {}
   const published = body?.published === true;
-  const wasPublished = round.assignmentsPublished !== false;   // 未設定（旧データ）は公開扱い
+  const target: 'groups' | 'cars' | 'both' = body?.target === 'groups' || body?.target === 'cars' ? body.target : 'both';
 
-  await db.updateRound(params.id, {
-    assignmentsPublished: published,
-    ...(published ? { assignmentsPublishedAt: Date.now() } : {}),
-  } as any);
+  const wasGroups = groupsPublishedOf(round);
+  const wasCars = carsPublishedOf(round);
+  const now = Date.now();
+  const patch: Record<string, unknown> = {};
+  if (target === 'groups' || target === 'both') { patch.assignmentsPublished = published; if (published) patch.assignmentsPublishedAt = now; }
+  if (target === 'cars' || target === 'both') { patch.carsPublished = published; if (published) patch.carsPublishedAt = now; }
+  // 分ける前のデータ（carsPublished 未設定）は組み分けに連動していたので、組み分けだけ切り替えるときは配車の今の状態を固定する
+  if (target === 'groups' && round.carsPublished === undefined) patch.carsPublished = wasCars;
+  await db.updateRound(params.id, patch as any);
 
-  if (published && !wasPublished) {
+  const newlyGroups = published && !wasGroups && (target === 'groups' || target === 'both');
+  const newlyCars = published && !wasCars && (target === 'cars' || target === 'both');
+  if (newlyGroups || newlyCars) {
     const ids = Array.from(new Set((round.applicantIds || []).filter((id) => id && id !== meId && id !== round.hostId)));
-    const path = `/round/${params.id}?tab=groups`;
+    const what = newlyGroups && newlyCars ? '組み分け・配車' : newlyGroups ? '組み分け' : '配車（ピックアップ）';
+    const tab = newlyGroups ? 'groups' : 'pickup';
+    const path = `/round/${params.id}?tab=${tab}`;
     const title = round.title || round.courseName || 'ラウンド';
-    const text = `⛳ 「${title}」の組み分け・配車が公開されました。組・スタート時間・乗る車を確認してください。`;
+    const detail = newlyGroups && newlyCars ? '組・スタート時間・乗る車' : newlyGroups ? '組・スタート時間' : '乗る車・集合場所';
+    const text = `⛳ 「${title}」の${what}が公開されました。${detail}を確認してください。`;
     try {
       const { addNotificationMany } = await import('@/lib/notifications');
       await addNotificationMany(ids, 'pickup', text, path);
     } catch (e) { console.warn('[publish-assignments] in-app notify failed', (e as Error).message); }
     try {
-      // LINE は本人の通知設定（送迎＝pickup）に従う。LINE の userId でない人（テスト垢など）は pushToMany 側で落ちる。
       const { isNotifyEnabled } = await import('@/lib/notifyPrefs');
       const { pushToMany, liffUrl } = await import('@/lib/linePush');
       const users = await Promise.all(ids.map((id) => db.getUser(id).catch(() => null)));
@@ -46,9 +56,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       if (lineIds.length) await pushToMany(lineIds, text, liffUrl(path), 'pickup');
     } catch (e) { console.warn('[publish-assignments] LINE notify failed', (e as Error).message); }
     try {
-      await db.addRoundMessage(params.id, SYSTEM_SENDER_ID, '📣 主催者が組み分け・配車を公開しました。「組み分け」「ピックアップ」タブで確認できます。');
+      const tabs = newlyGroups && newlyCars ? '「組み分け」「ピックアップ」タブ' : newlyGroups ? '「組み分け」タブ' : '「ピックアップ」タブ';
+      await db.addRoundMessage(params.id, SYSTEM_SENDER_ID, `📣 主催者が${what}を公開しました。${tabs}で確認できます。`);
     } catch (e) { console.warn('[publish-assignments] chat notice failed', (e as Error).message); }
   }
 
-  return NextResponse.json({ ok: true, assignmentsPublished: published }, { headers: noStore });
+  const after = { ...round, ...patch } as any;
+  return NextResponse.json({ ok: true, assignmentsPublished: groupsPublishedOf(after), carsPublished: carsPublishedOf(after) }, { headers: noStore });
 }

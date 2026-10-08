@@ -45,11 +45,29 @@ export function stripInvitesForViewer(round: Round, viewerId: string | null): Ro
 // 未公開（assignmentsPublished === false）のとき、主催者以外へは groups / groupsBack / carAssignments を空にし、
 // 何かしら入っていれば assignmentsHidden=true を付けて「主催者が準備中」と出せるようにする。
 // 旧データ（未設定）はこれまでどおり見せる。
+// 配車（ピックアップ）が公開か。未設定（分ける前のデータ）は組み分けの公開に従う。
+export function carsPublishedOf(round: Pick<Round, 'carsPublished' | 'assignmentsPublished'>): boolean {
+  return round.carsPublished ?? (round.assignmentsPublished !== false);
+}
+export function groupsPublishedOf(round: Pick<Round, 'assignmentsPublished'>): boolean {
+  return round.assignmentsPublished !== false;
+}
+
+// 組み分けと配車は、主催者がそれぞれ「公開する」を押すまで主催者以外に伏せる（2026-10-08 別々に）。
 export function stripAssignmentsForViewer(round: Round, viewerId: string | null): Round {
-  if (round.assignmentsPublished !== false) return round;
+  const g = groupsPublishedOf(round), c = carsPublishedOf(round);
+  if (g && c) return round;
   if (isRoundHost(round, viewerId)) return round;
-  const has = (round.groups?.length || 0) + (round.groupsBack?.length || 0) + (round.carAssignments?.length || 0) > 0;
-  return { ...round, groups: [], groupsBack: [], carAssignments: [], assignmentsHidden: has };
+  let out: Round = { ...round };
+  if (!g) {
+    const has = (round.groups?.length || 0) + (round.groupsBack?.length || 0) > 0;
+    out = { ...out, groups: [], groupsBack: [], assignmentsHidden: has };
+  }
+  if (!c) {
+    const has = (round.carAssignments?.length || 0) > 0;
+    out = { ...out, carAssignments: [], carsHidden: has };
+  }
+  return out;
 }
 
 // 空き待ち（2026-10-07）：主催者には全員ぶん。それ以外には自分のぶんだけ＋男女別の人数＋自分の順番。

@@ -146,6 +146,7 @@ export async function POST(req: NextRequest) {
     status: 'open',
     // 組み分け・配車は主催者が「公開する」を押すまで参加者に見せない（2026-10-06）
     assignmentsPublished: false,
+    carsPublished: false,
     // 知り合い枠（external）の人数ぶんの「名前つきゲスト」。募集人数タブで入力された名前。
     // 人数は externalMale/Female でカウント済みなので、ここでは名札を作るだけ。
     guests: guestList,

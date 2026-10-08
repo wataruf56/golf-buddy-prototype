@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Portal } from '@/components/Portal';
 import type { Round, RoundGroup, RoundGuest, User } from '@/lib/types';
 import { Avatar } from '@/components/Avatar';
@@ -104,6 +104,14 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   // （2026-10-06・round ページの同種バグの横展開。hook は必ず早期 return より前に置く）。
   const ghostRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ id: string; ox: number; oy: number; board: 'front' | 'back' } | null>(null);
+  // 主催者だけ：参加者の本名（ゴルフ場の予約サイトに登録する用。participant-names は主催者限定 API）（2026-10-08）
+  const [realNames, setRealNames] = useState<Record<string, string>>({});
+  const [exportOpen, setExportOpen] = useState(false);
+  useEffect(() => {
+    if (!isHost || !round.id) return;
+    fetch(`/api/rounds/${round.id}/participant-names`, { cache: 'no-store', credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null)).then((j) => { if (j?.names) setRealNames(j.names); }).catch(() => {});
+  }, [isHost, round.id, round.applicantIds]);
   if (!isHost) {
     if (!groups.length) {
       // 組み分けはあるが主催者がまだ公開していない（2026-10-06）
@@ -352,6 +360,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
         {/* 名前は縮み、補足は折り返す（枠からはみ出さない） */}
         <span className="min-w-0 flex-1 flex items-center gap-1.5 flex-wrap">
           <span className="truncate min-w-0 max-w-full">{nameOf(id)}</span>
+          {realNames[id] && <span className="text-[10px] text-green font-bold flex-shrink-0">📋 {realNames[id]}</span>}
           {metaOf(id) && <span className="text-[10px] text-muted font-normal break-words">（{metaOf(id)}）</span>}
           {isGuest(id) && <span className="text-[9px] font-bold text-sub bg-bg border border-border rounded px-1 flex-shrink-0">ゲスト</span>}
         </span>
@@ -368,9 +377,56 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
     );
   };
 
+  // ゴルフ場に送る用のテキスト：本名（姓 名）で、組ごとにコース・スタート時間・メンバー。後半の入れ替えがあれば後半も。
+  function buildCourseText(): string {
+    const fullName = (id: string) => {
+      if (isGuest(id)) return guestOf(id)?.name || 'ゲスト';
+      return realNames[id] || `${nameOf(id)}（本名未登録）`;
+    };
+    const d = round.date ? new Date(round.date) : null;
+    const dateStr = d && !isNaN(d.getTime()) ? `${d.getMonth() + 1}/${d.getDate()}（${'日月火水木金土'[d.getDay()]}）` : (round.date || '');
+    const all = groups.flatMap((g) => g.memberIds);
+    const lines: string[] = [];
+    lines.push(`【${round.title || 'ラウンド'}】`);
+    lines.push([dateStr, round.courseName].filter(Boolean).join(' '));
+    lines.push(`${all.length}名・${groups.length}組`);
+    lines.push('');
+    if (backOn && groupsBack.length) lines.push('■ 前半');
+    groups.forEach((g, i) => {
+      lines.push(`${i + 1}組${g.course ? ` ${g.course}` : ''}${g.startTime ? ` ${g.startTime}スタート` : ''}`);
+      g.memberIds.forEach((id) => lines.push(`  ${fullName(id)}`));
+      if (!g.memberIds.length) lines.push('  （未定）');
+      lines.push('');
+    });
+    if (backOn && groupsBack.length) {
+      lines.push('■ 後半（組の入れ替えあり）');
+      groupsBack.forEach((g, gi) => {
+        const fi = groups.findIndex((x) => x.id === g.id);
+        lines.push(`${fi >= 0 ? fi + 1 : gi + 1}組（後半）`);
+        g.memberIds.forEach((id) => lines.push(`  ${fullName(id)}`));
+        if (!g.memberIds.length) lines.push('  （未定）');
+        lines.push('');
+      });
+    }
+    const unassigned = participantIds.filter((id) => !all.includes(id) && !noShow.includes(id));
+    if (unassigned.length) { lines.push('■ 未割り当て'); unassigned.forEach((id) => lines.push(`  ${fullName(id)}`)); }
+    return lines.join(String.fromCharCode(10)).trim() + String.fromCharCode(10);
+  }
+
   return (
     <div className="bg-card rounded-card p-4 shadow-card mb-4">
-      <AssignmentsPublishBar round={round} />
+      <AssignmentsPublishBar round={round} target="groups" />
+      <button type="button" onClick={() => setExportOpen(true)}
+        className="w-full mb-2.5 py-2 rounded-xl border-[1.5px] border-green bg-card text-green text-[12.5px] font-black">
+        📄 ゴルフ場に送る組分けテキスト（本名）
+      </button>
+      {exportOpen && (
+        <GolfCourseExport
+          text={buildCourseText()}
+          onClose={() => setExportOpen(false)}
+          dirty={dirty}
+        />
+      )}
       <div className="text-[13px] font-bold mb-0.5">⛳ 組分け・スタート時間（主催者）</div>
       <div className="text-[10px] text-muted mb-2.5">各組の「＋ 追加」から未割り当ての人を選んで入れられます（ドラッグでも可）。メンバーの「×」または外へドラッグで未割り当てに戻せます。</div>
 
@@ -693,5 +749,44 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
       <div ref={ghostRef} style={{ display: 'none', position: 'fixed', zIndex: 9999, pointerEvents: 'none' }}
         className="items-center gap-2 bg-white border-[1.5px] border-green rounded-[10px] px-2.5 py-2 text-[13px] font-bold shadow-lg" />
     </div>
+  );
+}
+
+// ゴルフ場に送る組分けテキスト（主催者だけ）。コピー or テキストファイルで保存（2026-10-08）
+function GolfCourseExport({ text, onClose, dirty }: { text: string; onClose: () => void; dirty: boolean }) {
+  async function copy() {
+    try { await navigator.clipboard.writeText(text); toast('コピーしました'); }
+    catch { toast('コピーできませんでした。下の文章を長押ししてコピーしてください', 'error'); }
+  }
+  function download() {
+    try {
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = '組分け.txt';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    } catch { toast('保存できませんでした。コピーを使ってください', 'error'); }
+  }
+  const missing = (text.match(/（本名未登録）/g) || []).length;
+  return (
+    <Portal>
+      <div className="fixed inset-0 z-[1000] bg-black/40 flex items-end justify-center" onClick={onClose}>
+        <div className="w-full max-w-[430px] bg-card rounded-t-2xl p-4 max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center mb-1">
+            <div className="text-[14px] font-black flex-1">📄 ゴルフ場に送る組分けテキスト</div>
+            <button onClick={onClose} className="text-sub text-[18px] px-2" aria-label="閉じる">×</button>
+          </div>
+          <div className="text-[11px] text-sub leading-relaxed mb-2">
+            本名（姓 名）で出しています。主催者だけが見られます。{dirty ? '⚠️ まだ保存していない変更も含みます。' : ''}
+            {missing > 0 ? `本名が未登録の人が${missing}人います（表示名で出しています）。` : ''}
+          </div>
+          <textarea readOnly value={text} className="flex-1 min-h-[220px] w-full text-[12px] leading-relaxed border-[1.5px] border-border rounded-xl px-3 py-2.5 bg-bg font-mono" />
+          <div className="flex gap-2 mt-3">
+            <button onClick={copy} className="flex-1 py-3 rounded-xl bg-green text-white text-sm font-black">📋 コピー</button>
+            <button onClick={download} className="flex-1 py-3 rounded-xl bg-card border-[1.5px] border-border text-sub text-sm font-bold">💾 テキストで保存</button>
+          </div>
+        </div>
+      </div>
+    </Portal>
   );
 }
