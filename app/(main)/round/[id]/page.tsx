@@ -99,7 +99,7 @@ export default function RoundDetailPage() {
   const [tab, setTab] = useState<'people' | 'pickup' | 'groups' | 'hostnote' | 'album' | 'payment'>(
     () => {
       const t = search?.get('tab');
-      return t === 'groups' || t === 'pickup' || t === 'hostnote' || t === 'payment' ? t : 'people';
+      return t === 'groups' || t === 'pickup' || t === 'payment' ? t : 'people';   // hostnote はタブではなくなった（カード内で開く）
     },
   );
   // Host-only: kanji full names of participants (for golf-course registration).
@@ -731,6 +731,9 @@ export default function RoundDetailPage() {
           </div>
         )}
 
+        {/* 主催者からのメッセージ（2026-10-08 タブ→詳細カードのアコーディオンに）。参加者にはあるときだけ「メッセージあり」 */}
+        <HostNote round={round} isHost={isHost} defaultOpen={search?.get('tab') === 'hostnote'} />
+
         {/* Gender breakdown across host + approved applicants. Always shown
             (incl. competitions) so you can see the mix at a glance.
             運営枠だけは、そろうまで出さない（「女性2名」だけでも顔ぶれが推せてしまう）。 */}
@@ -923,8 +926,6 @@ export default function RoundDetailPage() {
             ['people', '参加してる人'],
             // 飲み会はピックアップ（送迎）・組み分けの概念がないので出さない。
             ...(isDrink ? [] : [['pickup', 'ピックアップ'], ['groups', '組み分け']]),
-            // 「主催者から」はコンペ、または既に連絡が書かれている場合に表示。
-            ...((round.isCompetition || round.hostNote) ? [['hostnote', '主催者から']] : []),
             // 入金管理がONのラウンドだけ。メンバー（主催者＋承認済み参加者）全員が見られる。
             ...((round.paymentEnabled && (isHost || isApproved)) ? [['payment', '💰 入金']] : []),
             // アルバムは参加者（主催者＋承認済み）だけに表示。
@@ -1248,10 +1249,6 @@ export default function RoundDetailPage() {
           </>
         )}
 
-        {/* ── 主催者から タブ（注意事項・ルール等。主催者のみ編集・参加者は閲覧） ── */}
-        {tab === 'hostnote' && (
-          <HostNote round={round} isHost={isHost} />
-        )}
 
         {/* ── 💰 入金 タブ（主催者がチェック・メンバー全員が閲覧） ── */}
         {tab === 'payment' && round.paymentEnabled && (isHost || isApproved) && (
