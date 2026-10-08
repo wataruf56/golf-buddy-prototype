@@ -21,7 +21,7 @@ import { isAvailRoom } from '@/lib/availabilityShared';
 import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
 import { GroupAssignment } from '@/components/GroupAssignment';
 import { GroupPrefs } from '@/components/GroupPrefs';
-import { HostNote } from '@/components/HostNote';
+import { HostNoteCard } from '@/components/HostNote';
 import { PaymentTracker } from '@/components/PaymentTracker';
 import { CarDispatch } from '@/components/CarDispatch';
 import { PickupStationPicker } from '@/components/PickupStationPicker';
@@ -731,8 +731,8 @@ export default function RoundDetailPage() {
           </div>
         )}
 
-        {/* 主催者からのメッセージ（2026-10-08 タブ→詳細カードのアコーディオンに）。参加者にはあるときだけ「メッセージあり」 */}
-        <HostNote round={round} isHost={isHost} defaultOpen={search?.get('tab') === 'hostnote'} />
+        {/* 主催者からのメッセージ（2026-10-08）。1行のカードだけ置き、押すと別ページ（/round/[id]/message）で読む／書く */}
+        <HostNoteCard round={round} isHost={isHost} />
 
         {/* Gender breakdown across host + approved applicants. Always shown
             (incl. competitions) so you can see the mix at a glance.
