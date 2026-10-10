@@ -80,6 +80,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
   if (has('description')) patch.description = body.description ? String(body.description).slice(0, 200) : '';
   if (has('meetingInfo')) patch.meetingInfo = body.meetingInfo ? String(body.meetingInfo).slice(0, 200) : '';
+  // キャンセル規定（null で外す）（2026-10-10）
+  if (has('cancelPolicy')) { const { sanitizeCancelPolicy } = await import('@/lib/cancelPolicy'); (patch as any).cancelPolicy = sanitizeCancelPolicy(body.cancelPolicy); }
   if (has('pickupStations')) patch.pickupStations = Array.isArray(body.pickupStations)
     ? body.pickupStations.map((x: any) => String(x).slice(0, 20)).slice(0, 20)
     : [];

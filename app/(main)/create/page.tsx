@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { CancelPolicyEditor, emptyCancelDraft, draftToPayload, type CancelPolicyDraft } from '@/components/CancelPolicy';
+import { jstToMs } from '@/lib/cancelPolicy';
 import { useRouter } from 'next/navigation';
 import { allAreas } from '@/lib/mockData';
 import { PickupStationPicker } from '@/components/PickupStationPicker';
@@ -106,6 +108,7 @@ export default function CreatePage() {
 
   // 入金管理（主催者が事前集金してまとめて払うケース）。ONにすると詳細に「💰 入金」タブが出る。
   const [paymentEnabled, setPaymentEnabled] = useState(false);
+  const [cancelDraft, setCancelDraft] = useState<CancelPolicyDraft>(emptyCancelDraft);   // キャンセル規定（任意）
   // 共同管理者（任意・複数可）。ゴル友（マッチ済み）から選ぶ。主催者と同権限＋作成時から参加確定。
   const [coHostIds, setCoHostIds] = useState<string[]>([]);
   const [coHostPickerOpen, setCoHostPickerOpen] = useState(false);
@@ -269,6 +272,10 @@ export default function CreatePage() {
       toast(isDrink ? '開催日を入力してください' : '募集内容の必須項目（コース／エリア／日程）を入力してください', 'error');
       setTab('basic'); return;
     }
+    // キャンセル規定：ONなら締切日は必須（2026-10-10）
+    if (!isDrink && cancelDraft.on && !jstToMs(cancelDraft.date, cancelDraft.time)) {
+      toast('キャンセル締切の日付を入れてください（入金タブ）', 'error'); setTab('payment'); return;
+    }
     // 飲み会は募集人数を決めない（定員なし）。人数チェックはゴルフのみ。
     if (!isDrink && maxSpots < 2) {
       toast('募集人数を入力してください', 'error');
@@ -315,6 +322,7 @@ export default function CreatePage() {
       coHostIds: coHostIds.length ? coHostIds : undefined,
       // 入金管理（ONなら詳細に「💰 入金」タブが出て、主催者が入金チェックを付けられる）。
       paymentEnabled,
+      cancelPolicy: !isDrink ? draftToPayload(cancelDraft, jstToMs) : null,
       // Admin-only: request publishing under the ゴルトモ公式 identity. Server
       // re-validates the caller is actually an admin before honoring this.
       asOfficial: isAdmin ? postAsOfficial : undefined,
@@ -784,6 +792,11 @@ export default function CreatePage() {
               <div className="px-3 py-2.5 bg-bg rounded-lg text-[11px] text-sub font-medium">
                 使わない場合はこのままでOKです（あとから募集の編集画面でONにもできます）。
               </div>
+            )}
+            {!isDrink && (
+              <Field label="キャンセル規定" hint="（任意・締切後のキャンセル料など）">
+                <CancelPolicyEditor value={cancelDraft} onChange={setCancelDraft} roundDate={date || undefined} />
+              </Field>
             )}
           </>
           )}

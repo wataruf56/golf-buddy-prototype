@@ -13,6 +13,8 @@ import { cn } from '@/lib/utils';
 import { Stepper } from '@/components/Stepper';
 import { isRoundHost } from '@/lib/roundHost';
 import { guestNamesFrom } from '@/lib/roundGuests';
+import { CancelPolicyEditor, emptyCancelDraft, draftToPayload, type CancelPolicyDraft } from '@/components/CancelPolicy';
+import { jstToMs, msToJst } from '@/lib/cancelPolicy';
 
 // 募集タイトルのプルダウン既定値。管理画面で編集されると /api/round-titles で上書き。
 const DEFAULT_TITLE_PRESETS = [
@@ -61,6 +63,7 @@ export default function EditRoundPage() {
   const [date, setDate] = useState('');
   const [startTime, setStartTime] = useState('8:00');
   const [meetingInfo, setMeetingInfo] = useState('');
+  const [cancelDraft, setCancelDraft] = useState<CancelPolicyDraft>(emptyCancelDraft);   // キャンセル規定（任意）
   const [area, setArea] = useState('');
   const [dateType, setDateType] = useState<'fixed' | 'range'>('fixed');
   const [dateRange, setDateRange] = useState('');
@@ -184,6 +187,8 @@ export default function EditRoundPage() {
     setDate(round.date || '');
     setStartTime(round.startTime || '8:00');
     setMeetingInfo(round.meetingInfo || '');
+    { const cp = (round as any).cancelPolicy; const j = msToJst(cp?.deadline);
+      setCancelDraft(cp?.deadline ? { on: true, date: j.date, time: j.time, fee: cp.fee ?? null, account: cp.account || '', condition: cp.condition || '' } : emptyCancelDraft); }
     setArea(round.area || '');
     setDateType(round.dateType === 'range' ? 'range' : 'fixed');
     setDateRange(round.dateRange || '');
@@ -344,6 +349,8 @@ export default function EditRoundPage() {
       pickupCapacity: offerPickup && pickupStations.length && pickupCapacity > 0 ? pickupCapacity : undefined,
       openChatUrl: openChatUrl.trim(),
     };
+    if (cancelDraft.on && !jstToMs(cancelDraft.date, cancelDraft.time)) { toast('キャンセル締切の日付を入れてください', 'error'); setSaving(false); return; }
+    (patch as any).cancelPolicy = draftToPayload(cancelDraft, jstToMs);
     if (isConfirmed) {
       patch.courseName = courseName;
       patch.area = area; // 都道府県
@@ -722,6 +729,12 @@ export default function EditRoundPage() {
                   onClick={() => router.push(`/round/${params.id}?tab=payment`)}
                   className="mt-2 w-full py-2.5 bg-bg border-[1.5px] border-border rounded-xl text-[12px] font-bold text-sub"
                 >💰 入金タブを開く（チェック・ゲスト追加）</button>
+              )}
+              {round.eventType !== 'drink' && (
+                <div className="mt-4">
+                  <div className="text-xs font-bold text-sub mb-1.5">キャンセル規定 <span className="text-muted font-medium">（任意・締切後のキャンセル料など）</span></div>
+                  <CancelPolicyEditor value={cancelDraft} onChange={setCancelDraft} roundDate={date || undefined} />
+                </div>
               )}
             </div>
           )}

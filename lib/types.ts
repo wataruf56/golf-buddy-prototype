@@ -239,6 +239,8 @@ export type Round = {
   //   false … 未公開（主催者だけに見える。新しく作った募集はここから）
   //   true  … 公開中
   //   未設定 … 旧データ。これまでどおり見えている扱い（急に隠さない）
+  // キャンセル規定（2026-10-10・任意）。締切・キャンセル料・振込先・条件。lib/cancelPolicy
+  cancelPolicy?: import('./cancelPolicy').CancelPolicy | null;
   // 2026-10-08：組み分けと配車（ピックアップ）の公開を分けた。assignmentsPublished は「組み分け」の公開。
   assignmentsPublished?: boolean;
   assignmentsPublishedAt?: number;

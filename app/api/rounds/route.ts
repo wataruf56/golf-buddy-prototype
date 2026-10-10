@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { isMatchingAllowedByAge, getCohort } from '@/lib/ageGate';
+import { sanitizeCancelPolicy } from '@/lib/cancelPolicy';
 import { isAdminUserId } from '@/lib/adminAccess';
 import { levelConditionLabel } from '@/lib/roundEligibility';
 import { reconcileGuests } from '@/lib/roundGuests';
@@ -152,6 +153,8 @@ export async function POST(req: NextRequest) {
     guests: guestList,
     // 入金管理（主催者が事前集金してまとめて払うケース）。ONのとき詳細に「💰 入金」タブが出る。
     paymentEnabled: !!body.paymentEnabled,
+    // キャンセル規定（任意・2026-10-10）
+    ...(sanitizeCancelPolicy(body.cancelPolicy) ? { cancelPolicy: sanitizeCancelPolicy(body.cancelPolicy) } : {}),
     // 飲み会は定員なしのため大きな maxSpots になるが、コンペ扱いにはしない。
     isCompetition: !isDrink && maxSpots >= 5,
     // "ゴルトモ公式" は管理者（福田渉）のみが選択可能。クライアントの申告は

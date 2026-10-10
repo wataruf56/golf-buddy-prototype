@@ -22,6 +22,8 @@ import { OfficialBadge, OfficialAvatar } from '@/components/OfficialHost';
 import { GroupAssignment } from '@/components/GroupAssignment';
 import { GroupPrefs } from '@/components/GroupPrefs';
 import { HostNoteCard } from '@/components/HostNote';
+import { CancelPolicyCard, CancelClosedBox } from '@/components/CancelPolicy';
+import { isPastCancelDeadline, formatCancelDeadline } from '@/lib/cancelPolicy';
 import { PaymentTracker } from '@/components/PaymentTracker';
 import { CarDispatch } from '@/components/CarDispatch';
 import { PickupStationPicker } from '@/components/PickupStationPicker';
@@ -733,6 +735,8 @@ export default function RoundDetailPage() {
 
         {/* 主催者からのメッセージ（2026-10-08）。1行のカードだけ置き、押すと別ページ（/round/[id]/message）で読む／書く */}
         <HostNoteCard round={round} isHost={isHost} />
+        {/* キャンセル規定（2026-10-10・任意） */}
+        <CancelPolicyCard round={round as any} />
 
         {/* Gender breakdown across host + approved applicants. Always shown
             (incl. competitions) so you can see the mix at a glance.
@@ -863,7 +867,16 @@ export default function RoundDetailPage() {
         ) : isApproved ? (
           <div className="space-y-2 mb-4">
             <div className="text-center py-3 bg-green-light text-green rounded-xl text-sm font-bold">✅ 参加確定</div>
-            <button onClick={() => setLeaveOpen(true)} className="w-full py-3 bg-card text-red border border-red rounded-xl text-sm font-bold">参加を取りやめる</button>
+            {isPastCancelDeadline(round as any) ? (
+              <CancelClosedBox round={round as any} dmHref={`/chat/${chatIdFor(meId, round.hostId)}?other=${round.hostId}`} />
+            ) : (
+              <>
+                <button onClick={() => setLeaveOpen(true)} className="w-full py-3 bg-card text-red border border-red rounded-xl text-sm font-bold">参加を取りやめる</button>
+                {(round as any).cancelPolicy?.deadline && (
+                  <div className="text-[10.5px] text-sub text-center">⏰ {formatCancelDeadline((round as any).cancelPolicy.deadline)}を過ぎると、アプリからはキャンセルできなくなります</div>
+                )}
+              </>
+            )}
           </div>
         ) : isPending ? (
           <div className="space-y-2 mb-4">

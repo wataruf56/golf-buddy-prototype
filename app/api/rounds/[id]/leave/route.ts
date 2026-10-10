@@ -16,6 +16,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   try { body = await req.json(); } catch { /* 本文なしでも抜けられる */ }
   const wasApproved = (round.applicantIds || []).includes(meId);
   const wasPending = (round.pendingApplicantIds || []).includes(meId);
+  // キャンセル締切を過ぎた参加確定者は、アプリからは取りやめられない（主催者にDMで連絡）（2026-10-10）
+  if (wasApproved) {
+    const { isPastCancelDeadline, formatCancelDeadline } = await import('@/lib/cancelPolicy');
+    if (isPastCancelDeadline(round as any)) {
+      return NextResponse.json({ error: 'cancel_deadline_passed', message: `キャンセル締切（${formatCancelDeadline((round as any).cancelPolicy.deadline)}）を過ぎたため、アプリからはキャンセルできません。主催者にDMで連絡してください。` }, { status: 403 });
+    }
+  }
   const { isLeaveReason, leaveReasonLabel } = await import('@/lib/leaveReasons');
   const reasonRaw = String(body?.reason || '');
   const reason = wasApproved ? (isLeaveReason(reasonRaw) ? reasonRaw : 'other') : 'withdraw';

@@ -1,5 +1,6 @@
 import type { Round } from './types';
 import { isRoundHost } from './roundHost';
+import { stripCancelAccountForViewer } from './cancelPolicy';
 
 // 組み分け希望（groupPrefs）は主催者だけが集計を見られる。配信時に、主催者以外へは
 // 「自分の入力ぶんだけ」に絞る（他の参加者の希望は一切見えないようにする）。
@@ -82,5 +83,5 @@ export function stripWaitlistForViewer(round: Round, viewerId: string | null): R
 }
 
 export function stripRoundForViewer(round: Round, viewerId: string | null): Round {
-  return stripWaitlistForViewer(stripAssignmentsForViewer(stripViews(stripGroupPrefsForViewer(stripInvitesForViewer(round, viewerId), viewerId)), viewerId), viewerId);
+  return stripCancelAccountForViewer(stripWaitlistForViewer(stripAssignmentsForViewer(stripViews(stripGroupPrefsForViewer(stripInvitesForViewer(round, viewerId), viewerId)), viewerId), viewerId), viewerId);
 }
