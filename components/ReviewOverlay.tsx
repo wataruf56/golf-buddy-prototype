@@ -13,7 +13,8 @@ import { cn } from '@/lib/utils';
 // （=また回りたいと同じ扱い）。当日来れなかった人は除外として薄く表示。
 // 過去に「また回りたい」を押している相手は、その状態（チェック済み）で再表示され、
 // 外すと静かに解消される。
-type Row = { verdict: ReviewVerdict | null };
+// base … 💘を押す前に選んでいた3択（💘を外したら戻す）（2026-10-10）
+type Row = { verdict: ReviewVerdict | null; base?: ReviewVerdict };
 type LikeState = { again: boolean; romantic: boolean; sameGroup: boolean };
 type MatchInfo = { state: Record<string, LikeState>; users: Record<string, any>; isCompetition: boolean };
 
@@ -57,7 +58,8 @@ export function ReviewOverlay() {
         for (const p of pending) {
           if (next[p.id]) continue;
           const st = m[p.roundId]?.state?.[p.revieweeId];
-          next[p.id] = { verdict: st?.romantic ? 'romantic' : st?.again ? 'again' : null };
+          // 2026-10-10：最初は全員「どっちでも」。過去に選んでいた人はその状態で出す
+          next[p.id] = { verdict: st?.romantic ? 'romantic' : st?.again ? 'again' : 'either', base: st?.again ? 'again' : 'either' };
         }
         return next;
       });
@@ -81,9 +83,9 @@ export function ReviewOverlay() {
 
   if (pending.length === 0) return null;
 
-  const get = (id: string): Row => rows[id] || { verdict: null };
+  const get = (id: string): Row => rows[id] || { verdict: 'either', base: 'either' };
   const upd = (id: string, patch: Partial<Row>) => setRows((p) => ({ ...p, [id]: { ...get(id), ...patch } }));
-  const answered = (r?: Row) => !!r && r.verdict !== null;
+  const answered = (r?: Row) => (r ? r.verdict !== null : true);   // 未操作でも「どっちでも」として送れる
   const ratedCount = pending.filter((p) => answered(rows[p.id])).length;
   const allRated = ratedCount === pending.length;
 
@@ -167,7 +169,7 @@ export function ReviewOverlay() {
         {/* ヘッダー（固定） */}
         <div className="px-5 pt-5 pb-3 border-b border-border flex-shrink-0">
           <h3 className="text-lg font-black">ラウンドレビュー</h3>
-          <div className="text-[12px] text-sub mt-0.5">同じ組で回った{pending.length}人に「また回りたいか」を選んでください（{ratedCount}/{pending.length}）</div>
+          <div className="text-[12px] text-sub mt-0.5">同じ組で回った{pending.length}人について答えてください</div>
           {/* 2026-10-10：いちばん大事な安心材料を大きく（本音で選んでもらうため） */}
           <div className="mt-2.5 px-3 py-3 rounded-xl border-2 border-border bg-[#FFF8E1] text-center">
             <div className="text-[17px] font-black text-text leading-snug">🔒 あなたが選んだものは<br />相手には伝わりません</div>
@@ -189,32 +191,46 @@ export function ReviewOverlay() {
               <div key={p.id} className="bg-bg rounded-xl p-3">
                 <div className="flex items-center gap-2.5 mb-2">
                   <Avatar user={target} size={40} emojiSize={20} />
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="text-sm font-bold truncate">{target.displayName}</div>
                     <div className="text-[11px] text-sub">
                       {target.gender === 'male' ? '👨 男性' : target.gender === 'female' ? '👩 女性' : ''}{target.age ? ` ・ ${target.age}歳` : ''}
                     </div>
                   </div>
+                  {/* 💘 は3択と場所を分ける（ふつうの評価の延長に見せない）。異性にだけ出す */}
+                  {opp && (
+                    <button
+                      type="button"
+                      onClick={() => upd(p.id, r.verdict === 'romantic'
+                        ? { verdict: r.base || 'either' }
+                        : { base: (r.verdict && r.verdict !== 'romantic' ? r.verdict : r.base) || 'either', verdict: 'romantic' })}
+                      className={cn('flex-shrink-0 px-2.5 py-1.5 rounded-full text-[11px] font-black border-[1.5px]',
+                        r.verdict === 'romantic' ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-pink-600 border-pink-600')}
+                    >💘 異性として気になる</button>
+                  )}
                 </div>
 
                 <div className="mt-1">
-                  <div className="text-[12px] font-black text-center mb-1.5">この人とまた回りたいですか？</div>
-                  <div className="grid grid-cols-2 gap-1.5">
+                  <div className="text-[12px] font-black text-center mb-1.5">この人からまた次のラウンドに誘われたら、行きたいと思う？</div>
+                  <div className={cn('grid grid-cols-3 gap-1.5', r.verdict === 'romantic' && 'opacity-40 grayscale pointer-events-none')}>
                     {([
-                      { key: 'again', label: '🏌️ また回りたい', sel: 'bg-green text-white border-green', show: true },
-                      { key: 'romantic', label: '💘 異性として気になる', sel: 'bg-pink-600 text-white border-pink-600', show: opp },
-                      { key: 'never', label: '🙇 ごめんなさい', sel: 'bg-[#C0392B] text-white border-[#C0392B]', show: true },
-                      { key: 'either', label: '🤷 どっちでもいい', sel: 'bg-[#9b876a] text-white border-[#9b876a]', show: true },
-                    ] as const).filter((o) => o.show).map((o) => (
-                      <button
-                        key={o.key}
-                        onClick={() => upd(p.id, { verdict: o.key })}
-                        className={cn('py-2.5 rounded-[12px] text-[12px] font-bold border-[1.5px] leading-tight', r.verdict === o.key ? o.sel : 'bg-card border-border text-sub')}
-                      >{r.verdict === o.key ? '✓ ' : ''}{o.label}</button>
-                    ))}
+                      { key: 'never', label: '思わない', sel: 'bg-[#C0392B] text-white border-[#C0392B]' },
+                      { key: 'either', label: 'どっちでも', sel: 'bg-[#9b876a] text-white border-[#9b876a]' },
+                      { key: 'again', label: '行きたい', sel: 'bg-green text-white border-green' },
+                    ] as const).map((o) => {
+                      const on = (r.verdict === 'romantic' ? r.base : r.verdict) === o.key;
+                      return (
+                        <button
+                          key={o.key}
+                          disabled={r.verdict === 'romantic'}
+                          onClick={() => upd(p.id, { verdict: o.key, base: o.key })}
+                          className={cn('py-2.5 rounded-[12px] text-[12px] font-bold border-[1.5px] leading-tight', on ? o.sel : 'bg-card border-border text-sub')}
+                        >{on ? '✓ ' : ''}{o.label}</button>
+                      );
+                    })}
                   </div>
                   {r.verdict === 'romantic' && (
-                    <div className="text-[10px] text-pink-600 font-bold mt-1 text-center">「また一緒に回りたい」も自動で含まれます</div>
+                    <div className="text-[10px] text-pink-600 font-bold mt-1 text-center">💘 を選んだので、この質問は答えなくてOK（もう一度押すと外れます）</div>
                   )}
                   {/* 「ごめんなさい」はDMも閉じる。押す前に必ず伝える。
                       「相手からも来なくなる」ことが、選ぶ人がいちばん気にする点。 */}

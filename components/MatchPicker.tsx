@@ -58,7 +58,7 @@ export function MatchPicker({ roundId }: { roundId: string }) {
       const d = await res.json();
       if (res.ok && on && d?.matched) {
         setState((s) => ({ ...s, [toUserId]: { ...(s[toUserId] as MatchEntry), [kind === 'again' ? 'matchedAgain' : 'matchedRomantic']: true } }));
-        toast(kind === 'again' ? '🏌️ マッチ成立！「また回りたい」同士です' : '💘 マッチ成立！気になる同士です');
+        toast(kind === 'again' ? '🏌️ マッチ成立！お互いに「行きたい」です' : '💘 マッチ成立！気になる同士です');
       }
     } catch {
       toast('通信に失敗しました', 'error');
@@ -110,7 +110,7 @@ export function MatchPicker({ roundId }: { roundId: string }) {
                 // 同じ組（必須レビュー）は確定済み＝変更不可。現在の選択を表示のみ。
                 <>
                   <div className="flex gap-1.5">
-                    <div className={'flex-1 px-2 py-2 rounded-full text-[12px] font-bold border-[1.5px] text-center ' + (e.again ? 'bg-green text-white border-green' : 'bg-bg border-border text-muted')}>{e.again ? '✓ ' : ''}🏌️ また回りたい</div>
+                    <div className={'flex-1 px-2 py-2 rounded-full text-[12px] font-bold border-[1.5px] text-center ' + (e.again ? 'bg-green text-white border-green' : 'bg-bg border-border text-muted')}>{e.again ? '✓ ' : ''}行きたい</div>
                     {isOpp(u.gender) && (
                       <div className={'flex-1 px-2 py-2 rounded-full text-[12px] font-bold border-[1.5px] text-center ' + (e.romantic ? 'bg-pink-600 text-white border-pink-600' : 'bg-bg border-border text-muted')}>{e.romantic ? '✓ ' : ''}💘 異性として気になる</div>
                     )}
@@ -124,7 +124,7 @@ export function MatchPicker({ roundId }: { roundId: string }) {
                     onClick={() => toggle(id, 'again')}
                     disabled={!!busy}
                     className={'flex-1 px-2 py-2 rounded-full text-[12px] font-bold border-[1.5px] ' + (e.again ? 'bg-green text-white border-green' : 'bg-card border-border text-sub')}
-                  >{e.again ? '✓ ' : ''}🏌️ 回ってみたい</button>
+                  >{e.again ? '✓ ' : ''}🏌️ 誘われたら行きたい</button>
                 </div>
               )}
             </div>
