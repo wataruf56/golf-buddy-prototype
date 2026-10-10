@@ -203,7 +203,8 @@ export function ReviewOverlay() {
                       type="button"
                       onClick={() => upd(p.id, r.verdict === 'romantic'
                         ? { verdict: r.base || 'either' }
-                        : { base: (r.verdict && r.verdict !== 'romantic' ? r.verdict : r.base) || 'either', verdict: 'romantic' })}
+                        // この枝では verdict は 'romantic' ではない（TSが絞り込み済み）ので、比較は書かない
+                        : { base: (r.verdict || r.base) || 'either', verdict: 'romantic' })}
                       className={cn('flex-shrink-0 px-2.5 py-1.5 rounded-full text-[11px] font-black border-[1.5px]',
                         r.verdict === 'romantic' ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-pink-600 border-pink-600')}
                     >💘 異性として気になる</button>
