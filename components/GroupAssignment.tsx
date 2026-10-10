@@ -130,7 +130,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
       return null;
     }
     const showBack = groupsBack.length > 0;
-    const listOf = (gs: RoundGroup[]) => gs.map((g, gi) => (
+    const listOf = (gs: RoundGroup[], half: 'front' | 'back' = 'front') => gs.map((g, gi) => (
             <div key={g.id} className="bg-bg rounded-xl p-2.5">
               <div className="flex items-center justify-between mb-1.5 gap-2">
                 <span className="text-[12px] font-bold">組{gi + 1}{g.course && <span className="ml-1.5 text-[11px] font-bold text-blue">⛳ {g.course}</span>}</span>
@@ -147,6 +147,9 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
                         : <span className="w-[18px] h-[18px] rounded-full bg-bg border border-border flex items-center justify-center text-[10px]">👤</span>}
                       <span className="text-[11px] font-semibold">{nameOf(id)}</span>
                       {meta && <span className="text-[9px] text-muted font-normal">（{meta}）</span>}
+                      {half === 'back' && (() => { const fi = groups.findIndex((x) => x.memberIds.includes(id)); if (fi < 0) return null; return groups[fi].id === g.id
+                        ? <span className="text-[9px] font-bold text-green">前半も一緒</span>
+                        : <span className="text-[9px] font-bold text-orange">🔁 前半{fi + 1}組から</span>; })()}
                     </span>
                   );
                 })}
@@ -160,7 +163,8 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
         {showBack && (
           <>
             <div className="text-[13px] font-bold mt-3 mb-2">🔁 後半の組<span className="text-[11px] text-sub ml-1.5">（前半と入れ替え）</span></div>
-            <div className="flex flex-col gap-2">{listOf(groupsBack)}</div>
+            <div className="text-[10.5px] text-sub mb-1.5">後半（折り返し）で組が入れ替わります。「🔁 前半◯組から」の人が、後半に新しく一緒になる人です。</div>
+            <div className="flex flex-col gap-2">{listOf(groupsBack, 'back')}</div>
           </>
         )}
       </div>
@@ -345,7 +349,24 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   // setDraggingId による再レンダーでカードのDOMが作り直され、ポインターキャプチャが
   // 外れてドロップが効かなくなる（移動できないバグの原因）。key付き要素を直接返して
   // 同一DOMを保ち、キャプチャを維持する。
-  const renderMember = (id: string, inGroup?: boolean, inNoShow?: boolean, board: 'front' | 'back' = 'front') => {
+  // 前半・後半の入れ替えをわかりやすく（2026-10-10）：札に「前半も同じ組」「前半は◯組から」「後半は◯組へ」
+  const frontIdxOf = (id: string) => groups.findIndex((g) => g.memberIds.includes(id));
+  const backIdxOf = (id: string) => groupsBack.findIndex((g) => g.memberIds.includes(id));
+  const swapBadge = (id: string, board: 'front' | 'back', groupId?: string) => {
+    if (!backOn || !groupsBack.length) return null;
+    if (board === 'back') {
+      const fi = frontIdxOf(id);
+      if (fi < 0) return null;
+      if (groupId && groups[fi].id === groupId) return <span className="text-[9px] font-black px-1.5 py-[1px] rounded-full bg-green-light text-green border border-green flex-shrink-0">前半も同じ組</span>;
+      return <span className="text-[9px] font-black px-1.5 py-[1px] rounded-full bg-orange-light text-orange border border-orange flex-shrink-0">🔁 前半は{fi + 1}組{groupId ? 'から' : ''}</span>;
+    }
+    const bi = backIdxOf(id); const fi = frontIdxOf(id);
+    if (bi < 0 || fi < 0) return null;
+    const bfi = groups.findIndex((g) => g.id === groupsBack[bi].id);
+    if (bfi === fi) return null;
+    return <span className="text-[9px] font-black px-1.5 py-[1px] rounded-full bg-orange-light text-orange border border-orange flex-shrink-0">🔁 後半は{(bfi >= 0 ? bfi : bi) + 1}組へ</span>;
+  };
+  const renderMember = (id: string, inGroup?: boolean, inNoShow?: boolean, board: 'front' | 'back' = 'front', groupId?: string) => {
     const u = userOf(id);
     return (
       <div
@@ -367,6 +388,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
           {realNames[id] && <span className="text-[10px] text-green font-bold flex-shrink-0">📋 {realNames[id]}</span>}
           {metaOf(id) && <span className="text-[10px] text-muted font-normal break-words">（{metaOf(id)}）</span>}
           {isGuest(id) && <span className="text-[9px] font-bold text-sub bg-bg border border-border rounded px-1 flex-shrink-0">ゲスト</span>}
+          {(inGroup || board === 'back') && swapBadge(id, board, groupId)}
         </span>
         {(inGroup || inNoShow) && (
           <button
@@ -411,6 +433,28 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   };
 
   // ゴルフ場に送る用のテキスト：本名（姓 名）で、組ごとにコース・スタート時間・メンバー。後半の入れ替えがあれば後半も。
+  // ゴルフ場に送る組分け（テキスト・画像の共通データ）
+  type CourseSheet = { title: string; sub: string; count: string; sections: Array<{ head: string; groups: Array<{ label: string; members: string[] }> }>; unassigned: string[] };
+  function buildCourseSheet(): CourseSheet {
+    const fullName = (id: string) => (isGuest(id) ? (guestOf(id)?.name || 'ゲスト') : (realNames[id] || `${nameOf(id)}（本名未登録）`));
+    const d = round.date ? new Date(round.date) : null;
+    const dateStr = d && !isNaN(d.getTime()) ? `${d.getMonth() + 1}/${d.getDate()}（${'日月火水木金土'[d.getDay()]}）` : (round.date || '');
+    const all = groups.flatMap((g) => g.memberIds);
+    const back = backOn && groupsBack.length > 0;
+    const sections: CourseSheet['sections'] = [{
+      head: back ? '前半' : '',
+      groups: groups.map((g, i) => ({ label: `${i + 1}組${g.course ? ` ${g.course}` : ''}${g.startTime ? ` ${g.startTime}スタート` : ''}`, members: g.memberIds.map(fullName) })),
+    }];
+    if (back) sections.push({
+      head: '後半（組の入れ替えあり）',
+      groups: groupsBack.map((g, gi) => { const fi = groups.findIndex((x) => x.id === g.id); return { label: `${fi >= 0 ? fi + 1 : gi + 1}組（後半）`, members: g.memberIds.map(fullName) }; }),
+    });
+    return {
+      title: round.title || 'ラウンド', sub: [dateStr, round.courseName].filter(Boolean).join(' '), count: `${all.length}名・${groups.length}組`,
+      sections, unassigned: participantIds.filter((id) => !all.includes(id) && !noShow.includes(id)).map(fullName),
+    };
+  }
+
   function buildCourseText(): string {
     const fullName = (id: string) => {
       if (isGuest(id)) return guestOf(id)?.name || 'ゲスト';
@@ -456,6 +500,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
       {exportOpen && (
         <GolfCourseExport
           text={buildCourseText()}
+          sheet={buildCourseSheet()}
           onClose={() => setExportOpen(false)}
           dirty={dirty}
         />
@@ -688,6 +733,20 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
                         <span className="text-[11px] text-sub font-bold">{g.startTime || ''}</span>
                       </div>
                       {over && <div className="text-[10px] text-red-600 font-bold mb-1.5">⚠️ 人数オーバーです（{g.memberIds.length}名 / 規定{GROUP_MAX}名）</div>}
+                      {(() => {
+                        const front = groups.find((x) => x.id === g.id)?.memberIds || [];
+                        const stay = g.memberIds.filter((id) => front.includes(id));
+                        const came = g.memberIds.filter((id) => !front.includes(id));
+                        const left = front.filter((id) => !g.memberIds.includes(id));
+                        if (!came.length && !left.length) return <div className="text-[10.5px] text-green font-bold mb-1.5">前半と同じメンバーです</div>;
+                        return (
+                          <div className="text-[10.5px] leading-relaxed mb-1.5 bg-bg rounded-lg px-2 py-1.5">
+                            {stay.length > 0 && <div><span className="text-green font-black">前半で一緒だった人：</span>{stay.map(nameOf).join('・')}</div>}
+                            {came.length > 0 && <div><span className="text-orange font-black">入れ替えで来る人：</span>{came.map((id) => `${nameOf(id)}（前半${frontIdxOf(id) + 1}組）`).join('・')}</div>}
+                            {left.length > 0 && <div><span className="text-sub font-black">別の組へ行く人：</span>{left.map((id) => { const bi = backIdxOf(id); const bfi = bi >= 0 ? groups.findIndex((x) => x.id === groupsBack[bi].id) : -1; return `${nameOf(id)}${bi >= 0 ? `（後半${(bfi >= 0 ? bfi : bi) + 1}組へ）` : '（未割り当て）'}`; }).join('・')}</div>}
+                          </div>
+                        );
+                      })()}
                       {avoidHits(g.memberIds).map(({ a, b, mutual }) => (
                         <div key={`${a}|${b}`} className="text-[11px] text-red-600 font-bold mb-1.5 bg-red-50 border border-red-200 rounded-lg px-2 py-1.5 leading-relaxed">
                           ⚠️ {mutual
@@ -698,7 +757,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
                       <div className="flex flex-col gap-1.5 min-h-[40px]">
                         {g.memberIds.length === 0
                           ? <div className="text-[11px] text-muted px-1 py-1.5">「＋ 追加」で選ぶか、ここにドラッグ</div>
-                          : g.memberIds.map((id) => renderMember(id, true, false, 'back'))}
+                          : g.memberIds.map((id) => renderMember(id, true, false, 'back', g.id))}
                       </div>
                       {renderPairNotes(g.memberIds)}
                       <button type="button" onClick={() => setPickerFor(`back:${g.id}`)} disabled={backPoolAll.length === 0}
@@ -788,7 +847,61 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
 }
 
 // ゴルフ場に送る組分けテキスト（主催者だけ）。コピー or テキストファイルで保存（2026-10-08）
-function GolfCourseExport({ text, onClose, dirty }: { text: string; onClose: () => void; dirty: boolean }) {
+// 組分けを A4 縦の画像に描く（コンビニのコピー機で印刷する用。2026-10-10）
+function drawCourseSheet(sheet: any): string {
+  const W = 1654, H = 2339, M = 90;   // A4 縦・200dpi
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d')!;
+  x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
+  const FONT = '"Hiragino Sans","Yu Gothic","Noto Sans JP",sans-serif';
+  const groupsAll = sheet.sections.flatMap((s: any) => s.groups);
+  const maxMembers = Math.max(4, ...groupsAll.map((g: any) => g.members.length));
+  const cols = 2;
+  const rowsBySection = sheet.sections.map((s: any) => Math.ceil(s.groups.length / cols));
+  const totalRows = rowsBySection.reduce((a: number, b: number) => a + b, 0) + (sheet.unassigned.length ? 1 : 0);
+  // 1行（1組の箱）の高さを、全部が1枚に収まるように決める
+  const headerH = 230, sectionHeadH = 80 * sheet.sections.filter((s: any) => s.head).length;
+  const avail = H - M * 2 - headerH - sectionHeadH;
+  const boxH = Math.min(70 + maxMembers * 64, Math.floor(avail / Math.max(1, totalRows)) - 24);
+  const lineH = Math.max(30, Math.floor((boxH - 70) / maxMembers));
+  const fs = Math.min(44, Math.floor(lineH * 0.72));
+  let y = M;
+  x.fillStyle = '#111'; x.font = `bold 64px ${FONT}`; x.fillText(sheet.title, M, y + 60);
+  x.font = `bold 40px ${FONT}`; x.fillStyle = '#333'; x.fillText([sheet.sub, sheet.count].filter(Boolean).join('　'), M, y + 130);
+  x.strokeStyle = '#111'; x.lineWidth = 4; x.beginPath(); x.moveTo(M, y + 170); x.lineTo(W - M, y + 170); x.stroke();
+  y += headerH;
+  const colW = (W - M * 2 - 40) / cols;
+  for (const sec of sheet.sections) {
+    if (sec.head) { x.fillStyle = '#111'; x.font = `bold 46px ${FONT}`; x.fillText(`■ ${sec.head}`, M, y + 50); y += 80; }
+    sec.groups.forEach((g: any, i: number) => {
+      const col = i % cols; const row = Math.floor(i / cols);
+      const bx = M + col * (colW + 40); const by = y + row * (boxH + 24);
+      x.strokeStyle = '#111'; x.lineWidth = 3; x.strokeRect(bx, by, colW, boxH);
+      x.fillStyle = '#eeeeee'; x.fillRect(bx + 2, by + 2, colW - 4, 60);
+      x.fillStyle = '#111'; x.font = `bold 38px ${FONT}`; x.fillText(g.label, bx + 20, by + 45);
+      x.font = `${fs}px ${FONT}`;
+      (g.members.length ? g.members : ['（未定）']).forEach((m: string, k: number) => {
+        x.fillText(m, bx + 30, by + 62 + lineH * (k + 1) - Math.floor((lineH - fs) / 2));
+      });
+    });
+    y += Math.ceil(sec.groups.length / cols) * (boxH + 24) + 10;
+  }
+  if (sheet.unassigned.length) {
+    x.fillStyle = '#111'; x.font = `bold 40px ${FONT}`; x.fillText(`■ 未割り当て：${sheet.unassigned.join('、')}`, M, Math.min(y + 50, H - M));
+  }
+  return c.toDataURL('image/png');
+}
+
+function GolfCourseExport({ text, sheet, onClose, dirty }: { text: string; sheet: any; onClose: () => void; dirty: boolean }) {
+  const [img, setImg] = useState('');
+  function makeImage() {
+    try {
+      const url = drawCourseSheet(sheet);
+      setImg(url);
+      const a = document.createElement('a'); a.href = url; a.download = '組分け.png';
+      document.body.appendChild(a); a.click(); a.remove();
+    } catch { toast('画像を作れませんでした', 'error'); }
+  }
   async function copy() {
     try { await navigator.clipboard.writeText(text); toast('コピーしました'); }
     catch { toast('コピーできませんでした。下の文章を長押ししてコピーしてください', 'error'); }
@@ -807,7 +920,7 @@ function GolfCourseExport({ text, onClose, dirty }: { text: string; onClose: () 
   return (
     <Portal>
       <div className="fixed inset-0 z-[1000] bg-black/40 flex items-end justify-center" onClick={onClose}>
-        <div className="w-full max-w-[430px] bg-card rounded-t-2xl p-4 max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="w-full max-w-[430px] bg-card rounded-t-2xl p-4 max-h-[85vh] flex flex-col overflow-y-auto" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center mb-1">
             <div className="text-[14px] font-black flex-1">📄 ゴルフ場に送る組分けテキスト</div>
             <button onClick={onClose} className="text-sub text-[18px] px-2" aria-label="閉じる">×</button>
@@ -821,6 +934,13 @@ function GolfCourseExport({ text, onClose, dirty }: { text: string; onClose: () 
             <button onClick={copy} className="flex-1 py-3 rounded-xl bg-green text-white text-sm font-black">📋 コピー</button>
             <button onClick={download} className="flex-1 py-3 rounded-xl bg-card border-[1.5px] border-border text-sub text-sm font-bold">💾 テキストで保存</button>
           </div>
+          <button onClick={makeImage} className="w-full mt-2 py-3 rounded-xl bg-orange text-white text-sm font-black">🖼 画像で保存（印刷用・A4）</button>
+          {img && (
+            <div className="mt-2">
+              <div className="text-[11px] text-sub mb-1">保存されない場合は、下の画像を長押しして「写真に保存」してください。コンビニのコピー機の「写真プリント／ネットプリント」で A4 印刷できます。</div>
+              <img src={img} alt="組分け（印刷用）" className="w-full border border-border rounded-lg" />
+            </div>
+          )}
         </div>
       </div>
     </Portal>
