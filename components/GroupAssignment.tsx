@@ -501,6 +501,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
         <GolfCourseExport
           text={buildCourseText()}
           sheet={buildCourseSheet()}
+          roundId={round.id}
           onClose={() => setExportOpen(false)}
           dirty={dirty}
         />
@@ -892,15 +893,42 @@ function drawCourseSheet(sheet: any): string {
   return c.toDataURL('image/png');
 }
 
-function GolfCourseExport({ text, sheet, onClose, dirty }: { text: string; sheet: any; onClose: () => void; dirty: boolean }) {
+function GolfCourseExport({ text, sheet, onClose, dirty, roundId }: { text: string; sheet: any; onClose: () => void; dirty: boolean; roundId: string }) {
   const [img, setImg] = useState('');
-  function makeImage() {
+  // 画像で保存（2026-10-10 直し）：LINE の中のブラウザはダウンロードができないため、
+  //   ① 共有シート（「画像を保存」「プリント」が選べる）→ ② LINE の中なら外部ブラウザで画像を開く → ③ PC はそのままダウンロード
+  const [saving, setSaving] = useState(false);
+  async function makeImage() {
+    if (saving) return;
+    setSaving(true);
     try {
       const url = drawCourseSheet(sheet);
       setImg(url);
-      const a = document.createElement('a'); a.href = url; a.download = '組分け.png';
+      const blob = await (await fetch(url)).blob();
+      const file = new File([blob], '組分け.png', { type: 'image/png' });
+      const inLine = /Line\//i.test(navigator.userAgent);
+      const nav = navigator as any;
+      if (!inLine && nav.canShare && nav.canShare({ files: [file] })) {
+        try { await nav.share({ files: [file], title: '組分け' }); return; } catch (e: any) { if (e?.name === 'AbortError') return; }
+      }
+      if (inLine || /iPhone|iPad|Android/i.test(navigator.userAgent)) {
+        const res = await fetch(`/api/rounds/${roundId}/course-sheet`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ dataUrl: url }),
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok || !j?.url) throw new Error('upload');
+        // LINE のブラウザは ?openExternalBrowser=1 を付けると Safari / Chrome で開く
+        window.location.href = `${j.url}${inLine ? '?openExternalBrowser=1' : ''}`;
+        toast('ブラウザで画像を開きます。長押しで「写真に保存」できます');
+        return;
+      }
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = objUrl; a.download = '組分け.png';
       document.body.appendChild(a); a.click(); a.remove();
-    } catch { toast('画像を作れませんでした', 'error'); }
+      setTimeout(() => URL.revokeObjectURL(objUrl), 3000);
+      toast('画像を保存しました');
+    } catch { toast('画像を保存できませんでした。下の画像を長押しして保存してください', 'error'); }
+    finally { setSaving(false); }
   }
   async function copy() {
     try { await navigator.clipboard.writeText(text); toast('コピーしました'); }
@@ -934,7 +962,7 @@ function GolfCourseExport({ text, sheet, onClose, dirty }: { text: string; sheet
             <button onClick={copy} className="flex-1 py-3 rounded-xl bg-green text-white text-sm font-black">📋 コピー</button>
             <button onClick={download} className="flex-1 py-3 rounded-xl bg-card border-[1.5px] border-border text-sub text-sm font-bold">💾 テキストで保存</button>
           </div>
-          <button onClick={makeImage} className="w-full mt-2 py-3 rounded-xl bg-orange text-white text-sm font-black">🖼 画像で保存（印刷用・A4）</button>
+          <button onClick={makeImage} disabled={saving} className="w-full mt-2 py-3 rounded-xl bg-orange text-white text-sm font-black disabled:opacity-60">{saving ? '画像を作っています…' : '🖼 画像で保存（印刷用・A4）'}</button>
           {img && (
             <div className="mt-2">
               <div className="text-[11px] text-sub mb-1">保存されない場合は、下の画像を長押しして「写真に保存」してください。コンビニのコピー機の「写真プリント／ネットプリント」で A4 印刷できます。</div>
