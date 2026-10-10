@@ -272,8 +272,8 @@ export default async function Page() {
           <span className="n">いつ・誰と・いくらで行くか</span>
         </a>
         <a href="/guide/find-golf-friends">
-          <span className="l">ゴルフ友達の探し方7つ</span>
-          <span className="n">費用・すぐ行けるか・気まずさで比較</span>
+          <span className="l">ゴルフ友達探しの方法7つ</span>
+          <span className="n">ゴルフ仲間がいない人へ。費用・気まずさで比較</span>
         </a>
         <a href="/about">
           <span className="l">ゴルトモとは</span>

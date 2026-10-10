@@ -338,8 +338,8 @@ export default async function AboutPage() {
       <div className="rel">
         <div className="t">続けて読む</div>
         <a href="/guide/find-golf-friends">
-          <span className="l">ゴルフ友達の探し方7つ</span>
-          <span className="n">費用・すぐ行けるか・気まずさで比較</span>
+          <span className="l">ゴルフ友達探しの方法7つ</span>
+          <span className="n">ゴルフ仲間がいない人へ。費用・気まずさで比較</span>
         </a>
         <a href="/golmoti.html">
           <span className="l">ゴルフ版MBTI・16タイプ診断</span>

@@ -308,8 +308,8 @@ export default async function Page() {
           <span className="n">集まる募集の書き方と選び方</span>
         </a>
         <a href="/guide/find-golf-friends">
-          <span className="l">ゴルフ友達の探し方7つ</span>
-          <span className="n">ゴルフ友達探しの方法を比較</span>
+          <span className="l">ゴルフ友達探しの方法7つ</span>
+          <span className="n">ゴルフ仲間がいない人へ。7つの方法を比較</span>
         </a>
       </div>
     </ArticleShell>

@@ -298,8 +298,8 @@ export default async function Page() {
           <span className="n">1人予約と一人参加の違い・当日の流れ</span>
         </a>
         <a href="/guide/find-golf-friends">
-          <span className="l">ゴルフ友達の探し方7つ</span>
-          <span className="n">費用・すぐ行けるか・気まずさで比較</span>
+          <span className="l">ゴルフ友達探しの方法7つ</span>
+          <span className="n">ゴルフ仲間がいない人へ。費用・気まずさで比較</span>
         </a>
         <a href="/guide/golf-without-car">
           <span className="l">車がなくてもゴルフに行く方法</span>

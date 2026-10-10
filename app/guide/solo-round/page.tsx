@@ -319,8 +319,8 @@ export default async function Page() {
       <div className="rel">
         <div className="t">関連する記事</div>
         <a href="/guide/find-golf-friends">
-          <span className="l">ゴルフ友達の探し方7つ</span>
-          <span className="n">費用・すぐ行けるか・気まずさで比較</span>
+          <span className="l">ゴルフ友達探しの方法7つ</span>
+          <span className="n">ゴルフ仲間がいない人へ。費用・気まずさで比較</span>
         </a>
         <a href="/guide/round-debut">
           <span className="l">ラウンドデビューの進め方</span>

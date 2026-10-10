@@ -322,8 +322,8 @@ export default async function Page() {
           <span className="n">仕事で必要になった人と、趣味で始める人へ</span>
         </a>
         <a href="/guide/find-golf-friends">
-          <span className="l">ゴルフ友達の探し方7つ</span>
-          <span className="n">ゴルフ友達探しの方法を比較</span>
+          <span className="l">ゴルフ友達探しの方法7つ</span>
+          <span className="n">ゴルフ仲間がいない人へ。7つの方法を比較</span>
         </a>
         <a href="/guide/round-recruit">
           <span className="l">ゴルフのラウンド募集</span>
