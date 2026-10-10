@@ -74,6 +74,10 @@ export function MatchPicker({ roundId }: { roundId: string }) {
   return (
     <div>
       {/* 注意書き（メモ欄） */}
+      <div className="mb-2 px-3 py-3 rounded-xl border-2 border-border bg-[#FFF8E1] text-center">
+        <div className="text-[16px] font-black text-text leading-snug">🔒 あなたが選んだものは<br />相手には伝わりません</div>
+        <div className="text-[11px] text-sub mt-1 leading-relaxed">お互いに選び合ったときだけ「マッチ」として2人に届きます。</div>
+      </div>
       <div className="mb-3 px-3 py-2.5 bg-green-light rounded-lg text-[11px] text-green leading-relaxed space-y-1.5">
         <div>🎁 <b>マッチすると</b>、次回のゴルトモ<b>公式コンペ等で“同じ組”になるよう配慮</b>されます。気の合った人とまた回れるチャンス！</div>
         <div>🔒 <b>押すだけでは相手に伝わりません。</b>お互いが選び合って<b>マッチした時だけ</b>双方に通知されます。片方だけなら相手に知られることはありません。</div>

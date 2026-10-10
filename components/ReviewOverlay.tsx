@@ -168,15 +168,13 @@ export function ReviewOverlay() {
         <div className="px-5 pt-5 pb-3 border-b border-border flex-shrink-0">
           <h3 className="text-lg font-black">ラウンドレビュー</h3>
           <div className="text-[12px] text-sub mt-0.5">同じ組で回った{pending.length}人に「また回りたいか」を選んでください（{ratedCount}/{pending.length}）</div>
-          <div className="mt-2.5 px-3 py-2.5 bg-green-light rounded-xl text-[12px] text-green leading-relaxed space-y-1.5">
-            <div>
-              🎁 <b>マッチすると何が起きる？</b><br />
-              「また回りたい」「異性として気になる」で<b>お互いが選び合ってマッチ</b>すると、次回のゴルトモ<b>公式コンペ等で“同じ組”になるよう配慮</b>されます。気の合った人とまた回れるチャンスです。
-            </div>
-            <div className="pt-1.5 border-t border-green/30">
-              🔒 <b>押すだけでは相手に伝わりません。</b><br />
-              あなたが選んだだけでは相手に通知されません。<u>お互いが選んで初めて「マッチ」</u>として双方に伝わります。相手が選ばなければ、あなたの選択が知られることは一切ありません。
-            </div>
+          {/* 2026-10-10：いちばん大事な安心材料を大きく（本音で選んでもらうため） */}
+          <div className="mt-2.5 px-3 py-3 rounded-xl border-2 border-border bg-[#FFF8E1] text-center">
+            <div className="text-[17px] font-black text-text leading-snug">🔒 あなたが選んだものは<br />相手には伝わりません</div>
+            <div className="text-[11.5px] text-sub mt-1 leading-relaxed">お互いに選び合ったときだけ「マッチ」として2人に届きます。<br />片方だけなら、相手に知られることは一切ありません。</div>
+          </div>
+          <div className="mt-2 px-3 py-2 bg-green-light rounded-xl text-[11.5px] text-green leading-relaxed">
+            🎁 <b>マッチすると</b>、次回のゴルトモ<b>公式コンペ等で“同じ組”になるよう配慮</b>されます。
           </div>
         </div>
 
