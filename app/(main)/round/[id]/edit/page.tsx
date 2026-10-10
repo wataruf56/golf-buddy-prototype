@@ -653,6 +653,12 @@ export default function EditRoundPage() {
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={200} placeholder="募集の趣旨や雰囲気を伝えましょう（200文字以内）" className="w-full h-20 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-none" />
             </Field>
 
+            {round?.eventType !== 'drink' && (
+              <Field label="キャンセル日" hint="（任意）">
+                <CancelPolicyEditor value={cancelDraft} onChange={setCancelDraft} roundDate={date || undefined} />
+              </Field>
+            )}
+
             <Field label="LINEオープンチャットURL" hint="（任意・参加者に表示されます）">
               <input
                 value={openChatUrl}
@@ -729,12 +735,6 @@ export default function EditRoundPage() {
                   onClick={() => router.push(`/round/${params.id}?tab=payment`)}
                   className="mt-2 w-full py-2.5 bg-bg border-[1.5px] border-border rounded-xl text-[12px] font-bold text-sub"
                 >💰 入金タブを開く（チェック・ゲスト追加）</button>
-              )}
-              {round.eventType !== 'drink' && (
-                <div className="mt-4">
-                  <div className="text-xs font-bold text-sub mb-1.5">キャンセル規定 <span className="text-muted font-medium">（任意・締切後のキャンセル料など）</span></div>
-                  <CancelPolicyEditor value={cancelDraft} onChange={setCancelDraft} roundDate={date || undefined} />
-                </div>
               )}
             </div>
           )}

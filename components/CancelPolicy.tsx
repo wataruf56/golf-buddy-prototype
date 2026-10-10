@@ -21,14 +21,14 @@ export function CancelPolicyEditor({ value, onChange, roundDate }: { value: Canc
         className={'w-full flex items-center gap-3 p-3 rounded-[10px] border-[1.5px] text-left ' + (value.on ? 'border-green bg-green-light' : 'border-border bg-bg')}>
         <span className={'w-6 h-6 rounded-md flex items-center justify-center text-[14px] font-black flex-shrink-0 border-2 ' + (value.on ? 'bg-green border-green text-white' : 'bg-card border-border text-transparent')}>✓</span>
         <span className="flex-1 min-w-0">
-          <span className={'block text-sm font-bold ' + (value.on ? 'text-green' : 'text-sub')}>⏰ キャンセル締切を決める</span>
-          <span className="block text-[10px] text-muted font-medium mt-0.5">締切を過ぎた参加者はアプリからキャンセルできず、主催者へのDMで連絡する形になります</span>
+          <span className={'block text-sm font-bold ' + (value.on ? 'text-green' : 'text-sub')}>⏰ キャンセル日を決める</span>
+          <span className="block text-[10px] text-muted font-medium mt-0.5">オンにすると、締切日時・キャンセル料・条件・振込先を入れられます。締切を過ぎた参加者はアプリからキャンセルできず、主催者へのDMで連絡します</span>
         </span>
       </button>
       {value.on && (
         <div className="mt-2 p-3 rounded-xl border-[1.5px] border-border bg-card flex flex-col gap-3">
           <div>
-            <label className="block text-[11px] font-bold text-sub mb-1">キャンセル締切 <span className="text-red">*</span></label>
+            <label className="block text-[11px] font-bold text-sub mb-1">キャンセル締切（この日時まではアプリからキャンセルできます） <span className="text-red">*</span></label>
             <div className="flex gap-2">
               <input type="date" value={value.date} max={roundDate || undefined} onChange={(e) => set({ date: e.target.value })} className={cls + ' flex-[3] min-w-0'} />
               <input type="time" value={value.time} onChange={(e) => set({ time: e.target.value })} className={cls + ' flex-[2] min-w-0'} />

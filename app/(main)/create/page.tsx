@@ -274,7 +274,7 @@ export default function CreatePage() {
     }
     // キャンセル規定：ONなら締切日は必須（2026-10-10）
     if (!isDrink && cancelDraft.on && !jstToMs(cancelDraft.date, cancelDraft.time)) {
-      toast('キャンセル締切の日付を入れてください（入金タブ）', 'error'); setTab('payment'); return;
+      toast('キャンセル日（締切）の日付を入れてください', 'error'); setTab('basic'); return;
     }
     // 飲み会は募集人数を決めない（定員なし）。人数チェックはゴルフのみ。
     if (!isDrink && maxSpots < 2) {
@@ -793,11 +793,6 @@ export default function CreatePage() {
                 使わない場合はこのままでOKです（あとから募集の編集画面でONにもできます）。
               </div>
             )}
-            {!isDrink && (
-              <Field label="キャンセル規定" hint="（任意・締切後のキャンセル料など）">
-                <CancelPolicyEditor value={cancelDraft} onChange={setCancelDraft} roundDate={date || undefined} />
-              </Field>
-            )}
           </>
           )}
 
@@ -842,9 +837,16 @@ export default function CreatePage() {
 
           {/* ── 募集内容 タブ（後半：ひとこと） ── */}
           {tab === 'basic' && (
+          <>
           <Field label="ひとこと">
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={200} placeholder="募集の趣旨や雰囲気を伝えましょう（200文字以内）" className="w-full h-20 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-none" />
           </Field>
+          {!isDrink && (
+            <Field label="キャンセル日" hint="（任意）">
+              <CancelPolicyEditor value={cancelDraft} onChange={setCancelDraft} roundDate={date || undefined} />
+            </Field>
+          )}
+          </>
           )}
 
           <button
