@@ -117,8 +117,13 @@ export function buildFullCaption(input: CaptionInput): string {
   const start = r.startTime ? ` ${night}${r.startTime} START` : '';
   const area = r.area ? `（${r.area}）` : '';
 
+  // 1行目は募集側（buildCaption）と同じ理由で「ゴルフ」の語を入れる。
+  const lead = r.area
+    ? `${date} ${r.area}のゴルフラウンド`
+    : `${date} ゴルフラウンド`;
+
   return [
-    `${date}${r.area ? ` ${r.area}` : ''}、満員になりました。`,
+    `${lead}、満員になりました。`,
     '',
     'ありがとうございます。',
     '',

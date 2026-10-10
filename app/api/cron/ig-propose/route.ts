@@ -71,6 +71,10 @@ export async function GET(req: NextRequest) {
     const seen = new Set<string>();
     const rounds = [...open, ...official].filter((r: any) => {
       if (!r || seen.has(r.id) || r.status !== 'open') return false;
+      // 「◯日に行ける人」の部屋（lib/availRooms.ts・availDate つき）はラウンドではない。
+      // 部屋は maxSpots を常に参加人数と同じにするので、人が入った瞬間に「満員」と
+      // 判定され、コースも時間も無い満員告知の下書きが毎晩作られていた。
+      if (r.availDate || String(r.id).startsWith('avail_')) return false;
       seen.add(r.id);
       return true;
     });
