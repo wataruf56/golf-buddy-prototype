@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useStore, getMe } from '@/lib/store';
 import { competitionGroupsComplete } from '@/lib/groups';
+import { usePopupSlot, POPUP_PRIORITY } from '@/lib/popupSlot';
 
 // JST の YYYY-MM-DD（offsetDays 日後）。Date.now を JST に寄せてから日付部分を取る。
 function jstYmd(offsetDays = 0): string {
@@ -18,11 +19,9 @@ export function GroupGate() {
   const me = useStore(getMe);
   const rounds = useStore((s) => s.rounds);
   const pathname = usePathname();
-  if (!me) return null;
-
   const today = jstYmd(0);
   const tomorrow = jstYmd(1);
-  const target = rounds.find(
+  const target = !me ? undefined : rounds.find(
     (r) =>
       r.hostId === me.id &&
       r.isCompetition &&
@@ -30,9 +29,11 @@ export function GroupGate() {
       (r.date === today || r.date === tomorrow) &&
       !competitionGroupsComplete(r),
   );
-  if (!target) return null;
   // 当該ラウンドのページでは塞がない（組み分けを登録できるように）。
-  if (pathname === `/round/${target.id}`) return null;
+  const want = !!target && pathname !== `/round/${target.id}`;
+  // ポップアップは同時に1つだけ（lib/popupSlot）。hook は早期 return より前に
+  const active = usePopupSlot('groups', POPUP_PRIORITY.groups, want);
+  if (!target || !active) return null;
 
   return (
     <div className="absolute inset-0 z-[200] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6">

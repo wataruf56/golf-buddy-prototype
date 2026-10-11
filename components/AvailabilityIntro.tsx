@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePopupSlot, POPUP_PRIORITY } from '@/lib/popupSlot';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { AvailPersonChip } from '@/components/AvailPersonChip';
@@ -88,7 +89,9 @@ export function AvailabilityIntro({ needsStation, onDone }: { needsStation: bool
   ];
   const last = page === pages.length - 1;
   const p = pages[page];
-  if (!mounted) return null;
+  // ポップアップは同時に1つだけ（lib/popupSlot）
+  const active = usePopupSlot('availIntro', POPUP_PRIORITY.availIntro, mounted);
+  if (!mounted || !active) return null;
 
   return createPortal(
     // 画面の中央に出し、縦が足りない端末では中身がスクロールする。ボタンは下に貼り付けて常に見える

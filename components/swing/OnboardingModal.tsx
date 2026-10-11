@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePopupSlot, POPUP_PRIORITY } from '@/lib/popupSlot';
 import { Portal } from '@/components/Portal';
 
 const KEY = 'gb_swing_onboarded_v1';
@@ -42,7 +43,9 @@ export function OnboardingModal() {
     setOpen(false);
   }
 
-  if (!open) return null;
+  // ポップアップは同時に1つだけ（lib/popupSlot）
+  const active = usePopupSlot('swingIntro', POPUP_PRIORITY.swingIntro, open);
+  if (!open || !active) return null;
   const s = STEPS[step];
   const isLast = step === STEPS.length - 1;
 

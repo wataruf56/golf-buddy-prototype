@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { track } from '@/lib/telemetry';
+import { usePopupSlot, POPUP_PRIORITY } from '@/lib/popupSlot';
 
 // ラウンド（コンペ）のあと、「行ける日」が未入力の参加者に1回だけ出すポップアップ（lib/availPrompt）（2026-10-11）
 // 運営が OK を出して時刻を過ぎてから。レビューが残っている間は出さない（レビュー画面が先）。
@@ -25,7 +26,9 @@ export function AvailPromptPopup({ blocked }: { blocked: boolean }) {
       .catch(() => {});
   }, [hydrated, meId, blocked, checked]);
 
-  if (!prompt || blocked || pathname.startsWith('/availability')) return null;
+  // ポップアップは同時に1つだけ（lib/popupSlot）
+  const active = usePopupSlot('availPrompt', POPUP_PRIORITY.availPrompt, !!prompt && !blocked && !pathname.startsWith('/availability'));
+  if (!prompt || !active) return null;
 
   const seen = () => {
     fetch('/api/me/avail-prompt', {

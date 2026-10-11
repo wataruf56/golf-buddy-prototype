@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePopupSlot, POPUP_PRIORITY } from '@/lib/popupSlot';
 import { Portal } from '@/components/Portal';
 import { toast } from '@/components/Toast';
 import { store } from '@/lib/store';
@@ -68,7 +69,9 @@ export function FriendGate({ reason = '参加の承認やメッセージ、前�
     return () => { document.removeEventListener('visibilitychange', onBack); window.removeEventListener('focus', onBack); };
   }, [state, check]);
 
-  if (state !== 'blocked') return null;
+  // ポップアップは同時に1つだけ（lib/popupSlot）
+  const active = usePopupSlot('friendGate', POPUP_PRIORITY.friendGate, state === 'blocked');
+  if (state !== 'blocked' || !active) return null;
 
   return (
     <Portal>

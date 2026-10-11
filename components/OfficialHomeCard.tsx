@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePopupSlot, POPUP_PRIORITY } from '@/lib/popupSlot';
 import { Portal } from '@/components/Portal';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/components/Toast';
@@ -121,6 +122,8 @@ export function OfficialHomeCard() {
     setPopupId(null);
   }
 
+  // ポップアップは同時に1つだけ（lib/popupSlot）
+  const popupActive = usePopupSlot('official', POPUP_PRIORITY.official, !!popup);
   if (!mine.length && !prompts.length) return null;
 
   return (
@@ -178,7 +181,7 @@ export function OfficialHomeCard() {
         );
       })}
 
-      {popup && (
+      {popup && popupActive && (
         <Portal><div className="fixed inset-0 bg-black/45 z-[150] flex items-center justify-center p-5" onClick={() => snooze(popup)}>
           <div className="bg-card border-[3px] border-border rounded-card shadow-lg p-5 w-full max-w-[330px]"
             onClick={(e) => e.stopPropagation()}>

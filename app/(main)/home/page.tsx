@@ -16,6 +16,7 @@ import { isRoundHost } from '@/lib/roundHost';
 import { isOfficialThread } from '@/lib/officialShared';
 import { isAvailRoom } from '@/lib/availabilityShared';
 import { viewerSlotFull } from '@/lib/genderSlots';
+import { usePopupSlot, POPUP_PRIORITY } from '@/lib/popupSlot';
 
 function relTime(ts: number): string {
   const diff = Date.now() - ts;
@@ -86,6 +87,8 @@ export default function HomePage() {
       .catch(() => { /* noop */ });
     return () => { cancelled = true; };
   }, [reviewsPendingForNudge]);
+  // ポップアップは同時に1つだけ（lib/popupSlot）
+  const hostNudgeActive = usePopupSlot('hostNudge', POPUP_PRIORITY.hostNudge, !!hostNudge && !reviewsPendingForNudge);
   function closeHostNudge(go: boolean) {
     if (!go) {
       try {
@@ -482,7 +485,7 @@ export default function HomePage() {
       )}
 
       {/* ⛳ 主催のお誘いポップアップ。白クマがカードの上から覗く形（案1×ポーズ3）。 */}
-      {hostNudge && !reviewsPendingForNudge && (
+      {hostNudge && !reviewsPendingForNudge && hostNudgeActive && (
         <div className="absolute inset-0 bg-black/50 z-[120] flex items-center justify-center p-5 backdrop-blur-sm">
           <div className="relative w-full max-w-[330px]">
             {/* カードの縁に両手（前足）を引っかけて、上からひょこっと覗いているクマ。

@@ -10,6 +10,8 @@ import { GroupGate } from '@/components/GroupGate';
 import { CompletionGate } from '@/components/CompletionGate';
 import { AvailPromptPopup } from '@/components/AvailPromptPopup';
 import { PaymentAckGate } from '@/components/PaymentAckGate';
+import { RoundPromoPopup } from '@/components/RoundPromoPopup';
+import { usePopupSlot, POPUP_PRIORITY } from '@/lib/popupSlot';
 import { BlockerPopup } from '@/components/BlockerPopup';
 import { ToastHost } from '@/components/Toast';
 import { ConfirmHost } from '@/components/ConfirmDialog';
@@ -50,6 +52,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   );
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [blockerOpen, setBlockerOpen] = useState(false);
+  // ポップアップは同時に1つだけ（lib/popupSlot）。レビューは主催者の完了・組み分けの次
+  const reviewActive = usePopupSlot('review', POPUP_PRIORITY.review, pendingCount > 0 && (overlayOpen || blockerOpen));
 
   const matchingAllowed = isMatchingAllowedByAge(me?.age);
   // 年齢未入力（新規会員）は見るだけならOK。対象外の年齢と、募集を立てる画面（プロフィール必須）だけ止める（2026-10-08）
@@ -153,16 +157,18 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           </>
         )}
       </div>
-      {blockerOpen && pendingCount > 0 && (
+      {reviewActive && blockerOpen && pendingCount > 0 && (
         <BlockerPopup onOpen={() => { setBlockerOpen(false); setOverlayOpen(true); }} />
       )}
-      {overlayOpen && pendingCount > 0 && <ReviewOverlay />}
+      {reviewActive && overlayOpen && pendingCount > 0 && <ReviewOverlay />}
       <GroupGate />
       <CompletionGate />
       {/* ラウンド後の「行ける日を入力してみませんか？」（運営がOKを出してから・レビューが先）（2026-10-11） */}
       <AvailPromptPopup blocked={pendingCount > 0 || banGated || loggedOut || ageGated} />
       {/* すでに参加している募集に、あとから事前入金が設定されたときの確認（2026-10-11） */}
       <PaymentAckGate blocked={pendingCount > 0 || banGated || loggedOut || ageGated} />
+      {/* イチオシ募集（1回だけ・ほかのポップアップが閉じて1時間後）（2026-10-12） */}
+      <RoundPromoPopup blocked={pendingCount > 0 || banGated || loggedOut || ageGated} />
       {/* 友だち追加の案内（LineFollowPrompt）はホームの関所（FriendGate）に置き換えた（2026-10-04） */}
       <ToastHost />
       <ConfirmHost />

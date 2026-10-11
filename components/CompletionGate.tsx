@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useStore, getMe, store } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { completionDueMs } from '@/lib/completionTiming';
+import { usePopupSlot, POPUP_PRIORITY } from '@/lib/popupSlot';
 
 // 開催日を1日過ぎても「完了」にされていない募集を、主催者に片付けてもらうためのゲート。
 //
@@ -26,17 +27,17 @@ export function CompletionGate() {
   const rounds = useStore((s) => s.rounds);
   const pathname = usePathname();
   const router = useRouter();
-  if (!me) return null;
-
   const now = Date.now();
   // 何件もあるときは、いちばん古いものから片付けてもらう。
-  const overdue = rounds
+  const overdue = !me ? [] : rounds
     // 2026-10-11：「完了」か「中止」を選ぶまで出す（「まだ」の見送りはやめた）
-    .filter((r) => r.hostId === me.id && r.status !== 'completed' && !(r as any).heldCancelledAt && !!r.date && (completionDueMs(r.date, r.startTime || '') ?? Infinity) <= now)
+    .filter((r) => r.hostId === me!.id && r.status !== 'completed' && !(r as any).heldCancelledAt && !!r.date && (completionDueMs(r.date, r.startTime || '') ?? Infinity) <= now)
     .sort((a, b) => String(a.date).localeCompare(String(b.date)));
   const target = overdue[0];
-  if (!target) return null;
-  if (pathname === `/round/${target.id}`) return null;
+  const want = !!target && pathname !== `/round/${target.id}`;
+  // ポップアップは同時に1つだけ（lib/popupSlot）。hook は早期 return より前に
+  const active = usePopupSlot('completion', POPUP_PRIORITY.completion, want);
+  if (!target || !active) return null;
 
   const isDrink = (target as any).eventType === 'drink';
   const rest = overdue.length - 1;

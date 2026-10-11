@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { usePopupSlot, POPUP_PRIORITY } from '@/lib/popupSlot';
 import { Portal } from '@/components/Portal';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/components/Toast';
@@ -76,7 +77,9 @@ export function ChaseCheck({ chatId, meId, otherId, otherName, messages }: {
     return () => { dead = true; };
   }, [streak?.key, chatId, otherId]);
 
-  if (!open || !streak || !kind) return null;
+  // ポップアップは同時に1つだけ（lib/popupSlot）
+  const active = usePopupSlot(`chase:${chatId}`, POPUP_PRIORITY.chase, open && !!streak && !!kind);
+  if (!open || !streak || !kind || !active) return null;
   const label = kind === 'romantic' ? '気になる' : '行きたい';
 
   function keep() {

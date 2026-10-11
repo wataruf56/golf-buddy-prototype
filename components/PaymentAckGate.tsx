@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useStore, getMe, store } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { confirmDialog } from '@/components/ConfirmDialog';
+import { usePopupSlot, POPUP_PRIORITY } from '@/lib/popupSlot';
 import { paymentInfoOf, paymentSig, fmtJstDateTime, mdOf, ON_SITE_NOTE } from '@/lib/paymentNotice';
 
 // すでに参加している募集に、主催者があとから事前入金を設定したときの確認（2026-10-11）。
@@ -19,10 +20,10 @@ export function PaymentAckGate({ blocked }: { blocked: boolean }) {
   const router = useRouter();
   const [skipped, setSkipped] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
-  if (!me || !meId || meId === 'me' || blocked) return null;
+  const ready = !!me && !!meId && meId !== 'me' && !blocked;
 
   const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
-  const target = rounds.find((r) => {
+  const target = !ready ? undefined : rounds.find((r) => {
     if (skipped[r.id]) return false;
     if (r.status === 'completed' || (r as any).heldCancelledAt) return false;
     if (r.date && r.date < today) return false;
@@ -32,7 +33,9 @@ export function PaymentAckGate({ blocked }: { blocked: boolean }) {
     if (!sig) return false;
     return ((r as any).paymentAcks || {})[meId] !== sig;
   });
-  if (!target) return null;
+  // ポップアップは同時に1つだけ（lib/popupSlot）。hook は早期 return より前に
+  const active = usePopupSlot('paymentAck', POPUP_PRIORITY.paymentAck, !!target);
+  if (!target || !active) return null;
   const pi = paymentInfoOf(target as any)!;
   const md = mdOf(target.date);
 
