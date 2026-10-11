@@ -29,8 +29,14 @@ export function MatchFeelingBar({ otherId, otherName, compact }: { otherId: stri
 
   async function choose(feeling: 'never' | 'either' | 'again' | 'romantic') {
     if (busy || feeling === current) return;
-    if (feeling === 'never' && !(await confirmDialog({ title: '「思わない」にしますか？', message: `${otherName}さんとのマッチが解除され、お互いにメッセージが送れなくなります。\n相手に伝わることはありません。`, confirmText: '思わない にする', danger: true }))) return;
-    if (feeling === 'either' && !(await confirmDialog({ title: '「どっちでも」にしますか？', message: `${otherName}さんとのマッチが解除されます（ゴル友などほかのつながりがあれば、メッセージはそのまま送れます）。\n相手に伝わることはありません。`, confirmText: 'どっちでも にする' }))) return;
+    // 2026-10-11：マッチが解消になる選び直しは、DMが送れなくなることを必ず確認する
+    if ((feeling === 'never' || feeling === 'either') && !(await confirmDialog({
+      title: `「${feeling === 'never' ? '思わない' : 'どっちでも'}」に変えますか？`,
+      message: `マッチが解消になるので、${otherName}さんにDMが送れなくなりますが大丈夫ですか？`
+        + (feeling === 'either' ? '\n（ゴル友など、ほかのつながりがある場合は送れます）' : '')
+        + '\n\n相手に伝わることはありません。',
+      confirmText: 'はい、変える', cancelText: 'やめる', danger: true,
+    }))) return;
     if (feeling === 'again' && current === 'romantic' && !(await confirmDialog({ message: '💘「異性として気になる」を外して、「行きたい」（友人として）にしますか？', confirmText: '行きたい にする' }))) return;
     setBusy(true);
     try {

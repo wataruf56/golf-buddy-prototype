@@ -140,6 +140,12 @@ export function FeelingBox({
             <div className="text-[16.5px] font-black text-center leading-snug">
               「{label(confirm)}」に<br />変えますか？
             </div>
+            {(confirm === 'never' || confirm === 'either') && (
+              <div className="text-[13px] font-black text-red-600 text-center mt-2.5 leading-relaxed">
+                マッチが解消になるので、{otherName}さんにDMが送れなくなりますが大丈夫ですか？
+                {confirm === 'either' && <span className="block text-[11px] font-bold text-sub mt-1">（ゴル友など、ほかのつながりがある場合は送れます）</span>}
+              </div>
+            )}
             <div className="text-[12.5px] font-bold text-sub text-center mt-2.5 leading-relaxed">
               {otherName}さんに<b className="text-text">知られることはありません。</b>
             </div>
