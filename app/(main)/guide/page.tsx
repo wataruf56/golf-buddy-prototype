@@ -1,170 +1,212 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
+import { Portal } from '@/components/Portal';
 
-// 使い方・ヘルプ。
-// 初見の人が「何をする場所か → どう使うか → 募集の立て方」を、
-// スクロールするだけで（何も開かずに）理解できる構成にしている。
-// 折りたたみは「知りたい人だけが読むもの（FAQ・付随機能）」に限定する。
-// 画面イメージは /guide-shots/{key}.png。差し替えは同名で上書きするだけ。
+// 使い方・ヘルプ（2026-10-11 作り直し）。
+// 文章は最小限にして、**実際の画面**を横にめくって見せる（Tour）。タップで拡大（Lightbox）。
+//   ・上に固定のメニュー（チップ）→ 知りたいところへすぐ飛べる
+//   ・「新しくできたこと」→ 新機能の入口
+//   ・友達申請を承認すると何ができるか、を一番わかりやすく（会員からの質問が多い）
+// 画面は /guide-shots/v2/{name}.webp。テスト用アカウントで撮ったもの（実在の会員は写っていない）。
+// 差し替えは同じ名前で上書きするだけ。
+const IMG = (n: string) => `/guide-shots/v2/${n}.webp`;
+
+type TourItem = { src: string; title: string; text?: string };
+
+const NAV: Array<{ id: string; label: string }> = [
+  { id: 'new', label: '🆕 新機能' },
+  { id: 'friends', label: '🤝 友達' },
+  { id: 'avail', label: '📅 行ける日' },
+  { id: 'review', label: '⭐ レビュー' },
+  { id: 'past', label: '🏁 過去ラウンド' },
+  { id: 'pay', label: '💴 事前入金' },
+  { id: 'join', label: '🙋 参加する' },
+  { id: 'host', label: '✏️ 募集する' },
+  { id: 'faq', label: '❓ よくある質問' },
+];
+
 export default function GuidePage() {
+  const scroller = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState<string | null>(null);
+  const go = (id: string) => {
+    const el = document.getElementById(id);
+    const box = scroller.current;
+    if (el && box) box.scrollTo({ top: el.offsetTop - 56, behavior: 'smooth' });
+  };
+
   return (
-    <div className="h-full overflow-y-auto overflow-x-hidden bg-bg">
-      <div className="px-5 pt-6 pb-24 max-w-md mx-auto">
+    <div ref={scroller} className="h-full overflow-y-auto overflow-x-hidden bg-bg relative">
+      {/* 固定のメニュー */}
+      <div className="sticky top-0 z-20 bg-bg/95 backdrop-blur border-b-2 border-hair">
+        <div className="flex gap-1.5 overflow-x-auto px-4 py-2.5 no-scrollbar">
+          {NAV.map((n) => (
+            <button key={n.id} type="button" onClick={() => go(n.id)}
+              className="flex-none px-3 py-1.5 rounded-full bg-card border-[1.5px] border-border text-[11.5px] font-black whitespace-nowrap active:bg-green-light">{n.label}</button>
+          ))}
+        </div>
+      </div>
 
-        {/* ① 何をする場所なのか ─ ここだけ読めば分かるように断言する */}
-        <div className="text-center mb-5">
-          <div className="text-3xl mb-2">⛳</div>
-          <h1 className="text-[22px] font-black leading-tight">
-            ゴルトモは、<br />同世代とゴルフに行くアプリ
-          </h1>
-          <p className="text-[13px] text-sub mt-2.5 leading-relaxed">
-            「一緒に回る人がいない」を解決します。<br />
-            <b className="text-text">誰かの募集に参加する</b>か、<b className="text-text">自分で募集を立てる</b>。<br />
-            やることはこの2つだけです。
+      <div className="px-5 pt-5 pb-24 max-w-md mx-auto">
+        {/* ① 何をする場所なのか */}
+        <div className="text-center mb-6">
+          <div className="text-3xl mb-1.5">⛳</div>
+          <h1 className="text-[21px] font-black leading-tight">ゴルトモは、<br />同世代とゴルフに行くアプリ</h1>
+          <p className="text-[12.5px] text-sub mt-2 leading-relaxed">
+            <b className="text-text">募集に参加する</b>か、<b className="text-text">自分で募集する</b>か、<br /><b className="text-text">行ける日を押しておく</b>だけ。
           </p>
         </div>
 
-        {/* ② 2つの使い方への入口 */}
-        <div className="grid grid-cols-2 gap-2.5 mb-8">
-          <a href="#join" className="bg-card rounded-card shadow-card border-2 border-border p-3.5 text-center">
-            <div className="text-2xl">🙋</div>
-            <div className="text-[13px] font-black mt-1">参加する</div>
-            <div className="text-[10.5px] text-muted mt-0.5 leading-snug">誰かの募集に<br />申し込む</div>
-          </a>
-          <a href="#host" className="bg-orange-light rounded-card shadow-card border-2 border-orange p-3.5 text-center">
-            <div className="text-2xl">✏️</div>
-            <div className="text-[13px] font-black mt-1">募集する</div>
-            <div className="text-[10.5px] text-muted mt-0.5 leading-snug">自分で日程を<br />決めて集める</div>
-          </a>
+        {/* ② 新しくできたこと */}
+        <Anchor id="new" />
+        <div className="flex items-baseline justify-between mb-2">
+          <div className="text-[15px] font-black">🆕 新しくできたこと</div>
+          <div className="text-[10.5px] text-muted">横にスクロール →</div>
+        </div>
+        <div className="flex gap-2.5 overflow-x-auto -mx-5 px-5 pb-2 mb-7 snap-x snap-mandatory no-scrollbar">
+          {[
+            { id: 'friends', img: 'buddies', t: '友達になると', d: '名前が見えて、声をかけられる' },
+            { id: 'avail', img: 'room_dm', t: '行ける日', d: '人数がそろうと運営が声かけ' },
+            { id: 'review', img: 'review_car', t: 'レビュー', d: '同じ車の人も・必ず選ぶ形に' },
+            { id: 'past', img: 'past', t: '過去ラウンド', d: 'チャットとアルバムがすぐ開く' },
+            { id: 'pay', img: 'pay_notice', t: '事前入金', d: '金額と期日がひと目でわかる' },
+          ].map((c) => (
+            <button key={c.id} type="button" onClick={() => go(c.id)}
+              className="flex-none w-[44%] snap-start bg-card rounded-card shadow-card border-2 border-border overflow-hidden text-left">
+              <div className="h-[118px] overflow-hidden bg-bg border-b-2 border-hair">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={IMG(c.img)} alt="" className="w-full object-cover object-top" loading="lazy" />
+              </div>
+              <div className="px-2.5 py-2">
+                <div className="text-[12.5px] font-black">{c.t}</div>
+                <div className="text-[10.5px] text-sub leading-snug mt-0.5">{c.d}</div>
+              </div>
+            </button>
+          ))}
         </div>
 
-        {/* ③ 参加する流れ */}
-        <SectionTitle id="join" emoji="🙋" title="募集に参加する" sub="はじめての人はこちらから" />
-        <div className="flex flex-col gap-2.5 mb-8">
-          <Step n={1} title="プロフィールを登録する" time="1分">
-            名前・年齢・だいたいのスコア・行けるエリアを入れるだけ。
-            <b>主催者はこれを見て承認するか決める</b>ので、空欄が多いと参加しづらくなります。
-            <Shot sectionKey="mypage" title="マイページ" caption="マイページの「編集」から登録" />
-            <Cta href="/mypage/edit" color="green">プロフィールを登録する</Cta>
-          </Step>
-
-          <Step n={2} title="募集をさがす">
-            ホームに新しい募集が並びます。エリア・日程・費用・男女枠でしぼり込みたいときは「さがす」タブへ。
-            <Shot sectionKey="search" title="さがす" caption="条件を指定してしぼり込む" />
-          </Step>
-
-          <Step n={3} title="「参加を申請する」を押す">
-            <b className="text-orange">押した時点ではまだ確定しません。</b>
-            主催者に申請が届き、承認されると参加が決まります。結果はLINEで届きます。
-            <Note>車がない人は、申請のときに「送迎を希望する」を選べます。乗せてもらえる募集ならここで相談できます。</Note>
-          </Step>
-
-          <Step n={4} title="グループチャットで相談 → 当日">
-            承認されると、その募集専用のチャットに入ります。集合場所・時間・待ち合わせはここで。
-            当日はゴルフ場で合流してプレーするだけです。
-            <Note>ラウンドが終わったら、一緒に回った人を評価します（次の「ゴル友」につながります）。</Note>
-          </Step>
+        {/* ③ 友達 */}
+        <Anchor id="friends" />
+        <Head emoji="🤝" title="友達になると、できること" sub="友達申請の承認・QR・レビューでお互いに「行きたい」を選ぶと友達（ゴル友）になります" />
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <Benefit n="1" icon="💬" title="メッセージ" text="いつでも直接送れる" />
+          <Benefit n="2" icon="👀" title="行ける日で見える" text="名前と🤝印が出る" />
+          <Benefit n="3" icon="📣" title="声をかけられる" text="自分の行ける日を送れる" />
+          <Benefit n="4" icon="⭐" title="レビューがラク" text="「すでに友達」で選ばなくてOK" />
         </div>
+        <Tour onZoom={setZoom} items={[
+          { src: IMG('fr_send'), title: '相手のプロフィールから申請', text: 'どこで一緒だったかを選んで送る' },
+          { src: IMG('fr_receive'), title: '相手が承認', text: '受け取った側は「友達の確認」に届く' },
+          { src: IMG('buddies'), title: 'ゴル友に並ぶ', text: '💬メッセージ・📣声をかける' },
+          { src: IMG('av_friend'), title: '行ける日で名前が見える', text: '友達には🤝。タップでプロフィール' },
+          { src: IMG('nudge_sheet'), title: '行ける日で声をかける', text: '自分の行ける日を選んでまとめて送る' },
+          { src: IMG('nudge_dm'), title: '相手に届く', text: 'ボタンからそのまま行ける日へ' },
+        ]} />
+        <Tip>「同じ組で回った」と承認した場合は、翌朝お互いにレビューが届きます。</Tip>
 
-        {/* ④ 募集する流れ ─ このアプリの主役なので厚く */}
-        <SectionTitle id="host" emoji="✏️" title="自分で募集する" sub="日程が決まっている人・仲間を集めたい人" accent />
-        <div className="rounded-card border-2 border-orange bg-orange-light p-3.5 mb-3">
-          <div className="text-[13px] font-black mb-1">💡 予約が取れたら、まず募集を立ててください</div>
-          <p className="text-[12.5px] leading-relaxed">
-            人が集まってから予約する必要はありません。<b>枠が余っている段階で募集を出すのがいちばん集まります。</b>
-            1人でも来てくれれば、それだけでラウンドが成立します。
-          </p>
-        </div>
-        <div className="flex flex-col gap-2.5 mb-8">
-          <Step n={1} title="募集を投稿する" time="2分" accent>
-            入力するのは <b>ゴルフ場・日付・スタート時間・都道府県・募集人数・だいたいの費用</b>。
-            日付が未定でも「◯月ごろ」で出せます。
-            <Shot sectionKey="create" title="ラウンド募集" caption="「募集する」から入力して投稿" />
-            <Ul items={[
-              '初心者歓迎／男女枠／送迎できる駅なども指定できます',
-              '知り合いを連れて行くときは「主催者の知り合い」で人数を確保できます',
-              '事前にお金をまとめる場合は「入金管理」をONにすると、誰が払ったか管理できます',
-            ]} />
-            <Cta href="/create" color="orange">ラウンドを募集する</Cta>
-          </Step>
+        {/* ④ 行ける日 */}
+        <Anchor id="avail" />
+        <Head emoji="📅" title="行ける日 — 日付を押すだけ" sub="同じ日に3人そろうと、その日のチャットが始まります" />
+        <Tour onZoom={setZoom} items={[
+          { src: IMG('av_friend'), title: 'カレンダーで日付を押す', text: '「この日に行ける」で保存' },
+          { src: IMG('room_chat'), title: '3人そろうとチャット', text: 'コース・集合場所を相談' },
+          { src: IMG('room_dm'), title: '誰も話さないときは運営から', text: 'ボタンでその日のチャットへ' },
+        ]} />
+        <Cta href="/availability" color="green">📅 行ける日を入れる</Cta>
 
-          <Step n={2} title="申請が来たら承認する" accent>
-            申請が届くとLINEに通知が来ます。相手のプロフィールと評価を見て、承認かお断りかを選びます。
-            <Note>断ってもかまいません。相手に理由は伝わりません。</Note>
-          </Step>
+        {/* ⑤ レビュー */}
+        <Anchor id="review" />
+        <Head emoji="⭐" title="ラウンド後のレビュー" sub="選んだものは相手に伝わりません。お互いに選んだときだけマッチします" />
+        <Tour onZoom={setZoom} items={[
+          { src: IMG('review_top'), title: '1人ずつ、必ずどれかを選ぶ', text: '思わない／どっちでも／行きたい' },
+          { src: IMG('review_car'), title: '同じ車だった人も', text: '組が違っても「🚗 同じ車だった」' },
+          { src: IMG('review_other'), title: '別の組の人は任意', text: 'もう友達の人は押さなくてOK' },
+        ]} />
+        <Tip>レビューが終わるまで、ほかの画面は使えません。💘「異性として気になる」は同じ組で1人まで。</Tip>
 
-          <Step n={3} title="グループチャットで決める" accent>
-            集合時間・待ち合わせ場所・送迎・組み分けをチャットで相談します。
-            当日の連絡もここに集約されるので、個別のやり取りは不要です。
-          </Step>
+        {/* ⑥ 過去ラウンド */}
+        <Anchor id="past" />
+        <Head emoji="🏁" title="過去ラウンド" sub="下のタブ「過去ラウンド」から" />
+        <Tour onZoom={setZoom} items={[
+          { src: IMG('past'), title: '参加したラウンドの一覧', text: '📷＝写真があるラウンド' },
+          { src: IMG('past_chat'), title: '押すとその日のチャット', text: 'あとからお礼や次の相談も' },
+          { src: IMG('album'), title: '📷でアルバム', text: 'みんながあげた写真を見られる' },
+        ]} />
 
-          <Step n={4} title="当日プレー → 完了にする" accent>
-            終わったら募集を「完了」にします。参加者どうしで評価ができるようになり、
-            「また回りたい」がお互い一致した人は<b>ゴル友</b>になります。次に誘いやすくなります。
-          </Step>
-        </div>
+        {/* ⑦ 事前入金 */}
+        <Anchor id="pay" />
+        <Head emoji="💴" title="事前入金のあるラウンド" sub="プレーフィーを先に振り込み、募集者が当日まとめてゴルフ場に払います" />
+        <Tour onZoom={setZoom} items={[
+          { src: IMG('pay_notice'), title: '募集ページに案内', text: '期日・金額・振込先' },
+          { src: IMG('pay_join'), title: '申請の前に確認', text: '問題なければ「参加申請」' },
+          { src: IMG('pay_ack'), title: 'あとから設定されたら', text: '「はい」か、参加の取り消し' },
+          { src: IMG('pay_host'), title: '主催者：入金をチェック', text: '本名・性別・年齢つき' },
+          { src: IMG('pay_remind'), title: '期日を過ぎたら運営から', text: '未入金の人にだけ・LINEにも' },
+        ]} />
+        <Tip>昼食代・ゴルフ場利用税・ロッカー代などは、当日ご本人で現地精算です。<Link href="/legal/money" className="text-blue font-bold ml-1">お金のルール</Link></Tip>
 
-        {/* ⑤ よくある質問 ─ 参加をためらう理由に先回りする */}
-        <div className="text-[11px] font-black text-sub mb-2">よくある質問</div>
-        <div className="flex flex-col gap-2.5 mb-8">
+        {/* ⑧ 参加する流れ */}
+        <Anchor id="join" />
+        <Head emoji="🙋" title="募集に参加する" sub="はじめての人はこちらから" />
+        <Flow steps={[
+          ['プロフィール登録', '名前・年齢・スコア・エリア。主催者はこれを見て承認します'],
+          ['募集をさがす', 'ホームか「さがす」タブで'],
+          ['「参加を申請する」', '承認されると参加決定（LINEで届く）。車がない人は送迎の希望も'],
+          ['グループチャット → 当日', '集合場所・時間はチャットで'],
+        ]} />
+        <Cta href="/mypage/edit" color="green">プロフィールを登録する</Cta>
+
+        {/* ⑨ 募集する流れ */}
+        <Anchor id="host" />
+        <Head emoji="✏️" title="自分で募集する" sub="予約が取れたら、まず募集を。枠が余っている段階がいちばん集まります" accent />
+        <Flow accent steps={[
+          ['募集を投稿（2分）', 'ゴルフ場・日付・時間・人数・費用。日付未定でもOK'],
+          ['申請を承認', 'プロフィールと評価を見て決める。断っても理由は伝わりません'],
+          ['チャットで決める', '集合・送迎・組み分け・配車'],
+          ['当日 → 完了にする', '夜8時に届く通知から「完了」か「中止」を'],
+        ]} />
+        <Cta href="/create" color="orange">ラウンドを募集する</Cta>
+
+        {/* ⑩ よくある質問 */}
+        <Anchor id="faq" />
+        <div className="text-[15px] font-black mb-2">❓ よくある質問</div>
+        <div className="flex flex-col gap-2 mb-8">
+          <Accordion icon="🤝" title="友達申請を承認すると何ができる？">
+            <p>ゴル友になり、<b>メッセージ</b>が送れるようになります。「行ける日」では相手の<b>名前と🤝印</b>が見え、自分の行ける日を選んで<b>声をかける</b>ことができます。</p>
+            <p className="mt-2">「同じ組で回った」と承認したときは、翌朝お互いにレビューが届きます。<button type="button" onClick={() => go('friends')} className="text-blue font-bold">画面で見る</button></p>
+          </Accordion>
           <Accordion icon="💰" title="費用はどれくらい？どう払う？">
-            <p>プレー費は各募集に書かれている金額の目安を見てください。ゴルフ場によって変わります。</p>
-            <p className="mt-2">支払いは<b>当日ゴルフ場で各自</b>が基本です。主催者がまとめて払う場合は、募集に振込先などの案内が書かれます（「入金」タブで誰が払ったか分かります）。</p>
-            <p className="mt-2 text-sub">ゴルトモの利用自体は無料です。手数料はいただきません。</p>
+            <p>金額の目安は各募集に書いてあります。支払いは<b>当日ゴルフ場で各自</b>が基本です。</p>
+            <p className="mt-2">事前入金のある募集は、募集ページに期日・金額・振込先が出ます。昼食代・利用税・ロッカー代は当日現地で。ゴルトモの利用は無料です。</p>
           </Accordion>
-
           <Accordion icon="🔰" title="初心者でも参加していい？">
-            <p>大丈夫です。「初心者歓迎」の募集を選ぶと安心です。「さがす」でスコアの条件をしぼり込めます。</p>
-            <p className="mt-2">プロフィールに正直なスコアを書いておくと、主催者も組み合わせを考えやすくなり、当日気まずくなりません。</p>
+            <p>大丈夫です。「初心者歓迎」の募集が安心です。プロフィールに正直なスコアを書いておくと、当日気まずくなりません。</p>
           </Accordion>
-
           <Accordion icon="🚗" title="車がなくても行ける？">
-            <p>行けます。募集によっては主催者や参加者が最寄り駅まで迎えに来てくれます。</p>
-            <p className="mt-2">参加を申請するときに<b>「送迎を希望する」</b>と、乗りたい駅を選べます。送迎ありの募集は一覧に🚗マークが付きます。</p>
+            <p>行けます。申請のときに<b>「送迎を希望する」</b>で乗りたい駅を選べます。送迎ありの募集には🚗マーク。</p>
           </Accordion>
-
-          <Accordion icon="🙏" title="行けなくなったら？ドタキャンは？">
-            <p>できるだけ早くグループチャットで伝えてください。人数が変わるとゴルフ場の予約に影響します。</p>
-            <p className="mt-2 text-sub">連絡なしの当日キャンセルが確認された場合、運営がプロフィールに注意表示を付けることがあります。困ったときはマイページの「お問い合わせ」から運営にご連絡ください。</p>
+          <Accordion icon="🙏" title="行けなくなったら？">
+            <p>できるだけ早くチャットで伝えてください。キャンセル期日がある募集は、期日を過ぎるとアプリから取り消せず、主催者への連絡になります。</p>
           </Accordion>
-
           <Accordion icon="😰" title="知らない人と回るのが不安">
-            <p>プロフィールに<b>「一緒に回った人のうち、また回りたいと答えた人の割合」</b>が出ています。過去に何回参加しているかも分かります。</p>
-            <p className="mt-2">はじめは主催者にチャットで質問してから申し込んでも大丈夫です。合わないと感じた相手はブロック・通報できます。</p>
+            <p>プロフィールに「また回りたい」と答えた人の割合と参加回数が出ます。先に主催者へ質問してからでも大丈夫。合わない相手はブロック・通報できます。</p>
           </Accordion>
-
           <Accordion icon="🔔" title="通知が来ない">
-            <p>LINE公式アカウントを<b>友だち追加</b>していないと、参加申請・承認・リマインドのLINEが届きません。</p>
-            <p className="mt-2">通知の種類ごとのON/OFFは、マイページの通知設定で変えられます。</p>
+            <p>LINE公式アカウントを<b>友だち追加</b>していないとLINEが届きません。種類ごとのON/OFFはマイページの通知設定で。</p>
           </Accordion>
-        </div>
-
-        {/* ⑥ そのほかの機能 */}
-        <div className="text-[11px] font-black text-sub mb-2">そのほかの機能</div>
-        <div className="flex flex-col gap-2.5 mb-8">
-          <Accordion icon="👥" title="ゴル友（また回りたい人とつながる）">
-            <p>ラウンド後、一緒に回った人に「また一緒に回りたい」を送れます。</p>
-            <p className="mt-2"><b className="text-green">お互いが選んだときだけ</b>通知される両想い方式です。片思いの間は相手に一切伝わりません。</p>
-            <p className="mt-2">成立した相手は「ゴル友」タブに並び、直接メッセージを送れます。次のラウンドに誘うのが簡単になります。</p>
-            <Shot sectionKey="buddies" title="ゴル友" caption="両想いになった相手とメッセージ" />
+          <Accordion icon="📱" title="QRコードで友達になるには？">
+            <p>会ったその場で、マイページのQRを読み合うとすぐ友達になれます。</p>
           </Accordion>
-
-          <Accordion icon="🤝" title="QRコードでゴル友になる">
-            <p>実際に会った人とは、その場でQRコードを読み合うとすぐゴル友になれます。マイページのQRから。</p>
-          </Accordion>
-
           <Accordion icon="🏌️" title="AIスイング解析">
-            <p>「スイング」タブから動画を送ると、AIがフェーズごとに解析してアドバイスします。過去の自分やプロとの比較もできます。</p>
-            <Shot sectionKey="swing" title="スイング解析" caption="動画を送るとAIが解析" />
+            <p>「スイング」タブから動画を送ると、AIがフェーズごとに解析してアドバイスします。</p>
           </Accordion>
         </div>
 
-        {/* ⑦ 困ったとき */}
+        {/* 困ったとき */}
         <div className="rounded-card border-2 border-border bg-card p-4 mb-6 text-center">
           <div className="text-[13px] font-black mb-1">解決しないときは</div>
-          <p className="text-[12.5px] text-sub leading-relaxed mb-2.5">運営に直接メッセージできます。トラブル・要望・不具合、何でもどうぞ。</p>
+          <p className="text-[12px] text-sub leading-relaxed mb-1">運営に直接メッセージできます。トラブル・要望・不具合、何でもどうぞ。</p>
           <Cta href="/mypage" color="green">マイページから問い合わせる</Cta>
         </div>
 
@@ -177,96 +219,121 @@ export default function GuidePage() {
         </div>
         <div className="text-[10px] text-muted text-center mt-3">ゴルトモ © 2026</div>
       </div>
+
+      {/* 画像の拡大 */}
+      {zoom && (
+        <Portal>
+          <div className="fixed inset-0 z-[400] bg-black/85 flex items-center justify-center p-4" onClick={() => setZoom(null)}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={zoom} alt="画面の拡大" className="max-h-[88vh] max-w-full rounded-2xl" />
+            <button type="button" className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 text-[18px] font-black" aria-label="閉じる">✕</button>
+          </div>
+        </Portal>
+      )}
     </div>
   );
 }
 
-function SectionTitle({ id, emoji, title, sub, accent }: { id?: string; emoji: string; title: string; sub?: string; accent?: boolean }) {
+function Anchor({ id }: { id: string }) {
+  return <div id={id} className="h-0" />;
+}
+
+function Head({ emoji, title, sub, accent }: { emoji: string; title: string; sub?: string; accent?: boolean }) {
   return (
-    <div id={id} className="scroll-mt-4 mb-3">
+    <div className="mb-3 pt-1">
       <div className="flex items-center gap-2">
-        <span className="text-xl">{emoji}</span>
-        <h2 className={'text-[18px] font-black ' + (accent ? 'text-orange' : '')}>{title}</h2>
+        <span className="w-8 h-8 rounded-xl bg-card border-2 border-border grid place-items-center text-[17px] shadow-[2px_2px_0_#1E3A30] flex-none">{emoji}</span>
+        <h2 className={'text-[17px] font-black leading-tight ' + (accent ? 'text-orange' : '')}>{title}</h2>
       </div>
-      {sub && <p className="text-[11.5px] text-muted mt-0.5">{sub}</p>}
+      {sub && <p className="text-[11.5px] text-sub mt-1.5 leading-relaxed">{sub}</p>}
     </div>
   );
 }
 
-// 手順の1ステップ。開閉せず、最初から中身が見える。
-function Step({ n, title, time, accent, children }: { n: number; title: string; time?: string; accent?: boolean; children: React.ReactNode }) {
+function Benefit({ n, icon, title, text }: { n: string; icon: string; title: string; text: string }) {
   return (
-    <div className="bg-card rounded-card shadow-card border-2 border-border overflow-hidden">
-      <div className="flex items-center gap-2.5 px-3.5 py-2.5 border-b-2 border-hair">
-        <span className={'w-6 h-6 rounded-full grid place-items-center text-[12px] font-black text-white flex-none ' + (accent ? 'bg-orange' : 'bg-green')}>{n}</span>
-        <span className="text-[14px] font-black flex-1">{title}</span>
-        {time && <span className="text-[10px] font-bold text-muted flex-none">約{time}</span>}
-      </div>
-      <div className="px-3.5 py-3 text-[13px] leading-relaxed">{children}</div>
+    <div className="relative bg-card rounded-card border-2 border-border p-2.5 shadow-card">
+      <span className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-green text-white text-[10px] font-black grid place-items-center border-2 border-border">{n}</span>
+      <div className="text-[20px] leading-none">{icon}</div>
+      <div className="text-[12.5px] font-black mt-1">{title}</div>
+      <div className="text-[10.5px] text-sub leading-snug mt-0.5">{text}</div>
     </div>
   );
 }
 
-function Note({ children }: { children: React.ReactNode }) {
-  return <div className="mt-2.5 rounded-lg bg-bg border border-border px-3 py-2 text-[12px] text-sub leading-relaxed">{children}</div>;
+// 実際の画面を横にめくって見せる。番号つき。タップで拡大。
+function Tour({ items, onZoom }: { items: TourItem[]; onZoom: (src: string) => void }) {
+  const [idx, setIdx] = useState(0);
+  const ref = useRef<HTMLDivElement>(null);
+  const onScroll = () => {
+    const el = ref.current; if (!el) return;
+    const w = (el.firstElementChild as HTMLElement | null)?.offsetWidth || 1;
+    setIdx(Math.max(0, Math.min(items.length - 1, Math.round(el.scrollLeft / (w + 12)))));
+  };
+  return (
+    <div className="mb-3">
+      <div ref={ref} onScroll={onScroll} className="flex gap-3 overflow-x-auto -mx-5 px-5 pb-1 snap-x snap-mandatory no-scrollbar">
+        {items.map((it, i) => (
+          <figure key={it.src + i} className="flex-none w-[58%] snap-center">
+            <button type="button" onClick={() => onZoom(it.src)} className="block w-full rounded-[18px] overflow-hidden border-2 border-border bg-card shadow-[3px_3px_0_#1E3A30]" aria-label={`${it.title}（拡大）`}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={it.src} alt={it.title} className="block w-full h-auto" loading="lazy" />
+            </button>
+            <figcaption className="mt-2 flex gap-1.5">
+              <span className="w-5 h-5 rounded-full bg-orange text-white text-[10px] font-black grid place-items-center flex-none mt-px">{i + 1}</span>
+              <span className="min-w-0">
+                <span className="block text-[12.5px] font-black leading-snug">{it.title}</span>
+                {it.text && <span className="block text-[10.5px] text-sub leading-snug mt-0.5">{it.text}</span>}
+              </span>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+      {items.length > 1 && (
+        <div className="flex justify-center gap-1.5 mt-2">
+          {items.map((_, i) => <span key={i} className={'h-1.5 rounded-full transition-all ' + (i === idx ? 'w-4 bg-green' : 'w-1.5 bg-border/40')} />)}
+        </div>
+      )}
+    </div>
+  );
 }
 
-function Ul({ items }: { items: string[] }) {
+function Tip({ children }: { children: React.ReactNode }) {
+  return <div className="mb-8 rounded-xl bg-green-light border-[1.5px] border-green px-3 py-2.5 text-[11.5px] text-text leading-relaxed">💡 {children}</div>;
+}
+
+function Flow({ steps, accent }: { steps: Array<[string, string]>; accent?: boolean }) {
   return (
-    <ul className="mt-2 flex flex-col gap-1">
-      {items.map((t) => (
-        <li key={t} className="text-[12.5px] text-sub leading-relaxed flex gap-1.5">
-          <span className="text-muted flex-none">・</span><span>{t}</span>
+    <ol className="relative mb-3 ml-1">
+      {steps.map(([t, d], i) => (
+        <li key={t} className="relative pl-9 pb-3 last:pb-0">
+          {i < steps.length - 1 && <span className="absolute left-[11px] top-6 bottom-0 w-[2px] bg-border/30" />}
+          <span className={'absolute left-0 top-0 w-6 h-6 rounded-full text-white text-[11px] font-black grid place-items-center border-2 border-border ' + (accent ? 'bg-orange' : 'bg-green')}>{i + 1}</span>
+          <div className="text-[13px] font-black leading-tight pt-0.5">{t}</div>
+          <div className="text-[11.5px] text-sub leading-relaxed mt-0.5">{d}</div>
         </li>
       ))}
-    </ul>
+    </ol>
   );
 }
 
 function Cta({ href, color, children }: { href: string; color: 'green' | 'orange'; children: React.ReactNode }) {
   return (
-    <Link href={href} className={'block mt-3 py-2.5 rounded-xl text-[13px] font-black text-white text-center ' + (color === 'orange' ? 'bg-orange' : 'bg-green')}>
+    <Link href={href} className={'block mt-2 mb-8 py-2.5 rounded-xl text-[13px] font-black text-white text-center border-2 border-border shadow-[2px_2px_0_#1E3A30] ' + (color === 'orange' ? 'bg-orange' : 'bg-green')}>
       {children}
     </Link>
-  );
-}
-
-// 画面イメージ。縦長のスクショを開いたまま置くと手順の流れが分断されるので、
-// 既定は閉じておき、見たい人だけが開く。画像が無ければ何も出さない。
-function Shot({ sectionKey, title, caption }: { sectionKey: string; title: string; caption?: string }) {
-  const [failed, setFailed] = useState(false);
-  if (failed) return null;
-  return (
-    <details className="mt-2.5">
-      <summary className="list-none cursor-pointer inline-flex items-center gap-1 text-[11.5px] font-bold text-blue">
-        📷 画面イメージを見る
-      </summary>
-      <figure className="mt-2">
-        <div className="rounded-xl overflow-hidden border border-border bg-bg mx-auto max-w-[210px]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`/guide-shots/${sectionKey}.png`}
-            alt={`${title}の画面`}
-            className="block w-full max-w-full h-auto"
-            loading="lazy"
-            onError={() => setFailed(true)}
-          />
-        </div>
-        {caption && <figcaption className="text-[10.5px] text-muted text-center mt-1">{caption}</figcaption>}
-      </figure>
-    </details>
   );
 }
 
 function Accordion({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) {
   return (
     <details className="bg-card rounded-card shadow-card border-2 border-border overflow-hidden group">
-      <summary className="flex items-center gap-2.5 px-4 py-3.5 cursor-pointer list-none text-[13.5px] font-black">
+      <summary className="flex items-center gap-2.5 px-4 py-3 cursor-pointer list-none text-[13px] font-black">
         <span className="text-lg w-6 text-center">{icon}</span>
         <span className="flex-1">{title}</span>
         <span className="text-muted transition-transform group-open:rotate-90">›</span>
       </summary>
-      <div className="px-4 pb-4 pt-1 text-[13px] text-text leading-relaxed border-t-2 border-hair">{children}</div>
+      <div className="px-4 pb-3.5 pt-1 text-[12.5px] text-text leading-relaxed border-t-2 border-hair">{children}</div>
     </details>
   );
 }
