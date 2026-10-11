@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { store, useStore, getMe } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { toast } from '@/components/Toast';
+import { alertDialog } from '@/components/ConfirmDialog';
 import { track } from '@/lib/telemetry';
 import type { User, ReviewVerdict } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -16,7 +17,7 @@ import { cn } from '@/lib/utils';
 // base … 💘を押す前に選んでいた3択（💘を外したら戻す）（2026-10-10）
 type Row = { verdict: ReviewVerdict | null; base?: ReviewVerdict };
 type LikeState = { again: boolean; romantic: boolean; sameGroup: boolean };
-type MatchInfo = { state: Record<string, LikeState>; users: Record<string, any>; isCompetition: boolean };
+type MatchInfo = { state: Record<string, LikeState & { sameCar?: boolean }>; users: Record<string, any>; isCompetition: boolean };
 
 export function ReviewOverlay() {
   const me = useStore(getMe);
@@ -193,7 +194,7 @@ export function ReviewOverlay() {
         {/* ヘッダー（固定） */}
         <div className="px-5 pt-5 pb-3 border-b border-border flex-shrink-0">
           <h3 className="text-lg font-black">ラウンドレビュー</h3>
-          <div className="text-[12px] text-sub mt-0.5">同じ組で回った{pending.length}人について答えてください</div>
+          <div className="text-[12px] text-sub mt-0.5">{pending.some((p) => match[p.roundId]?.state?.[p.revieweeId]?.sameCar) ? `同じ組で回った人・同じ車だった人（${pending.length}人）について答えてください` : `同じ組で回った${pending.length}人について答えてください`}</div>
           {/* 2026-10-10：いちばん大事な安心材料を大きく（本音で選んでもらうため） */}
           <div className="mt-2.5 px-3 py-3 rounded-xl border-2 border-border bg-[#FFF8E1] text-center">
             <div className="text-[17px] font-black text-text leading-snug">🔒 あなたが選んだものは<br />相手には伝わりません</div>
@@ -211,8 +212,11 @@ export function ReviewOverlay() {
             if (!target) return null;
             const r = get(p.id);
             const opp = isOpp(target);
+            // 組は違うが同じ車だった人（2026-10-11）
+            const carOnly = !!match[p.roundId]?.state?.[p.revieweeId]?.sameCar;
             return (
               <div key={p.id} className="bg-bg rounded-xl p-3">
+                {carOnly && <div className="text-[11px] font-black text-blue mb-1.5">🚗 同じ車だった{target.displayName}さん</div>}
                 <div className="flex items-center gap-2.5 mb-2">
                   <Avatar user={target} size={40} emojiSize={20} />
                   <div className="min-w-0 flex-1">
@@ -228,7 +232,9 @@ export function ReviewOverlay() {
                       onClick={() => {
                         if (r.verdict !== 'romantic') {
                           const other = romanticConflict(p.id);
-                          if (other) { toast(`同じ組で「異性として気になる」を選べるのは1人までです（${other}さんに選んでいます）`, 'error'); return; }
+                          if (other) { alertDialog(`同じ組で「異性として気になる」を押せるのは1人までです。
+
+いまは${other}さんに選んでいます。こちらに変えるときは、先に${other}さんの💘を外してください。`, '💘 押せるのは1人までです'); return; }
                         }
                         upd(p.id, r.verdict === 'romantic'
                         ? { verdict: r.base || 'either' }

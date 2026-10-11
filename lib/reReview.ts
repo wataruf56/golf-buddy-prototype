@@ -1,7 +1,7 @@
 import 'server-only';
 import { db } from './db';
 import { getAdminDb } from './firebase';
-import { registeredParticipantIds, sameGroupPeerIds, isNoShow } from './groups';
+import { registeredParticipantIds, reviewPeerIdsForCompetition, isNoShow } from './groups';
 import type { Round } from './types';
 
 /**
@@ -25,7 +25,7 @@ import type { Round } from './types';
 export function reviewPeerIds(round: Round, userId: string): string[] {
   const registered = registeredParticipantIds(round);
   if (!registered.includes(userId) || isNoShow(round, userId)) return [];
-  if (round.isCompetition) return sameGroupPeerIds(round, userId);
+  if (round.isCompetition) return reviewPeerIdsForCompetition(round, userId);   // 同じ組＋同じ車
   return registered.filter((p) => p !== userId && !isNoShow(round, p));
 }
 

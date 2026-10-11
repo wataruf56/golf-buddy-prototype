@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from '@/components/Toast';
+import { alertDialog } from '@/components/ConfirmDialog';
 import { useStore, getMe } from '@/lib/store';
 import { track } from '@/lib/telemetry';
 
@@ -55,8 +56,17 @@ export function MatchPicker({ roundId }: { roundId: string }) {
         cache: 'no-store',
         credentials: 'include',
       });
-      const d = await res.json();
-      if (res.ok && on && d?.matched) {
+      const d = await res.json().catch(() => ({}));
+      // 💘は同じ組で1人まで（409 romantic_limit）など、選べなかったときは元に戻してポップアップで知らせる（2026-10-11）
+      if (!res.ok) {
+        setState((s) => ({ ...s, [toUserId]: cur }));
+        if (d?.error === 'romantic_limit') alertDialog(`${d.message}
+
+こちらに変えるときは、先にその人の💘を外してください。`, '💘 押せるのは1人までです');
+        else toast(d?.message || '選べませんでした', 'error');
+        return;
+      }
+      if (on && d?.matched) {
         setState((s) => ({ ...s, [toUserId]: { ...(s[toUserId] as MatchEntry), [kind === 'again' ? 'matchedAgain' : 'matchedRomantic']: true } }));
         toast(kind === 'again' ? '🏌️ マッチ成立！お互いに「行きたい」です' : '💘 マッチ成立！気になる同士です');
       }

@@ -29,6 +29,38 @@ export function groupOfUser(round: Round, userId: string, half: 'front' | 'back'
   return gs.find((g) => (g.memberIds || []).includes(userId));
 }
 
+// 同じ車だった相手（2026-10-11）。配車（carAssignments）で運転手か同乗者として同じ車に乗った人。
+// コンペで別の組でも、行き帰りを一緒に過ごしているのでレビューの相手に入れる。
+// 配車を公開していない（carsPublished:false／旧仕様で組み分け未公開）ときは数えない＝実際に使われた配車とは限らないため。
+// 登録ユーザーのみ（ゲスト除外）・自分除外・当日来れなかった人は除外。
+export function sameCarPeerIds(round: Round, userId: string): string[] {
+  const published = (round as any).carsPublished ?? ((round as any).assignmentsPublished !== false);
+  if (!published) return [];
+  const registered = new Set(registeredParticipantIds(round));
+  const out: string[] = [];
+  for (const c of round.carAssignments || []) {
+    const inCar = [c.driverId, ...(c.passengerIds || [])].filter(Boolean);
+    if (!inCar.includes(userId)) continue;
+    for (const id of inCar) {
+      if (id === userId || !registered.has(id) || isGuestId(id) || isNoShow(round, id)) continue;
+      if (!out.includes(id)) out.push(id);
+    }
+  }
+  return out;
+}
+
+// コンペのレビューの相手＝同じ組（前半・後半）＋同じ車（2026-10-11）。
+export function reviewPeerIdsForCompetition(round: Round, userId: string): string[] {
+  const out = sameGroupPeerIds(round, userId);
+  for (const id of sameCarPeerIds(round, userId)) if (!out.includes(id)) out.push(id);
+  return out;
+}
+
+// meId から見て toUserId がレビューの相手か（同じ組か同じ車）。通常募集は true。
+export function isReviewPeer(round: Round, meId: string, toUserId: string): boolean {
+  return isSameGroup(round, meId, toUserId) || (!!round.isCompetition && sameCarPeerIds(round, meId).includes(toUserId));
+}
+
 // 同じ組の「レビュー対象になり得る」相手。
 // **前半か後半のどちらかで同じ組になった人**すべて（コンペで前半・後半のメンバーを
 // 入れ替えることがあるため）。登録ユーザーのみ（ゲスト除外）・自分除外・当日来れなかった人は除外。

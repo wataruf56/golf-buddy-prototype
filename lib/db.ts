@@ -3,7 +3,7 @@ import { isDemoMode } from './demoMode';
 import { getAdminDb } from './firebase';
 import { mockUsers, mockRounds, mockReviews, mockChats } from './mockData';
 import type { Chat, Message, PendingReview, Review, Round, RoundThread, RoundPhoto, SchedulePoll, User } from './types';
-import { sameGroupPeerIds, isNoShow } from './groups';
+import { reviewPeerIdsForCompetition, isNoShow } from './groups';
 import { scrubMemberFromRound, applyScrubInPlace, type MemberScrub } from './roundMembership';
 
 export interface DB {
@@ -289,7 +289,7 @@ class MemoryDB implements DB {
         // コンペは「同じ組」の人だけを相互レビュー対象にする（ゲスト・来れなかった人は除外）。
         // 通常募集（4人以下＝実質1組）は従来どおり全員が対象。
         const peers = r.isCompetition
-          ? sameGroupPeerIds(r, userId)
+          ? reviewPeerIdsForCompetition(r, userId)   // 同じ組＋同じ車（2026-10-11）
           : participants.filter((p) => p !== userId && !isNoShow(r, p));
         return peers.map((reviewee) => ({
           id: `p_${id}_${userId}_${reviewee}`,
@@ -904,7 +904,7 @@ class FirestoreDB implements DB {
         // コンペは「同じ組」の人だけを相互レビュー対象にする（ゲスト・来れなかった人は除外）。
         // 通常募集（4人以下＝実質1組）は従来どおり全員が対象。
         const peers = round.isCompetition
-          ? sameGroupPeerIds(round, userId)
+          ? reviewPeerIdsForCompetition(round, userId)   // 同じ組＋同じ車（2026-10-11）
           : participants.filter((p) => p !== userId && !isNoShow(round, p));
         return peers.map((reviewee) => ({
           id: `p_${id}_${userId}_${reviewee}`,

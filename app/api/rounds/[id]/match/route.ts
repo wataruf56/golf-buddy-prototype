@@ -6,7 +6,7 @@ import { getAdminDb } from '@/lib/firebase';
 import { pushTo, liffUrl } from '@/lib/linePush';
 import { webPushText } from '@/lib/webPush';
 import { isNotifyEnabled } from '@/lib/notifyPrefs';
-import { isSameGroup, isNoShow, groupOfUser, hasBackGroups } from '@/lib/groups';
+import { isSameGroup, isReviewPeer, sameCarPeerIds, isNoShow, groupOfUser, hasBackGroups } from '@/lib/groups';
 
 // ラウンド後のマッチング。2種類の「いいね」を独立に扱う:
 //   again    = また一緒に回りたい（ゴル友的・同性/異性問わず）
@@ -52,11 +52,15 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const others = Array.from(new Set([round.hostId, ...(round.applicantIds || [])]))
     .filter((id) => id && id !== meId && !isNoShow(round, id));
 
-  const state: Record<string, { again: boolean; romantic: boolean; matchedAgain: boolean; matchedRomantic: boolean; sameGroup: boolean }> = {};
+  // sameGroup … レビューの相手（同じ組か同じ車）。sameCar … 組は違うが同じ車だった（レビュー画面の「🚗 同じ車だった」表記用）（2026-10-11）
+  const carMates = round.isCompetition ? sameCarPeerIds(round, meId) : [];
+  const state: Record<string, { again: boolean; romantic: boolean; matchedAgain: boolean; matchedRomantic: boolean; sameGroup: boolean; sameCar?: boolean }> = {};
   await Promise.all(others.map(async (to) => {
     // コンペは「同じ組」だけが通常レビュー対象。別の組は任意の「回ってみたい」(=again)のみ。
-    const sameGroup = isSameGroup(round, meId, to);
-    const entry = { again: false, romantic: false, matchedAgain: false, matchedRomantic: false, sameGroup };
+    const strictGroup = isSameGroup(round, meId, to);
+    const sameCar = !strictGroup && carMates.includes(to);
+    const sameGroup = strictGroup || sameCar;
+    const entry = { again: false, romantic: false, matchedAgain: false, matchedRomantic: false, sameGroup, ...(sameCar ? { sameCar: true } : {}) };
     for (const k of KINDS) {
       const mine = await likeExists(docId(k, meId, to));
       const theirs = mine ? await likeExists(docId(k, to, meId)) : false;
@@ -103,8 +107,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (on && isNoShow(round, toUserId)) {
     return NextResponse.json({ error: 'no_show', message: 'この相手は「当日来れなかった人」に設定されています' }, { status: 403, headers: noStore });
   }
-  // 「異性として気になる」は同じ組の相手のみ。別の組へは任意の「回ってみたい」(=again)だけ。
-  if (on && kind === 'romantic' && !isSameGroup(round, meId, toUserId)) {
+  // 「異性として気になる」は同じ組（と同じ車）の相手のみ。別の組へは任意の「回ってみたい」(=again)だけ。
+  if (on && kind === 'romantic' && !isReviewPeer(round, meId, toUserId)) {
     return NextResponse.json({ error: 'not_same_group', message: '「気になる」は同じ組の相手のみ選べます' }, { status: 403, headers: noStore });
   }
   // 「異性として気になる」は異性同士のときだけ（同性には付けられない）。
