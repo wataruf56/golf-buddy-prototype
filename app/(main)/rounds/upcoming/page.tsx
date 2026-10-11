@@ -18,11 +18,6 @@ export default function UpcomingRoundsPage() {
   );
   const allRounds = useStore((s) => s.rounds);
   const pendingRounds = allRounds.filter((r) => (r.pendingApplicantIds || []).includes(meId) && r.status !== 'completed');
-  const DECLINE_SHOW_MS = 30 * 24 * 60 * 60 * 1000;   // 見送りは30日だけ出す
-  const declinedRounds = allRounds
-    .map((r) => ({ r, e: ((r as any).rejectedApplicants || []).find((x: any) => x?.userId === meId) as { at: number } | undefined }))
-    .filter((x) => x.e && Date.now() - x.e.at < DECLINE_SHOW_MS && !(x.r.pendingApplicantIds || []).includes(meId) && !x.r.applicantIds.includes(meId))
-    .sort((a, b) => (b.e!.at - a.e!.at));
   // 運営が代理で立てた枠は日付がまだない。日程未定として末尾に落とすと
   // 「決めること」に戻れなくなるので、調整中のものだけ先頭に上げる。
   const stageOf = (r: { official?: { stage?: string } }) => r.official?.stage;
@@ -44,8 +39,8 @@ export default function UpcomingRoundsPage() {
       </div>
 
       <div className="px-5">
-        {/* 申請の状況（申請中／見送り）。参加予定とは分けて上に出す（2026-10-11） */}
-        {(pendingRounds.length > 0 || declinedRounds.length > 0) && (
+        {/* 申請の状況（申請中）。参加予定とは分けて上に出す（2026-10-11。見送りは出さない＝本人にはLINEとお知らせで伝える） */}
+        {pendingRounds.length > 0 && (
           <div className="mb-4">
             <div className="text-[13px] font-black mb-1.5">📨 申請の状況</div>
             <div className="flex flex-col gap-1.5">
@@ -58,19 +53,7 @@ export default function UpcomingRoundsPage() {
                   <span className="text-[10px] font-black px-2 py-0.5 rounded-full ml-2 flex-shrink-0" style={{ background: '#FFF1C9', color: '#8A5A00', border: '1px solid #C9A24A' }}>⏳ 申請中です</span>
                 </Link>
               ))}
-              {declinedRounds.map(({ r, e }) => (
-                <Link href={`/round/${r.id}`} key={`d_${r.id}`} className="flex justify-between items-center p-3.5 rounded-card shadow-card bg-bg border-[1.5px] border-border opacity-80">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[14px] font-bold truncate text-sub">{r.title}</div>
-                    <div className="text-[11px] text-muted mt-0.5">{formatDate(r.date) || r.dateRange || '日程未定'} ・ {new Date(e!.at).getMonth() + 1}/{new Date(e!.at).getDate()} に見送り</div>
-                  </div>
-                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full ml-2 flex-shrink-0 bg-card text-sub border border-border">今回は見送り</span>
-                </Link>
-              ))}
             </div>
-            {declinedRounds.length > 0 && (
-              <div className="text-[10.5px] text-muted mt-1.5 leading-relaxed">「今回は見送り」は、主催者がこの募集では参加をお断りしたものです（人数や男女のバランスなどの都合が多いです）。ほかの募集にはそのまま申し込めます。</div>
-            )}
           </div>
         )}
 

@@ -18,10 +18,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const list = ((round as any).rejectedApplicants || []).filter((e: any) => e?.userId !== userId);
     const rejectedApplicants = [...list, { userId, at: Date.now() }].slice(-200);
     try { await db.updateRound(params.id, { rejectedApplicants } as any); (updated as any).rejectedApplicants = rejectedApplicants; } catch { /* 記録に失敗しても見送り自体は成立 */ }
+    // 本人にアプリ内のお知らせ＋LINE（通知設定「📨 申請が見送られた」がONのとき）（2026-10-11）
     try {
-      const { addNotification } = await import('@/lib/notifications');
       const title = round.title || round.courseName || 'ラウンド';
-      await addNotification(userId, 'applyDeclined' as any, `📨 「${title}」への参加申請は、今回は見送りとなりました。ほかの募集もぜひ探してみてください。`, '/rounds/upcoming');
+      const text = `📨 「${title}」への参加申請は、今回は見送りとなりました。ほかの募集もぜひ探してみてください。`;
+      const { addNotification } = await import('@/lib/notifications');
+      await addNotification(userId, 'applyDeclined' as any, text, '/search');
+      const applicant = await db.getUser(userId);
+      const { isNotifyEnabled } = await import('@/lib/notifyPrefs');
+      if (applicant && isNotifyEnabled(applicant as any, 'applyDeclined' as any)) {
+        const { pushTo, liffUrl } = await import('@/lib/linePush');
+        await pushTo(userId, text, liffUrl('/search'), 'declined');
+      }
     } catch { /* noop */ }
   }
   return NextResponse.json({ round: updated });
