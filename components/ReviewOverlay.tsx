@@ -60,7 +60,9 @@ export function ReviewOverlay() {
           if (next[p.id]) continue;
           const st = m[p.roundId]?.state?.[p.revieweeId];
           // 2026-10-10：最初は全員「どっちでも」。過去に選んでいた人はその状態で出す
-          next[p.id] = { verdict: st?.romantic ? 'romantic' : st?.again ? 'again' : 'either', base: st?.again ? 'again' : 'either' };
+          // 2026-10-11：最初は何も選ばれていない状態。1人ずつ必ずどれかをタップしてもらう（前は「どっちでも」や過去の選択が入っていた）
+          void st;
+          next[p.id] = { verdict: null };
         }
         return next;
       });
@@ -84,9 +86,9 @@ export function ReviewOverlay() {
 
   if (pending.length === 0) return null;
 
-  const get = (id: string): Row => rows[id] || { verdict: 'either', base: 'either' };
+  const get = (id: string): Row => rows[id] || { verdict: null };
   const upd = (id: string, patch: Partial<Row>) => setRows((p) => ({ ...p, [id]: { ...get(id), ...patch } }));
-  const answered = (r?: Row) => (r ? r.verdict !== null : true);   // 未操作でも「どっちでも」として送れる
+  const answered = (r?: Row) => !!r && r.verdict !== null;   // 2026-10-11：選んでいない人がいると送れない
   const ratedCount = pending.filter((p) => answered(rows[p.id])).length;
   const allRated = ratedCount === pending.length;
 
@@ -246,9 +248,9 @@ export function ReviewOverlay() {
 いまは${other}さんに選んでいます。こちらに変えるときは、先に${other}さんの💘を外してください。`, '💘 押せるのは1人までです'); return; }
                         }
                         upd(p.id, r.verdict === 'romantic'
-                        ? { verdict: r.base || 'either' }
+                        ? { verdict: r.base ?? null }
                         // この枝では verdict は 'romantic' ではない（TSが絞り込み済み）ので、比較は書かない
-                        : { base: (r.verdict || r.base) || 'either', verdict: 'romantic' });
+                        : { base: (r.verdict || r.base) || undefined, verdict: 'romantic' });
                       }}
                       className={cn('flex-shrink-0 px-2.5 py-1.5 rounded-full text-[11px] font-black border-[1.5px]',
                         r.verdict === 'romantic' ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-pink-600 border-pink-600')}

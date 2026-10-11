@@ -22,8 +22,9 @@ export function DirectReviewCard({
   meGender?: string;
   onDone?: () => void;
 }) {
-  const [verdict, setVerdict] = useState<ReviewVerdict | null>('either');
-  const [base, setBase] = useState<ReviewVerdict>('either');
+  // 2026-10-11：最初は何も選ばれていない。必ずどれかをタップしてもらう
+  const [verdict, setVerdict] = useState<ReviewVerdict | null>(null);
+  const [base, setBase] = useState<ReviewVerdict | null>(null);
   const [busy, setBusy] = useState(false);
 
   const g1 = meGender, g2 = (user as any)?.gender;
