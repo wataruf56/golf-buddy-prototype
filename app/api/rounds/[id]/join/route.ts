@@ -88,6 +88,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const round = await db.joinRound(params.id, meId);
+  // 前に見送られた人がもう一度申請したら、見送りの記録は消す（2026-10-11）
+  if (((existing as any).rejectedApplicants || []).some((e: any) => e?.userId === meId)) {
+    try { await db.updateRound(params.id, { rejectedApplicants: ((existing as any).rejectedApplicants || []).filter((e: any) => e?.userId !== meId) } as any); } catch { /* noop */ }
+  }
   // 空き待ちしていた人が申請したら、空き待ちからは外す
   if ((existing.waitlist || []).some((e) => e.userId === meId)) {
     try { await db.updateRound(params.id, { waitlist: (existing.waitlist || []).filter((e) => e.userId !== meId) } as any); } catch { /* noop */ }

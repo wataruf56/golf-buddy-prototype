@@ -239,6 +239,9 @@ export type Round = {
   //   false … 未公開（主催者だけに見える。新しく作った募集はここから）
   //   true  … 公開中
   //   未設定 … 旧データ。これまでどおり見えている扱い（急に隠さない）
+  // 主催者が見送った（却下した）申請（2026-10-11）。申請者が「参加予定」で結果を見られるように残す。
+  // 主催者には全員ぶん、それ以外には自分のぶんだけ配信（lib/roundView）。同じ人がもう一度申請したら消す。
+  rejectedApplicants?: Array<{ userId: string; at: number }>;
   // キャンセル規定（2026-10-10・任意）。締切・キャンセル料・振込先・条件。lib/cancelPolicy
   cancelPolicy?: import('./cancelPolicy').CancelPolicy | null;
   // 2026-10-08：組み分けと配車（ピックアップ）の公開を分けた。assignmentsPublished は「組み分け」の公開。

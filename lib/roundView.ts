@@ -82,6 +82,16 @@ export function stripWaitlistForViewer(round: Round, viewerId: string | null): R
   return { ...round, waitlist: mine, waitlistCounts: counts, ...(rank > 0 ? { waitlistRank: rank } : {}) };
 }
 
+// 見送った申請は、主催者には全員ぶん、それ以外には自分のぶんだけ（2026-10-11）
+export function stripRejectedForViewer(round: Round, viewerId: string | null): Round {
+  const list = (round as any).rejectedApplicants as Array<{ userId: string; at: number }> | undefined;
+  if (!list?.length || isRoundHost(round, viewerId)) return round;
+  return { ...round, rejectedApplicants: viewerId ? list.filter((e) => e.userId === viewerId) : [] } as Round;
+}
+
 export function stripRoundForViewer(round: Round, viewerId: string | null): Round {
+  return _strip(stripRejectedForViewer(round, viewerId), viewerId);
+}
+function _strip(round: Round, viewerId: string | null): Round {
   return stripCancelAccountForViewer(stripWaitlistForViewer(stripAssignmentsForViewer(stripViews(stripGroupPrefsForViewer(stripInvitesForViewer(round, viewerId), viewerId)), viewerId), viewerId), viewerId);
 }

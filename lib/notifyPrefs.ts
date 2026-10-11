@@ -7,6 +7,7 @@ export type NotifyType =
   | 'mention'        // mentioned in a round group chat
   | 'applyReceived'  // someone applied to my round (host)
   | 'applyApproved'  // my application was approved (applicant)
+  | 'applyDeclined'  // my application was declined (applicant)（2026-10-11）
   | 'review'         // a review was posted about me
   | 'roundChat'      // any message in a round group chat I'm in
   | 'swing'          // my swing analysis finished
@@ -33,6 +34,7 @@ export const NOTIFY_TYPES: Array<{ key: NotifyType; label: string; desc: string;
   { key: 'mention',        label: '📣 メンション',           desc: 'グループチャットで自分が指名されたとき', defaultOn: true },
   { key: 'applyReceived',  label: '🆕 参加申請が届いた',     desc: '自分の募集に参加申請が来たとき', defaultOn: true },
   { key: 'applyApproved',  label: '✅ 参加が承認された',     desc: '申し込んだ募集が承認されたとき', defaultOn: true },
+  { key: 'applyDeclined',  label: '📨 申請が見送られた',     desc: '申し込んだ募集が今回は見送りになったとき', defaultOn: true },
   { key: 'review',         label: '⭐ レビューが届いた',     desc: '自分へのレビューが投稿されたとき', defaultOn: true, hidden: true },
   { key: 'roundChat',      label: '🏌️ ラウンドチャット',     desc: '参加ラウンドのグループチャットの新着（多めに届きます）', defaultOn: false },
   { key: 'swing',          label: '📊 スイング解析の完了',   desc: 'AI解析が終わったとき', defaultOn: true },
