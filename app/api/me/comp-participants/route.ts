@@ -56,7 +56,10 @@ export async function GET(_req: NextRequest) {
 
     list.sort((a, b) => (lastRoundAt[b] || 0) - (lastRoundAt[a] || 0));
 
-    return NextResponse.json({ participants: list, users }, { headers: noStore });
+    // DMできる相手かどうか（できない人には一覧で「友達申請」を出す）（2026-10-11）
+    let dmAllowed: string[] = [];
+    try { const { dmAllowedSet } = await import('@/lib/dmPolicy'); dmAllowed = Array.from(await dmAllowedSet(meId, list)); } catch { /* 取れなければ全員に💬を出す（従来どおり） */ dmAllowed = list; }
+    return NextResponse.json({ participants: list, users, dmAllowed }, { headers: noStore });
   } catch (e) {
     return NextResponse.json({ participants: [], users: {}, error: (e as Error).message }, { headers: noStore });
   }

@@ -68,6 +68,7 @@ function Inner() {
   const [tab, setTab] = useState<'friends' | 'comp'>('friends');
   const [compIds, setCompIds] = useState<string[]>([]);
   const [compUsers, setCompUsers] = useState<Record<string, MUser>>({});
+  const [compDm, setCompDm] = useState<Set<string> | null>(null);   // DMできる人（できない人には友達申請）
 
   useEffect(() => {
     let cancelled = false;
@@ -96,6 +97,7 @@ function Inner() {
         if (cancelled) return;
         if (Array.isArray(d?.participants)) setCompIds(d.participants);
         if (d?.users) setCompUsers(d.users);
+        if (Array.isArray(d?.dmAllowed)) setCompDm(new Set(d.dmAllowed));
       } catch { /* noop */ }
     })();
     return () => { cancelled = true; };
@@ -156,7 +158,7 @@ function Inner() {
       {tab === 'comp' && (
         <div className="px-5 pb-24">
           <div className="text-[12px] text-sub mb-3 leading-relaxed">
-            過去に<b>同じコンペ</b>に参加した人（組が分かれていた人も含む）。💬から直接メッセージを送れます。
+            過去に<b>同じコンペ</b>に参加した人（組が分かれていた人も含む）。💬からメッセージを送れます。まだつながっていない人には「🤝 友達申請」が出ます（承認されるとメッセージできます）。
           </div>
           {compList.length === 0 ? (
             <Empty title={loaded ? 'まだいません' : '読み込み中...'} desc="コンペ（5人以上）に参加して完了すると、ここに同じコンペの人が表示されます" />
@@ -181,10 +183,14 @@ function Inner() {
                       </div>
                     </div>
                   </Link>
-                  <Link href={`/chat/${cid}?other=${id}`} className="flex items-center gap-1.5 flex-shrink-0">
-                    {unread > 0 && <div className="px-1.5 py-0.5 bg-orange text-white text-[10px] font-bold rounded-full min-w-[18px] text-center">{unread}</div>}
-                    <span className="text-lg">💬</span>
-                  </Link>
+                  {compDm && !compDm.has(id) && !chat?.lastMessageAt ? (
+                    <Link href={`/profile/${id}?friend=1`} className="flex-shrink-0 px-2.5 py-1.5 rounded-full bg-green text-white text-[11px] font-black">🤝 友達申請</Link>
+                  ) : (
+                    <Link href={`/chat/${cid}?other=${id}`} className="flex items-center gap-1.5 flex-shrink-0">
+                      {unread > 0 && <div className="px-1.5 py-0.5 bg-orange text-white text-[10px] font-bold rounded-full min-w-[18px] text-center">{unread}</div>}
+                      <span className="text-lg">💬</span>
+                    </Link>
+                  )}
                 </div>
               );
             })

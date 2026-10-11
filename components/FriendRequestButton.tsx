@@ -19,9 +19,9 @@ const OPTIONS: Array<{ key: Claim; label: string; note: string }> = [
 
 const todayJst = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 
-export function FriendRequestButton({ toUserId, toName }: { toUserId: string; toName?: string }) {
-  const [open, setOpen] = useState(false);
-  const [claim, setClaim] = useState<Claim | null>(null);
+export function FriendRequestButton({ toUserId, toName, defaultOpen = false, defaultClaim }: { toUserId: string; toName?: string; defaultOpen?: boolean; defaultClaim?: 'same_group' | 'competition' | 'none' }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const [claim, setClaim] = useState<Claim | null>(defaultClaim || null);
   const [metAt, setMetAt] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);

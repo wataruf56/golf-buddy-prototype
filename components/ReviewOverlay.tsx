@@ -110,6 +110,27 @@ export function ReviewOverlay() {
     );
   }
 
+  // 「異性として気になる」は同じ組の中で1人まで（前半・後半それぞれ）（2026-10-11）。
+  // 組が分からない（組分けが無い・非公開）ときは、その募集の中で1人まで。
+  function groupKeys(roundId: string, uid: string): string[] {
+    const r: any = rounds.find((x) => x.id === roundId);
+    const keys: string[] = [];
+    for (const [half, gs] of [['f', r?.groups || []], ['b', r?.groupsBack || []]] as const) {
+      const g = (gs as any[]).find((x) => (x.memberIds || []).includes(me?.id));
+      if (g && (g.memberIds || []).includes(uid)) keys.push(`${half}:${g.id}`);
+    }
+    return keys.length ? keys : [`all:${roundId}`];
+  }
+  function romanticConflict(pid: string): string | null {
+    const p = pending.find((x) => x.id === pid); if (!p) return null;
+    const mine = groupKeys(p.roundId, p.revieweeId);
+    for (const q of pending) {
+      if (q.id === pid || q.roundId !== p.roundId || get(q.id).verdict !== 'romantic') continue;
+      if (groupKeys(q.roundId, q.revieweeId).some((k) => mine.includes(k))) return users.find((u) => u.id === q.revieweeId)?.displayName || '別の人';
+    }
+    return null;
+  }
+
   async function setLike(roundId: string, toUserId: string, kind: 'again' | 'romantic', on: boolean) {
     try {
       await fetch(`/api/rounds/${roundId}/match`, {
@@ -145,10 +166,13 @@ export function ReviewOverlay() {
         // like を「選んだverdict」に合わせて設定する。外した場合は on:false で静かに解消。
         //   romantic → romantic+again ON ／ again → again ON・romantic OFF
         //   never / either → 両方 OFF（＝過去のagainもここで解除される）
-        const wantRomantic = r.verdict === 'romantic';
         const wantAgain = r.verdict === 'romantic' || r.verdict === 'again';
-        await setLike(p.roundId, p.revieweeId, 'romantic', wantRomantic);
+        if (r.verdict !== 'romantic') await setLike(p.roundId, p.revieweeId, 'romantic', false);
         await setLike(p.roundId, p.revieweeId, 'again', wantAgain);
+      }
+      // 💘 は外す方を先に済ませてから付ける（同じ組で付け替えたとき「1人まで」に引っかからないように）
+      for (const p of pending) {
+        if (get(p.id).verdict === 'romantic') await setLike(p.roundId, p.revieweeId, 'romantic', true);
       }
       // 別の組の「回ってみたい」（again のみ）を反映。
       for (const w of wannaList) {
@@ -201,10 +225,16 @@ export function ReviewOverlay() {
                   {opp && (
                     <button
                       type="button"
-                      onClick={() => upd(p.id, r.verdict === 'romantic'
+                      onClick={() => {
+                        if (r.verdict !== 'romantic') {
+                          const other = romanticConflict(p.id);
+                          if (other) { toast(`同じ組で「異性として気になる」を選べるのは1人までです（${other}さんに選んでいます）`, 'error'); return; }
+                        }
+                        upd(p.id, r.verdict === 'romantic'
                         ? { verdict: r.base || 'either' }
                         // この枝では verdict は 'romantic' ではない（TSが絞り込み済み）ので、比較は書かない
-                        : { base: (r.verdict || r.base) || 'either', verdict: 'romantic' })}
+                        : { base: (r.verdict || r.base) || 'either', verdict: 'romantic' });
+                      }}
                       className={cn('flex-shrink-0 px-2.5 py-1.5 rounded-full text-[11px] font-black border-[1.5px]',
                         r.verdict === 'romantic' ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-pink-600 border-pink-600')}
                     >💘 異性として気になる</button>

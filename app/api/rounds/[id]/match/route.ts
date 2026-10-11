@@ -6,7 +6,7 @@ import { getAdminDb } from '@/lib/firebase';
 import { pushTo, liffUrl } from '@/lib/linePush';
 import { webPushText } from '@/lib/webPush';
 import { isNotifyEnabled } from '@/lib/notifyPrefs';
-import { isSameGroup, isNoShow } from '@/lib/groups';
+import { isSameGroup, isNoShow, groupOfUser, hasBackGroups } from '@/lib/groups';
 
 // ラウンド後のマッチング。2種類の「いいね」を独立に扱う:
 //   again    = また一緒に回りたい（ゴル友的・同性/異性問わず）
@@ -114,6 +114,37 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const opp = (g1 === 'male' || g1 === 'female') && (g2 === 'male' || g2 === 'female') && g1 !== g2;
     if (!opp) {
       return NextResponse.json({ error: 'not_opposite_sex', message: '「異性として気になる」は異性の相手のみ選べます' }, { status: 403, headers: noStore });
+    }
+  }
+
+  // 「異性として気になる」は、同じ組の中で1人まで（前半の組・後半の組それぞれ）（2026-10-11）
+  // 誰彼かまわず押せないようにするため。組が分かれていない募集は、その募集の中で1人まで。
+  if (on && kind === 'romantic') {
+    const mates = new Set<string>();
+    const halves: Array<'front' | 'back'> = hasBackGroups(round) ? ['front', 'back'] : ['front'];
+    let grouped = false;
+    for (const h of halves) {
+      const g = groupOfUser(round, meId, h);
+      if (!g) continue;
+      grouped = true;
+      if (!(g.memberIds || []).includes(toUserId)) continue;
+      for (const id of g.memberIds || []) if (id !== meId && id !== toUserId) mates.add(id);
+    }
+    if (!grouped) for (const id of [round.hostId, ...(round.applicantIds || [])]) if (id && id !== meId && id !== toUserId) mates.add(id);
+    if (mates.size) {
+      const adb = getAdminDb() as any;
+      let mine: string[] = [];
+      try {
+        if (adb) {
+          const snap = await adb.collection('_matchLikes').where('from', '==', meId).where('kind', '==', 'romantic').limit(500).get();
+          mine = snap.docs.map((d: any) => d.data()).filter((x: any) => x?.roundId === params.id).map((x: any) => x.to);
+        }
+      } catch { /* 取れなければ通す */ }
+      const already = mine.find((id) => mates.has(id));
+      if (already) {
+        const u = await db.getUser(already).catch(() => null);
+        return NextResponse.json({ error: 'romantic_limit', message: `同じ組で「異性として気になる」を選べるのは1人までです（${u?.displayName || '別の人'}さんに選んでいます）` }, { status: 409, headers: noStore });
+      }
     }
   }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useStore, getMe } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
@@ -17,6 +17,8 @@ import { chatIdFor, carLabel, instagramUrl, revisitStar, hasRevisitStar } from '
 
 export default function ProfilePage() {
   const params = useParams<{ id: string }>();
+  const searchQ = useSearchParams();
+  const openFriend = searchQ?.get('friend') === '1';   // 「同じコンペ参加者」の一覧から来たとき
   const router = useRouter();
   const cachedUser = useStore((s) => s.users.find((u) => u.id === params.id));
   const meId = useStore((s) => s.meId);
@@ -289,7 +291,7 @@ export default function ProfilePage() {
                   ただし「ごめんなさい」で閉じている相手には出さない。 */}
               {!declined && (
                 <div className="mt-3">
-                  <FriendRequestButton toUserId={user.id} toName={user.displayName} />
+                  <FriendRequestButton toUserId={user.id} toName={user.displayName} defaultOpen={openFriend} defaultClaim={openFriend ? 'competition' : undefined} />
                 </div>
               )}
             </>
