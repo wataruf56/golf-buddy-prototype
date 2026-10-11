@@ -124,7 +124,7 @@ export function MatchPicker({ roundId }: { roundId: string }) {
                     onClick={() => toggle(id, 'again')}
                     disabled={!!busy}
                     className={'flex-1 px-2 py-2 rounded-full text-[12px] font-bold border-[1.5px] ' + (e.again ? 'bg-green text-white border-green' : 'bg-card border-border text-sub')}
-                  >{e.again ? '✓ ' : ''}🏌️ 誘われたら行きたい</button>
+                  >{e.again ? '✓ ' : ''}🏌️ 回ってみたい</button>
                 </div>
               )}
             </div>

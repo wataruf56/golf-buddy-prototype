@@ -25,6 +25,8 @@ import type { Round } from './types';
 //   5. 募集中(open)ラウンドの主催者・共同管理者（問い合わせ先）
 //   6. 管理人（ADMIN_MANAGER_ID）とは常に相互に送れる
 //   7. 既存スレッドで相手から受信済みなら返信できる（canDm に chatId を渡した場合）
+//   9. 主催者（共同管理者）→ その募集を取りやめた／申請を取り下げた人（60日以内）（2026-10-11）
+//      理由を聞いたり、日程を変えて誘い直したりするため。相手からの返信は 7.・8. で通る。
 //   8. **すでにDMのやり取りが始まっている相手**
 //      条件を絞ったせいで、進行中の会話が途中で切れてしまうのを防ぐための例外。
 //      新しい会話はこの例外では始められない（送るには 1〜7 のどれかが要る）ので、
@@ -105,6 +107,8 @@ export async function dmAllowedSet(meId: string, candidateIds: string[]): Promis
         const m = memberSet(r), h = hostSet(r), s = seekSet(r);
         // 4. 申請・招待でやり取り中
         if ((h.has(meId) && s.has(id)) || (h.has(id) && s.has(meId))) { allowed.add(id); break; }
+        // 9. 主催者 → この募集を取りやめた／取り下げた人（60日以内）
+        if (h.has(meId) && (r.cancellations || []).some((c: any) => c?.userId === id && Date.now() - (c?.at || 0) < 60 * 86400_000)) { allowed.add(id); break; }
         // 3. これから／いま回るラウンドの同じ組
         //    完了済みは対象外。過去に一緒だっただけではもう送れない。
         if (r.status !== 'completed' && m.has(meId) && m.has(id) && isSameGroup(r, meId, id)) {

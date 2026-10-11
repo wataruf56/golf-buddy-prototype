@@ -1132,6 +1132,10 @@ export default function RoundDetailPage() {
                   <span className="text-[12.5px] font-bold truncate">{users.find((u) => u.id === c.userId)?.displayName || c.name || 'メンバー'}</span>
                   <span className={'text-[10px] font-bold ' + (c.wasApproved ? 'text-red' : 'text-sub')}>{c.wasApproved ? '参加確定を取りやめ' : '申請を取り下げ'}</span>
                   <span className="text-[10px] text-muted ml-auto flex-shrink-0">{timeAgo(c.at)}</span>
+                  {/* 主催者 → 取りやめた人へDM（理由を聞く・誘い直す）（2026-10-11） */}
+                  {c.userId && c.userId !== meId && (
+                    <Link href={`/chat/${chatIdFor(meId, c.userId)}?other=${c.userId}`} className="px-2 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
+                  )}
                 </div>
                 {c.wasApproved && (
                   <div className="text-[11.5px] text-sub mt-0.5">理由：{leaveReasonLabel(c.reason)}{c.text ? `（${c.text}）` : ''}</div>
