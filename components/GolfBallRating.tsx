@@ -33,8 +33,10 @@ function StarSlot({ fill, size }: { fill: number; size: number }) {
   );
 }
 
-export function GolfBallRating({ value, count, size = 18, showNumber = true, rated }: {
-  value: number;      // 0〜5（0.5刻み）
+export function GolfBallRating({ value, count, size = 18, showNumber = true, rated, label }: {
+  value: number;      // 0〜5（0.5刻み）＝星の絵
+  /** 星の横に出す数字（例 '3.44'）。省略時は value を小数1桁で（2026-10-11） */
+  label?: string;
   count?: number;     // 評価人数（あれば括弧書きで表示）
   size?: number;
   showNumber?: boolean;
@@ -53,7 +55,7 @@ export function GolfBallRating({ value, count, size = 18, showNumber = true, rat
       {showNumber && (
         hasRating ? (
           <span className="inline-flex items-baseline gap-1">
-            <span className="font-black text-text" style={{ fontSize: size * 0.9 }}>{v.toFixed(1)}</span>
+            <span className="font-black text-text" style={{ fontSize: size * 0.9 }}>{label ?? v.toFixed(1)}</span>
             {typeof count === 'number' && count > 0 && <span className="text-muted font-bold" style={{ fontSize: size * 0.72 }}>({count})</span>}
           </span>
         ) : (

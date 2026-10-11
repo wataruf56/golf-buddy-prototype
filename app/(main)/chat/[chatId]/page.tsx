@@ -7,7 +7,7 @@ import { store, useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { AutoGrowTextarea } from '@/components/AutoGrowTextarea';
 import { toast } from '@/components/Toast';
-import { revisitStar, hasRevisitStar } from '@/lib/utils';
+import { revisitScoreText, hasRevisitStar } from '@/lib/utils';
 import { ChaseCheck } from '@/components/ChaseCheck';
 import { MatchFeelingBar } from '@/components/MatchFeelingBar';
 import { ADMIN_MANAGER_ID } from '@/lib/adminManagerId';
@@ -63,20 +63,20 @@ export default function ChatPage() {
 
   // 相手の評価は「また回りたい率」をリアルタイムに算出して表示する（user.reviewAvg は
   // 非正規化で古くなるため使わない。プロフィール上部と同じ track-record を使い一致させる）。
-  const [otherTrack, setOtherTrack] = useState<{ roundedWith: number; neverCount: number; mannerPenalty?: number } | null>(null);
+  const [otherTrack, setOtherTrack] = useState<{ roundedWith: number; againCount: number; neverCount: number; mannerPenalty?: number } | null>(null);
   useEffect(() => {
     setOtherTrack(null);
     if (!otherId) return;
     let cancelled = false;
     fetch(`/api/users/${encodeURIComponent(otherId)}/track-record`, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (!cancelled && d) setOtherTrack({ roundedWith: d.roundedWith || 0, neverCount: d.neverCount || 0, mannerPenalty: d.mannerPenalty || 0 }); })
+      .then((d) => { if (!cancelled && d) setOtherTrack({ roundedWith: d.roundedWith || 0, againCount: d.againCount || 0, neverCount: d.neverCount || 0, mannerPenalty: d.mannerPenalty || 0 }); })
       .catch(() => { /* noop */ });
     return () => { cancelled = true; };
   }, [otherId]);
   // 運営ペナルティも★に入れる（プロフィールと同じ式。lib/utils の revisitStar）。
   const ratingText = hasRevisitStar(otherTrack)
-    ? `★${revisitStar(otherTrack!.roundedWith, otherTrack!.neverCount, otherTrack!.mannerPenalty).toFixed(1)}`
+    ? `★${revisitScoreText(otherTrack!.roundedWith, otherTrack!.againCount, otherTrack!.neverCount, otherTrack!.mannerPenalty)}`
       + (otherTrack!.roundedWith > 0 ? `（${otherTrack!.roundedWith}）` : '')
     : '🆕 初参加';
 

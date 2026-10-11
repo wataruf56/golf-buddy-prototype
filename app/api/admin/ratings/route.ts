@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { revisitStar, hasRevisitStar } from '@/lib/utils';
+import { revisitScore, hasRevisitStar } from '@/lib/utils';
 import { getAdminDb } from '@/lib/firebase';
 import { warmTestIds, isTestId } from '@/lib/testAccounts';
 
@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
         // ここだけ古い式を直書きしていて、会員には★4.0なのに管理画面では★5.0／初参加に見えていた。
         const penalty = Math.max(0, Math.floor(Number(u.mannerPenalty || 0)));
         const star = hasRevisitStar({ roundedWith, mannerPenalty: penalty })
-          ? revisitStar(roundedWith, neverCount, penalty) : null;
+          ? revisitScore(roundedWith, againCount, neverCount, penalty) : null;   // 丸めない（表示は小数2桁）
         const s = stat[u.id] || { hosted: 0, joined: 0, noShow: 0, partners: new Set() };
         return {
           id: u.id,

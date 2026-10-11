@@ -14,7 +14,7 @@ import type { User } from '@/lib/types';
 import { track as logEvent } from '@/lib/telemetry';
 import { ProfileDetails } from '@/components/ProfileDetails';
 import { MatchFeelingBar } from '@/components/MatchFeelingBar';
-import { chatIdFor, carLabel, instagramUrl, revisitStar, hasRevisitStar } from '@/lib/utils';
+import { chatIdFor, carLabel, instagramUrl, revisitStar, revisitScoreText, hasRevisitStar } from '@/lib/utils';
 
 export default function ProfilePage() {
   const params = useParams<{ id: string }>();
@@ -192,7 +192,7 @@ export default function ProfilePage() {
           {!isMe && (
             <div className="mt-1.5 flex items-center gap-2.5 flex-wrap">
               {/* ★は「また回りたい率」を5段階に写像（旧★平均は廃止）。3/3 → ★5.0 */}
-              <GolfBallRating value={revisitStar(track?.roundedWith, track?.neverCount, track?.mannerPenalty)} count={track?.roundedWith || 0} rated={hasRevisitStar(track)} size={18} />
+              <GolfBallRating value={revisitStar(track?.roundedWith, track?.againCount, track?.neverCount, track?.mannerPenalty)} label={revisitScoreText(track?.roundedWith, track?.againCount, track?.neverCount, track?.mannerPenalty)} count={track?.roundedWith || 0} rated={hasRevisitStar(track)} size={18} />
             </div>
           )}
           {/* 2026-10-11：レビューの質問文と、その答え（何人中何人が「行きたい」） */}

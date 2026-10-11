@@ -25,12 +25,34 @@ export function formatDate(d?: string) {
 // そこで、レビューが無い人は★5を起点にして引く。
 //
 // 下限は0。1で止めると、もともと★0の人がペナルティで逆に上がってしまう。
-export function revisitStar(roundedWith?: number, neverCount?: number, mannerPenalty?: number): number {
+//
+// 【2026-10-11 改定：点数の平均（B案・本人決定）】
+// 以前は「思わない」の少なさだけで★を出していて、「行きたい」が何人いても★は上がらなかった
+// （行きたい3・どっちでも5・思わない1 でも★4.5）。いまは1人ずつの答えを点数にして平均する：
+//   行きたい（💘を含む）＝5点／どっちでも＝3点／思わない＝1点
+// 例：行きたい3・どっちでも5・思わない1 → (15+15+1)/9 = 3.44
+// 数字は丸めずに小数2桁（★3.44）、星の絵だけ0.5刻みに丸める（★★★½）。
+/** ★の点数そのもの（0〜5・丸めない）。表示する数字はこれ（小数2桁）。 */
+export function revisitScore(roundedWith?: number, againCount?: number, neverCount?: number, mannerPenalty?: number): number {
   const rw = roundedWith || 0;
   const p = Math.max(0, Math.floor(mannerPenalty || 0));
   if (rw <= 0 && p <= 0) return 0;
-  const base = rw > 0 ? (1 - (neverCount || 0) / rw) * 5 : 5;
-  return Math.max(0, Math.round((base - p) * 2) / 2);
+  let base = 5;
+  if (rw > 0) {
+    const again = Math.min(rw, Math.max(0, againCount || 0));
+    const never = Math.min(rw - again, Math.max(0, neverCount || 0));
+    const either = rw - again - never;
+    base = (again * 5 + either * 3 + never * 1) / rw;
+  }
+  return Math.max(0, Math.min(5, base - p));
+}
+/** 星の絵に使う値（0.5刻みに丸める）。 */
+export function revisitStar(roundedWith?: number, againCount?: number, neverCount?: number, mannerPenalty?: number): number {
+  return Math.round(revisitScore(roundedWith, againCount, neverCount, mannerPenalty) * 2) / 2;
+}
+/** 表示用の数字（小数2桁）。 */
+export function revisitScoreText(roundedWith?: number, againCount?: number, neverCount?: number, mannerPenalty?: number): string {
+  return revisitScore(roundedWith, againCount, neverCount, mannerPenalty).toFixed(2);
 }
 
 /** 星を出せるか。レビューが無くても、運営ペナルティがあれば出す（上の理由）。 */
@@ -42,12 +64,12 @@ export function hasRevisitStar(r: { roundedWith?: number; mannerPenalty?: number
 // くれた人数、neverCount=ごめんなさい数）から算出。旧 ratingLabel(reviewAvg) の置き換え。
 // レビューがまだ無ければ「🆕 初参加」。
 export function revisitRatingLabel(
-  r: { roundedWith?: number; neverCount?: number; mannerPenalty?: number } | null | undefined,
+  r: { roundedWith?: number; againCount?: number; neverCount?: number; mannerPenalty?: number } | null | undefined,
   opts: { count?: boolean } = {},
 ): string {
   const rw = r?.roundedWith || 0;
   if (!hasRevisitStar(r)) return '🆕 初参加';
-  const star = revisitStar(rw, r?.neverCount, r?.mannerPenalty).toFixed(1);
+  const star = revisitScoreText(rw, r?.againCount, r?.neverCount, r?.mannerPenalty);
   return opts.count ? `★${star}（${rw}）` : `★${star}`;
 }
 

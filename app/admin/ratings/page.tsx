@@ -99,7 +99,7 @@ function Inner() {
         <AdminTabs token={token} group="trust" current="/admin/ratings" />
       <div className="text-2xl font-black mb-1">⭐ 評価の状況（全員）</div>
       <div className="text-[11px] text-muted mb-3">
-        ★＝レビューをくれた人のうち「思わない」が何人かで決まります（「行きたい」の人数は★には入りません）。名前をタップすると、誰からどう評価されたかが開きます。
+        ★＝レビューの答えを点数にした平均（行きたい・💘＝5点／どっちでも＝3点／思わない＝1点。運営ペナルティ1件で−1）。数字は小数2桁、星の絵は0.5刻み。名前をタップすると、誰からどう評価されたかが開きます。
       </div>
 
       {err && <div className="bg-red-50 text-red-700 p-3 rounded-xl mb-3 text-[12px]">エラー: {err}</div>}
@@ -107,7 +107,7 @@ function Inner() {
       {s && (
         <div className="grid grid-cols-2 gap-2 mb-3">
           <Kpi label="評価がある人" value={`${s.rated}人`} sub={`未評価 ${s.unrated}人`} accent="text-green" />
-          <Kpi label="平均★" value={s.avgStar ? `★${s.avgStar.toFixed(1)}` : '—'} sub={`レビュー ${s.totalReviews}件`} accent="text-blue" />
+          <Kpi label="平均★" value={s.avgStar ? `★${s.avgStar.toFixed(2)}` : '—'} sub={`レビュー ${s.totalReviews}件`} accent="text-blue" />
           <Kpi label="ごめんなさりあり" value={`${s.withNever}人`} sub="1人以上から" accent="text-orange" />
           <Kpi label="運営ペナルティ" value={`${s.withPenalty}人`} sub="ドタキャン等" accent="text-red-600" />
         </div>
@@ -144,7 +144,7 @@ function Inner() {
                   <div className="text-[10.5px] text-muted mt-0.5">
                     {r.star == null
                       ? '🆕 まだ評価なし'
-                      : <>★{r.star.toFixed(1)}<span className="ml-1">（{r.roundedWith}人が評価・行きたい{r.againRate}%）</span></>}
+                      : <>★{r.star.toFixed(2)}<span className="ml-1">（{r.roundedWith}人が評価・行きたい{r.againRate}%）</span></>}
                   </div>
                   <div className="text-[10px] text-muted">
                     ⛳ 参加{r.joined} ・ 主催{r.hosted}
@@ -197,7 +197,7 @@ function Inner() {
       </div>
 
       <div className="text-[10.5px] text-muted mt-4 leading-relaxed">
-        ※ ★は「レビューをくれた人のうち、「思わない」を付けた人の割合」から算出しています（アプリの表示と同じ計算）。まだ誰からもレビューをもらっていない人は「🆕 まだ評価なし」です。
+        ※ ★は、行きたい（💘を含む）＝5点・どっちでも＝3点・思わない＝1点の平均です（アプリの表示と同じ計算）。まだ誰からもレビューをもらっていない人は「🆕 まだ評価なし」です。
       </div>
     </div>
   );
