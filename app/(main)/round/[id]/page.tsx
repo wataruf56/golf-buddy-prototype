@@ -103,7 +103,7 @@ export default function RoundDetailPage() {
   const [tab, setTab] = useState<'people' | 'pickup' | 'groups' | 'hostnote' | 'album' | 'payment'>(
     () => {
       const t = search?.get('tab');
-      return t === 'groups' || t === 'pickup' || t === 'payment' ? t : 'people';   // hostnote はタブではなくなった（カード内で開く）
+      return t === 'groups' || t === 'pickup' || t === 'payment' || t === 'album' ? t : 'people';   // hostnote はタブではなくなった（カード内で開く）
     },
   );
   // Host-only: kanji full names of participants (for golf-course registration).

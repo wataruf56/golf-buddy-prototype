@@ -28,7 +28,8 @@ html, body {
   .sm-phone-full .status-bar { display: none; }
 }
 
-.screen { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+/* 2026-10-11：画面の中身を少しだけ小さく（1画面に入る文章を増やす・本人依頼）。タブバーと全画面のポップアップ（body 直下）は対象外 */
+.screen { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; zoom: 0.94; }
 .screen::-webkit-scrollbar { display: none; }
 
 input, textarea, select { font-family: inherit; }

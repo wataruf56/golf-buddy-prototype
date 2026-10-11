@@ -1,39 +1,52 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { getMe, useStore } from '@/lib/store';
 import { formatDate } from '@/lib/utils';
+import { useUnreadCounts } from '@/lib/useUnread';
 
-// 「過去参加したラウンド」= 自分が主催 or 参加した完了済みラウンド。開催日（なければ
-// 完了時刻）の新しい順。ここから当時の詳細（参加者・レビュー等）にまた飛べる。
-// リッチメニュー「過去ラウンド」から直接開く一覧ページ。
+// 「過去のラウンド」= 自分が主催 or 参加した完了済みラウンド。開催日（なければ完了時刻）の新しい順。
+// 下のタブ「過去ラウンド」とリッチメニュー「過去ラウンド」から開く。
+// 2026-10-11：行を押すと、その日のグループチャットへ。写真がある募集は 📷（押すとその募集のアルバム）。
 export default function PastRoundsPage() {
-  const router = useRouter();
   const me = useStore(getMe);
+  const { unreadRoundIds } = useUnreadCounts() as any;
   const myRounds = useStore((s) =>
     s.rounds.filter((r) =>
       r.hostId === s.meId ||
       r.applicantIds.includes(s.meId) ||
-      (r.pendingApplicantIds || []).includes(s.meId)
+      (r.coHostIds || []).includes(s.meId)
     )
   );
   const pastRounds = myRounds
-    .filter((r) => r.status === 'completed')
+    .filter((r) => r.status === 'completed' && !(r as any).availDate)
     .slice()
     .sort((a, b) => {
       const am = a.date ? new Date(a.date).getTime() : (a.completedAt || 0);
       const bm = b.date ? new Date(b.date).getTime() : (b.completedAt || 0);
       return bm - am;
     });
+  const key = pastRounds.map((r) => r.id).join(',');
+  const [photos, setPhotos] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!key) return;
+    let cancelled = false;
+    fetch(`/api/me/round-photo-counts?ids=${encodeURIComponent(key)}`, { cache: 'no-store', credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (!cancelled && j?.counts) setPhotos(j.counts); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [key]);
 
   return (
     <>
-      <div className="px-5 pt-2 pb-3 flex items-center justify-between">
+      <div className="px-5 pt-2 pb-1">
         <div className="text-2xl font-black tracking-tight">🏁 過去のラウンド</div>
+        <div className="text-[11px] text-sub mt-0.5">押すと、その日のグループチャットが開きます。📷 はアルバムに写真があるラウンドです。</div>
       </div>
 
-      <div className="px-5">
+      <div className="px-5 pt-2">
         {pastRounds.length === 0 ? (
           <div className="bg-card rounded-card shadow-card p-8 text-center">
             <div className="text-3xl mb-2">📖</div>
@@ -45,25 +58,38 @@ export default function PastRoundsPage() {
             </div>
           </div>
         ) : (
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             {pastRounds.map((r) => {
               const role = r.hostId === me.id ? '主催' : '参加';
+              const n = photos[r.id] || 0;
+              const people = 1 + (r.applicantIds || []).length;
+              const unread = !!(unreadRoundIds && unreadRoundIds.has && unreadRoundIds.has(r.id));
               return (
-                <Link href={`/round/${r.id}`} key={r.id} className="flex justify-between items-center p-3.5 bg-card rounded-card shadow-card">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[14px] font-bold truncate">{r.title}</div>
-                    <div className="text-[11px] text-muted mt-0.5">{formatDate(r.date) || r.dateRange || '日程未定'} ・ {role}</div>
-                  </div>
-                  <span className="text-[11px] text-blue font-bold flex-shrink-0 ml-2">詳細 →</span>
-                </Link>
+                <div key={r.id} className="flex items-stretch bg-card rounded-card shadow-card overflow-hidden">
+                  <Link href={`/round/${r.id}/chat`} className="flex-1 min-w-0 flex items-center gap-3 p-3.5">
+                    <div className="w-11 h-11 rounded-xl bg-green-light flex flex-col items-center justify-center flex-shrink-0 leading-none">
+                      <span className="text-[10px] font-bold text-green">{r.date ? `${Number(r.date.slice(5, 7))}月` : ''}</span>
+                      <span className="text-[17px] font-black text-green font-num">{r.date ? Number(r.date.slice(8, 10)) : '⛳'}</span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[14px] font-bold truncate">{r.title}</div>
+                      <div className="text-[11px] text-muted mt-0.5 truncate">{formatDate(r.date) || r.dateRange || '日程未定'} ・ {role} ・ {people}人{r.courseName ? ` ・ ${r.courseName}` : ''}</div>
+                    </div>
+                    {unread && <span className="px-1.5 py-0.5 bg-orange text-white text-[10px] font-bold rounded-full flex-shrink-0">新着</span>}
+                    <span className="text-[18px] flex-shrink-0" aria-hidden>💬</span>
+                  </Link>
+                  {n > 0 && (
+                    <Link href={`/round/${r.id}?tab=album`} aria-label={`アルバム（写真${n}枚）`}
+                      className="flex flex-col items-center justify-center px-3 border-l-2 border-border bg-orange-light flex-shrink-0">
+                      <span className="text-[20px] leading-none">📷</span>
+                      <span className="text-[10px] font-black text-orange mt-0.5">{n}枚</span>
+                    </Link>
+                  )}
+                </div>
               );
             })}
           </div>
         )}
-
-        <button onClick={() => router.push('/home')} className="w-full mt-4 px-5 py-2.5 bg-bg border-[1.5px] border-border rounded-xl text-sm font-bold">
-          ホームに戻る
-        </button>
       </div>
       <div className="h-5" />
     </>

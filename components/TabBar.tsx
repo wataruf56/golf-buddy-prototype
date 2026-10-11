@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useUnreadCounts } from '@/lib/useUnread';
 
-// モック準拠の6タブ（2026-10-08 タイムラインを追加）（絵文字アイコン・クリーム地・インク枠・アクティブはティール）。
+// モック準拠の7タブ（2026-10-08 タイムライン、2026-10-11 過去ラウンドを追加）（絵文字アイコン・クリーム地・インク枠・アクティブはティール）。
 // 「募集」はホームのタイルから、「マイ」はホームのプロフィールカードから到達する。
 type Tab = { id: string; label: string; href: string; emoji: string; external?: boolean };
 
@@ -13,6 +13,8 @@ const tabs: Tab[] = [
   { id: 'home', label: 'ホーム', href: '/home', emoji: '🏠' },
   { id: 'search', label: 'さがす', href: '/search', emoji: '🔍' },
   { id: 'timeline', label: 'タイムライン', href: '/timeline', emoji: '📰' },
+  // 2026-10-11：過去に参加したラウンド（押すとその日のグループチャット・📷でアルバム）
+  { id: 'past', label: '過去ラウンド', href: '/rounds/past', emoji: '🏁' },
   { id: 'swing', label: 'スイング', href: '/swing', emoji: '🏌️' },
   { id: 'buddies', label: 'ゴル友', href: '/buddies', emoji: '👥' },
   { id: 'guide', label: '使い方', href: '/guide', emoji: '📖' },
@@ -42,7 +44,7 @@ export function TabBar({ onBlock }: { onBlock?: (href: string) => boolean }) {
                 </span>
               )}
             </div>
-            <span className={cn('text-[9.5px] whitespace-nowrap tracking-tight', active ? 'font-bold' : 'font-medium')}>{t.label}</span>
+            <span className={cn('text-[9px] whitespace-nowrap tracking-tighter', active ? 'font-bold' : 'font-medium')}>{t.label}</span>
           </>
         );
         if (t.external) return <a key={t.id} href={t.href} className={cls}>{inner}</a>;
