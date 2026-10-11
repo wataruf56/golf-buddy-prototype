@@ -49,8 +49,21 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
 
   const host = await db.getUser(round.hostId);
   const title = round.title || round.courseName || 'ラウンド';
+  // ゴルトモ公式コンペは運営が参加費を受け取る（/legal/money 第4章）ので、文面を分ける（2026-10-11）
+  const official = !!(round as any).isOfficial && !!round.isCompetition && !(round as any).availDate;
   const what = (round as any).eventType === 'drink' ? '飲み会' : (round.isCompetition ? 'ゴルフコンペ' : 'ラウンド');
-  const lines = [
+  const lines = official ? [
+    `【ゴルトモ運営よりお知らせ】`,
+    `${fmtDate(round.date || '')}の「${title}」は、ゴルトモ運営への事前入金制です。`,
+    `入金期日（${fmtDateTime(deadline)}）を過ぎていますので、下記の口座にお振り込みください。`,
+    '',
+    ...(info.amount ? [`金額：${Number(info.amount).toLocaleString('ja-JP')}円（プレーフィー）`] : []),
+    ...(info.account ? [`振込先：${info.account}`] : []),
+    '',
+    `参加費は当日、運営がゴルフ場へまとめてお支払いします。食事・飲み物などそのほかの費用は、各自でゴルフ場にお支払いください。`,
+    `すでにお振り込み済みの場合は、このメッセージにご返信ください。`,
+    `お振り込みが確認できない場合、参加を取り消すことがあります。`,
+  ] : [
     `【ゴルトモ運営よりお知らせ】`,
     `${fmtDate(round.date || '')}の「${title}」（${what}）は、主催者への事前入金制です。`,
     `入金期日（${fmtDateTime(deadline)}）を過ぎていますので、下記の口座にお振り込みください。`,

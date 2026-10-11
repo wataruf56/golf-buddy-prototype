@@ -97,6 +97,8 @@ export function PaymentTracker({
   ];
 
   const paidCount = members.filter((m) => paid.has(m.id)).length;
+  // ゴルトモ公式コンペ（運営が主催・参加費は運営が受け取ってゴルフ場へまとめて支払う）（2026-10-11）
+  const isOfficialComp = !!(round as any).isOfficial && !!round.isCompetition && !(round as any).availDate;
   const paidDirty = members.some((m) => draft.has(m.id) !== paid.has(m.id));
   const deadline = info.deadline || 0;
   const pastDeadline = !!deadline && Date.now() >= deadline;
@@ -324,7 +326,9 @@ export function PaymentTracker({
       </div>
 
       <div className="text-[10px] text-muted mt-2 leading-relaxed px-1">
-        お金のやり取りは主催者と参加者のあいだで行うもので、ゴルトモ運営は入金の受け取り・立て替え・返金・キャンセル料の請求には関与しません。
+        {isOfficialComp
+          ? 'ゴルトモ公式コンペの参加費はゴルトモ運営が受け取り、コンペ当日にゴルフ場へプレーフィーをまとめて支払います。食事・飲み物などそのほかの費用は、各自でゴルフ場にお支払いください。'
+          : 'お金のやり取りは主催者と参加者のあいだで行うもので、ゴルトモ運営は入金の受け取り・立て替え・返金・キャンセル料の請求には関与しません。'}
         <Link href="/legal/money" className="text-blue font-bold ml-1">お金のやり取りに関するルール →</Link>
       </div>
     </div>

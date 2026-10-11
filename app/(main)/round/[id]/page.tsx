@@ -888,7 +888,7 @@ export default function RoundDetailPage() {
                   <div className="text-[10.5px] text-sub text-center">⏰ {formatCancelDeadline((round as any).cancelPolicy.deadline)}を過ぎると、アプリからはキャンセルできなくなります</div>
                 )}
                 {((round as any).cancelPolicy?.deadline || round.paymentEnabled) && (
-                  <div className="text-[10px] text-muted text-center">キャンセル料・参加費のやり取りは主催者と参加者のあいだで行います。<Link href="/legal/money" className="text-blue font-bold">ルールを見る</Link></div>
+                  <div className="text-[10px] text-muted text-center">{((round as any).isOfficial && round.isCompetition) ? '公式コンペの参加費は運営が受け取り、当日ゴルフ場へまとめて支払います。キャンセル・返金の条件は' : 'キャンセル料・参加費のやり取りは主催者と参加者のあいだで行います。'}<Link href="/legal/money" className="text-blue font-bold">ルールを見る</Link></div>
                 )}
               </>
             )}
