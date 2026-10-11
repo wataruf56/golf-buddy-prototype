@@ -65,8 +65,11 @@ export default function HomePage() {
   // 出す相手＝参加経験あり×主催経験なし（サーバー側 /api/me/host-nudge が判定）。
   // 頻度＝7日に1回まで、3回閉じたら以降は出さない（localStorageで管理）。
   const [hostNudge, setHostNudge] = useState<{ name: string; joinedCount: number; fillRate: number } | null>(null);
+  // レビューが残っている間は出さない（レビュー画面の上に重なっていた・2026-10-11）。終わってから判定する
+  const reviewsPendingForNudge = useStore((s) => s.pendingReviews.some((p) => p.reviewerId === s.meId && p.status === 'pending'));
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (reviewsPendingForNudge) return;
     try {
       if (Number(localStorage.getItem('gb_hostnudge_dismissed') || 0) >= 3) return;
       const last = Number(localStorage.getItem('gb_hostnudge_at') || 0);
@@ -82,7 +85,7 @@ export default function HomePage() {
       })
       .catch(() => { /* noop */ });
     return () => { cancelled = true; };
-  }, []);
+  }, [reviewsPendingForNudge]);
   function closeHostNudge(go: boolean) {
     if (!go) {
       try {
@@ -479,7 +482,7 @@ export default function HomePage() {
       )}
 
       {/* ⛳ 主催のお誘いポップアップ。白クマがカードの上から覗く形（案1×ポーズ3）。 */}
-      {hostNudge && (
+      {hostNudge && !reviewsPendingForNudge && (
         <div className="absolute inset-0 bg-black/50 z-[120] flex items-center justify-center p-5 backdrop-blur-sm">
           <div className="relative w-full max-w-[330px]">
             {/* カードの縁に両手（前足）を引っかけて、上からひょこっと覗いているクマ。

@@ -54,7 +54,12 @@ export function linkifyNodes(text: string, opts: LinkifyOptions = {}): ReactNode
     const href = raw.startsWith('www.') ? `https://${raw}` : raw;
     const own = ownPath(href);
     const stop = (e: React.MouseEvent) => { e.stopPropagation(); };
-    out.push(own
+    // 募集のグループチャットへのリンクはボタンで出す（運営からの「チャットに声をかけてみませんか？」など・2026-10-11）
+    const chatBtn = !!own && /^\/round\/[^/?#]+\/chat(?:[?#]|$)/.test(own);
+    out.push(chatBtn
+      ? <Link key={`${kp}-a${i}`} href={own as string} onClick={stop}
+          className="inline-flex items-center justify-center gap-1.5 my-1 px-4 py-2.5 rounded-xl bg-green text-white text-[13px] font-black no-underline shadow-[2px_2px_0_#1E3A30]">💬 グループチャットを開く</Link>
+      : own
       ? <Link key={`${kp}-a${i}`} href={own} className={cls} onClick={stop}>{raw}</Link>
       : <a key={`${kp}-a${i}`} href={href} target="_blank" rel="noopener noreferrer" className={cls} onClick={stop}>{raw}</a>);
     if (tail) out.push(plain(tail, `${kp}-t${i}`));

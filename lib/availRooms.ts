@@ -226,8 +226,8 @@ export async function countEligible(me: User, date: string): Promise<number> {
  *   対象：開催前で open の部屋・メンバーが3人以上・ユーザーの発言が0件（運営・システムの書き込みは数えない）・部屋ができてから3時間たった・まだ声かけしていない
  *   すること：
  *     ① 部屋のチャットに管理人として「@名前 …人数が集まりました！みんなに声をかけてみませんか？」
- *     ② 1人ずつ管理人のDM（部屋のチャットへのURLつき）
- *     ③ アプリ内お知らせ（メンション）＋ LINE（通知設定に関係なく必ず。リンクは部屋のチャット）
+ *     ② 1人ずつ管理人のDM「◯日のラウンドのチャットに声をかけてみませんか？」＋部屋のチャットを開くボタン（URL。Linkify がボタンで描く）
+ *     ③ アプリ内お知らせ＋ LINE（通知設定に関係なく必ず）。リンクは**管理人とのDM**（2026-10-11 本人指定：DMを開いて、そこからチャットへ）
  *   1部屋1回だけ（round.availNudgedAt）。LINE を夜に鳴らさないよう、送るのは JST 10〜21時だけ。
  *   テスト垢の部屋も同じ流れ（LINE はテスト垢には飛ばない・lib/testIsolation）。
  */
@@ -271,10 +271,11 @@ export async function nudgeQuietRooms(opts?: { force?: boolean; roomId?: string 
       const { addNotification } = await import('./notifications');
       const { pushTo, liffUrl } = await import('./linePush');
       for (const u of users) {
-        const dm = `${u.displayName || 'メンバー'}さん、こんにちは。ゴルトモ運営です。\n\n🎉 ${when}に行ける人が${ids.length}人集まりました！\nその日のチャットで、みんなに声をかけてみませんか？\n\n▼ ${when}のチャット\n${url}`;
+        const dm = `${u.displayName || 'メンバー'}さん、こんにちは。ゴルトモ運営です。\n\n🎉 ${when}に行ける人が${ids.length}人集まりました！\n${when}のラウンドのチャットに声をかけてみませんか？\n\n${url}`;
+        const dmPath = `/chat/${chatIdFor(ADMIN_MANAGER_ID, u.id)}?other=${ADMIN_MANAGER_ID}`;
         try { await db.sendMessage(chatIdFor(ADMIN_MANAGER_ID, u.id), [ADMIN_MANAGER_ID, u.id].sort() as [string, string], ADMIN_MANAGER_ID, dm); } catch { /* noop */ }
-        await addNotification(u.id, 'mention', `🎉 ${when}、人数が集まりました！みんなに声をかけてみませんか？（運営より）`, path).catch(() => {});
-        await pushTo(u.id, `🎉【ゴルトモ運営】${when}、行ける人が${ids.length}人集まりました！\nみんなに声をかけてみませんか？\n▼ その日のチャット`, liffUrl(path), 'avail_room_nudge').catch(() => {});
+        await addNotification(u.id, 'dm', `🎉 ${when}、人数が集まりました！みんなに声をかけてみませんか？（運営より）`, dmPath).catch(() => {});
+        await pushTo(u.id, `🎉【ゴルトモ運営】${when}、行ける人が${ids.length}人集まりました！\nみんなに声をかけてみませんか？\n▼ 運営からのメッセージ`, liffUrl(dmPath), 'avail_room_nudge').catch(() => {});
       }
       nudged.push(r.id);
     } catch (e) {
