@@ -283,6 +283,10 @@ export type Round = {
   paidIds?: string[];
   // 入金の案内（金額・振込先・締切など。主催者が自由記述）。参加者に表示。
   paymentNote?: string;
+  // 入金の詳細（2026-10-11）：金額（円）・振込先・入金期日（ミリ秒）。参加者に表示
+  paymentInfo?: { amount?: number; account?: string; deadline?: number };
+  // 未入金者への催促（運営＝管理人から送る）を最後に送った時刻。24時間は再送できない
+  paymentReminderSentAt?: number;
   // 主催者が自前のLINEオープンチャットを持っている場合のURL。設定されていれば
   // グループチャット上部に「LINEのオープンチャットあり」として表示。未設定なら非表示。
   openChatUrl?: string;

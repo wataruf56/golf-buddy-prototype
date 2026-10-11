@@ -89,8 +89,18 @@ export function stripRejectedForViewer(round: Round, viewerId: string | null): R
   return { ...round, rejectedApplicants: viewerId ? list.filter((e) => e.userId === viewerId) : [] } as Round;
 }
 
+// 入金の振込先は、主催者・共同主催・承認済みの参加者だけに見せる（2026-10-11）
+export function stripPaymentForViewer(round: Round, viewerId: string | null): Round {
+  const pi = (round as any).paymentInfo;
+  if (!pi?.account) return round;
+  const inIt = !!viewerId && (isRoundHost(round, viewerId) || (round.applicantIds || []).includes(viewerId));
+  if (inIt) return round;
+  const { account, ...rest } = pi;
+  return { ...round, paymentInfo: { ...rest, accountHidden: true } } as Round;
+}
+
 export function stripRoundForViewer(round: Round, viewerId: string | null): Round {
-  return _strip(stripRejectedForViewer(round, viewerId), viewerId);
+  return _strip(stripPaymentForViewer(stripRejectedForViewer(round, viewerId), viewerId), viewerId);
 }
 function _strip(round: Round, viewerId: string | null): Round {
   return stripCancelAccountForViewer(stripWaitlistForViewer(stripAssignmentsForViewer(stripViews(stripGroupPrefsForViewer(stripInvitesForViewer(round, viewerId), viewerId)), viewerId), viewerId), viewerId);

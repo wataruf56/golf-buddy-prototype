@@ -172,6 +172,7 @@ export default function GuidePage() {
         <div className="text-[11px] font-black text-sub mb-2">規約・運営情報</div>
         <div className="bg-card rounded-card shadow-card overflow-hidden border-2 border-border">
           <LinkRow icon="📄" label="利用規約・運営会社" href="/legal/terms" />
+          <LinkRow icon="💴" label="お金のやり取りに関するルール" href="/legal/money" />
           <LinkRow icon="🔒" label="プライバシーポリシー" href="/legal/privacy" last />
         </div>
         <div className="text-[10px] text-muted text-center mt-3">ゴルトモ © 2026</div>

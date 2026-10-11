@@ -26,6 +26,7 @@ export const LINE_KIND_LABEL: Record<string, string> = {
   pickup: '送迎（ピックアップ）',
   waitlist: '空き待ち',
   declined: '申請の見送り',
+  paymentReminder: '入金の催促（運営から）',
   friend: 'QR友達追加',
   survey: 'アンケート一致のお知らせ',
   swing: 'スイング解析',

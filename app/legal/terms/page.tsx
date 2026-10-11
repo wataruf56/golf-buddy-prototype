@@ -7,7 +7,7 @@ const APP = 'https://app.goltomo.com';
 export const metadata: Metadata = {
   title: '利用規約 - ゴルトモ',
   description:
-    'ゴルフ友達マッチングアプリ「ゴルトモ」の利用規約。利用登録、禁止事項、スイング分析機能の取り扱い、ラウンド参加時の責任範囲、免責事項などを定めています。',
+    'ゴルフ友達マッチングアプリ「ゴルトモ」の利用規約。利用登録、禁止事項、スイング分析機能の取り扱い、ラウンド参加時の責任範囲、ユーザー間のお金のやり取り、免責事項などを定めています。',
   alternates: { canonical: `${SITE}/legal/terms` },
 };
 
@@ -18,7 +18,7 @@ export default function TermsPage() {
           直接来た人には LP ホストに /mypage が無く 404 になっていた（2026-10-07）。app ホスト上では従来と同じ挙動。 */}
       <Link href={`${APP}/mypage`} className="text-sm text-blue font-bold">← 戻る</Link>
       <h1 className="text-2xl font-black mt-3 mb-1">利用規約</h1>
-      <div className="text-[11px] text-muted mb-6">最終更新: 2026年5月</div>
+      <div className="text-[11px] text-muted mb-6">最終更新: 2026年10月11日</div>
 
       <Section title="第1条（適用）">
         本規約は、ゴルトモ（以下「本サービス」）の利用に関するすべての関係に適用されます。
@@ -42,6 +42,8 @@ export default function TermsPage() {
           <li>本サービスの運営を妨害する行為</li>
           <li>商用目的でのアカウント取得・利用（事前承諾を得た場合を除く）</li>
           <li>他人になりすます行為</li>
+          <li>ゴルフ場の予約がない・開催するつもりがないのに募集を出すなど、虚偽の内容で参加者を集める行為</li>
+          <li>参加費・キャンセル料などの名目で、金銭をだまし取る、または不当に要求する行為</li>
         </ul>
       </Section>
 
@@ -59,21 +61,32 @@ export default function TermsPage() {
         ユーザーが投稿した動画・テキストの著作権はユーザーに帰属しますが、当方はサービス改善・解析のために利用できるものとします。
       </Section>
 
-      <Section title="第6条（免責事項）">
-        本サービスの利用により生じた損害について、当方は一切責任を負いません。
+      <Section title="第6条（ユーザー間のやり取り・お金について）">
+        <ul className="list-disc ml-5 space-y-1">
+          <li>ラウンド・コンペ等の募集、参加、当日のプレー、参加費の集金、キャンセル料などは、ユーザー同士のあいだの約束であり、当方はその当事者・代理人・保証人になりません。</li>
+          <li>当方は参加費・キャンセル料などのお金を受け取らず、預からず、立て替え・返金・回収もしません。</li>
+          <li>ユーザー間のトラブル（集金後の連絡不能、返金・キャンセル料・未払いをめぐる争いなど）は、当事者間で解決するものとします。</li>
+          <li>詳しくは<Link href="/legal/money" className="text-blue font-bold">「お金のやり取りに関するルール」</Link>に定めます。このルールは本規約の一部です。</li>
+        </ul>
+      </Section>
+
+      <Section title="第7条（免責事項）">
+        本サービスの利用により生じた損害、およびユーザー間またはユーザーと第三者のあいだで生じた紛争について、当方は責任を負いません。
+        ただし、当方の故意または重大な過失による場合はこの限りではありません。
         ベータ版運用中はサービス停止・データ消失等が発生する可能性があります。
       </Section>
 
-      <Section title="第7条（規約の変更）">
+      <Section title="第8条（規約の変更）">
         本規約は予告なく変更することがあります。変更後の利用継続をもって同意とみなします。
       </Section>
 
-      <Section title="第8条（準拠法・管轄）">
+      <Section title="第9条（準拠法・管轄）">
         本規約の解釈および本サービスに関する紛争は、日本法に準拠し、東京地方裁判所を専属的合意管轄とします。
       </Section>
 
-      <div className="mt-8 text-center">
-        <Link href="/legal/privacy" className="text-sm text-blue font-bold">プライバシーポリシーを見る →</Link>
+      <div className="mt-8 text-center space-y-2">
+        <div><Link href="/legal/money" className="text-sm text-blue font-bold">お金のやり取りに関するルールを見る →</Link></div>
+        <div><Link href="/legal/privacy" className="text-sm text-blue font-bold">プライバシーポリシーを見る →</Link></div>
       </div>
     </div>
   );

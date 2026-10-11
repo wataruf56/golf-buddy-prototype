@@ -9,6 +9,8 @@ const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 //   { userId, paid }          … その人の入金チェックを ON/OFF（主催者・共同管理者のみ）
 //   { paymentNote }           … 入金案内（金額・振込先など）を保存
 //   { paymentEnabled }        … 入金管理機能そのものの ON/OFF
+//   { paymentInfo }           … 金額・振込先・入金期日（2026-10-11）
+//   { paidIds: [...] }        … 入金済みの人をまとめて確定保存（チェックボックス→保存）（2026-10-11）
 // 参加者はラウンド本体（GET）から paidIds を見られる＝誰が入金済みかは全員に可視。
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const meId = await getMeId();
@@ -30,6 +32,24 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   // 機能そのもののON/OFF（あとから有効化・無効化できる）
   if (Object.prototype.hasOwnProperty.call(body, 'paymentEnabled')) {
     patch.paymentEnabled = !!body.paymentEnabled;
+  }
+  const memberSet = new Set<string>([
+    round.hostId, ...(round.coHostIds || []), ...(round.applicantIds || []), ...((round.guests || []).map((g) => g.id)),
+  ].filter(Boolean));
+  // 金額・振込先・入金期日
+  if (Object.prototype.hasOwnProperty.call(body, 'paymentInfo')) {
+    const pi = body.paymentInfo || {};
+    const amount = Math.max(0, Math.min(1_000_000, Math.floor(Number(pi.amount) || 0)));
+    const deadline = Math.floor(Number(pi.deadline) || 0);
+    (patch as any).paymentInfo = {
+      ...(amount ? { amount } : {}),
+      ...(String(pi.account || '').trim() ? { account: String(pi.account).trim().slice(0, 300) } : {}),
+      ...(deadline > 1_600_000_000_000 ? { deadline } : {}),
+    };
+  }
+  // まとめて確定保存
+  if (Array.isArray(body.paidIds)) {
+    patch.paidIds = Array.from(new Set(body.paidIds.map((x: any) => String(x)).filter((id: string) => memberSet.has(id))));
   }
   // 個別メンバーの入金チェック
   if (body.userId) {
