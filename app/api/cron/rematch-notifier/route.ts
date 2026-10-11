@@ -124,6 +124,8 @@ export async function runRematchNotifier(limit = MAX_PER_TICK): Promise<{ ok: bo
       // 安全弁：テストモード中はテスト扱いユーザー同士のペアにしか通知しない
       // （test_ 始まり or 「🧪 テストアカウント管理」で登録したLINE ID）。
       if (cfg.testMode && !(isTest(a) && isTest(b))) continue;
+      // 2026-10-11：「また回りたい」のマッチは候補日カレンダーをやめた（「行ける日」で声をかける）ので、再会通知も💘のマッチだけ
+      if (kind !== 'romantic') continue;
       const pairId = pairIdOf(a, b);
       if (seen.has(pairId)) continue;
       seen.add(pairId);

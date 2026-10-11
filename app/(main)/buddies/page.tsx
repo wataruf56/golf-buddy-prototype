@@ -9,6 +9,8 @@ import { FriendTodoBanner } from '@/components/FriendTodoBanner';
 import { toast } from '@/components/Toast';
 import { chatIdFor, formatDate } from '@/lib/utils';
 import { ADMIN_MANAGER_ID, ADMIN_MANAGER_NAME } from '@/lib/adminManagerId';
+import { Portal } from '@/components/Portal';
+import { AvailNudgeBox } from '@/components/AvailNudgeBox';
 
 type MatchInfo = { again: boolean; romantic: boolean };
 type MUser = { displayName: string; avatar?: string; avatarUrl?: string; avatarMode?: string; golmotiType?: string; color?: string; gender?: string; age?: number };
@@ -46,6 +48,8 @@ function Inner() {
 
   // 「候補日」→ 再会セッションを用意してカレンダーへ。
   const [rematchBusy, setRematchBusy] = useState('');
+  // 「行ける日」で声をかける相手（下から出るシート・2026-10-11）
+  const [nudgeTo, setNudgeTo] = useState<{ id: string; name: string } | null>(null);
   async function startRematch(partnerId: string) {
     setRematchBusy(partnerId);
     try {
@@ -253,7 +257,9 @@ function Inner() {
             const cid = chatIdFor(meId, id);
             const chat = chats.find((c) => c.id === cid);
             const unread = chat?.unreadCount[meId] || 0;
-            const canRematch = againSet.has(id) || romanticSet.has(id);
+            // 2026-10-11：候補日カレンダーは💘（気になる）のマッチだけ。「また回りたい」は「行ける日」で声をかける
+            const canRematch = romanticSet.has(id);
+            const canNudge = !canRematch && (againSet.has(id) || friendSet.has(id));
             return (
               <div key={id} className="bg-card rounded-card p-4 shadow-card mb-2.5 flex items-center gap-3">
                 <Link href={`/profile/${id}`} className="flex items-center gap-3 min-w-0 flex-1">
@@ -281,6 +287,10 @@ function Inner() {
                       className="px-2.5 py-1.5 bg-green text-white rounded-full text-[11px] font-black disabled:opacity-50"
                     >{rematchBusy === id ? '…' : '📅 候補日'}</button>
                   )}
+                  {canNudge && (
+                    <button onClick={() => setNudgeTo({ id, name: u.displayName })}
+                      className="px-2.5 py-1.5 bg-orange text-white rounded-full text-[11px] font-black">📣 声をかける</button>
+                  )}
                   <Link href={`/chat/${cid}?other=${id}`} className="flex items-center gap-1.5">
                     {unread > 0 && <div className="px-1.5 py-0.5 bg-orange text-white text-[10px] font-bold rounded-full min-w-[18px] text-center">{unread}</div>}
                     <span className="text-lg">💬</span>
@@ -291,6 +301,17 @@ function Inner() {
           })
         )}
       </div>
+      )}
+      {nudgeTo && (
+        <Portal><div className="fixed inset-0 z-[150] bg-black/45 flex items-end justify-center" onClick={() => setNudgeTo(null)}>
+          <div className="bg-bg rounded-t-2xl w-full max-w-[480px] p-4 pb-8 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[14px] font-black">{nudgeTo.name}さんに声をかける</div>
+              <button type="button" onClick={() => setNudgeTo(null)} className="text-sub text-lg px-2" aria-label="閉じる">✕</button>
+            </div>
+            <AvailNudgeBox partnerId={nudgeTo.id} partnerName={nudgeTo.name} />
+          </div>
+        </div></Portal>
       )}
     </div>
   );

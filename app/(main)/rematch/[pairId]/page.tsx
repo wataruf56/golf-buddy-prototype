@@ -10,6 +10,7 @@ import { resizeImage } from '@/lib/resizeImage';
 import { MEET_OPTIONS, meetLabelOf } from '@/lib/meetOptions';
 import { FeelingBox } from '@/components/FeelingBox';
 import { Linkify } from '@/components/Linkify';
+import { AvailNudgeBox } from '@/components/AvailNudgeBox';
 
 // 再会エンジンの画面：候補日カレンダー → 3色重なり → この日で決定 → ラウンド投稿へ。
 type Data = {
@@ -308,6 +309,10 @@ export default function RematchPage() {
         onChanged={(f) => { if (f === 'either' || f === 'never') setEndedBy(f); else load(); }}
       />
 
+      {/* 2026-10-11：「また回りたい」のマッチは候補日カレンダーを出さない（「行ける日」と同じことなので）。
+          代わりに、自分の「行ける日」から日を選んで声をかける（AvailNudgeBox）。💘（気になる）のマッチは従来どおり。 */}
+      {!isRomantic && <AvailNudgeBox partnerId={other.id} partnerName={other.displayName || 'この方'} onSent={() => load()} />}
+      {isRomantic && (<>
       {/* romanticマッチ：会い方の複数選択。それ以外：希望人数（2/3/4サム）。
           どちらもボタン直タップで設定（複数可）。相手にも共有＆通知される。 */}
       {isRomantic ? (
@@ -501,6 +506,7 @@ export default function RematchPage() {
             </>
           )}
         </>
+      </>)}
 
       {/* 画面内チャット（この相手とのDM）。日程の決定・希望人数の設定もここに届く。 */}
       <div className="mt-5">
