@@ -223,7 +223,7 @@ export async function countEligible(me: User, date: string): Promise<number> {
 /**
  * 部屋ができたのに誰も話していない日に、運営（管理人）から声かけする（2026-10-11）。
  *
- *   対象：開催前で open の部屋・メンバーが3人以上・メンバーの発言が0件・部屋ができてから3時間たった・まだ声かけしていない
+ *   対象：開催前で open の部屋・メンバーが3人以上・ユーザーの発言が0件（運営・システムの書き込みは数えない）・部屋ができてから3時間たった・まだ声かけしていない
  *   すること：
  *     ① 部屋のチャットに管理人として「@名前 …人数が集まりました！みんなに声をかけてみませんか？」
  *     ② 1人ずつ管理人のDM（部屋のチャットへのURLつき）
@@ -250,7 +250,8 @@ export async function nudgeQuietRooms(opts?: { force?: boolean; roomId?: string 
     if (!opts?.force && Date.now() - (r.createdAt || 0) < AVAIL_NUDGE_QUIET_MS) continue;
     checked += 1;
     const msgs = await db.listRoundMessages(r.id).catch(() => [] as any[]);
-    if (msgs.some((m: any) => ids.includes(m.senderId))) continue;   // 誰かが話していれば何もしない
+    // ユーザーが1人でも書いていれば何もしない（運営・システムの書き込みは数えない。抜けた人の発言も数える）
+    if (msgs.some((m: any) => m.senderId && m.senderId !== ADMIN_MANAGER_ID && m.senderId !== SYSTEM_SENDER_ID)) continue;
     // 先に印を付ける（cron が重なっても二重に送らない）
     await adb.collection(ROUNDS).doc(r.id).set({ availNudgedAt: Date.now() }, { merge: true });
     try {
