@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
-import { getAdminDb } from '@/lib/firebase';
 import { getSession, saveSession, membersOfPair } from '@/lib/rematch';
-import { blockDm, unblockDm, closeDm, reopenDm } from '@/lib/dmBlock';
+import { applyFeeling, FEELINGS, type Feeling } from '@/lib/matchFeeling';
 
 const noStore = { 'Cache-Control': 'no-store' };
 export const dynamic = 'force-dynamic';
@@ -20,48 +18,7 @@ export const dynamic = 'force-dynamic';
 //   never    … ごめんなさい   → マッチ解除＋**双方向でDMを閉じる**
 //
 // 「ごめんなさい」から選び直した場合は遮断を解く（また一緒に回ったときの復活）。
-type Feeling = 'again' | 'romantic' | 'either' | 'never';
-const FEELINGS: Feeling[] = ['again', 'romantic', 'either', 'never'];
-
-const likeId = (kind: 'again' | 'romantic', from: string, to: string) => `${kind}__${from}__${to}`;
-
-async function setLike(kind: 'again' | 'romantic', from: string, to: string, on: boolean, roundId?: string) {
-  const adb = getAdminDb() as any;
-  if (!adb) return;
-  const ref = adb.collection('_matchLikes').doc(likeId(kind, from, to));
-  try {
-    if (on) await ref.set({ kind, from, to, ...(roundId ? { roundId } : {}), at: Date.now() }, { merge: true });
-    else await ref.delete();
-  } catch (e) {
-    console.error('[feeling] like write failed', (e as Error).message);
-  }
-}
-
-// 過去のレビューの verdict を書き換える。無ければ作る（レビュー未提出のまま
-// 再会通知だけ届いているケースがあるため）。
-async function upsertVerdict(reviewerId: string, revieweeId: string, roundId: string, verdict: Feeling) {
-  const adb = getAdminDb() as any;
-  if (!adb) return;
-  try {
-    const snap = await adb.collection('reviews')
-      .where('reviewerId', '==', reviewerId).where('revieweeId', '==', revieweeId).limit(20).get();
-    const hit = snap.docs.find((d: any) => (d.data() || {}).roundId === roundId) || snap.docs[0];
-    if (hit) {
-      await hit.ref.set({ verdict, updatedAt: Date.now() }, { merge: true });
-      return;
-    }
-  } catch (e) {
-    console.error('[feeling] review lookup failed', (e as Error).message);
-  }
-  try {
-    await db.createReview({
-      roundId, reviewerId, revieweeId, stars: 0, tags: [], comment: '',
-      verdict, createdAt: Date.now(), isAnonymous: true,
-    } as any);
-  } catch (e) {
-    console.error('[feeling] review create failed', (e as Error).message);
-  }
-}
+// 中身は lib/matchFeeling（DM画面・プロフィールの「まだ一緒にラウンドしてみたいと思う？」と共通）（2026-10-11）
 
 export async function POST(req: NextRequest, { params }: { params: { pairId: string } }) {
   const meId = await getMeId();
@@ -84,28 +41,8 @@ export async function POST(req: NextRequest, { params }: { params: { pairId: str
   const otherId = s.userA === meId ? s.userB : s.userA;
   const roundId = s.roundId || '';
 
-  // 1. マッチの記録を作り直す
-  if (feeling === 'romantic') {
-    await setLike('again', meId, otherId, true, roundId);
-    await setLike('romantic', meId, otherId, true, roundId);
-  } else if (feeling === 'again') {
-    await setLike('again', meId, otherId, true, roundId);
-    await setLike('romantic', meId, otherId, false);   // 友人としてに切り替え
-  } else {
-    await setLike('again', meId, otherId, false);
-    await setLike('romantic', meId, otherId, false);
-  }
-
-  // 2. 過去のレビューを書き換える
-  if (roundId) await upsertVerdict(meId, otherId, roundId, feeling);
-
-  // 3. DMの遮断
-  // DM：ごめんなさい＝完全に閉じる／どっちでもいい＝履歴を理由にした例外だけ閉じる／
-  // また回りたい・気になる＝どちらも解く（また一緒に回ったときの復活）。
-  if (feeling === 'never') await blockDm(meId, otherId, roundId);
-  else await unblockDm(meId, otherId);
-  if (feeling === 'either') await closeDm(meId, otherId, roundId);
-  else if (feeling === 'again' || feeling === 'romantic') await reopenDm(meId, otherId);
+  // 1〜3. マッチ・過去のレビュー・DMの遮断
+  await applyFeeling(meId, otherId, feeling, roundId);
 
   // 4. 再会セッションの扱い
   //    続ける場合は matchKind を選び直した内容に合わせる（romantic → again の切り替え）。

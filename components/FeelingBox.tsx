@@ -36,12 +36,12 @@ export function FeelingBox({
   const options: { key: Feeling; label: string; note?: string }[] = isRomantic
     ? [
         { key: 'romantic', label: '気になる' },
-        { key: 'again', label: '友人としてまた回りたい', note: 'ゴルフ仲間として。会い方の相談は出なくなります' },
-        { key: 'either', label: 'どっちでもいい' },
-        { key: 'never', label: 'ごめんなさい' },
+        { key: 'again', label: '友人として行きたい', note: 'ゴルフ仲間として。会い方の相談は出なくなります' },
+        { key: 'either', label: 'どっちでも' },
+        { key: 'never', label: '思わない' },
       ]
     : [
-        { key: 'again', label: 'また回りたい' },
+        { key: 'again', label: '行きたい' },
         { key: 'either', label: 'どっちでもいい' },
         { key: 'never', label: 'ごめんなさい' },
       ];
@@ -78,10 +78,10 @@ export function FeelingBox({
     <>
       <div className={'border-2 rounded-card p-4 mb-4 ' + c.box}>
         <div className="text-[14px] font-black">
-          🤔 いまも「{isRomantic ? '気になる' : 'また回りたい'}」ですか？
+          🤔 いまも「{isRomantic ? '気になる' : '行きたい'}」ですか？
         </div>
         <div className="text-[11px] font-bold text-sub mt-1 leading-relaxed">
-          {roundDate ? `${roundDate} のあと、` : ''}あなたは「{isRomantic ? '異性として気になる' : 'また回りたい'}」を選んでいます。
+          {roundDate ? `${roundDate} のあと、` : ''}あなたは「{isRomantic ? '異性として気になる' : '行きたい'}」を選んでいます。
           気が変わっていたら、ここで変えられます。
         </div>
 

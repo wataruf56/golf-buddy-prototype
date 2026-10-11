@@ -77,7 +77,7 @@ export function ChaseCheck({ chatId, meId, otherId, otherName, messages }: {
   }, [streak?.key, chatId, otherId]);
 
   if (!open || !streak || !kind) return null;
-  const label = kind === 'romantic' ? '気になる' : 'また回りたい';
+  const label = kind === 'romantic' ? '気になる' : '行きたい';
 
   function keep() {
     try { localStorage.setItem(KEY(chatId), streak!.key); } catch { /* noop */ }

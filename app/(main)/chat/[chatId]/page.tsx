@@ -9,6 +9,8 @@ import { AutoGrowTextarea } from '@/components/AutoGrowTextarea';
 import { toast } from '@/components/Toast';
 import { revisitStar, hasRevisitStar } from '@/lib/utils';
 import { ChaseCheck } from '@/components/ChaseCheck';
+import { MatchFeelingBar } from '@/components/MatchFeelingBar';
+import { ADMIN_MANAGER_ID } from '@/lib/adminManagerId';
 import { resizeImage } from '@/lib/resizeImage';
 import { track } from '@/lib/telemetry';
 import { Linkify } from '@/components/Linkify';
@@ -193,6 +195,8 @@ export default function ChatPage() {
           <span className="text-muted text-sm">›</span>
         </Link>
       </div>
+      {/* マッチしている相手だけ：「まだ一緒にラウンドしてみたいと思う？」（2026-10-11） */}
+      {other.id !== ADMIN_MANAGER_ID && <MatchFeelingBar otherId={other.id} otherName={other.displayName || 'この方'} compact />}
 
       <div ref={scrollRef} className="flex-1 px-5 py-4 flex flex-col gap-2.5 overflow-y-auto">
         {messages.length === 0 && (
@@ -237,9 +241,9 @@ export default function ChatPage() {
           {myChoice && (
             <div className="mb-2 py-2.5 px-3 bg-yellow-light border-[1.5px] border-yellow rounded-xl text-[12px] font-black text-text">
               {myChoice === 'never'
-                ? 'あなたが「ごめんなさい」を選んでいます'
-                : <>あなたが「どっちでもいい」を選んでいます<br />
-                    <span className="text-[11px] font-bold text-sub">再会画面で「また回りたい」に戻すと、また送れます</span></>}
+                ? 'あなたが「思わない」を選んでいます'
+                : <>あなたが「どっちでも」を選んでいます<br />
+                    <span className="text-[11px] font-bold text-sub">また一緒に回ったあとのレビューで「行きたい」を選ぶと、また送れます</span></>}
             </div>
           )}
           {/* 規則の説明は lib/dmPolicy の文言をそのまま出す（ここに書き写すと古くなる。

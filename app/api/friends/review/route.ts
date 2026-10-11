@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
     if (matched) {
       const link = '/buddies?tab=again';
       const notify = async (uid: string, user: any, partner: string) => {
-        await addNotification(uid, 'match', `🎉 ${partner}さんとマッチしました！「また回りたい」同士です`, link);
+        await addNotification(uid, 'match', `🎉 ${partner}さんとマッチしました！「行きたい」同士です`, link);
         if (isNotifyEnabled(user, 'match')) {
           pushTo(uid, `🎉 ${partner}さんとマッチしました！`, liffUrl(link), 'match').catch(() => {});
         }

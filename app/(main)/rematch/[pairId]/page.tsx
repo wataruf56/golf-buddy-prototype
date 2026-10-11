@@ -254,7 +254,7 @@ export default function RematchPage() {
         <button onClick={() => router.push('/home')} className="text-sm text-blue font-semibold mb-3">← 戻る</button>
         <div className="bg-card border-2 border-border rounded-card shadow-card p-5">
           <div className="bg-green-light border-2 border-green rounded-xl p-3 text-center text-[13px] font-black text-green leading-relaxed">
-            {endedBy === 'never' ? '🙇 「ごめんなさい」にしました' : '🤷 「どっちでもいい」にしました'}
+            {endedBy === 'never' ? '🙇 「思わない」にしました' : '🤷 「どっちでも」にしました'}
           </div>
           <div className="mt-3 bg-blue-light border-[1.5px] border-blue rounded-xl p-3 text-[11.5px] font-bold leading-relaxed">
             <b className="text-blue">気が変わったら</b><br />
@@ -289,7 +289,7 @@ export default function RematchPage() {
           {other.avatarUrl ? <img src={other.avatarUrl} alt="" className="w-full h-full object-cover" /> : (other.avatar || '⛳')}
         </div>
         <div className="min-w-0">
-          <div className="text-[11px] font-black text-green">{isRomantic ? '💗 気になる相手との再会' : '🔁 また回りたい相手との再会'}</div>
+          <div className="text-[11px] font-black text-green">{isRomantic ? '💗 気になる相手との再会' : '🔁 「行きたい」同士の再会'}</div>
           <div className="text-base font-black truncate">{other.displayName} さん</div>
           <div className="text-[11px] text-sub">
             {data.roundDate ? `前回 ${mdLabel(data.roundDate)} に` : '前回'}{data.courseName ? `「${data.courseName}」で` : ''}一緒に回りました

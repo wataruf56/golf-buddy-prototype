@@ -24,7 +24,7 @@ type Data = {
 };
 
 const verdictJa = (v: string) =>
-  v === 'again' ? '🙆 また回りたい' : v === 'never' ? '🙅 ごめんなさい' : v === 'romantic' ? '💘 異性として気になる' : v === 'neutral' ? '😐 どちらでもない' : v || '—';
+  v === 'again' ? '🙆 行きたい' : v === 'never' ? '🙅 思わない' : v === 'romantic' ? '💘 異性として気になる' : v === 'either' || v === 'neutral' ? '😐 どっちでも' : v || '—';
 
 const fmt = (ms: number) => {
   if (!ms) return '';
@@ -99,7 +99,7 @@ function Inner() {
         <AdminTabs token={token} group="trust" current="/admin/ratings" />
       <div className="text-2xl font-black mb-1">⭐ 評価の状況（全員）</div>
       <div className="text-[11px] text-muted mb-3">
-        ★＝また回りたい率。レビューをくれた人のうち「ごめんなさい」が何人かで決まります。名前をタップすると、誰からどう評価されたかが開きます。
+        ★＝レビューをくれた人のうち「思わない」が何人かで決まります（「行きたい」の人数は★には入りません）。名前をタップすると、誰からどう評価されたかが開きます。
       </div>
 
       {err && <div className="bg-red-50 text-red-700 p-3 rounded-xl mb-3 text-[12px]">エラー: {err}</div>}
@@ -144,7 +144,7 @@ function Inner() {
                   <div className="text-[10.5px] text-muted mt-0.5">
                     {r.star == null
                       ? '🆕 まだ評価なし'
-                      : <>★{r.star.toFixed(1)}<span className="ml-1">（{r.roundedWith}人が評価・また回りたい{r.againRate}%）</span></>}
+                      : <>★{r.star.toFixed(1)}<span className="ml-1">（{r.roundedWith}人が評価・行きたい{r.againRate}%）</span></>}
                   </div>
                   <div className="text-[10px] text-muted">
                     ⛳ 参加{r.joined} ・ 主催{r.hosted}
@@ -159,8 +159,8 @@ function Inner() {
                 <div className="px-3 pb-3">
                   <div className="grid grid-cols-3 gap-1.5 mb-2.5">
                     <Mini label="一緒に回った" value={`${r.partners}人`} />
-                    <Mini label="また回りたい" value={`${r.againCount}/${r.roundedWith}`} />
-                    <Mini label="ごめんなさい" value={`${r.neverCount}人`} danger={r.neverCount > 0} />
+                    <Mini label="行きたい" value={`${r.againCount}/${r.roundedWith}`} />
+                    <Mini label="思わない" value={`${r.neverCount}人`} danger={r.neverCount > 0} />
                     <Mini label="当日欠席" value={`${r.noShow}回`} danger={r.noShow > 0} />
                     <Mini label="自分がした評価" value={`${r.gaveReviews}件`} />
                     <Mini label="運営ペナルティ" value={`${r.mannerPenalty}`} danger={r.mannerPenalty > 0} />
@@ -197,7 +197,7 @@ function Inner() {
       </div>
 
       <div className="text-[10.5px] text-muted mt-4 leading-relaxed">
-        ※ ★は「レビューをくれた人のうち、ごめんなさいを付けた人の割合」から算出しています（アプリの表示と同じ計算）。まだ誰からもレビューをもらっていない人は「🆕 まだ評価なし」です。
+        ※ ★は「レビューをくれた人のうち、「思わない」を付けた人の割合」から算出しています（アプリの表示と同じ計算）。まだ誰からもレビューをもらっていない人は「🆕 まだ評価なし」です。
       </div>
     </div>
   );

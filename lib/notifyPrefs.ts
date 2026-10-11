@@ -47,7 +47,7 @@ export const NOTIFY_TYPES: Array<{ key: NotifyType; label: string; desc: string;
   { key: 'unread',           label: '📩 未読メッセージのお知らせ', desc: '未読のメッセージがある時に1日3回まとめてお知らせ', defaultOn: true },
   { key: 'match',            label: '💘 マッチ成立', desc: 'ラウンド後にマッチしたとき', defaultOn: true },
   { key: 'surveyMatch',      label: '🎯 希望条件に合う募集', desc: '診断アンケートで希望したエリアの募集が投稿されたとき', defaultOn: true },
-  { key: 'rematch',          label: '🔁 再会のお知らせ', desc: 'また回りたい相手との再会・候補日のやり取りがあったとき', defaultOn: true },
+  { key: 'rematch',          label: '🔁 再会のお知らせ', desc: '「行きたい」「💘 気になる」同士の相手との再会・候補日のやり取りがあったとき', defaultOn: true },
   { key: 'groupChange',      label: '🔀 組分けの変更希望', desc: '自分のコンペで参加者が組分けの変更を希望したとき（主催者）', defaultOn: true },
   { key: 'pickup',           label: '🚉 ピックアップの提案', desc: '主催者からピックアップ場所の提案が届いたとき', defaultOn: true },
   { key: 'waitlist',         label: '🔔 空き待ちのお知らせ', desc: '「空きが出たら参加したい」と登録した募集に空きが出たとき', defaultOn: true },

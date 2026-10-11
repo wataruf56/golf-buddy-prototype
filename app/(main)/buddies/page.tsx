@@ -140,7 +140,7 @@ function Inner() {
     <div className="h-full overflow-y-auto">
       <div className="px-5 pt-2 pb-1 text-2xl font-black tracking-tight">友達</div>
       <div className="px-5 pb-3 text-[13px] text-sub">
-        QRでつながった友達／また回りたい・気になる・一緒に回った人／メッセージした相手が集まります。<b className="text-text">ログインが新しい順</b>に表示。タップでプロフィール、💬でメッセージ。
+        QRでつながった友達／レビューで「行きたい」「💘 気になる」同士の人・一緒に回った人／メッセージした相手が集まります。<b className="text-text">ログインが新しい順</b>に表示。タップでプロフィール、💬でメッセージ。
       </div>
 
       {/* 友達申請・QRの「同じ組？」・評価のやり残し（既存のタブ構成には触らない） */}
@@ -206,7 +206,7 @@ function Inner() {
           「また回りたい/気になる」を後からでも付け外しできる。 */}
       {tab === 'friends' && myPastRounds.length > 0 && (
         <div className="pb-3">
-          <div className="px-5 text-[12px] font-black text-sub mb-2">⛳ 過去参加したラウンド（タップで「また回りたい」を編集）</div>
+          <div className="px-5 text-[12px] font-black text-sub mb-2">⛳ 過去参加したラウンド（タップで別の組の「回ってみたい」を編集）</div>
           <div className="flex gap-2.5 overflow-x-auto px-5 pb-1">
             {myPastRounds.map((r) => (
               <Link
@@ -218,7 +218,7 @@ function Inner() {
                 <div className="text-[11px] text-muted mt-1 truncate">
                   {formatDate(r.date) || r.dateRange || ''}{r.hostId === meId ? ' ・主催' : ' ・参加'}
                 </div>
-                <div className="text-[11px] text-blue font-bold mt-2">また回りたいを編集 →</div>
+                <div className="text-[11px] text-blue font-bold mt-2">「回ってみたい」を編集 →</div>
               </Link>
             ))}
           </div>
@@ -271,7 +271,7 @@ function Inner() {
                       {u.age ? <span className="text-[11px] text-sub font-medium">{u.age}歳</span> : null}
                     </div>
                     <div className="flex items-center gap-1 mt-1 flex-wrap">
-                      {againSet.has(id) && <Badge className="text-green bg-green-light border-green">🏌️ また回りたい</Badge>}
+                      {againSet.has(id) && <Badge className="text-green bg-green-light border-green">🏌️ 行きたい同士</Badge>}
                       {romanticSet.has(id) && <Badge className="text-pink-600 bg-pink-100 border-pink-600">💘 気になる</Badge>}
                       {friendSet.has(id) && <Badge className="text-blue bg-blue-light border-blue">🤝 QR友達</Badge>}
                       {pastSet.has(id) && !againSet.has(id) && !romanticSet.has(id) && <Badge className="text-sub bg-bg border-border">⛳ 一緒に回った</Badge>}

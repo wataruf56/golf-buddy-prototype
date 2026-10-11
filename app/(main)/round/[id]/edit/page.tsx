@@ -692,7 +692,7 @@ export default function EditRoundPage() {
                 return (
                   <div className="mt-2 flex flex-col gap-1.5 max-h-56 overflow-y-auto">
                     {addable.length === 0 ? (
-                      <div className="px-3 py-2 text-[11px] text-muted font-medium">追加できるゴル友（「また回りたい」でマッチした人）がいません。</div>
+                      <div className="px-3 py-2 text-[11px] text-muted font-medium">追加できるゴル友（レビューで「行きたい」同士になった人）がいません。</div>
                     ) : addable.map((c) => (
                       <button key={c.id} type="button" disabled={coHostBusy} onClick={() => toggleCoHost(c.id, true)}
                         className="flex items-center gap-2 px-3 py-2 bg-bg rounded-lg text-left disabled:opacity-50">

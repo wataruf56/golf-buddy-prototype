@@ -153,7 +153,7 @@ function Inner() {
       <Link href={`/admin?token=${token}`} className="text-muted text-sm">‹ 管理</Link>
       <div className="text-2xl font-black mb-1 mt-1">🔁 再会通知</div>
       <div className="text-[12px] text-muted mb-4 leading-relaxed">
-        相互マッチ（また回りたい）済みのペアに、前回完了から一定日数後に「再会のお知らせ」を送る機能の設定。<br />
+        相互マッチ（行きたい・💘気になる）済みのペアに、前回完了から一定日数後に「再会のお知らせ」を送る機能の設定。<br />
         <b>テスト時は「通知までの日数」を 0 にして「今すぐ実行」</b>を押すと、完了済みラウンドの相互マッチ済みペアへ即通知されます。
       </div>
 
@@ -239,7 +239,7 @@ function Inner() {
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-[13px] font-black">{x.nameA} ↔ {x.nameB}</span>
                       <span className="text-[10px] font-black bg-bg border border-border rounded-full px-1.5 py-0.5">
-                        {x.matchKind === 'romantic' ? '💘 気になる' : '⛳ また回りたい'}
+                        {x.matchKind === 'romantic' ? '💘 気になる' : '⛳ 行きたい同士'}
                       </span>
                     </div>
                     <div className="text-[11.5px] font-bold mt-1">

@@ -22,10 +22,10 @@ type Review = {
 
 // 現仕様：星評価は廃止。レビューは4択判定(verdict)。表示・編集はこれに合わせる。
 const VERDICT_META: Record<Verdict, { emoji: string; label: string; badge: string; sel: string }> = {
-  again:    { emoji: '🏌️', label: 'また回りたい',       badge: 'bg-green-light text-green border-green',     sel: 'bg-green text-white border-green' },
+  again:    { emoji: '🏌️', label: '行きたい',           badge: 'bg-green-light text-green border-green',     sel: 'bg-green text-white border-green' },
   romantic: { emoji: '💘', label: '異性として気になる', badge: 'bg-pink-100 text-pink-600 border-pink-600',  sel: 'bg-pink-600 text-white border-pink-600' },
-  either:   { emoji: '🤷', label: 'どっちでもいい',     badge: 'bg-bg text-sub border-border',               sel: 'bg-[#9b876a] text-white border-[#9b876a]' },
-  never:    { emoji: '🙇', label: 'ごめんなさい',       badge: 'bg-red-50 text-red-600 border-red-300',      sel: 'bg-[#C0392B] text-white border-[#C0392B]' },
+  either:   { emoji: '🤷', label: 'どっちでも',         badge: 'bg-bg text-sub border-border',               sel: 'bg-[#9b876a] text-white border-[#9b876a]' },
+  never:    { emoji: '🙇', label: '思わない',           badge: 'bg-red-50 text-red-600 border-red-300',      sel: 'bg-[#C0392B] text-white border-[#C0392B]' },
 };
 const VERDICT_ORDER: Verdict[] = ['again', 'romantic', 'either', 'never'];
 
@@ -208,7 +208,7 @@ function EditModal({ token, review, onClose, onSaved }: { token: string; review:
         <div className="p-4">
           <div className="text-base font-black mb-3">レビューを編集</div>
 
-          <div className="text-xs font-bold mb-1">判定（また回りたいか）</div>
+          <div className="text-xs font-bold mb-1">判定（また誘われたら行きたいか）</div>
           <div className="grid grid-cols-2 gap-1.5 mb-3">
             {VERDICT_ORDER.map((k) => (
               <button

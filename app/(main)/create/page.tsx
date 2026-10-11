@@ -744,7 +744,7 @@ export default function CreatePage() {
               {coHostPickerOpen && (
                 <div className="mt-2 flex flex-col gap-1.5 max-h-56 overflow-y-auto">
                   {coHostCandidates.length === 0 ? (
-                    <div className="px-3 py-2 text-[11px] text-muted font-medium">選べるゴル友（「また回りたい」でマッチした人）がまだいません。</div>
+                    <div className="px-3 py-2 text-[11px] text-muted font-medium">選べるゴル友（レビューで「行きたい」同士になった人）がまだいません。</div>
                   ) : coHostCandidates.map((c) => {
                     const selected = coHostIds.includes(c.id);
                     return (

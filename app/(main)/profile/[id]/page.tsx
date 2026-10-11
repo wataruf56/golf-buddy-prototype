@@ -13,6 +13,7 @@ import { confirmDialog } from '@/components/ConfirmDialog';
 import type { User } from '@/lib/types';
 import { track as logEvent } from '@/lib/telemetry';
 import { ProfileDetails } from '@/components/ProfileDetails';
+import { MatchFeelingBar } from '@/components/MatchFeelingBar';
 import { chatIdFor, carLabel, instagramUrl, revisitStar, hasRevisitStar } from '@/lib/utils';
 
 export default function ProfilePage() {
@@ -192,15 +193,14 @@ export default function ProfilePage() {
             <div className="mt-1.5 flex items-center gap-2.5 flex-wrap">
               {/* ★は「また回りたい率」を5段階に写像（旧★平均は廃止）。3/3 → ★5.0 */}
               <GolfBallRating value={revisitStar(track?.roundedWith, track?.neverCount, track?.mannerPenalty)} count={track?.roundedWith || 0} rated={hasRevisitStar(track)} size={18} />
-              {track && track.roundedWith > 0 && (
-                <span className="inline-flex items-center gap-1 text-[12px] font-black text-green bg-green-light border border-green rounded-full px-2.5 py-0.5">
-                  🏌️ また回りたい {track.againCount}/{track.roundedWith}
-                </span>
-              )}
             </div>
           )}
+          {/* 2026-10-11：レビューの質問文と、その答え（何人中何人が「行きたい」） */}
           {!isMe && track && track.roundedWith > 0 && (
-            <div className="text-[11px] text-sub mt-1">この人をレビューした{track.roundedWith}人のうち{track.againCount}人が「また回りたい」と回答</div>
+            <div className="mt-1.5 rounded-xl bg-green-light border-[1.5px] border-green px-3 py-2">
+              <div className="text-[10.5px] text-sub font-bold leading-snug">「この人からまた次のラウンドに誘われたら、行きたいと思う？」</div>
+              <div className="text-[13px] font-black text-green mt-0.5">→ {track.roundedWith}人中 {track.againCount}人が「行きたい」と答えています</div>
+            </div>
           )}
           {/* マナー/信頼度（運営が通報・ドタキャンを確認して下げる指標）。良好時は控えめに表示。
               **本人には出さない**（運営方針）。他の人が見たときだけ出す。
@@ -208,6 +208,8 @@ export default function ProfilePage() {
               ペナルティが付いた瞬間に**札が消えたこと**で本人に伝わってしまうため。 */}
           {!isMe && <MannerBadge penalty={(user as any).mannerPenalty || 0} />}
           {metaLine && <div className="text-[13px] text-sub mt-1.5">{metaLine}</div>}
+          {/* マッチしている相手だけ：「まだ一緒にラウンドしてみたいと思う？」（2026-10-11） */}
+          {!isMe && <MatchFeelingBar otherId={user.id} otherName={user.displayName || 'この方'} />}
           {user.golmotiType && (
             <div className="mt-2.5">
               <GolmotiBadge code={user.golmotiType} link />
@@ -277,13 +279,13 @@ export default function ProfilePage() {
                   「なぜ送れないのか」で混乱するため。相手には出さない。 */}
               {declinedByMe && (
                 <div className="mt-2 text-center py-2.5 px-4 bg-yellow-light border-[1.5px] border-yellow rounded-xl text-[11.5px] font-black">
-                  あなたが「ごめんなさい」を選んでいます
+                  あなたが「思わない」を選んでいます
                 </div>
               )}
               {!declinedByMe && closedByMe && (
                 <div className="mt-2 text-center py-2.5 px-4 bg-yellow-light border-[1.5px] border-yellow rounded-xl text-[11.5px] font-black leading-relaxed">
-                  あなたが「どっちでもいい」を選んでいます<br />
-                  <span className="text-[10.5px] font-bold text-sub">再会画面で「また回りたい」に戻すと、また送れます</span>
+                  あなたが「どっちでも」を選んでいます<br />
+                  <span className="text-[10.5px] font-bold text-sub">また一緒に回ったあとのレビューで「行きたい」を選ぶと、また送れます</span>
                 </div>
               )}
               {/* 一緒に回ったのに接点が記録されていない相手のための入口。
