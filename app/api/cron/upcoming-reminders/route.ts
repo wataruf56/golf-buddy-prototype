@@ -1,20 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { pushToMany, liffUrl } from '@/lib/linePush';
-import { isNotifyEnabled } from '@/lib/notifyPrefs';
 import { getReminderDaysBefore } from '@/lib/roundReminderConfig';
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 
-// 開催「前」リマインド: 参加ラウンドの 1ヶ月前 / 1週間前 / 前日 に、参加者へ
-// LINE＋アプリ内通知でお知らせする。housekeeping cron から呼ばれる。
+// 開催「前」のお知らせ（2026-10-12 作り直し）。housekeeping cron（15分ごと）から呼ばれる。
 //
-// 冪等性: round.upcomingRemindersSent[key] にバンドごとの送信時刻を記録し、
-// 同じバンドは二度送らない。後から作られたラウンドは、今いるバンドだけ送る
-// （例: 3日前に作成 → d7バンドのみ→ のちに d1）。
+// 以前は開催の◯日前（既定 30/7/1）の 0:00 すぎに、参加者へ LINE を直接送っていた。
+// いまは **その募集のグループチャットに運営（管理人）が「@全員」で書き込む**（本人指定）。
+// 通知はふつうのメンションと同じ（アプリ内お知らせ＋通知設定「メンション」がONならLINE）。
+// 送るのは JST **12:00 以降**（お昼に統一）。
 //
-// バンド（JSTのカレンダー日数 daysUntil で判定）:
-//   d30: 8〜31日後   d7: 2〜7日後   d1: 0〜1日後
+// 書き込むもの（どれも1回だけ。round.upcomingRemindersSent[key] に時刻を記録）
+//   d{N}         … 開催の N 日前（管理画面の設定。既定 30/7/1）「1週間前になりました！ピックアップや入金などの確認を」
+//   cancel_{ms}  … キャンセル期限の日（期限が12時より前なら前日）「本日◯時がキャンセル期限です」
+//   pay3_{ms}    … 入金期日の3日前
+//   pay0_{ms}    … 入金期日の日（期日が12時より前なら前日）
+// 期限・期日の値をキーに含めるので、主催者が日時を変えたら新しい日時でまた1回。
+//
+// 対象：開催前の募集（open／締切 closed）。中止（heldCancelledAt）・完了・行ける日の部屋・日付未定は除く。
 
 function authorizeCron(req: NextRequest): boolean {
   const auth = req.headers.get('authorization') || '';
@@ -29,93 +33,118 @@ function authorizeCron(req: NextRequest): boolean {
 
 const DAY = 24 * 60 * 60 * 1000;
 const JST = 9 * 60 * 60 * 1000;
-const MAX_PER_TICK = 80;
+const SEND_HOUR = 12;
+const MAX_PER_TICK = 60;
 
+const dayNo = (ms: number) => Math.floor((ms + JST) / DAY);   // JST の通し日数
 function targetMs(date: string, startTime?: string): number | null {
   const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date || '');
   if (!dm) return null;
-  const [, y, mo, d] = dm;
   let h = 0, mi = 0;
   const tm = startTime ? /^(\d{1,2}):(\d{2})/.exec(startTime) : null;
   if (tm) { h = +tm[1]; mi = +tm[2]; }
-  const utcMs = Date.UTC(+y, +mo - 1, +d, h - 9, mi); // JSTローカルとして解釈
+  const utcMs = Date.UTC(+dm[1], +dm[2] - 1, +dm[3], h - 9, mi);
   return Number.isFinite(utcMs) ? utcMs : null;
+}
+function fmt(ms: number): string {
+  const d = new Date(ms + JST);
+  const w = '日月火水木金土'[d.getUTCDay()];
+  return `${d.getUTCMonth() + 1}月${d.getUTCDate()}日(${w}) ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+}
+function hm(ms: number): string {
+  const d = new Date(ms + JST);
+  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+}
+/** 期限の「お知らせする日」：期限の日。期限が12時より前なら前日（12時に書くと過ぎてしまうため） */
+function noticeDayOf(deadline: number): number {
+  const d = new Date(deadline + JST);
+  return d.getUTCHours() < SEND_HOUR ? dayNo(deadline) - 1 : dayNo(deadline);
 }
 
 export async function GET(req: NextRequest) {
   if (!authorizeCron(req)) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
   }
-
   const now = Date.now();
-  const dnow = Math.floor((now + JST) / DAY); // JSTでの「今日」の通し日数
-  // 管理画面で設定した「開催の何日前に送るか」（例: [30,7,1]）。
+  const jstHour = new Date(now + JST).getUTCHours();
+  if (jstHour < SEND_HOUR) return NextResponse.json({ ok: true, skipped: 'before_noon' }, { headers: noStore });
+  const today = dayNo(now);
   const daysBefore = await getReminderDaysBefore();
   const allRounds = await db.listRounds();
 
-  type Job = { round: any; key: string; daysUntil: number };
+  type Job = { round: any; key: string; text: string };
   const jobs: Job[] = [];
-  if (daysBefore.length) {
-    for (const r of allRounds) {
-      if (r.status !== 'open') continue;        // 募集中のみ（締切/完了は対象外）
-      if ((r as any).availDate) continue;       // 「行ける日」の集まり（日付だけの部屋）にはリマインドしない
-      if (!r.date) continue;                     // 日程未確定（範囲のみ）は対象外
-      const target = targetMs(r.date, r.startTime);
-      if (target === null) continue;
-      const dtar = Math.floor((target + JST) / DAY);
-      const daysUntil = dtar - dnow;             // JSTカレンダー日数
-      if (daysUntil < 0) continue;               // 過去は対象外
-      if (!daysBefore.includes(daysUntil)) continue; // 設定された「◯日前」に一致した日だけ送る
-      const key = `d${daysUntil}`;
-      if (r.upcomingRemindersSent && r.upcomingRemindersSent[key]) continue; // 送信済み
-      jobs.push({ round: r, key, daysUntil });
-      if (jobs.length >= MAX_PER_TICK) break;
+  for (const r of allRounds as any[]) {
+    if (jobs.length >= MAX_PER_TICK) break;
+    if (r.status !== 'open' && r.status !== 'closed') continue;
+    if (r.heldCancelledAt || r.availDate || !r.date) continue;
+    const target = targetMs(r.date, r.startTime);
+    if (target === null || target < now) continue;
+    const sent = r.upcomingRemindersSent || {};
+    const title = r.title || r.courseName || 'ラウンド';
+    const when = `${fmt(target).replace(/ 00:00$/, '')}`;
+    const pi = r.paymentEnabled ? (r.paymentInfo || {}) : {};
+    const payDl = Number(pi.deadline) || 0;
+    const cancelDl = Number(r.cancelPolicy?.deadline) || 0;
+
+    // 開催の N 日前
+    const daysUntil = dayNo(target) - today;
+    if (daysBefore.includes(daysUntil) && !sent[`d${daysUntil}`]) {
+      const head = daysUntil === 0 ? '本日はいよいよラウンドです！' : daysUntil === 1 ? '明日はいよいよラウンドです！'
+        : daysUntil === 7 ? 'ラウンドの1週間前になりました！' : daysUntil >= 28 && daysUntil <= 31 ? 'ラウンドの1か月前になりました！' : `ラウンドの${daysUntil}日前になりました！`;
+      const lines = [`@全員`, `⛳ ${head}`, `「${title}」${when}`, ''];
+      lines.push(daysUntil <= 1 ? '集合場所・時間とピックアップ（送迎）の最終確認をお願いします🙏' : 'ピックアップ（送迎）や入金などの確認をお願いします🙏');
+      if (payDl && payDl > now) lines.push(`💴 入金期日：${fmt(payDl)}`);
+      if (cancelDl && cancelDl > now) lines.push(`⏰ キャンセル期限：${fmt(cancelDl)}`);
+      jobs.push({ round: r, key: `d${daysUntil}`, text: lines.join('\n') });
+      continue;   // 1回の見回りで同じ募集に書くのは1件まで（次の見回りで残りを書く）
     }
-  }
-
-  let sent = 0, skipped = 0;
-  const results: any[] = [];
-  for (const { round, key, daysUntil } of jobs) {
-    const participants = Array.from(new Set([round.hostId, ...(round.applicantIds || [])])).filter(Boolean);
-    const stamp = { ...(round.upcomingRemindersSent || {}), [key]: now };
-
-    if (!participants.length) {
-      await db.updateRound(round.id, { upcomingRemindersSent: stamp } as any);
-      skipped++;
+    // キャンセル期限
+    if (cancelDl && cancelDl > now - DAY && noticeDayOf(cancelDl) === today && !sent[`cancel_${cancelDl}`]) {
+      const isToday = dayNo(cancelDl) === today;
+      jobs.push({ round: r, key: `cancel_${cancelDl}`, text: [
+        `@全員`, `⏰ ${isToday ? '本日' : '明日'} ${hm(cancelDl)} がキャンセル期限です（「${title}」）`,
+        '', '期限を過ぎると、アプリからは参加を取りやめられなくなります。行けなくなりそうな方は、それまでにお知らせください🙏',
+      ].join('\n') });
       continue;
     }
-
-    const roundName = round.title || round.courseName || 'ラウンド';
-    const whenLabel = daysUntil <= 0 ? '本日' : daysUntil === 1 ? '明日' : `あと${daysUntil}日`;
-    const dateLine = round.date ? `${round.date}${round.startTime ? ' ' + round.startTime : ''}` : '';
-    const link = `/round/${round.id}`;
-    const { renderNotif } = await import('@/lib/notificationTemplateStore');
-    const n = await renderNotif('roundUpcoming', { '募集タイトル': roundName, 'いつ': whenLabel, '日時': dateLine });
-
-    // アプリ内のお知らせ（LINE設定に関わらず必ず記録）。
-    {
-      const { addNotificationMany } = await import('@/lib/notifications');
-      if (n.inApp) addNotificationMany(participants, 'roundUpcoming', n.inApp, link).catch(() => {});
+    // 入金期日の3日前
+    if (payDl && payDl > now && dayNo(payDl) - 3 === today && !sent[`pay3_${payDl}`]) {
+      jobs.push({ round: r, key: `pay3_${payDl}`, text: [
+        `@全員`, `💴 入金期日まであと3日です（${fmt(payDl)}）`,
+        pi.amount ? `「${title}」の参加費 ${Number(pi.amount).toLocaleString('ja-JP')}円` : `「${title}」の参加費`,
+        '', 'まだの方は「💰 入金」タブの振込先へお願いします。入金済みの方は、このメッセージは気にしないでください🙏',
+      ].join('\n') });
+      continue;
     }
-
-    const users = await db.listUsers(participants);
-    const targetIds = users.filter((u) => isNotifyEnabled(u as any, 'roundUpcoming')).map((u) => u.id);
-    if (targetIds.length) {
-      try {
-        await pushToMany(targetIds, n.line, liffUrl(link), 'upcomingReminder');
-        const { webPushToMany } = await import('@/lib/webPush');
-        await webPushToMany(targetIds, n.webTitle, n.webBody || 'タップで詳細', link, `upcoming-${round.id}-${key}`).catch(() => {});
-        sent++;
-      } catch (e) {
-        console.warn('[upcoming-reminders] push failed', { roundId: round.id, err: (e as Error).message });
-      }
-    } else {
-      skipped++;
+    // 入金期日の当日
+    if (payDl && payDl > now && noticeDayOf(payDl) === today && !sent[`pay0_${payDl}`]) {
+      const isToday = dayNo(payDl) === today;
+      jobs.push({ round: r, key: `pay0_${payDl}`, text: [
+        `@全員`, `💴 ${isToday ? '本日' : '明日'} ${hm(payDl)} が入金期日です（「${title}」）`,
+        pi.amount ? `参加費 ${Number(pi.amount).toLocaleString('ja-JP')}円` : '',
+        '', 'まだの方は「💰 入金」タブの振込先へお願いします。入金済みの方は、このメッセージは気にしないでください🙏',
+      ].filter((x, i) => x !== '' || i > 2).join('\n') });
+      continue;
     }
-
-    await db.updateRound(round.id, { upcomingRemindersSent: stamp } as any);
-    results.push({ roundId: round.id, band: key, daysUntil, recipients: targetIds.length });
   }
 
-  return NextResponse.json({ ok: true, scanned: jobs.length, sent, skipped, results }, { headers: noStore });
+  const { ADMIN_MANAGER_ID, ADMIN_MANAGER_NAME } = await import('@/lib/adminManagerId');
+  const { ensureAdminManager } = await import('@/lib/adminManager');
+  const { notifyRoundChat } = await import('@/lib/roundChatNotify');
+  if (jobs.length) await ensureAdminManager();
+  const results: any[] = [];
+  for (const { round, key, text } of jobs) {
+    // 先に印を付ける（見回りが重なっても二重に書かない）
+    const stamp = { ...(round.upcomingRemindersSent || {}), [key]: now };
+    await db.updateRound(round.id, { upcomingRemindersSent: stamp } as any);
+    try {
+      await db.addRoundMessage(round.id, ADMIN_MANAGER_ID, text);
+      await notifyRoundChat(round, ADMIN_MANAGER_ID, ADMIN_MANAGER_NAME, text);
+      results.push({ roundId: round.id, key });
+    } catch (e) {
+      console.warn('[upcoming-reminders] post failed', { roundId: round.id, key, err: (e as Error).message });
+    }
+  }
+  return NextResponse.json({ ok: true, posted: results.length, results }, { headers: noStore });
 }
