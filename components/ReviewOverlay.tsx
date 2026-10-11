@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 // 外すと静かに解消される。
 // base … 💘を押す前に選んでいた3択（💘を外したら戻す）（2026-10-10）
 type Row = { verdict: ReviewVerdict | null; base?: ReviewVerdict };
-type LikeState = { again: boolean; romantic: boolean; sameGroup: boolean };
+type LikeState = { again: boolean; romantic: boolean; sameGroup: boolean; matchedAgain?: boolean; matchedRomantic?: boolean };
 type MatchInfo = { state: Record<string, LikeState & { sameCar?: boolean }>; users: Record<string, any>; isCompetition: boolean };
 
 export function ReviewOverlay() {
@@ -91,12 +91,20 @@ export function ReviewOverlay() {
   const allRated = ratedCount === pending.length;
 
   // 別の組の人（任意・回ってみたい）と、当日来れなかった人（除外）の一覧。
+  //   ・すでにマッチ／ゴル友の人は押せない（「すでにマッチしていて友達です」）。送信でも触らない（2026-10-11）
+  //   ・やり直しのレビュー（ゲストが本人に置き換わった・組を直した等で、相手が一部だけ増えた）のときは出さない。
+  //     一度答え終わった人に、別の組の一覧をもう一度見せない（2026-10-11）
+  const friendIds = new Set(me?.friendIds || []);
   const wannaList = roundIds.flatMap((rid) => {
     const info = match[rid];
-    if (!info?.isCompetition) return [] as Array<{ rid: string; uid: string; user: any }>;
+    if (!info?.isCompetition) return [] as Array<{ rid: string; uid: string; user: any; already: boolean }>;
+    const peers = Object.keys(info.state).filter((uid) => info.state[uid].sameGroup).length;
+    const pendingHere = pending.filter((p) => p.roundId === rid).length;
+    if (pendingHere < peers) return [] as Array<{ rid: string; uid: string; user: any; already: boolean }>;
     return Object.keys(info.state)
       .filter((uid) => !info.state[uid].sameGroup)
-      .map((uid) => ({ rid, uid, user: info.users[uid] }));
+      .map((uid) => ({ rid, uid, user: info.users[uid],
+        already: !!info.state[uid].matchedAgain || !!info.state[uid].matchedRomantic || friendIds.has(uid) }));
   });
   const noShowList = roundIds.flatMap((rid) => {
     const r = rounds.find((x) => x.id === rid);
@@ -177,6 +185,7 @@ export function ReviewOverlay() {
       }
       // 別の組の「回ってみたい」（again のみ）を反映。
       for (const w of wannaList) {
+        if (w.already) continue;   // すでにマッチ／友達の人は触らない
         await setLike(w.rid, w.uid, 'again', !!wanna[`${w.rid}::${w.uid}`]);
       }
       await store.refreshNotifications().catch(() => {});
@@ -307,7 +316,7 @@ export function ReviewOverlay() {
               <div className="text-[12px] font-black mb-0.5">🏌️ 別の組だった人（任意）</div>
               <div className="text-[10px] text-sub mb-2">一緒には回っていない人です。押さなくても大丈夫。お互いに「回ってみたい」を選ぶと繋がります。</div>
               <div className="flex flex-col gap-1.5">
-                {wannaList.map(({ rid, uid, user }) => {
+                {wannaList.map(({ rid, uid, user, already }) => {
                   const k = `${rid}::${uid}`;
                   const on = !!wanna[k];
                   return (
@@ -318,11 +327,16 @@ export function ReviewOverlay() {
                       </div>
                       {/* 2026-10-11：質問の形に。ボタンは「回ってみたい」をオン／オフ */}
                       <div className="text-[11.5px] font-black text-center mt-1.5 mb-1">次回機会があったら、この人とラウンドを回りたい？</div>
+                      {already ? (
+                        <button type="button" disabled
+                          className="w-full py-2 rounded-[12px] text-[12px] font-bold border-[1.5px] bg-bg border-border text-muted cursor-not-allowed">🤝 すでにマッチしていて友達です</button>
+                      ) : (
                       <button
                         onClick={() => setWanna((prev) => ({ ...prev, [k]: !on }))}
                         aria-pressed={on}
                         className={cn('w-full py-2 rounded-[12px] text-[12px] font-bold border-[1.5px]', on ? 'bg-green text-white border-green' : 'bg-card border-border text-sub')}
                       >{on ? '✓ 回ってみたい（もう一度押すと外れます）' : '回ってみたい'}</button>
+                      )}
                     </div>
                   );
                 })}
