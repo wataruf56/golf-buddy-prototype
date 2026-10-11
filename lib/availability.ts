@@ -77,8 +77,21 @@ export async function saveAvailability(
 }
 
 /**
+ * 「行ける日」で名前を見せてよい友達（2026-10-11）。
+ * ゴル友（QR・友達申請の承認＝User.friendIds）と、レビューでお互いに「行きたい／回ってみたい」を選んだ相手（マッチ）。
+ * 主催者からの取りやめ連絡・申請中のやり取りなど、DMだけできる関係は入れない。「ごめんなさい」で遮断したペアは外す。
+ */
+export async function availFriendSet(viewer: Pick<User, 'id' | 'friendIds'>): Promise<Set<string>> {
+  const out = new Set<string>((viewer.friendIds || []).filter(Boolean));
+  try { const { mutualMatchSet } = await import('./matchPairs'); (await mutualMatchSet(viewer.id)).forEach((id) => out.add(id)); } catch { /* noop */ }
+  try { const { blockedSetOf } = await import('./dmBlock'); (await blockedSetOf(viewer.id)).forEach((id) => out.delete(id)); } catch { /* noop */ }
+  out.delete(viewer.id);
+  return out;
+}
+
+/**
  * 日付ごとの「行ける人」。viewer と同じ年代（cohort）の会員だけを集める。
- * 名前とIDは女性の閲覧者にだけ付ける（男性にはプロフィールを開かせない）。
+ * 名前とIDは女性の閲覧者にだけ付ける（男性にはプロフィールを開かせない）。ただし友達（availFriendSet）は誰が見ても付け、friend:true を立てる。
  * テスト用アカウントは、閲覧者がテストでなければ外す（bootstrap と同じ考え方）。
  */
 export async function listAvailabilityFor(viewer: User): Promise<{
@@ -93,11 +106,12 @@ export async function listAvailabilityFor(viewer: User): Promise<{
   if (!adb) return empty;
 
   const lo = todayJst();
-  const [snap, users, banned, testCfg] = await Promise.all([
+  const [snap, users, banned, testCfg, friends] = await Promise.all([
     adb.collection(COLL).where('updatedAt', '>', 0).limit(2000).get(),
     adb.collection('users').limit(3000).get(),
     import('./banAccess').then((m) => m.getBannedIdSet()).catch(() => new Set<string>()),
     import('./testAccounts').then((m) => m.getTestAccountConfig()).catch(() => null),
+    availFriendSet(viewer).catch(() => new Set<string>()),
   ]);
   const userOf: Record<string, any> = {};
   users.docs.forEach((d: any) => { userOf[d.id] = { id: d.id, ...(d.data() || {}) }; });
@@ -127,13 +141,15 @@ export async function listAvailabilityFor(viewer: User): Promise<{
     if (u.gender !== 'male' && u.gender !== 'female') return;      // 性別未設定は並べられない（青/ピンクで出すため）
     const dates: string[] = normalizeDates(x.dates).filter((dt) => dt >= lo);
     if (!dates.length) return;
-    const person: AvailPerson = { age: u.age, gender: u.gender, car: u.car === 'have', ...(uid === viewer.id ? { me: true } : {}) };
+    const isFriend = friends.has(uid);
+    const person: AvailPerson = { age: u.age, gender: u.gender, car: u.car === 'have', ...(uid === viewer.id ? { me: true } : {}), ...(isFriend ? { friend: true } : {}) };
     if (person.car) {
       // 乗れる人数・バッグ数は車を出せる人だけ。誰が見ても出す（名前とは別の、車の情報）
       const s = clampCarNum(x.seats); const b = clampCarNum(x.bags);
       if (s) person.seats = s; if (b) person.bags = b;
     }
-    if (reveal || uid === viewer.id) {
+    // 女性が見るとき・自分・友達（2026-10-11：男性が見るときも友達だけは名前とプロフィールを出す）
+    if (reveal || isFriend || uid === viewer.id) {
       Object.assign(person, {
         id: uid, name: u.displayName || 'メンバー', avatar: u.avatar || '', avatarUrl: u.avatarUrl || '',
         avatarMode: u.avatarMode || '', color: u.color || '', golmotiType: u.golmotiType || '',

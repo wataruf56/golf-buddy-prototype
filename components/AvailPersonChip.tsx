@@ -9,6 +9,7 @@ import type { AvailPerson } from '@/lib/availabilityShared';
 //   ・枠で囲われて影がある札＝車を出せる人
 //   ・名前がある（女性が見ている／自分）→ 写真と名前が出て、札ごとタップでプロフィールへ
 //   ・名前が無い（男性が見ている）→ 「？」と年齢だけ。押せない
+//   ・友達（ゴル友・お互いに選んだ相手）→ 男性が見ても名前が出て、🤝 の印が付く（2026-10-11）
 export function AvailPersonChip({ p }: { p: AvailPerson }) {
   const female = p.gender === 'female';
   const ageCls = female ? 'text-sakura' : 'text-blue';
@@ -25,6 +26,7 @@ export function AvailPersonChip({ p }: { p: AvailPerson }) {
       <Avatar user={{ avatar: p.avatar, avatarUrl: p.avatarUrl, color: p.color, avatarMode: p.avatarMode, golmotiType: p.golmotiType } as any} size={26} emojiSize={14} />
       <span className="max-w-[6em] truncate">{p.me ? 'あなた' : p.name}</span>
       <span className={`font-mono ${ageCls}`}>{p.age}</span>
+      {p.friend && !p.me && <span className="text-[9px] font-black text-green bg-green-light rounded-full px-1.5 py-[2px]" aria-label="すでに友達">🤝友達</span>}
       {p.car && <span className="text-[10px]" aria-label={carTitle}>🚗</span>}
     </>
   ) : (
@@ -35,7 +37,7 @@ export function AvailPersonChip({ p }: { p: AvailPerson }) {
     </>
   );
   // 読み上げ用の名前（見た目は札のまま）。title だけだと車の説明が名前になってしまう
-  const label = `${p.me ? 'あなた' : p.name || (female ? '女性' : '男性')} ${p.age}歳${p.car ? '・車を出せる' : ''}`;
+  const label = `${p.me ? 'あなた' : p.name || (female ? '女性' : '男性')} ${p.age}歳${p.car ? '・車を出せる' : ''}${p.friend ? '・すでに友達' : ''}`;
   if (p.id && !p.me) {
     return <Link href={`/profile/${p.id}`} className={cls} title={carTitle} aria-label={label}>{inner}</Link>;
   }
@@ -49,6 +51,7 @@ export function AvailLegend() {
       <span><i className="inline-block w-3.5 h-3.5 rounded-full bg-blue align-[-3px] mr-1" />男性</span>
       <span><i className="inline-block w-3.5 h-3.5 rounded-full bg-sakura align-[-3px] mr-1" />女性</span>
       <span><i className="inline-block w-3.5 h-3.5 rounded-full bg-white border-2 border-border shadow-[1.5px_1.5px_0_#1E3A30] align-[-3px] mr-1" />枠つき🚗＝車を出せる人</span>
+      <span><span className="text-[9px] font-black text-green bg-green-light rounded-full px-1.5 py-[2px] mr-1">🤝友達</span>＝すでに友達</span>
     </div>
   );
 }

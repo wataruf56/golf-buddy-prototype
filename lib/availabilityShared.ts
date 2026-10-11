@@ -7,7 +7,9 @@ export type AvailPerson = {
   /** 車を出せる人だけ：乗れる人数（運転手込み）とゴルフバッグの数。2〜8 */
   seats?: number; bags?: number;
   me?: boolean;
-  // 女性が見るとき（と自分の分）だけ
+  /** 見ている人と友達（ゴル友・お互いに「行きたい／回ってみたい」を選んだ相手）（2026-10-11） */
+  friend?: boolean;
+  // 女性が見るとき・友達・自分の分だけ
   id?: string; name?: string; avatar?: string; avatarUrl?: string; avatarMode?: string; color?: string; golmotiType?: string;
 };
 

@@ -60,6 +60,14 @@ export async function GET(req: NextRequest) {
     results.upcomingReminders = { error: (e as Error).message };
   }
 
+  // ラウンド参加者への「行ける日」ポップアップのLINE（運営がOKを出し、時刻を過ぎたら1回だけ）（2026-10-11）
+  try {
+    const { sendDueAvailPromptLines } = await import('@/lib/availPrompt');
+    results.availPrompt = await sendDueAvailPromptLines();
+  } catch (e) {
+    results.availPrompt = { error: (e as Error).message };
+  }
+
   try {
     const { GET: rematchNotifier } = await import('../rematch-notifier/route');
     const res = await rematchNotifier(req);

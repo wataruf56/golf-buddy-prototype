@@ -63,6 +63,9 @@ export async function buildTimeline(viewer: User, limit = 80): Promise<TimelineI
   const sameCohort = (u: any) => !!u && getCohort(u.age) === cohort;
   const nameOf = (u: any) => String(u?.displayName || 'メンバー').slice(0, 20);
   const viewerIsFemale = viewer.gender === 'female';
+  // 友達（ゴル友・お互いに選んだ相手）は男性が見ても名前を出す（2026-10-11・行ける日と同じ）
+  const { availFriendSet } = await import('./availability');
+  const friends = await availFriendSet(viewer as any).catch(() => new Set<string>());
 
   const items: TimelineItem[] = [];
   for (const d of usersSnap.docs) {
@@ -75,7 +78,7 @@ export async function buildTimeline(viewer: User, limit = 80): Promise<TimelineI
     const u = userMap.get(d.id);
     if (hidden(d.id) || !sameCohort(u) || u?.banned) continue;
     if (!Array.isArray(a.dates) || !a.dates.length || !a.updatedAt) continue;
-    const name = viewerIsFemale || d.id === viewer.id ? nameOf(u) : (u?.gender === 'female' ? '女性メンバー' : u?.gender === 'male' ? '男性メンバー' : 'メンバー');
+    const name = viewerIsFemale || d.id === viewer.id || friends.has(d.id) ? nameOf(u) : (u?.gender === 'female' ? '女性メンバー' : u?.gender === 'male' ? '男性メンバー' : 'メンバー');
     items.push({ id: `avail_${d.id}`, kind: 'avail', at: a.updatedAt, name, text: 'さんが行ける日を入力しました', link: '/availability' });
   }
   for (const d of roundsSnap.docs) {

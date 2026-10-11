@@ -295,7 +295,7 @@ export default function AvailabilityPage() {
         <div className="mt-2"><AvailLegend /></div>
         <div className="text-[11px] text-sub font-bold mt-1.5 leading-relaxed">
           日付を押すと、その日に行ける人がここに出ます。「この日に行ける」を押すとすぐ保存されます。
-          {data.canOpenProfiles ? ' 札をタップするとプロフィールが開きます。' : ' 名前とプロフィールは出ません（年齢と、車を出せるかだけ）。'}
+          {data.canOpenProfiles ? ' 札をタップするとプロフィールが開きます。' : ' 友達（🤝）は名前が出て、タップでプロフィールが開きます。それ以外の人は年齢と、車を出せるかだけです。'}
         </div>
       </div>
     </div>

@@ -8,6 +8,7 @@ import { TabBar } from '@/components/TabBar';
 import { ReviewOverlay } from '@/components/ReviewOverlay';
 import { GroupGate } from '@/components/GroupGate';
 import { CompletionGate } from '@/components/CompletionGate';
+import { AvailPromptPopup } from '@/components/AvailPromptPopup';
 import { BlockerPopup } from '@/components/BlockerPopup';
 import { ToastHost } from '@/components/Toast';
 import { ConfirmHost } from '@/components/ConfirmDialog';
@@ -98,11 +99,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }, []);
 
   function onTabBlock(href?: string) {
-    // Allow マイページ even with pending reviews so the user can edit profile
-    // or sign out. All other tabs prompt the review popup.
-    if (pendingCount > 0 && href !== '/mypage') {
-      setBlockerOpen(true);
-      setOverlayOpen(false);
+    // 2026-10-11：未完了のレビューがある間は、どのタブ（マイページも）を押してもレビュー画面のまま。
+    // 以前はタブを押すとレビュー画面が閉じて下の小さな案内だけになり、画面の中身を操作できてしまっていた。
+    void href;
+    if (pendingCount > 0) {
+      setBlockerOpen(false);
+      setOverlayOpen(true);
       return true;
     }
     return false;
@@ -156,6 +158,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       {overlayOpen && pendingCount > 0 && <ReviewOverlay />}
       <GroupGate />
       <CompletionGate />
+      {/* ラウンド後の「行ける日を入力してみませんか？」（運営がOKを出してから・レビューが先）（2026-10-11） */}
+      <AvailPromptPopup blocked={pendingCount > 0 || banGated || loggedOut || ageGated} />
       {/* 友だち追加の案内（LineFollowPrompt）はホームの関所（FriendGate）に置き換えた（2026-10-04） */}
       <ToastHost />
       <ConfirmHost />
