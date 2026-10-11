@@ -87,13 +87,13 @@ export function RoundPromoPopup({ blocked }: { blocked: boolean }) {
 
   return (
     <div ref={selfRef} className="absolute inset-0 z-[160] bg-black/65 backdrop-blur-sm flex items-center justify-center p-5" data-promo>
-      <div className="relative w-full max-w-[350px] pt-12">
+      <div className="relative w-full max-w-[350px] pt-[60px]">
         {/* 白クマがのぞく */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/bear-hook.png" alt="" className="absolute left-1/2 -translate-x-1/2 top-0 w-[150px] z-10 pointer-events-none select-none" />
+        <img src="/bear-hook.png" alt="" className="absolute left-1/2 -translate-x-1/2 top-0 w-[128px] z-10 pointer-events-none select-none" />
         <div className="relative bg-card rounded-[22px] border-[3px] border-border shadow-[5px_5px_0_#1E3A30] overflow-hidden">
           {/* リボン */}
-          <div className="bg-orange text-white text-center pt-7 pb-2.5 px-4 border-b-[3px] border-border">
+          <div className="bg-orange text-white text-center pt-[52px] pb-3 px-4 border-b-[3px] border-border">
             <div className="text-[11px] font-black tracking-wider opacity-90">✨ 運営のイチオシ ✨</div>
             <div className="text-[19px] font-black leading-tight mt-0.5">{promo.headline || 'この日の募集があります！'}</div>
           </div>
