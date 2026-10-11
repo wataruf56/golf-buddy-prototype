@@ -269,19 +269,24 @@ export function ReviewOverlay() {
           {wannaList.length > 0 && (
             <div className="bg-bg rounded-xl p-3">
               <div className="text-[12px] font-black mb-0.5">🏌️ 別の組だった人（任意）</div>
-              <div className="text-[10px] text-sub mb-2">一緒には回っていないけど「また回ってみたい」人がいれば。相互で選ぶと繋がります。</div>
+              <div className="text-[10px] text-sub mb-2">一緒には回っていない人です。押さなくても大丈夫。お互いに「回ってみたい」を選ぶと繋がります。</div>
               <div className="flex flex-col gap-1.5">
                 {wannaList.map(({ rid, uid, user }) => {
                   const k = `${rid}::${uid}`;
                   const on = !!wanna[k];
                   return (
-                    <div key={k} className="flex items-center gap-2.5 bg-card rounded-[10px] px-2.5 py-2">
+                    <div key={k} className="bg-card rounded-[10px] px-2.5 py-2">
+                      <div className="flex items-center gap-2.5">
                       {user ? <Avatar user={{ id: uid, displayName: user.displayName, avatar: user.avatar, avatarUrl: user.avatarUrl } as any} size={30} emojiSize={15} /> : <span className="w-[30px] h-[30px] rounded-full bg-bg flex items-center justify-center">⛳</span>}
                       <span className="text-[13px] font-bold truncate flex-1 min-w-0">{user?.displayName || 'メンバー'}</span>
+                      </div>
+                      {/* 2026-10-11：質問の形に。ボタンは「回ってみたい」をオン／オフ */}
+                      <div className="text-[11.5px] font-black text-center mt-1.5 mb-1">次回機会があったら、この人とラウンドを回りたい？</div>
                       <button
                         onClick={() => setWanna((prev) => ({ ...prev, [k]: !on }))}
-                        className={cn('px-3 py-1.5 rounded-full text-[11px] font-black border-[1.5px] flex-shrink-0', on ? 'bg-green text-white border-green' : 'bg-card border-border text-sub')}
-                      >{on ? '✓ 回ってみたい' : '回ってみたい'}</button>
+                        aria-pressed={on}
+                        className={cn('w-full py-2 rounded-[12px] text-[12px] font-bold border-[1.5px]', on ? 'bg-green text-white border-green' : 'bg-card border-border text-sub')}
+                      >{on ? '✓ 回ってみたい（もう一度押すと外れます）' : '回ってみたい'}</button>
                     </div>
                   );
                 })}

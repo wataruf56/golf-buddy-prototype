@@ -118,13 +118,15 @@ export function MatchPicker({ roundId }: { roundId: string }) {
                   <div className="text-[10px] text-muted mt-1 text-center">🔒 同じ組のレビューは確定済みのため変更できません</div>
                 </>
               ) : (
-                // 別の組（任意）の「回ってみたい」だけ後から変更できる。
-                <div className="flex gap-1.5">
+                // 別の組（任意）の「回ってみたい」だけ後から変更できる。2026-10-11：質問の形に
+                <div>
+                  <div className="text-[11.5px] font-black text-center mb-1">次回機会があったら、この人とラウンドを回りたい？</div>
                   <button
                     onClick={() => toggle(id, 'again')}
                     disabled={!!busy}
-                    className={'flex-1 px-2 py-2 rounded-full text-[12px] font-bold border-[1.5px] ' + (e.again ? 'bg-green text-white border-green' : 'bg-card border-border text-sub')}
-                  >{e.again ? '✓ ' : ''}🏌️ 回ってみたい</button>
+                    aria-pressed={!!e.again}
+                    className={'w-full px-2 py-2 rounded-[12px] text-[12px] font-bold border-[1.5px] ' + (e.again ? 'bg-green text-white border-green' : 'bg-card border-border text-sub')}
+                  >{e.again ? '✓ 回ってみたい（もう一度押すと外れます）' : '回ってみたい'}</button>
                 </div>
               )}
             </div>
