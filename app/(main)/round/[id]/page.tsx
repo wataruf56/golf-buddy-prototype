@@ -524,6 +524,13 @@ export default function RoundDetailPage() {
     try { await store.completeRound(round!.id); toast(drink ? '飲み会を完了しました' : 'ラウンド完了'); router.push('/home'); }
     catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }
+  // 「中止」（2026-10-11）：雨天などで実施しなかったとき。完了扱いにせず、レビュー依頼も出さない
+  async function cancelHeld() {
+    const drink = round!.eventType === 'drink';
+    if (!(await confirmDialog(drink ? 'この飲み会を「中止」にしますか？（参加者にお知らせが届きます）' : 'このラウンドを「中止」にしますか？（雨天などで実施しなかったとき。参加者にお知らせが届き、レビュー依頼は送られません）'))) return;
+    try { await store.cancelHeldRound(round!.id); toast('中止にしました'); router.push('/home'); }
+    catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
+  }
   async function approve(userId: string) {
     try { await store.approveApplicant(round!.id, userId); track('approve_applicant', { roundId: round!.id }); toast('承認しました'); }
     catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
@@ -859,8 +866,13 @@ export default function RoundDetailPage() {
             {isFlexible && round.status === 'open' && (
               <button onClick={() => setConfirmOpen(true)} className="w-full py-4 bg-blue text-white rounded-xl text-[15px] font-bold">📅 コース確定にする</button>
             )}
-            {(round.type === 'confirmed' || round.status !== 'open') && (
-              <button onClick={complete} className="w-full py-4 bg-green text-white rounded-xl text-[15px] font-bold">{isDrink ? '飲み会を完了' : 'ラウンド完了'}</button>
+            {(round as any).heldCancelledAt ? (
+              <div className="text-center py-3 bg-bg text-sub rounded-xl text-sm font-bold border border-border">☔ この{isDrink ? '飲み会' : 'ラウンド'}は中止にしました</div>
+            ) : (round.type === 'confirmed' || round.status !== 'open') && (
+              <div className="flex gap-2">
+                <button onClick={complete} className="flex-1 py-4 bg-green text-white rounded-xl text-[15px] font-bold">{isDrink ? '飲み会完了' : 'ラウンド完了'}</button>
+                <button onClick={cancelHeld} className="flex-1 py-4 bg-card text-sub border-[1.5px] border-border rounded-xl text-[15px] font-bold">{isDrink ? '飲み会中止' : 'ラウンド中止'}</button>
+              </div>
             )}
             <button onClick={deletePost} className="w-full py-3 bg-red-50 text-red-600 border-[1.5px] border-red-300 rounded-xl text-sm font-bold">🗑 投稿を削除</button>
           </div>

@@ -212,6 +212,8 @@ export type Round = {
   // ms timestamp when the「ラウンドは完了しましたか？」主催者向け確認通知を送った時刻。
   // スタート時間+6.5h後に主催者だけへ1回送るために使う（cron の二重送信防止）。
   completionPromptSentAt?: number;
+  completionPromptCount?: number;   // 「終わりましたか？」を送った回数（毎日20:00・最大7回）（2026-10-11）
+  heldCancelledAt?: number;         // 主催者が「中止」を選んだ日時（雨天など。完了扱いにはしない＝レビュー依頼は出さない）（2026-10-11）
   // ms timestamp when the「まだレビューしていない人だけ」への3日後リマインドを
   // 送った時刻。/api/cron/review-reminders が二重送信を避けるために打刻する。
   reviewFollowupSentAt?: number;

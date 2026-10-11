@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { confirmDialog } from '@/components/ConfirmDialog';
 import { useState } from 'react';
 import { useStore, getMe, store } from '@/lib/store';
 import { toast } from '@/components/Toast';
@@ -20,7 +20,7 @@ function jstToday(): string {
 //   ・自分が募集した人（hostId が自分）
 //   ・開催日が決まっていて、その日を過ぎている（date < 今日）
 //   ・まだ completed になっていない
-//   ・「まだ」で3日間の見送り（completionSnoozedUntil）をしていない
+//   ・「中止」（heldCancelledAt）を選んでいない（2026-10-11：「まだ」の見送りは廃止）
 // 当該ラウンドのページとその配下（編集・チャット等）では出さない。
 // 以前は編集ページも塞いでいて、「まだ」と答えた主催者が知り合い枠を直せなかった。
 export function CompletionGate() {
@@ -28,14 +28,14 @@ export function CompletionGate() {
   const me = useStore(getMe);
   const rounds = useStore((s) => s.rounds);
   const pathname = usePathname();
+  const router = useRouter();
   if (!me) return null;
 
   const today = jstToday();
   // 何件もあるときは、いちばん古いものから片付けてもらう。
-  const now = Date.now();
   const overdue = rounds
-    .filter((r) => r.hostId === me.id && r.status !== 'completed' && !!r.date && r.date < today)
-    .filter((r) => !((r as any).completionSnoozedUntil > now))
+    // 2026-10-11：「完了」か「中止」を選ぶまで出す（「まだ」の見送りはやめた）
+    .filter((r) => r.hostId === me.id && r.status !== 'completed' && !(r as any).heldCancelledAt && !!r.date && r.date < today)
     .sort((a, b) => String(a.date).localeCompare(String(b.date)));
   const target = overdue[0];
   if (!target) return null;
@@ -56,26 +56,34 @@ export function CompletionGate() {
         </p>
         <p className="text-[13px] text-red-600 font-bold leading-relaxed mb-4">
           完了にしないと参加者にレビュー依頼が届かず、評価が記録されません。<br />
-          必ず完了させてください。それまで他の操作はできません。
+          「完了」か「中止」を選ぶまで、他の操作はできません。
         </p>
-        <Link
-          href={`/round/${target.id}`}
-          className="block w-full py-3 bg-green text-white rounded-xl font-bold text-sm"
-        >
-          {isDrink ? '飲み会を完了する' : 'ラウンドを完了する'}
-        </Link>
-        <button
-          type="button" disabled={busy}
-          onClick={async () => {
-            setBusy(true);
-            try { await store.snoozeCompletion(target.id); toast('3日間は出しません'); }
-            catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
-            finally { setBusy(false); }
-          }}
-          className="block w-full mt-2 py-2.5 bg-card border border-border text-sub rounded-xl font-bold text-[13px] disabled:opacity-50"
-        >
-          まだ（3日間は出さない）
-        </button>
+        <p className="text-[12px] text-sub mb-3">実施したなら「完了」、雨天などで実施しなかったなら「中止」を選んでください。</p>
+        <div className="flex gap-2">
+          <button
+            type="button" disabled={busy}
+            onClick={async () => {
+              if (!(await confirmDialog(isDrink ? '飲み会を完了にしますか？' : 'ラウンドを完了にしますか？（参加者全員にレビュー依頼が送られます）'))) return;
+              setBusy(true);
+              try { await store.completeRound(target.id); toast(isDrink ? '飲み会を完了しました' : 'ラウンドを完了しました'); }
+              catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
+              finally { setBusy(false); }
+            }}
+            className="flex-1 py-3 bg-green text-white rounded-xl font-bold text-sm disabled:opacity-50"
+          >{isDrink ? '飲み会完了' : 'ラウンド完了'}</button>
+          <button
+            type="button" disabled={busy}
+            onClick={async () => {
+              if (!(await confirmDialog(isDrink ? 'この飲み会を「中止」にしますか？' : 'このラウンドを「中止」にしますか？（雨天などで実施しなかったとき。レビュー依頼は送られません）'))) return;
+              setBusy(true);
+              try { await store.cancelHeldRound(target.id); toast('中止にしました'); }
+              catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
+              finally { setBusy(false); }
+            }}
+            className="flex-1 py-3 bg-card text-sub border-[1.5px] border-border rounded-xl font-bold text-sm disabled:opacity-50"
+          >{isDrink ? '飲み会中止' : 'ラウンド中止'}</button>
+        </div>
+        <button type="button" onClick={() => router.push(`/round/${target.id}`)} className="block w-full mt-2 py-2 text-[12px] text-blue font-bold">募集ページを確認する</button>
         {rest > 0 && (
           <div className="text-[11px] text-muted mt-3">ほかにも未完了が {rest} 件あります</div>
         )}

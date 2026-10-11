@@ -22,7 +22,7 @@ export default function UpcomingRoundsPage() {
   // 「決めること」に戻れなくなるので、調整中のものだけ先頭に上げる。
   const stageOf = (r: { official?: { stage?: string } }) => r.official?.stage;
   const upcomingRounds = myRounds
-    .filter((r) => r.status !== 'completed')
+    .filter((r) => r.status !== 'completed' && !(r as any).heldCancelledAt)
     .slice()
     .sort((a, b) => {
       const rank = (r: typeof a) => (stageOf(r) === 'deciding' ? 0 : stageOf(r) === 'recruiting' ? 1 : 2);

@@ -354,6 +354,12 @@ export const store = {
     return r;
   },
 
+  // 「ラウンド中止」（2026-10-11）：完了扱いにせず片付ける（レビュー依頼は出さない）
+  cancelHeldRound: async (roundId: string) => {
+    await api(`/api/rounds/${roundId}/cancel-held`, { method: 'POST' });
+    setState({ rounds: state.rounds.map((r) => (r.id === roundId ? { ...r, status: 'closed', heldCancelledAt: Date.now() } as any : r)) });
+  },
+
   completeRound: async (roundId: string) => {
     await api(`/api/rounds/${roundId}/complete`, { method: 'POST' });
     await store.refreshPending();

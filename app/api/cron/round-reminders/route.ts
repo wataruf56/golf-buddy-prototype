@@ -9,7 +9,7 @@ const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 // ラウンド完了の確認フロー。以前はスタート+6hで参加者全員へ「レビューしてください」を
 // 自動送信していたが、ラウンド中に「完了した」ような通知が全員に飛ぶ問題があったため廃止。
 //
-// 変更後：スタート時間 +6.5h に「主催者だけ」へ『ラウンドは完了しましたか？』を送る。
+// 変更後：「主催者だけ」へ『ラウンドは終わりましたか？（完了／中止）』を送る（時刻は下の説明）。
 // 主催者がラウンド画面で「完了しました」を押すと完了処理が走り、そこで初めて参加者全員へ
 // レビュー依頼が届く（完了通知＝主催者確認制）。参加者への時間ベースの自動通知はしない。
 //
@@ -27,8 +27,23 @@ function authorizeCron(req: NextRequest): boolean {
   return false;
 }
 
-const COMPLETION_PROMPT_DELAY_MS = 6.5 * 60 * 60 * 1000; // スタート時間 +6時間半
+// 2026-10-11 変更：送る時刻を「スタート+6.5時間」から「夜8時（日本時間）」に。
+//   スタートが14時より前 → 開催日の20:00。14時以降 → 翌日の20:00（夜8時だとまだラウンド中・終わった直後のため）。
+//   完了か中止を選ぶまで、毎日20:00にもう一度送る（最大7回）。20:00〜24:00の間だけ送る（夜中に送らない）。
+const DAY = 24 * 60 * 60 * 1000;
+const SEND_WINDOW_MS = 4 * 60 * 60 * 1000;
+const MAX_PROMPTS = 7;
 const MAX_PER_TICK = 50;
+
+/** 最初に送る時刻（ミリ秒）。開催日（14時以降スタートなら翌日）の20:00 JST */
+function firstPromptMs(date: string, startTime: string): number | null {
+  const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  const tm = /^(\d{1,2}):(\d{2})/.exec(startTime || '');
+  if (!dm) return null;
+  const startHour = tm ? Number(tm[1]) : 8;
+  const base = Date.UTC(+dm[1], +dm[2] - 1, +dm[3], 20 - 9, 0);   // その日の 20:00 JST
+  return startHour >= 14 ? base + DAY : base;
+}
 
 export async function GET(req: NextRequest) {
   if (!authorizeCron(req)) {
@@ -37,28 +52,32 @@ export async function GET(req: NextRequest) {
 
   const allRounds = await db.listRounds();
   const now = Date.now();
-  // まだ募集中(open)＝未完了で、スタート+6.5hを過ぎ、未送信のラウンドが対象。
-  // closed（主催者が事前に中止）や completed（既に完了）は対象外。
-  const candidates = allRounds.filter((r) => {
-    if (r.completionPromptSentAt) return false;   // already prompted
-    if (r.status !== 'open') return false;         // completed/closed は対象外
-    if (!r.date || !r.startTime) return false;     // 日時未確定は送れない
-    const target = scheduledMs(r.date, r.startTime);
-    if (target === null) return false;
-    return now >= target + COMPLETION_PROMPT_DELAY_MS;
-  }).slice(0, MAX_PER_TICK);
+  // 完了していない（完了・中止のどちらも選ばれていない）ラウンドで、今が「k回目の20:00〜24:00」の間にあり、k回目をまだ送っていないもの
+  const candidates = allRounds.map((r) => {
+    if (r.status === 'completed' || (r as any).heldCancelledAt) return null;
+    if (!r.date) return null;
+    const first = firstPromptMs(r.date, r.startTime || '');
+    if (first === null || now < first) return null;
+    const k = Math.floor((now - first) / DAY);
+    if (k >= MAX_PROMPTS) return null;
+    if (now - (first + k * DAY) > SEND_WINDOW_MS) return null;   // その日の 20:00〜24:00 だけ
+    const sentCount = Number((r as any).completionPromptCount || 0);
+    if (sentCount > k) return null;                               // この日のぶんは送った
+    return { r, k };
+  }).filter(Boolean).slice(0, MAX_PER_TICK) as Array<{ r: any; k: number }>;
 
   let sent = 0;
   const results: any[] = [];
-  for (const round of candidates) {
+  for (const { r: round, k } of candidates) {
     const roundName = round.title || round.courseName || 'ラウンド';
     const link = `/round/${round.id}`;
     const host = await db.getUser(round.hostId);
+    const drink = round.eventType === 'drink';
+    const word = drink ? '飲み会' : 'ラウンド';
 
-    const inApp = `🏌️ 「${roundName}」は完了しましたか？ 完了していたら「完了しました」を押してください（参加者にレビュー依頼が届きます）👇`;
-    const lineText = `🏌️ お疲れさまでした！\n「${roundName}」は完了しましたか？\n完了していたらアプリで「完了しました」を押してください。参加者へレビュー依頼が届きます👇`;
+    const inApp = `🏌️ 「${roundName}」は終わりましたか？ アプリで「${word}完了」か「${word}中止」を選んでください。`;
+    const lineText = `🏌️ お疲れさまでした！\n「${roundName}」は終わりましたか？\nアプリで「${word}完了」か「${word}中止」を選んでください。完了にすると参加者へレビュー依頼が届きます。`;
 
-    // 主催者のアプリ内インボックスには常に記録（LINE設定に関係なく）。
     try {
       const { addNotification } = await import('@/lib/notifications');
       addNotification(round.hostId, 'reviewReminder', inApp, link).catch(() => {});
@@ -66,31 +85,16 @@ export async function GET(req: NextRequest) {
     if (isNotifyEnabled(host as any, 'reviewReminder')) {
       try {
         await pushTo(round.hostId, lineText, liffUrl(link), 'roundReminder');
-        await webPushText(round.hostId, 'ラウンドは完了しましたか？', `「${roundName}」の完了確認`, link, `complete-prompt-${round.id}`).catch(() => {});
+        await webPushText(round.hostId, `${word}は終わりましたか？`, `「${roundName}」の完了／中止`, link, `complete-prompt-${round.id}`).catch(() => {});
         sent++;
       } catch (e) {
         console.warn('[round-reminders] host prompt push failed', { roundId: round.id, err: (e as Error).message });
       }
     }
-
-    // 送信の成否に関わらず打刻（LINE不通時に毎tick再送しないため）。
-    await db.updateRound(round.id, { completionPromptSentAt: now } as any);
-    results.push({ roundId: round.id, host: round.hostId });
+    // 送信の成否に関わらず打刻（同じ日に何度も送らない）
+    await db.updateRound(round.id, { completionPromptSentAt: now, completionPromptCount: k + 1 } as any);
+    results.push({ roundId: round.id, host: round.hostId, k });
   }
 
   return NextResponse.json({ ok: true, scanned: candidates.length, sent, results }, { headers: noStore });
-}
-
-/**
- * Combine a "YYYY-MM-DD" + "HH:mm" pair into a JST ms timestamp.
- * Returns null if either field is malformed.
- */
-function scheduledMs(date: string, startTime: string): number | null {
-  const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-  const tm = /^(\d{1,2}):(\d{2})/.exec(startTime);
-  if (!dm || !tm) return null;
-  const [, y, mo, d] = dm;
-  const [, h, mi] = tm;
-  const utcMs = Date.UTC(+y, +mo - 1, +d, +h - 9, +mi);
-  return Number.isFinite(utcMs) ? utcMs : null;
 }
