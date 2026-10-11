@@ -258,7 +258,7 @@ export default function RematchPage() {
           </div>
           <div className="mt-3 bg-blue-light border-[1.5px] border-blue rounded-xl p-3 text-[11.5px] font-bold leading-relaxed">
             <b className="text-blue">気が変わったら</b><br />
-            またこの人と一緒に回ったあとに「また回りたい」を選べば、
+            またこの人と一緒に回ったあとのレビューで「行きたい」を選べば、
             再会{endedBy === 'never' ? 'もメッセージも' : 'は'}元に戻ります。
           </div>
           <button onClick={() => router.push('/search')}
