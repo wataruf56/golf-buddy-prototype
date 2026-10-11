@@ -24,6 +24,8 @@ import { GroupPrefs } from '@/components/GroupPrefs';
 import { HostNoteCard } from '@/components/HostNote';
 import { CancelPolicyCard, CancelClosedBox } from '@/components/CancelPolicy';
 import { isPastCancelDeadline, formatCancelDeadline } from '@/lib/cancelPolicy';
+import { paymentInfoOf, fmtJstDateTime, ON_SITE_NOTE } from '@/lib/paymentNotice';
+import { PaymentNoticeCard } from '@/components/PaymentNoticeCard';
 import { PaymentTracker } from '@/components/PaymentTracker';
 import { CarDispatch } from '@/components/CarDispatch';
 import { PickupStationPicker } from '@/components/PickupStationPicker';
@@ -376,6 +378,7 @@ export default function RoundDetailPage() {
     router.push(`/mypage/edit?returnTo=${encodeURIComponent(back)}`);
   }
 
+  const payAckPending = useRef(false);
   async function join() {
     if (requireLogin()) return;
     // 友だち追加が確認できていない人は、先に関所へ（通ったらもう一度 join）。
@@ -392,6 +395,20 @@ export default function RoundDetailPage() {
       goProfileForJoin();
       return;
     }
+    // 事前入金の設定がある募集は、申し込む前に条件を確認してもらう（2026-10-11）
+    const payInfo = paymentInfoOf(round as any);
+    if (payInfo) {
+      const when = payInfo.deadline ? `${fmtJstDateTime(payInfo.deadline)}の入金期日までに` : '';
+      const yen = payInfo.amount ? `${payInfo.amount.toLocaleString('ja-JP')}円の` : '参加費の';
+      const kind = round!.isCompetition ? 'コンペ' : 'ラウンド';
+      const ok = await confirmDialog({
+        title: '💴 事前入金制の' + kind + 'です',
+        message: `こちらは${when}${yen}振込が必要な、事前集金を行う${kind}です（プレーフィーのみ。ラウンド募集者が当日まとめてゴルフ場に支払います）。\n\n${ON_SITE_NOTE}\n\n問題なければ「参加申請」を押してください。`,
+        confirmText: '参加申請', cancelText: 'やめる',
+      });
+      if (!ok) return;
+      payAckPending.current = true;
+    }
     // 飲み会は送迎（ピックアップ）の概念がないので、確認モーダルを挟まず即申込む。
     if (isDrink) { submitJoin({}); return; }
     // 準備OK → ピックアップ回答モーダルへ（回答と一緒に申込む）。
@@ -404,11 +421,20 @@ export default function RoundDetailPage() {
       if (isInvited) {
         await store.acceptInvite(round!.id, pickup);
         track('accept_invite_success', { roundId: round!.id });
+        if (payAckPending.current) {
+          payAckPending.current = false;
+          fetch(`/api/rounds/${round!.id}/payment-ack`, { method: 'POST', cache: 'no-store', credentials: 'include' }).then(() => store.refreshRounds()).catch(() => {});
+        }
         setPickupOpen(false);
         toast('参加しました🎉');
       } else {
         await store.joinRound(round!.id, pickup);
         track('join_round_success', { roundId: round!.id });
+        // 申し込む前に事前入金の条件を確認済みなら、その印を付ける（あとで確認のポップアップを出さない）
+        if (payAckPending.current) {
+          payAckPending.current = false;
+          fetch(`/api/rounds/${round!.id}/payment-ack`, { method: 'POST', cache: 'no-store', credentials: 'include' }).then(() => store.refreshRounds()).catch(() => {});
+        }
         setPickupOpen(false);
         toast('参加申請を送信しました');
       }
@@ -744,6 +770,8 @@ export default function RoundDetailPage() {
         <HostNoteCard round={round} isHost={isHost} />
         {/* キャンセル規定（2026-10-10・任意） */}
         <CancelPolicyCard round={round as any} />
+        {/* 事前入金の案内（入金設定があるとき・2026-10-11） */}
+        <PaymentNoticeCard round={round} />
 
         {/* Gender breakdown across host + approved applicants. Always shown
             (incl. competitions) so you can see the mix at a glance.

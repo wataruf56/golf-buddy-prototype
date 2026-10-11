@@ -9,6 +9,7 @@ import { ReviewOverlay } from '@/components/ReviewOverlay';
 import { GroupGate } from '@/components/GroupGate';
 import { CompletionGate } from '@/components/CompletionGate';
 import { AvailPromptPopup } from '@/components/AvailPromptPopup';
+import { PaymentAckGate } from '@/components/PaymentAckGate';
 import { BlockerPopup } from '@/components/BlockerPopup';
 import { ToastHost } from '@/components/Toast';
 import { ConfirmHost } from '@/components/ConfirmDialog';
@@ -160,6 +161,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <CompletionGate />
       {/* ラウンド後の「行ける日を入力してみませんか？」（運営がOKを出してから・レビューが先）（2026-10-11） */}
       <AvailPromptPopup blocked={pendingCount > 0 || banGated || loggedOut || ageGated} />
+      {/* すでに参加している募集に、あとから事前入金が設定されたときの確認（2026-10-11） */}
+      <PaymentAckGate blocked={pendingCount > 0 || banGated || loggedOut || ageGated} />
       {/* 友だち追加の案内（LineFollowPrompt）はホームの関所（FriendGate）に置き換えた（2026-10-04） */}
       <ToastHost />
       <ConfirmHost />
