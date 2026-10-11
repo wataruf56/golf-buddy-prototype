@@ -5,11 +5,7 @@ import { confirmDialog } from '@/components/ConfirmDialog';
 import { useState } from 'react';
 import { useStore, getMe, store } from '@/lib/store';
 import { toast } from '@/components/Toast';
-
-// JST の YYYY-MM-DD。日付の比較は文字列のままで正しく並ぶ。
-function jstToday(): string {
-  return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
-}
+import { completionDueMs } from '@/lib/completionTiming';
 
 // 開催日を1日過ぎても「完了」にされていない募集を、主催者に片付けてもらうためのゲート。
 //
@@ -18,11 +14,12 @@ function jstToday(): string {
 //
 // 出す条件（すべて満たすとき）
 //   ・自分が募集した人（hostId が自分）
-//   ・開催日が決まっていて、その日を過ぎている（date < 今日）
+//   ・完了確認の時刻を過ぎている（開催日の20:00 JST。14時以降スタートなら翌日の20:00）。
+//     主催者への LINE と同じ時刻（lib/completionTiming）。2026-10-11 までは「開催日の翌日から」だった
 //   ・まだ completed になっていない
 //   ・「中止」（heldCancelledAt）を選んでいない（2026-10-11：「まだ」の見送りは廃止）
-// 当該ラウンドのページとその配下（編集・チャット等）では出さない。
-// 以前は編集ページも塞いでいて、「まだ」と答えた主催者が知り合い枠を直せなかった。
+// 当該ラウンドの詳細ページ（/round/<id>）だけは出さない（完了・中止のボタンがある）。
+// 2026-10-11：チャット・編集など配下のページも塞ぐ（どちらかを押すまで他の画面に行けない）。
 export function CompletionGate() {
   const [busy, setBusy] = useState(false);
   const me = useStore(getMe);
@@ -31,15 +28,15 @@ export function CompletionGate() {
   const router = useRouter();
   if (!me) return null;
 
-  const today = jstToday();
+  const now = Date.now();
   // 何件もあるときは、いちばん古いものから片付けてもらう。
   const overdue = rounds
     // 2026-10-11：「完了」か「中止」を選ぶまで出す（「まだ」の見送りはやめた）
-    .filter((r) => r.hostId === me.id && r.status !== 'completed' && !(r as any).heldCancelledAt && !!r.date && r.date < today)
+    .filter((r) => r.hostId === me.id && r.status !== 'completed' && !(r as any).heldCancelledAt && !!r.date && (completionDueMs(r.date, r.startTime || '') ?? Infinity) <= now)
     .sort((a, b) => String(a.date).localeCompare(String(b.date)));
   const target = overdue[0];
   if (!target) return null;
-  if (pathname === `/round/${target.id}` || pathname.startsWith(`/round/${target.id}/`)) return null;
+  if (pathname === `/round/${target.id}`) return null;
 
   const isDrink = (target as any).eventType === 'drink';
   const rest = overdue.length - 1;

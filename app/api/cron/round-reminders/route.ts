@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { completionDueMs } from '@/lib/completionTiming';
 import { db } from '@/lib/db';
 import { pushTo, liffUrl } from '@/lib/linePush';
 import { webPushText } from '@/lib/webPush';
@@ -35,15 +36,8 @@ const SEND_WINDOW_MS = 4 * 60 * 60 * 1000;
 const MAX_PROMPTS = 7;
 const MAX_PER_TICK = 50;
 
-/** 最初に送る時刻（ミリ秒）。開催日（14時以降スタートなら翌日）の20:00 JST */
-function firstPromptMs(date: string, startTime: string): number | null {
-  const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-  const tm = /^(\d{1,2}):(\d{2})/.exec(startTime || '');
-  if (!dm) return null;
-  const startHour = tm ? Number(tm[1]) : 8;
-  const base = Date.UTC(+dm[1], +dm[2] - 1, +dm[3], 20 - 9, 0);   // その日の 20:00 JST
-  return startHour >= 14 ? base + DAY : base;
-}
+/** 最初に送る時刻（ミリ秒）。開催日（14時以降スタートなら翌日）の20:00 JST。画面のゲートと共通（lib/completionTiming） */
+const firstPromptMs = completionDueMs;
 
 export async function GET(req: NextRequest) {
   if (!authorizeCron(req)) {

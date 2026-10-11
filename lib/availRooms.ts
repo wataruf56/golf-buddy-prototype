@@ -219,3 +219,66 @@ export async function countEligible(me: User, date: string): Promise<number> {
     return (await eligibleFor(date, isTest(me.id), isTest)).length;
   } catch { return 0; }
 }
+
+/**
+ * 部屋ができたのに誰も話していない日に、運営（管理人）から声かけする（2026-10-11）。
+ *
+ *   対象：開催前で open の部屋・メンバーが3人以上・メンバーの発言が0件・部屋ができてから3時間たった・まだ声かけしていない
+ *   すること：
+ *     ① 部屋のチャットに管理人として「@名前 …人数が集まりました！みんなに声をかけてみませんか？」
+ *     ② 1人ずつ管理人のDM（部屋のチャットへのURLつき）
+ *     ③ アプリ内お知らせ（メンション）＋ LINE（通知設定に関係なく必ず。リンクは部屋のチャット）
+ *   1部屋1回だけ（round.availNudgedAt）。LINE を夜に鳴らさないよう、送るのは JST 10〜21時だけ。
+ *   テスト垢の部屋も同じ流れ（LINE はテスト垢には飛ばない・lib/testIsolation）。
+ */
+export const AVAIL_NUDGE_QUIET_MS = 3 * 3600 * 1000;
+export async function nudgeQuietRooms(opts?: { force?: boolean; roomId?: string }): Promise<{ nudged: string[]; checked: number }> {
+  const adb = getAdminDb() as any;
+  if (!adb) return { nudged: [], checked: 0 };
+  const hour = new Date(Date.now() + 9 * 3600 * 1000).getUTCHours();
+  if (!opts?.force && (hour < 10 || hour >= 21)) return { nudged: [], checked: 0 };
+  const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+  const snap = await adb.collection(ROUNDS).where('availDate', '>=', today).limit(300).get();
+  const nudged: string[] = [];
+  let checked = 0;
+  for (const d of snap.docs) {
+    const r = { id: d.id, ...(d.data() || {}) } as any;
+    if (opts?.roomId && r.id !== opts.roomId) continue;
+    if (r.status !== 'open' || r.availNudgedAt) continue;
+    const ids: string[] = Array.from(new Set((r.applicantIds || []).filter(Boolean)));
+    if (ids.length < AVAIL_ROOM_MIN) continue;
+    if (!opts?.force && Date.now() - (r.createdAt || 0) < AVAIL_NUDGE_QUIET_MS) continue;
+    checked += 1;
+    const msgs = await db.listRoundMessages(r.id).catch(() => [] as any[]);
+    if (msgs.some((m: any) => ids.includes(m.senderId))) continue;   // 誰かが話していれば何もしない
+    // 先に印を付ける（cron が重なっても二重に送らない）
+    await adb.collection(ROUNDS).doc(r.id).set({ availNudgedAt: Date.now() }, { merge: true });
+    try {
+      const users = (await db.listUsers(ids)).filter(Boolean) as User[];
+      const l = dateLabel(r.availDate);
+      const when = `${l.md}（${l.w}）`;
+      const mentions = users.map((u) => `@${u.displayName || 'メンバー'}`).join(' ');
+      await db.addRoundMessage(r.id, ADMIN_MANAGER_ID,
+        `${mentions}\n🎉 ${when}、人数が集まりました（${ids.length}人）！みんなに声をかけてみませんか？\n\n`
+        + 'たとえば「この日、どのあたりで回りたいですか？」「午前スタートでも大丈夫ですか？」のひとことからで大丈夫です。'
+        + 'コースや集合場所が決まらなくても、運営が一緒に探します。');
+      const path = `/round/${r.id}/chat`;
+      const url = `https://app.goltomo.com${path}`;
+      const { ensureAdminManager } = await import('./adminManager');
+      const { chatIdFor } = await import('./utils');
+      await ensureAdminManager();
+      const { addNotification } = await import('./notifications');
+      const { pushTo, liffUrl } = await import('./linePush');
+      for (const u of users) {
+        const dm = `${u.displayName || 'メンバー'}さん、こんにちは。ゴルトモ運営です。\n\n🎉 ${when}に行ける人が${ids.length}人集まりました！\nその日のチャットで、みんなに声をかけてみませんか？\n\n▼ ${when}のチャット\n${url}`;
+        try { await db.sendMessage(chatIdFor(ADMIN_MANAGER_ID, u.id), [ADMIN_MANAGER_ID, u.id].sort() as [string, string], ADMIN_MANAGER_ID, dm); } catch { /* noop */ }
+        await addNotification(u.id, 'mention', `🎉 ${when}、人数が集まりました！みんなに声をかけてみませんか？（運営より）`, path).catch(() => {});
+        await pushTo(u.id, `🎉【ゴルトモ運営】${when}、行ける人が${ids.length}人集まりました！\nみんなに声をかけてみませんか？\n▼ その日のチャット`, liffUrl(path), 'avail_room_nudge').catch(() => {});
+      }
+      nudged.push(r.id);
+    } catch (e) {
+      console.error('[availRooms] nudge failed', r.id, (e as Error).message);
+    }
+  }
+  return { nudged, checked };
+}

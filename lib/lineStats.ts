@@ -28,6 +28,7 @@ export const LINE_KIND_LABEL: Record<string, string> = {
   declined: '申請の見送り',
   paymentReminder: '入金の催促（運営から）',
   availPrompt: '行ける日の入力のおすすめ（ラウンド後）',
+  avail_room_nudge: '行ける日の部屋：運営からの声かけ',
   friend: 'QR友達追加',
   survey: 'アンケート一致のお知らせ',
   swing: 'スイング解析',
