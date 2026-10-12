@@ -147,10 +147,12 @@ const EVENT_LABEL: Record<string, string> = {
   review_submit_click: '［ボタン］レビュー送信',
   review_submit_success: 'レビュー投稿 完了',
   review_submit_error: 'レビュー エラー',
-  share_round_click: '［ボタン］募集をシェア',
-  share_round_clipboard_ok: 'シェア（リンクをコピー）',
-  share_round_native_ok: 'シェア（共有メニュー）',
-  share_round_text: '募集をテキストでシェア',
+  // シェア系は data まで見て shareJa() で1文にする。ここは data が読めないときの予備（2026-10-12）
+  share: '🔗 シェアの操作',
+  share_round_click: '🔗 シェア：『URLをシェア』を押した',
+  share_round_clipboard_ok: '🔗 シェア：募集のURLをコピーした',
+  share_round_native_ok: '🔗 シェア：端末の共有メニューで募集を送った',
+  share_round_text: '🔗 シェア：募集の本文をコピーした',
   accept_invite_success: '招待を承認して参加',
   friend_add_ok: 'QRで友達追加',
   qr_scan_ok: 'QRコードを読み取り',
@@ -160,7 +162,7 @@ const EVENT_LABEL: Record<string, string> = {
   poll_add_options: '日程調整に候補日を追加',
   poll_answer: '日程調整に回答',
   poll_decide_create: '日程調整から募集を作成',
-  poll_share: '日程調整をシェア',
+  poll_share: '🔗 シェア：日程調整の『シェア』を押した',
   dm_open: '💬 DMを開いた',
   dm_send: '💬 DMを送信',
   round_chat_send: '💬 ラウンドチャット送信',
@@ -194,9 +196,71 @@ const EVENT_LABEL: Record<string, string> = {
   timeline_tap: '📰 タイムラインの項目を押した',
 };
 const TIMELINE_KIND: Record<string, string> = { signup: '新しく登録した人', avail: '行ける日の入力', round: '募集の開始', join: '募集への参加' };
-const SHARE_VIA: Record<string, string> = { line: 'LINEで', copy: 'リンクをコピーして' };
-
 type Ev = { main: string; raw?: string };
+
+// ---- シェア系（2026-10-12）----
+// 「何を（target）・どの方法で（method）・どうなったか（result）」を日本語の1文にする。
+// 新しいシェアは track('share', { target, method, result, roundId }) で送る。
+// 昔からある share_round_* / guest_invite_link_share / poll_share もここで同じ形にそろえる（古いログも読める）。
+const SHARE_EVENTS = new Set(['share', 'share_round_click', 'share_round_native_ok', 'share_round_clipboard_ok', 'share_round_text', 'guest_invite_link_share', 'poll_share']);
+// target → 見出しの頭・何を（名詞）・リンクの呼び方・ボタン名
+const SHARE_TARGET: Record<string, { head: string; noun: string; link: string; btn: string }> = {
+  round:        { head: '🔗 シェア', noun: '募集', link: '募集のURL', btn: 'シェア' },
+  chat:         { head: '🔗 シェア', noun: 'グループチャット', link: 'グループチャットのリンク', btn: '共有' },
+  poll:         { head: '🔗 シェア', noun: '日程調整', link: '日程調整のURL', btn: 'シェア' },
+  swing:        { head: '🔗 シェア', noun: 'スイング解析の結果', link: 'スイング解析結果のURL', btn: '他のアプリ' },
+  guest_invite: { head: '🎫 ゲスト用の招待リンク', noun: 'ゲスト用の招待リンク', link: 'リンク', btn: 'LINEで送る' },
+  group_sheet:  { head: '📄 ゴルフ場に送る組分け', noun: '組分け', link: '組分け', btn: '' },
+  album_photo:  { head: '📷 アルバム', noun: '写真', link: '写真', btn: '' },
+};
+function shareNorm(ev: string, d: Record<string, string | number>): { target: string; method: string; result: string } {
+  const s = (k: string) => (d[k] == null ? '' : String(d[k]));
+  switch (ev) {
+    case 'share_round_click': return { target: 'round', method: s('method') || 'url', result: '' };
+    case 'share_round_native_ok': return { target: 'round', method: 'native', result: 'sent' };
+    case 'share_round_clipboard_ok': return { target: 'round', method: 'copy_url', result: 'copied' };
+    case 'share_round_text': return { target: 'round', method: 'copy_text', result: s('result') };
+    case 'guest_invite_link_share':
+      return s('via') === 'line' ? { target: 'guest_invite', method: 'line', result: '' } : { target: 'guest_invite', method: 'copy_url', result: s('result') || 'copied' };
+    case 'poll_share': return { target: 'poll', method: 'click', result: '' };
+    default: return { target: s('target'), method: s('method'), result: s('result') };
+  }
+}
+function shareJa(ev: string, d: Record<string, string | number>): Ev {
+  const { target, method, result } = shareNorm(ev, d);
+  const t = SHARE_TARGET[target];
+  const raw = `${target} ${method} ${result}`.trim();
+  if (!t) return { main: '🔗 シェア：その他の操作', raw };
+  const N = t.noun, L = t.link;
+  const manual = '（手動でコピーする案内を出した）';
+  let p = '';
+  if (method === 'click') p = `${N}の『${t.btn}』を押した`;
+  else if (method === 'menu_open') p = `${N}の『${t.btn}』を押した（送り方を選ぶ画面を開いた）`;
+  else if (method === 'menu_close') p = '送り方を選ばずに閉じた';
+  else if (method === 'url') p = `${N}の『URLをシェア』を押した`;
+  else if (method === 'line') p = target === 'guest_invite' ? '『LINEで送る』を押した' : `『LINEで送る』を押した（${N}）`;
+  else if (method === 'native' || method === 'image' || method === 'save') {
+    // native＝端末の共有メニュー。image＝組分けの画像、save＝アルバム写真の保存
+    const what = method === 'image' ? `${N}の画像` : (target === 'chat' ? L : N);
+    p = ({
+      sent: method === 'native' && target !== 'album_photo' ? `端末の共有メニューで${what}を送った` : `端末の共有メニューで${what}を保存・送信した`,
+      cancel: `端末の共有メニューを開いたが、送らずにやめた`,
+      error: `端末の共有メニューが使えなかった`,
+      saved: `${what}を端末に保存した`,
+      opened_browser: `${what}をブラウザで開いた（長押しで保存）`,
+      failed: `${what}を保存できなかった`,
+    } as Record<string, string>)[result] || (method === 'native' ? '端末の共有メニューを開いた' : `『${method === 'image' ? '画像で保存' : '保存'}』を押した`);
+  } else if (method === 'copy_url') {
+    p = result === 'failed' ? `${L}をコピーできなかった${manual}` : `${L}をコピーした`;
+  } else if (method === 'copy_text') {
+    const body = target === 'round' ? `${N}の本文（日時・場所・費用）` : `${N}の文章`;
+    p = result === 'copied' ? `${body}をコピーした` : result === 'failed' ? `${body}をコピーできなかった${manual}` : '『テキストをコピー』を押した';
+  } else if (method === 'text_file') {
+    p = result === 'failed' ? 'テキストファイルで保存できなかった' : 'テキストファイルで保存した';
+  }
+  if (!p) return { main: `${t.head}：その他の操作`, raw };
+  return { main: `${t.head}：${p}` };
+}
 // 操作ログ1行の見出し。data があればポップアップの種類・押したボタンまで日本語にする（2026-10-12）
 // raw … 名前の無い操作の生の名前（小さく添えるだけ。見出しには使わない）
 function eventJa(ev: string, data?: Record<string, string | number>): Ev {
@@ -215,8 +279,10 @@ function eventJa(ev: string, data?: Record<string, string | number>): Ev {
   if (ev === 'timeline_tap' && d.kind && TIMELINE_KIND[String(d.kind)]) {
     return { main: `📰 タイムラインで「${TIMELINE_KIND[String(d.kind)]}」を押した` };
   }
-  if (ev === 'guest_invite_link_share' && d.via && SHARE_VIA[String(d.via)]) {
-    return { main: `🎫 ゲスト用の招待リンクを${SHARE_VIA[String(d.via)]}共有` };
+  if (SHARE_EVENTS.has(ev)) return shareJa(ev, d);
+  // 参加ボタンで止まった理由（profile＝年齢などの登録がまだ／name＝ゴルフ場に届ける漢字フルネームがまだ）（2026-10-12）
+  if (ev === 'join_round_profile_gate') {
+    return { main: d.reason === 'name' ? 'ラウンド参加（漢字フルネーム未入力で止まった）' : 'ラウンド参加（プロフィール未登録で止まった）' };
   }
   if (ev === 'pr_driver_done' && typeof d.n === 'number') {
     return { main: `🚗 代理募集：駅を${d.n}つ登録した（枠が立った）` };

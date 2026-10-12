@@ -15,7 +15,7 @@ export default function AdminPromoPage() {
   return <Suspense fallback={null}><Inner /></Suspense>;
 }
 
-type RoundRow = { id: string; title?: string; date?: string; startTime?: string; area?: string; status?: string; applicantIds?: string[]; maxSpots?: number; price?: string; availDate?: string; courseName?: string; levelCondition?: string; hostId?: string; externalMale?: number; externalFemale?: number; externalCount?: number; hostNotCounted?: boolean };
+type RoundRow = { id: string; title?: string; date?: string; startTime?: string; area?: string; status?: string; applicantIds?: string[]; maxSpots?: number; price?: string; availDate?: string; courseName?: string; levelCondition?: string; hostId?: string; externalMale?: number; externalFemale?: number; externalCount?: number; hostNotCounted?: boolean; hostJoined?: boolean };
 type Promo = {
   id: string; roundId: string; showAt: number; until?: number; approved: boolean; headline?: string; texts?: PromoTexts; createdAt: number;
   round: (PromoRoundView & { id: string; status: string }) | null;

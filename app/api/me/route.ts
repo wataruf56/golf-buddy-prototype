@@ -59,6 +59,14 @@ export async function PATCH(req: NextRequest) {
   }
 
   const before = await db.getUser(meId);
+  // プロフィール登録の時刻（年齢が初めて入ったとき）（2026-10-12）。営業系ポップアップを24時間あとに出すため（lib/popupEligibility）。
+  // すでに登録済みだった古い会員には入れない（いま入れると、24時間ぶん出なくなってしまう＝createdAt で代用する）。
+  {
+    const { isProfileRegistered } = await import('@/lib/popupEligibility');
+    if ('age' in patch && !isProfileRegistered(before) && Number(patch.age) > 0 && !before?.profileCompletedAt) {
+      patch.profileCompletedAt = Date.now();
+    }
+  }
   await db.updateUser(meId, patch as any);
   if (hobbyDelta && (hobbyDelta.added.length || hobbyDelta.removed.length)) {
     try { const { applyHobbyDelta } = await import('@/lib/hobbyTags'); await applyHobbyDelta(hobbyDelta.added, hobbyDelta.removed); } catch {}

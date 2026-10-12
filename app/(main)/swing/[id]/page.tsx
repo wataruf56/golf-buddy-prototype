@@ -7,6 +7,7 @@ import { StatusBadge } from '@/components/swing/StatusBadge';
 import { SnapshotGallery } from '@/components/swing/SnapshotGallery';
 import { toast } from '@/components/Toast';
 import { confirmDialog } from '@/components/ConfirmDialog';
+import { track } from '@/lib/telemetry';
 import type { SwingDoc, SwingSnapshot } from '@/types/swing';
 
 const MODE_LABEL: Record<string, string> = {
@@ -250,12 +251,16 @@ function ShareCard({ swing }: { swing: SwingDoc }) {
   const url = `${origin}/share/swing/${swing.swingId}`;
   const text = `⛳ AIコーチにスイング解析してもらった！\n\n${url}`;
 
+  // シェアの記録（どのボタンを押して、どうなったか）（2026-10-12）
+  const log = (method: string, result?: string) => track('share', { target: 'swing', method, ...(result ? { result } : {}) });
   function copy() {
-    navigator.clipboard?.writeText(url).then(() => {
+    if (!navigator.clipboard?.writeText) { log('copy_url', 'failed'); return; }
+    navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       toast('URLをコピーしました');
+      log('copy_url', 'copied');
       setTimeout(() => setCopied(false), 2000);
-    });
+    }).catch(() => log('copy_url', 'failed'));
   }
 
   // Native share sheet on iOS/Android — falls back to clipboard.
@@ -264,7 +269,8 @@ function ShareCard({ swing }: { swing: SwingDoc }) {
     if (w.navigator?.share) {
       try {
         await w.navigator.share({ title: 'ゴルトモ スイング解析', text, url });
-      } catch { /* user canceled, that's fine */ }
+        log('native', 'sent');
+      } catch (e: any) { log('native', e?.name === 'AbortError' ? 'cancel' : 'error'); /* user canceled, that's fine */ }
     } else {
       copy();
     }
@@ -280,6 +286,7 @@ function ShareCard({ swing }: { swing: SwingDoc }) {
           href={lineShare}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={() => log('line')}
           className="flex-1 py-2.5 bg-green text-white rounded-lg text-xs font-bold text-center"
         >LINEで送る</a>
         <button

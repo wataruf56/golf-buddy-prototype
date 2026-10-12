@@ -4,7 +4,9 @@ import { getCohort, viewCohort } from './ageGate';
 import type { User } from './types';
 
 // タイムライン（2026-10-08）：みんなの動きを LINE のシステムメッセージ風に1行ずつ。
-//   signup … 「◯◯さんがゴルトモに登録しました」（1人1行）
+//   signup … 「◯◯さんがゴルトモに登録しました」（1人1行）。この30日に入った新しい会員だけ（前からの会員がプロフィールを
+//            直しても「登録」とは出さない）。時刻はプロフィールを登録した時（profileCompletedAt・無ければ createdAt）（2026-10-12）。
+//            LINEで入っただけで年齢が未入力の人は出さない（年代が決まらない）→ 入力した時点で、その時刻で出る
 //   avail  … 「◯◯さんが行ける日を入力しました」（1人1行。何度入力しても最新の1行だけ）
 //   round  … 「◯◯さんがラウンド募集を開始しました」（募集ごとに1行）
 //   join   … 「◯◯さんが「…」に参加しました」（参加が確定した人だけ。_timelineEvents・lib/timelineEvents）（2026-10-12）
@@ -75,8 +77,9 @@ export async function buildTimeline(viewer: User, limit = 80): Promise<TimelineI
   const items: TimelineItem[] = [];
   for (const d of usersSnap.docs) {
     const u = userMap.get(d.id);
-    if (hidden(d.id) || !sameCohort(u) || u?.banned || !u?.createdAt) continue;
-    items.push({ id: `signup_${d.id}`, kind: 'signup', at: u.createdAt, name: nameOf(u), text: 'さんがゴルトモに登録しました' });
+    const at = Number(u?.profileCompletedAt) || Number(u?.createdAt) || 0;
+    if (hidden(d.id) || !sameCohort(u) || u?.banned || !at) continue;
+    items.push({ id: `signup_${d.id}`, kind: 'signup', at, name: nameOf(u), text: 'さんがゴルトモに登録しました' });
   }
   for (const d of availSnap.docs) {
     const a = d.data() || {};

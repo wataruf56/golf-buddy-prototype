@@ -4,6 +4,7 @@ import { getMeId } from '@/lib/session';
 import { isAdminUserId } from '@/lib/adminAccess';
 import { getSettings, promptFrom, saveSettings } from '@/lib/officialSettings';
 import { listActiveThreads, officialOf, promptMatches, takenSeats, totalSeats } from '@/lib/officialThread';
+import { isMarketingPopupEligible } from '@/lib/popupEligibility';
 
 const noStore = { 'Cache-Control': 'no-store' };
 export const dynamic = 'force-dynamic';
@@ -55,9 +56,12 @@ export async function GET(req: NextRequest) {
       }];
     });
 
+    // popupOk … 自動のポップアップで声をかけてよいか（2026-10-12）。プロフィール登録から24時間たつまでは
+    // ホームのカードだけ出して、ポップアップは出さない（営業系ポップアップの共通ルール・lib/popupEligibility）。
+    const popupOk = isMarketingPopupEligible(me as any);
     // prompts（複数）が本体。top-level は同時開催より前からある形なので残す。
     return NextResponse.json(
-      prompts.length ? { ...prompts[0], prompts } : { show: false, prompts: [] },
+      prompts.length ? { ...prompts[0], prompts, popupOk } : { show: false, prompts: [], popupOk },
       { headers: noStore },
     );
   }

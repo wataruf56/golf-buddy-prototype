@@ -19,7 +19,7 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
   const registeredIds = useMemo(
     // 公式募集（hostNotCounted）は主催者がプレーしないので入れない（2026-10-12）
     () => countedMemberIds(round),
-    [round.hostId, round.applicantIds, round.hostNotCounted],
+    [round.hostId, round.applicantIds, round.hostNotCounted, round.hostJoined],
   );
   const guests = round.guests || [];
   const allPeople = useMemo(
@@ -43,7 +43,7 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
       if (st === 'can') set.add(id);
     }
     return Array.from(set);
-  }, [round.hostId, round.hostNotCounted, round.pickupStations, allPeople, pp]);
+  }, [round.hostId, round.hostNotCounted, round.hostJoined, round.pickupStations, allPeople, pp]);
 
   const capacityOf = (id: string) => {
     if (id === round.hostId && (round.pickupStations?.length ?? 0) > 0) return round.pickupCapacity || 0;

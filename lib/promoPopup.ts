@@ -3,6 +3,7 @@ import { getAdminDb } from './firebase';
 import { viewCohort, getCohort } from './ageGate';
 import type { User } from './types';
 import { hostSeat } from './hostCount';
+import { isMarketingPopupEligible } from './popupEligibility';
 
 // 募集中の1件を「イチオシ」としてポップアップで1回だけすすめる（2026-10-12）。
 // 運営が登録（/api/admin/promo-popup）→ showAt を過ぎたら、アプリを開いた人に1回だけ出す（users.promoSeen[promoId]）。
@@ -41,6 +42,8 @@ export async function deletePromo(id: string): Promise<void> {
 export async function activePromoFor(me: User): Promise<Record<string, unknown> | null> {
   if ((me as any).banned) return null;
   const now = Date.now();
+  // プロフィール登録から24時間たっていない人には出さない（見た印も付けない＝あとで出る）（lib/popupEligibility）
+  if (!isMarketingPopupEligible(me, now)) return null;
   const seen = ((me as any).promoSeen || {}) as Record<string, number>;
   const promos = (await listPromos()).filter((p) => p.approved && p.showAt && now >= p.showAt && (!p.until || now < p.until) && !seen[p.id]);
   if (!promos.length) return null;

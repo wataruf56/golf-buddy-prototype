@@ -262,6 +262,15 @@ export const store = {
     setState({ rounds: state.rounds.map((r) => (r.id === roundId ? round : r)) });
   },
 
+  // 公式募集（hostNotCounted）の主催者本人が「わたしも参加する／参加をやめる」（2026-10-12・lib/hostCount）
+  setHostJoined: async (roundId: string, join: boolean) => {
+    const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/host-join`, {
+      method: 'POST', body: JSON.stringify({ join }),
+    });
+    setState({ rounds: state.rounds.map((r) => (r.id === roundId ? round : r)) });
+    return round;
+  },
+
   leaveRound: async (roundId: string, opts?: { reason?: string; text?: string }) => {
     const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/leave`, {
       method: 'POST', body: JSON.stringify(opts || {}),

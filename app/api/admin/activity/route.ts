@@ -36,7 +36,8 @@ function normPage(raw: string): string {
 }
 
 // 操作ログの表示に使う data の項目だけを残す（ポップアップの種類・押したボタン・イチオシのID など）（2026-10-12）
-const DATA_KEYS = ['id', 'action', 'promoId', 'roundId', 'kind', 'via', 'n', 'menu'];
+// target/method/result … シェア系（何を・どの方法で・どうなったか）（2026-10-12）
+const DATA_KEYS = ['id', 'action', 'promoId', 'roundId', 'kind', 'via', 'n', 'menu', 'target', 'method', 'result', 'reason'];
 function pickData(d: any): Record<string, string | number> | undefined {
   if (!d || typeof d !== 'object') return undefined;
   const o: Record<string, string | number> = {};

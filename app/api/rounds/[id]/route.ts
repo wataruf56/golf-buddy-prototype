@@ -4,7 +4,7 @@ import { isRoundHost } from '@/lib/roundHost';
 import { getMeId } from '@/lib/session';
 import { levelConditionLabel } from '@/lib/roundEligibility';
 import { reconcileGuests } from '@/lib/roundGuests';
-import { hostSeat, currentCountOf } from '@/lib/hostCount';
+import { reservedHostSeat, hostInRecruitSlots, currentCountOf } from '@/lib/hostCount';
 import type { Round } from '@/lib/types';
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
@@ -111,7 +111,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const ef = has('externalFemale') ? clampN(body.externalFemale, round.externalFemale) : (round.externalFemale || 0);
     const external = em + ef;
     // 共同管理者は承認済み参加者(applicantIds)として通常の参加者と同様に募集枠を1つ占有する。
-    const approvedApp = round.applicantIds?.length || 0;
+    // 公式募集で主催者が「わたしも参加する」中なら、主催者も募集枠を1つ使う（2026-10-12・lib/hostCount）
+    const approvedApp = (round.applicantIds?.length || 0) + (hostInRecruitSlots(round) ? 1 : 0);
     if (slots < approvedApp) {
       return NextResponse.json(
         { error: 'too_small', message: `すでに${approvedApp}人がゴルトモから参加しているため、募集枠をそれ未満にはできません` },
@@ -120,8 +121,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
     // 名前つきゲスト（guests）は「知り合い枠(external)に名前を付けたもの」なので、
     // 人数は external でカウント済み。ここで二重に足さない。
-    // 主催者の枠：公式募集（hostNotCounted）は 0（2026-10-12）
-    const seat = hostSeat(round);
+    // 主催者の枠：公式募集（hostNotCounted）は 0（2026-10-12）。主催者が参加中でも募集枠の側で数えるので 0 のまま
+    const seat = reservedHostSeat(round);
     const nextMax = Math.min(50, seat + external + slots);
     patch.spotsMale = sm; patch.spotsFemale = sf; patch.spotsAny = sa;
     patch.externalMale = em; patch.externalFemale = ef;

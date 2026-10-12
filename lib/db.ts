@@ -2,10 +2,16 @@ import 'server-only';
 import { isDemoMode } from './demoMode';
 import { getAdminDb } from './firebase';
 import { mockUsers, mockRounds, mockReviews, mockChats } from './mockData';
-import type { Chat, Message, PendingReview, Review, Round, RoundThread, RoundPhoto, SchedulePoll, User } from './types';
+import type { Chat, Gender, Message, PendingReview, Review, Round, RoundThread, RoundPhoto, SchedulePoll, User } from './types';
 import { reviewPeerIdsForCompetition, isNoShow } from './groups';
 import { scrubMemberFromRound, applyScrubInPlace, type MemberScrub } from './roundMembership';
 import { hostCounts, currentCountOf, countFloor, countedMemberIds } from './hostCount';
+import { hostJoinBlock, hostLeaveBlock } from './hostJoin';
+
+/** 主催者の参加切り替え（setHostJoined）で、いまできないときに投げる。code/message は lib/hostJoin。 */
+export class HostJoinError extends Error {
+  constructor(public code: string, message: string) { super(message); }
+}
 
 export interface DB {
   getUser(id: string): Promise<User | null>;
@@ -29,6 +35,11 @@ export interface DB {
   rejectApplicant(id: string, userId: string): Promise<Round>;
   kickApplicant(id: string, userId: string): Promise<Round>;
   leaveRound(id: string, userId: string): Promise<Round>;
+  // 公式募集（hostNotCounted）の主催者本人の参加を切り替える（2026-10-12・lib/hostCount の hostJoined）。
+  // join=true は満員・男女別の枠をトランザクションの中で確かめてから currentCount+1。
+  // join=false は currentCount-1 して、組み分け・配車・送迎・入金・スコアなどに残る主催者の痕跡を消す。
+  // できないときは HostJoinError。すでにその状態なら何もしない。
+  setHostJoined(id: string, join: boolean): Promise<Round>;
   confirmCourse(id: string, info: { courseName: string; date: string; startTime: string; price?: string }): Promise<Round>;
   completeRound(id: string): Promise<{ round: Round; pendingForUser: (userId: string) => PendingReview[] }>;
   // ♡ 気になる toggle. Returns the updated round and whether it was newly added
@@ -257,6 +268,27 @@ class MemoryDB implements DB {
   }
   async leaveRound(id: string, userId: string) {
     return this.kickApplicant(id, userId);
+  }
+  async setHostJoined(id: string, join: boolean) {
+    const r = this.rounds.find((x) => x.id === id);
+    if (!r) throw new Error('round not found');
+    if (join) {
+      if (r.hostJoined) return r;
+      const genders = (r.applicantIds || []).map((uid) => this.users.find((u) => u.id === uid)?.gender as Gender | undefined);
+      const hostGender = this.users.find((u) => u.id === r.hostId)?.gender as Gender | undefined;
+      const block = hostJoinBlock(r, genders, hostGender);
+      if (block) throw new HostJoinError(block.code, block.message);
+      r.currentCount = currentCountOf(r) + 1;   // 数えない状態の人数＋主催者
+      r.hostJoined = true;
+      return r;
+    }
+    if (!r.hostJoined) return r;
+    const block = hostLeaveBlock(r);
+    if (block) throw new HostJoinError(block.code, block.message);
+    r.currentCount = Math.max(0, currentCountOf(r) - 1);
+    r.hostJoined = false;
+    applyScrubInPlace(r, scrubMemberFromRound(r, r.hostId));
+    return r;
   }
   async confirmCourse(id: string, info: { courseName: string; date: string; startTime: string; price?: string }) {
     const r = this.rounds.find((x) => x.id === id);
@@ -862,6 +894,35 @@ class FirestoreDB implements DB {
   }
   async leaveRound(id: string, userId: string) {
     return this.kickApplicant(id, userId);
+  }
+  async setHostJoined(id: string, join: boolean) {
+    const ref = this.fs.collection('rounds').doc(id);
+    return await this.fs.runTransaction(async (tx: any) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('round not found');
+      const data = { ...(snap.data() as Omit<Round, 'id'>), id: snap.id } as Round;
+      if (join) {
+        if (data.hostJoined) return data;
+        // 男女別の枠の判定に、参加確定の人と主催者の性別を同じトランザクションで読む（書き込みより前に読む）
+        const ids = Array.from(new Set([data.hostId, ...(data.applicantIds || [])].filter(Boolean)));
+        const us = ids.length ? await tx.getAll(...ids.map((uid) => this.fs.collection('users').doc(uid))) : [];
+        const genderOf = new Map<string, Gender | undefined>(us.map((u: any) => [u.id, u.exists ? (u.data()?.gender as Gender | undefined) : undefined]));
+        const genders = Array.from(new Set((data.applicantIds || []).filter(Boolean))).map((uid) => genderOf.get(uid));
+        const block = hostJoinBlock(data, genders, genderOf.get(data.hostId));
+        if (block) throw new HostJoinError(block.code, block.message);
+        const currentCount = currentCountOf(data) + 1;   // 数えない状態の人数＋主催者
+        tx.set(ref, { hostJoined: true, currentCount }, { merge: true });
+        return { ...data, hostJoined: true, currentCount } as Round;
+      }
+      if (!data.hostJoined) return data;
+      const block = hostLeaveBlock(data);
+      if (block) throw new HostJoinError(block.code, block.message);
+      const currentCount = Math.max(0, currentCountOf(data) - 1);
+      // 組み分け・後半の組・配車・送迎の回答・提案・入金・組み分け希望・スコアから主催者を外す（lib/roundMembership）
+      const scrub = scrubMemberFromRound(data, data.hostId);
+      this.txScrub(tx, ref, { hostJoined: false, currentCount }, scrub);
+      return applyScrubInPlace({ ...data, hostJoined: false, currentCount } as Round, scrub);
+    });
   }
   async confirmCourse(id: string, info: { courseName: string; date: string; startTime: string; price?: string }) {
     const ref = this.fs.collection('rounds').doc(id);

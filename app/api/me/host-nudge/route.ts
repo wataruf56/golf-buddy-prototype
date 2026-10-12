@@ -4,6 +4,7 @@ import { getAdminDb } from '@/lib/firebase';
 import { db as appDb } from '@/lib/db';
 import type { Round } from '@/lib/types';
 import { hostCounts } from '@/lib/hostCount';
+import { isMarketingPopupEligible } from '@/lib/popupEligibility';
 
 // GET /api/me/host-nudge
 // ホームで出す「そろそろ募集してみない？」ポップアップを出すべきか判定して返す。
@@ -12,6 +13,7 @@ import { hostCounts } from '@/lib/hostCount';
 //   1. ラウンドに参加した経験がある（＝サービスの価値を体験済み。いきなり主催を勧めない）
 //   2. まだ一度も主催したことがない（主催経験者には出さない）
 //   3. 募集の作成が制限されていない（BAN・noCreate）
+//   4. プロフィール登録から24時間たっている（lib/popupEligibility）
 // 表示回数の制御（7日に1回・3回閉じたら終了）はクライアント側の localStorage で行う。
 //
 // あわせて「満員率」を実データから計算して返す（完了した募集のうち、定員が埋まった割合）。
@@ -29,6 +31,10 @@ export async function GET(_req: NextRequest) {
   if (!adb) return NextResponse.json({ show: false }, { headers: noStore });
 
   try {
+    // プロフィール登録から24時間たっていない人には出さない（営業系ポップアップの共通ルール・lib/popupEligibility）
+    const me = await appDb.getUser(meId);
+    if (!isMarketingPopupEligible(me)) return NextResponse.json({ show: false, reason: 'not_eligible_yet' }, { headers: noStore });
+
     // 募集作成が制限されている人には出さない（押しても作れないため）。
     try {
       const { getRestriction } = await import('@/lib/banAccess');
@@ -56,7 +62,6 @@ export async function GET(_req: NextRequest) {
       fillRate = Math.round((sum / done.length) * 100);
     }
 
-    const me = await appDb.getUser(meId);
     return NextResponse.json({
       show: true,
       name: me?.displayName || '',

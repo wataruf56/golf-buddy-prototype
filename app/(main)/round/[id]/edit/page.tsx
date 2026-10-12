@@ -14,8 +14,8 @@ import { Stepper } from '@/components/Stepper';
 import { isRoundHost } from '@/lib/roundHost';
 import { guestNamesFrom } from '@/lib/roundGuests';
 import { CancelPolicyEditor, emptyCancelDraft, draftToPayload, type CancelPolicyDraft } from '@/components/CancelPolicy';
-import { jstToMs, msToJst, swapConditionForPayment } from '@/lib/cancelPolicy';
-import { hostCounts, hostSeat, currentCountOf } from '@/lib/hostCount';
+import { jstToMs, msToJst, swapConditionForPayment, upgradeCondition } from '@/lib/cancelPolicy';
+import { reservedHostSeat, hostInRecruitSlots, currentCountOf } from '@/lib/hostCount';
 
 // 募集タイトルのプルダウン既定値。管理画面で編集されると /api/round-titles で上書き。
 const DEFAULT_TITLE_PRESETS = [
@@ -202,7 +202,7 @@ export default function EditRoundPage() {
     { const pi = (round as any).paymentInfo || {}; const j = msToJst(pi.deadline);
       setPayAmount(pi.amount ?? null); setPayAccount(pi.account || ''); setPayDate(j.date); setPayTime(j.time || '23:59'); }
     { const cp = (round as any).cancelPolicy; const j = msToJst(cp?.deadline);
-      setCancelDraft(cp?.deadline ? { on: true, date: j.date, time: j.time, fee: cp.fee ?? null, account: cp.account || '', condition: cp.condition || '' } : emptyCancelDraft); }
+      setCancelDraft(cp?.deadline ? { on: true, date: j.date, time: j.time, fee: cp.fee ?? null, account: cp.account || '', condition: upgradeCondition(cp.condition || '') } : emptyCancelDraft); }
     setArea(round.area || '');
     setDateType(round.dateType === 'range' ? 'range' : 'fixed');
     setDateRange(round.dateRange || '');
@@ -215,7 +215,8 @@ export default function EditRoundPage() {
     // 内訳は「自分を含めた全体(=募集人数)」で編集する。保存されている募集枠(自分・
     // 知り合いを除く)に、主催者本人と知り合いを足して、全体の内訳へ変換して初期化。
     // 公式募集（hostNotCounted）は主催者が人数・内訳に入らない（2026-10-12）
-    const seat0 = hostSeat(round);
+    // 主催者が「わたしも参加する」中でも、主催者は募集枠の側に入っているので席は 0 のまま（lib/hostCount）
+    const seat0 = reservedHostSeat(round);
     const hostMale = seat0 && me?.gender === 'male' ? 1 : 0;
     const hostFemale = seat0 && me?.gender === 'female' ? 1 : 0;
     const recruited = Math.max(0, (round.maxSpots || 1) - seat0 - (em0 + ef0 || (round.externalCount || 0)));
@@ -252,10 +253,12 @@ export default function EditRoundPage() {
   const isConfirmed = round?.type === 'confirmed';
   const isComp = maxSpots >= 5;
   // 主催者の枠。公式募集（hostNotCounted）は主催者を人数に数えないので 0（2026-10-12）
-  const hostNotCounted = !hostCounts(round);
-  const seat = hostSeat(round);
+  const hostNotCounted = !!round?.hostNotCounted;
+  const seat = reservedHostSeat(round);
   const currentCount = currentCountOf(round);
-  const approvedApp = round?.applicantIds?.length || 0; // ゴルトモ経由で承認済みの人数
+  // ゴルトモ経由で承認済みの人数。公式募集で主催者が参加中なら主催者も募集枠を1つ使う（2026-10-12）
+  const hostJoinedSlot = hostInRecruitSlots(round) ? 1 : 0;
+  const approvedApp = (round?.applicantIds?.length || 0) + hostJoinedSlot;
   const extTotal = externalMale + externalFemale;
   // 合計は「主催者1 + 知り合い + 承認済みアプリ参加者」を下回れない。公式募集は最低1人。
   const MIN_FLOOR = seat ? 2 : 1;
@@ -577,6 +580,7 @@ export default function EditRoundPage() {
             <Stepper value={maxSpots} onMinus={() => changeTotal(-1)} onPlus={() => changeTotal(1)} minusDisabled={maxSpots <= MIN_TOTAL} plusDisabled={maxSpots >= MAX_TOTAL} suffix="人" />
             <div className="mt-1.5 px-3 py-2 bg-green-light rounded-lg text-[11px] text-green font-bold">
               {hostNotCounted ? '🏆 ゴルトモ公式（主催者）は人数に入りません。プレーする人の合計人数です' : '👤 主催者（あなた）を含めた合計人数です'}
+              {hostJoinedSlot > 0 && <div className="mt-0.5">🙋 あなたも参加者として1枠を使っています（募集画面の「参加をやめる」で外せます）</div>}
             </div>
             {currentCount > seat && (
               <div className="mt-1 text-[11px] text-muted">すでに{currentCount}人が参加しているため、それ未満には変更できません</div>

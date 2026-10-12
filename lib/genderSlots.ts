@@ -1,5 +1,6 @@
 import type { Round, User, Gender } from './types';
 import { canGenderJoin } from './roundEligibility';
+import { hostInRecruitSlots } from './hostCount';
 
 // 男女別の募集枠（spotsMale / spotsFemale / spotsAny）の「いまの埋まり具合」。
 // 画面（一覧カード・詳細・主催者の空き待ち一覧）とサーバー（参加申請・承認のガード）で同じ判定を使う。
@@ -8,6 +9,7 @@ import { canGenderJoin } from './roundEligibility';
 // 募集作成の API が maxSpots = 1(主催者) + 知り合い枠 + 募集枠 と組み立てる）。
 // だから数える人＝参加確定（applicantIds）だけ。主催者・知り合い枠を足すと枠が1〜2人ぶん早く「満員」になる（最初の版で踏んだ）。
 // 旧データ（内訳が全部0）は男女の制限なし（合計枠 maxSpots だけ）。
+// 例外：公式募集（hostNotCounted）で主催者が「わたしも参加する」を選んだときは、主催者も募集枠を1つ使う（2026-10-12・lib/hostCount）。
 
 export type SlotGender = 'male' | 'female';
 export const slotGenderLabel = (g: SlotGender) => (g === 'male' ? '男性' : '女性');
@@ -17,7 +19,8 @@ export const asSlotGender = (g: Gender | undefined | null): SlotGender | undefin
 export function memberGendersForSlots(round: Round, users: User[]): Array<Gender | undefined> {
   const out: Array<Gender | undefined> = [];
   const seen = new Set<string>();
-  for (const id of round.applicantIds || []) {
+  const ids = [...(hostInRecruitSlots(round) && round.hostId ? [round.hostId] : []), ...(round.applicantIds || [])];
+  for (const id of ids) {
     if (!id || seen.has(id)) continue;
     seen.add(id);
     out.push(users.find((u) => u.id === id)?.gender);

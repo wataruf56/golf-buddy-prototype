@@ -118,6 +118,13 @@ export type User = {
   acquisitionMenu?: string;
   acquisitionReferrer?: string;
   acquisitionAt?: number;
+  /** 会員を作った時刻（lib/db の upsertUser が新規作成時に入れる） */
+  createdAt?: number;
+  /**
+   * プロフィールを登録した時刻（年齢が初めて入った時刻・PATCH /api/me で記録）（2026-10-12）。
+   * 営業系ポップアップは登録から24時間たってから（lib/popupEligibility）。無い古い会員は createdAt で代用。
+   */
+  profileCompletedAt?: number;
 };
 
 export type ScoreEntry = { score: number; date: string };
@@ -196,6 +203,9 @@ export type Round = {
   // 主催者（管理者）を参加人数に数えない募集（2026-10-12）。ゴルトモ公式として新しく立てた募集だけ true。
   // currentCount・maxSpots・組み分け・レビュー等から主催者を外す（主催者としての管理はできる）。lib/hostCount
   hostNotCounted?: boolean;
+  // hostNotCounted の募集で、主催者本人が「わたしも参加する」を選んだ（2026-10-12）。
+  // true のあいだは主催者をふつうの参加者として数える（募集枠を1つ使う）。lib/hostCount・/api/rounds/[id]/host-join
+  hostJoined?: boolean;
   // 「行ける日」の集まり（日付ごとのチャット部屋）。その日に「行ける」を押した人が
   // 4人以上で自動で作られる、運営主催のラウンド。lib/availRooms
   availDate?: string;

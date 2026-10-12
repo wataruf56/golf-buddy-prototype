@@ -6,6 +6,7 @@ import type { Round, RoundGroup, RoundGuest, User } from '@/lib/types';
 import { Avatar } from '@/components/Avatar';
 import { store } from '@/lib/store';
 import { toast } from '@/components/Toast';
+import { track } from '@/lib/telemetry';
 import { AssignmentsPublishBar } from '@/components/AssignmentsPublishBar';
 import { countedMemberIds } from '@/lib/hostCount';
 
@@ -21,7 +22,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   const registeredIds = useMemo(
     // 公式募集（hostNotCounted）は主催者がプレーしないので入れない（2026-10-12）
     () => countedMemberIds(round),
-    [round.hostId, round.applicantIds, round.hostNotCounted],
+    [round.hostId, round.applicantIds, round.hostNotCounted, round.hostJoined],
   );
   const [guests, setGuests] = useState<RoundGuest[]>(round.guests || []);
   const [guestName, setGuestName] = useState('');
@@ -900,6 +901,8 @@ function GolfCourseExport({ text, sheet, onClose, dirty, roundId }: { text: stri
   // 画像で保存（2026-10-10 直し）：LINE の中のブラウザはダウンロードができないため、
   //   ① 共有シート（「画像を保存」「プリント」が選べる）→ ② LINE の中なら外部ブラウザで画像を開く → ③ PC はそのままダウンロード
   const [saving, setSaving] = useState(false);
+  // 押したボタンと結果を操作ログに残す（管理画面で日本語表示）（2026-10-12）
+  const log = (method: string, result: string) => track('share', { target: 'group_sheet', method, result, roundId });
   async function makeImage() {
     if (saving) return;
     setSaving(true);
@@ -911,7 +914,7 @@ function GolfCourseExport({ text, sheet, onClose, dirty, roundId }: { text: stri
       const inLine = /Line\//i.test(navigator.userAgent);
       const nav = navigator as any;
       if (!inLine && nav.canShare && nav.canShare({ files: [file] })) {
-        try { await nav.share({ files: [file], title: '組分け' }); return; } catch (e: any) { if (e?.name === 'AbortError') return; }
+        try { await nav.share({ files: [file], title: '組分け' }); log('image', 'sent'); return; } catch (e: any) { if (e?.name === 'AbortError') { log('image', 'cancel'); return; } }
       }
       if (inLine || /iPhone|iPad|Android/i.test(navigator.userAgent)) {
         const res = await fetch(`/api/rounds/${roundId}/course-sheet`, {
@@ -920,6 +923,7 @@ function GolfCourseExport({ text, sheet, onClose, dirty, roundId }: { text: stri
         const j = await res.json().catch(() => ({}));
         if (!res.ok || !j?.url) throw new Error('upload');
         // LINE のブラウザは ?openExternalBrowser=1 を付けると Safari / Chrome で開く
+        log('image', 'opened_browser');
         window.location.href = `${j.url}${inLine ? '?openExternalBrowser=1' : ''}`;
         toast('ブラウザで画像を開きます。長押しで「写真に保存」できます');
         return;
@@ -929,12 +933,13 @@ function GolfCourseExport({ text, sheet, onClose, dirty, roundId }: { text: stri
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(objUrl), 3000);
       toast('画像を保存しました');
-    } catch { toast('画像を保存できませんでした。下の画像を長押しして保存してください', 'error'); }
+      log('image', 'saved');
+    } catch { log('image', 'failed'); toast('画像を保存できませんでした。下の画像を長押しして保存してください', 'error'); }
     finally { setSaving(false); }
   }
   async function copy() {
-    try { await navigator.clipboard.writeText(text); toast('コピーしました'); }
-    catch { toast('コピーできませんでした。下の文章を長押ししてコピーしてください', 'error'); }
+    try { await navigator.clipboard.writeText(text); toast('コピーしました'); log('copy_text', 'copied'); }
+    catch { log('copy_text', 'failed'); toast('コピーできませんでした。下の文章を長押ししてコピーしてください', 'error'); }
   }
   function download() {
     try {
@@ -943,7 +948,8 @@ function GolfCourseExport({ text, sheet, onClose, dirty, roundId }: { text: stri
       a.href = URL.createObjectURL(blob); a.download = '組分け.txt';
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    } catch { toast('保存できませんでした。コピーを使ってください', 'error'); }
+      log('text_file', 'saved');
+    } catch { log('text_file', 'failed'); toast('保存できませんでした。コピーを使ってください', 'error'); }
   }
   // 前半・後半の両方に出る人を二重に数えない
   const missing = new Set(text.split(String.fromCharCode(10)).map((l) => l.trim()).filter((l) => l.endsWith('（本名未登録）'))).size;

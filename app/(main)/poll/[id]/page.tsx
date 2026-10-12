@@ -210,13 +210,27 @@ export default function PollPage() {
   async function shareUrl() {
     const url = `https://app.goltomo.com${pollPath}`;
     const text = `⛳ ゴルフの日程調整です。参加できる日を教えてください！`;
-    track('poll_share', { pollId: params.id });
+    const pollId = String(params.id);
+    track('poll_share', { pollId });
+    // 押した後どうなったか（端末の共有で送った／やめた・コピーできた）も残す（2026-10-12）
     const w = window as any;
     if (w.navigator?.share) {
-      try { await w.navigator.share({ title: 'ゴルトモ 日程調整', text, url }); return; } catch { /* fall through */ }
+      try {
+        await w.navigator.share({ title: 'ゴルトモ 日程調整', text, url });
+        track('share', { target: 'poll', method: 'native', result: 'sent', pollId });
+        return;
+      } catch (e: any) {
+        track('share', { target: 'poll', method: 'native', result: e?.name === 'AbortError' ? 'cancel' : 'error', pollId });
+        /* fall through */
+      }
     }
-    try { await navigator.clipboard.writeText(url); toast('リンクをコピーしました'); }
-    catch { window.prompt('このリンクをコピーして共有してください', url); }
+    try {
+      await navigator.clipboard.writeText(url); toast('リンクをコピーしました');
+      track('share', { target: 'poll', method: 'copy_url', result: 'copied', pollId });
+    } catch {
+      track('share', { target: 'poll', method: 'copy_url', result: 'failed', pollId });
+      window.prompt('このリンクをコピーして共有してください', url);
+    }
   }
 
   if (state === 'loading') return <div className="p-5 text-center text-sub">読み込み中...</div>;

@@ -7,22 +7,43 @@
 export type CancelPolicy = { deadline: number; fee?: number; account?: string; condition?: string };
 
 // 条件のテンプレートは事前集金（paymentEnabled）の有無で切り替える（2026-10-12）。
-//   a＝割増料金だけ／b＝割増料金＋ゴルフ場のキャンセル料。既存の募集の条件文はそのまま残す（移行しない）。
+//   A＝割増料金だけ／B＝割増料金「または」ゴルフ場のキャンセル料（両方ではなく、実際にかかったどちらか一方）。
+//   どちらも「代わりの人を募集しても枠が埋まらなかった場合」の話だと明記する。改行つきの箇条書き（募集ページは pre-wrap で表示）。
+const NOTE_UNFILLED = '※ 代わりの人を募集しても、枠が埋まらなかった場合の話です。';
+const NOTE_EITHER = '※ ①と②の両方ではなく、実際にかかったどちらか一方です。';
+const ITEM_SURCHARGE = 'スリーサム・ツーサムの割増料金';
+const ITEM_COURSE_FEE = '予約枠が減ったことで、ゴルフ場から請求されるキャンセル料（1枠ごと）';
 export const CANCEL_CONDITION_TEMPLATES_PREPAID: string[] = [
+  ['キャンセルが出たときは、お預かりした参加費から次の分を差し引いて返金します。', `① ${ITEM_SURCHARGE}`, NOTE_UNFILLED].join('\n'),
+  ['キャンセルが出たときは、お預かりした参加費から次のどちらかを差し引いて返金します。', `① ${ITEM_SURCHARGE}`, `② ${ITEM_COURSE_FEE}`, NOTE_EITHER, NOTE_UNFILLED].join('\n'),
+];
+export const CANCEL_CONDITION_TEMPLATES_POSTPAY: string[] = [
+  ['キャンセルが出たときは、次の分を後日、主催者にPayPayか銀行振込でお支払いいただきます。', `① ${ITEM_SURCHARGE}`, NOTE_UNFILLED].join('\n'),
+  ['キャンセルが出たときは、次のどちらかを後日、主催者にPayPayか銀行振込でお支払いいただきます。', `① ${ITEM_SURCHARGE}`, `② ${ITEM_COURSE_FEE}`, NOTE_EITHER, NOTE_UNFILLED].join('\n'),
+];
+// 2026-10-12 の昼に出した1行の文例（すでに保存した募集がある）。編集を開いたら同じ記号の新しい文例に置き換える
+const LEGACY_PREPAID = [
   'キャンセルになった場合は、お預かりした参加費から、スリーサム・ツーサムの割増料金を差し引いて返金します。',
   'キャンセルになった場合は、お預かりした参加費から、スリーサム・ツーサムの割増料金と、予約枠が減ったことでゴルフ場から請求されるキャンセル料（1枠ごと）を差し引いて返金します。',
 ];
-export const CANCEL_CONDITION_TEMPLATES_POSTPAY: string[] = [
+const LEGACY_POSTPAY = [
   '枠が減ってスリーサム・ツーサムの割増料金が発生した場合は、その分のみ、後日主催者にPayPayまたは銀行振込でお支払いいただきます。',
   '枠が減ってスリーサム・ツーサムの割増料金が発生した場合や、ゴルフ場からキャンセル料を請求された場合は、その分を後日主催者にPayPayまたは銀行振込でお支払いいただきます。',
 ];
 export function cancelConditionTemplates(prepaid: boolean): string[] {
   return prepaid ? CANCEL_CONDITION_TEMPLATES_PREPAID : CANCEL_CONDITION_TEMPLATES_POSTPAY;
 }
-/** 事前集金の ON/OFF が変わったとき、反対側のテンプレートなら同じ記号（a/b）に差し替える。自由記入はそのまま（2026-10-12） */
+/** 古い文例なら今の文例に置き換える（自由記入はそのまま） */
+export function upgradeCondition(condition: string): string {
+  const c = (condition || '').trim();
+  let i = LEGACY_PREPAID.indexOf(c); if (i >= 0) return CANCEL_CONDITION_TEMPLATES_PREPAID[i];
+  i = LEGACY_POSTPAY.indexOf(c); if (i >= 0) return CANCEL_CONDITION_TEMPLATES_POSTPAY[i];
+  return condition;
+}
+/** 事前集金の ON/OFF が変わったとき、反対側のテンプレートなら同じ記号（A/B）に差し替える。自由記入はそのまま（2026-10-12） */
 export function swapConditionForPayment(condition: string, prepaid: boolean): string {
   const from = cancelConditionTemplates(!prepaid);
-  const i = from.indexOf(condition);
+  const i = from.indexOf(upgradeCondition(condition));
   return i >= 0 ? cancelConditionTemplates(prepaid)[i] : condition;
 }
 
@@ -69,7 +90,7 @@ export function sanitizeCancelPolicy(raw: any): CancelPolicy | null {
   if (fee > 0) out.fee = Math.min(fee, 1_000_000);
   const account = String(raw.account || '').trim().slice(0, 300);
   if (account) out.account = account;
-  const condition = String(raw.condition || '').trim().slice(0, 300);
+  const condition = String(raw.condition || '').trim().slice(0, 400);
   if (condition) out.condition = condition;
   return out;
 }

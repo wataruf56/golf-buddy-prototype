@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { NumberInput } from '@/components/NumberInput';
-import { cancelConditionTemplates, formatCancelDeadline, isPastCancelDeadline, msToJst, type CancelPolicy } from '@/lib/cancelPolicy';
+import { cancelConditionTemplates, upgradeCondition, formatCancelDeadline, isPastCancelDeadline, msToJst, type CancelPolicy } from '@/lib/cancelPolicy';
 
 // キャンセル規定（2026-10-10）。lib/cancelPolicy 参照。
 
@@ -16,10 +16,13 @@ export function CancelPolicyEditor({ value, onChange, roundDate, prepaid = false
 }) {
   const set = (p: Partial<CancelPolicyDraft>) => onChange({ ...value, ...p });
   const templates = cancelConditionTemplates(prepaid);
-  const isTemplate = templates.includes(value.condition);
+  const isTemplate = templates.includes(upgradeCondition(value.condition));
   const payJ = prepaid && paymentDeadline ? msToJst(paymentDeadline) : null;
   const sameAsPay = !!payJ && payJ.date === value.date && payJ.time === value.time;
-  const sel = !value.condition ? '' : isTemplate ? value.condition : '__free__';
+  const sel = !value.condition ? '' : isTemplate ? upgradeCondition(value.condition) : '__free__';
+  const pick = (v: string) => set({ condition: v === '__free__' ? (isTemplate ? '' : value.condition) || ' ' : v });
+  const card = (on: boolean) => 'w-full flex items-start gap-2.5 p-2.5 rounded-xl border-[1.5px] text-left ' + (on ? 'border-green bg-green-light' : 'border-border bg-bg');
+  const dot = (on: boolean) => 'mt-0.5 w-[18px] h-[18px] rounded-full border-2 flex-shrink-0 grid place-items-center ' + (on ? 'border-green' : 'border-border');
   const cls = 'w-full p-3 border-[1.5px] border-border rounded-xl text-sm bg-bg';
   return (
     <div className="mt-1">
@@ -59,13 +62,29 @@ export function CancelPolicyEditor({ value, onChange, roundDate, prepaid = false
           </div>
           <div>
             <label className="block text-[11px] font-bold text-sub mb-1">キャンセル料の条件<span className="text-muted font-medium">（{prepaid ? '事前集金ありの文例' : '事前集金なしの文例'}）</span></label>
-            <select value={sel} onChange={(e) => set({ condition: e.target.value === '__free__' ? (isTemplate ? '' : value.condition) || ' ' : e.target.value })} className={cls}>
-              <option value="">選んでください</option>
-              {templates.map((t) => <option key={t} value={t}>{t}</option>)}
-              <option value="__free__">自由に書く</option>
-            </select>
+            {/* 選択肢はカードで並べる（文例が箇条書きの複数行なので、プルダウンだと読めない）（2026-10-12） */}
+            <div className="flex flex-col gap-1.5">
+              {templates.map((t, i) => {
+                const on = sel === t;
+                return (
+                  <button key={t} type="button" onClick={() => pick(t)} className={card(on)} aria-pressed={on}>
+                    <span className={dot(on)}>{on && <span className="w-2 h-2 rounded-full bg-green" />}</span>
+                    <span className="flex-1 min-w-0">
+                      <span className={'inline-block text-[10.5px] font-black px-1.5 py-px rounded mb-1 ' + (on ? 'bg-green text-white' : 'bg-card border border-border text-sub')}>
+                        {String.fromCharCode(65 + i)}　{i === 0 ? '割増料金だけ' : '割増料金か、ゴルフ場のキャンセル料（どちらか一方）'}
+                      </span>
+                      <span className="block text-[11.5px] leading-relaxed whitespace-pre-wrap text-text">{t}</span>
+                    </span>
+                  </button>
+                );
+              })}
+              <button type="button" onClick={() => pick('__free__')} className={card(sel === '__free__')} aria-pressed={sel === '__free__'}>
+                <span className={dot(sel === '__free__')}>{sel === '__free__' && <span className="w-2 h-2 rounded-full bg-green" />}</span>
+                <span className="flex-1 text-[12px] font-bold text-text">自由に書く</span>
+              </button>
+            </div>
             {sel === '__free__' && (
-              <textarea value={value.condition.trimStart()} onChange={(e) => set({ condition: e.target.value })} rows={3} maxLength={300}
+              <textarea value={value.condition.trimStart()} onChange={(e) => set({ condition: e.target.value })} rows={4} maxLength={400}
                 placeholder="例）前日18時以降のキャンセルは、ゴルフ場のキャンセル料（プレー代の50%）を負担してください。" className={cls + ' mt-1.5'} />
             )}
           </div>
@@ -96,7 +115,7 @@ export function CancelPolicyCard({ round }: { round: { cancelPolicy?: CancelPoli
     <div className={'mb-4 rounded-xl border-[1.5px] px-3 py-2.5 ' + (past ? 'border-red-300 bg-red-50' : 'border-border bg-card')}>
       <div className="text-[11px] font-black text-text">⏰ キャンセル締切：{formatCancelDeadline(cp.deadline)}まで{past && <span className="ml-1.5 text-red-600">（締切を過ぎました）</span>}</div>
       {!!cp.fee && <div className="text-[12px] mt-1"><b>締切後のキャンセル料（目安）：{cp.fee.toLocaleString('ja-JP')}円</b></div>}
-      {cp.condition && <div className="text-[11.5px] text-sub mt-1 leading-relaxed whitespace-pre-wrap">{cp.condition}</div>}
+      {cp.condition && <div className="text-[11.5px] text-sub mt-1 leading-relaxed whitespace-pre-wrap">{upgradeCondition(cp.condition)}</div>}
       {cp.account
         ? <div className="text-[11.5px] mt-1.5 leading-relaxed whitespace-pre-wrap"><span className="text-sub font-bold">振込先：</span>{cp.account}</div>
         : (cp as any).accountHidden ? <div className="text-[10.5px] text-muted mt-1.5">振込先は参加すると表示されます。</div> : null}

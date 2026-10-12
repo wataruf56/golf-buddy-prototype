@@ -68,8 +68,9 @@ export function OfficialHomeCard() {
         setPrompts(list);
 
         // ポップアップは「まだ あとで を押していない枠」の先頭1つだけ。
+        // プロフィール登録から24時間たつまでは出さない（popupOk=false。カードは出す）（lib/popupEligibility）
         list.filter((x) => x.proxy).forEach((x) => track('pr_rider_view', { id: x.id }));
-        const first = list.find((x) => x.id && !snoozed(x.id));
+        const first = a?.popupOk === false ? undefined : list.find((x) => x.id && !snoozed(x.id));
         if (first?.id) setPopupId(first.id);
       } catch { /* 出せなくてもホームは動く */ }
     })();

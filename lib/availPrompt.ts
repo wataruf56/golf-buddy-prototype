@@ -3,6 +3,7 @@ import { getAdminDb } from './firebase';
 import { viewCohort } from './ageGate';
 import type { Round, User } from './types';
 import { hostCounts } from './hostCount';
+import { isMarketingPopupEligible } from './popupEligibility';
 
 // ラウンド（コンペ）の参加者に「行ける日」の入力をすすめる、1回だけのポップアップ＋LINE（2026-10-11）
 //
@@ -31,7 +32,7 @@ export type AvailPromptDoc = {
 };
 
 // 公式募集（hostNotCounted）の主催者はプレーしないので入れない（2026-10-12）
-export function participantsOf(r: Pick<Round, 'hostId' | 'coHostIds' | 'applicantIds' | 'hostNotCounted'>): string[] {
+export function participantsOf(r: Pick<Round, 'hostId' | 'coHostIds' | 'applicantIds' | 'hostNotCounted' | 'hostJoined'>): string[] {
   return Array.from(new Set([...(hostCounts(r) ? [r.hostId] : []), ...(r.coHostIds || []), ...(r.applicantIds || [])].filter(Boolean)));
 }
 
@@ -76,6 +77,8 @@ async function hasAvailability(userId: string): Promise<boolean> {
 export async function activeAvailPromptFor(me: User): Promise<{ roundId: string; title: string; date: string } | null> {
   if (viewCohort(me.age) !== 'a') return null;
   const now = Date.now();
+  // プロフィール登録から24時間たっていない人には出さない（見た印も付けない）（lib/popupEligibility）
+  if (!isMarketingPopupEligible(me, now)) return null;
   const seen = ((me as any).availPromptSeen || {}) as Record<string, number>;
   const prompts = (await listAvailPrompts()).filter((p) => p.approved && p.showAt && now >= p.showAt && now < p.showAt + ACTIVE_MS && !seen[p.roundId]);
   if (!prompts.length) return null;

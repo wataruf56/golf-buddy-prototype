@@ -17,7 +17,7 @@ export function GroupPrefs({ round, users, meId, isHost }: { round: Round; users
   const participantIds = useMemo(
     // 公式募集（hostNotCounted）は主催者がプレーしないので入れない（2026-10-12）
     () => countedMemberIds(round),
-    [round.hostId, round.applicantIds, round.hostNotCounted],
+    [round.hostId, round.applicantIds, round.hostNotCounted, round.hostJoined],
   );
   const userOf = (id: string) => users.find((u) => u.id === id);
   const nameOf = (id: string) => userOf(id)?.displayName || 'メンバー';

@@ -2,6 +2,7 @@ import 'server-only';
 import { getAdminDb } from './firebase';
 import { viewCohort } from './ageGate';
 import type { User } from './types';
+import { isMarketingPopupEligible } from './popupEligibility';
 
 // 毎月の「行ける日を入れませんか？」（2026-10-12）。
 // 月末の2日前（10月なら10/29、9月なら9/28）から月末まで、**翌月と翌々月の行ける日を1日も入れていない**会員に
@@ -49,6 +50,8 @@ export async function monthlyPromptFor(me: User): Promise<{ key: string; months:
   const w = monthlyWindow();
   if (!w) return null;
   if (viewCohort(me.age) !== 'a' || (me as any).banned) return null;
+  // プロフィール登録から24時間たっていない人には出さない（見た印も付けない）（lib/popupEligibility）
+  if (!isMarketingPopupEligible(me)) return null;
   if (((me as any).availMonthlySeen || {})[w.key]) return null;
   if (await hasDatesIn(me.id, w.months)) return null;
   const t = monthlyTexts(w.months);
@@ -83,6 +86,8 @@ export async function sendMonthlyAvailLine(): Promise<{ sent: number; skipped?: 
   for (const d of usersSnap.docs) {
     const u = { id: d.id, ...(d.data() || {}) } as any;
     if (u.banned || u.isSystem || viewCohort(u.age) !== 'a') continue;
+    // プロフィール未登録・登録から24時間たっていない人には送らない（lib/popupEligibility）
+    if (!isMarketingPopupEligible(u)) continue;
     const dates: string[] = (await getAvailability(u.id).catch(() => null))?.dates || [];
     if (dates.some((x) => w.months.some((m) => x.startsWith(m)))) continue;
     await addNotification(u.id, 'roundUpcoming', '📅 行ける日を入力して、合いそうな人たちで一緒にラウンド行きませんか？', link).catch(() => {});

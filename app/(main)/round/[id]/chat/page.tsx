@@ -86,12 +86,27 @@ export default function RoundChatPage() {
   async function shareChat() {
     const url = `${SHARE_BASE}?to=${encodeURIComponent(`/round/${params.id}/chat`)}`;
     const text = `💬 ${round?.title || 'ラウンド'} のグループチャット`;
+    // シェアの記録（管理画面の操作ログに「何を押して、どうなったか」を日本語で出す）（2026-10-12）
+    const roundId = String(params.id);
+    track('share', { target: 'chat', method: 'click', roundId });
     const w = window as any;
     if (w.navigator?.share) {
-      try { await w.navigator.share({ title: 'ゴルトモ グループチャット', text, url }); return; } catch { /* fall through */ }
+      try {
+        await w.navigator.share({ title: 'ゴルトモ グループチャット', text, url });
+        track('share', { target: 'chat', method: 'native', result: 'sent', roundId });
+        return;
+      } catch (e: any) {
+        track('share', { target: 'chat', method: 'native', result: e?.name === 'AbortError' ? 'cancel' : 'error', roundId });
+        /* fall through */
+      }
     }
-    try { await navigator.clipboard.writeText(url); toast('リンクをコピーしました'); }
-    catch { window.prompt('このリンクをコピーして共有してください', url); }
+    try {
+      await navigator.clipboard.writeText(url); toast('リンクをコピーしました');
+      track('share', { target: 'chat', method: 'copy_url', result: 'copied', roundId });
+    } catch {
+      track('share', { target: 'chat', method: 'copy_url', result: 'failed', roundId });
+      window.prompt('このリンクをコピーして共有してください', url);
+    }
   }
 
   // 通知URLに ?thread=... が付いていたら、そのスレッドを直接開く（メンション導線）。

@@ -40,8 +40,9 @@ import { Linkify } from '@/components/Linkify';
 import { LoginButtons } from '@/components/LoginButtons';
 import { GenderSlots } from '@/components/GenderSlots';
 import { WaitlistBox } from '@/components/WaitlistBox';
-import { viewerSlotFull, isWaitlisted, slotGenderLabel } from '@/lib/genderSlots';
-import { countedMemberIds, hostCounts } from '@/lib/hostCount';
+import { viewerSlotFull, isWaitlisted, slotGenderLabel, memberGendersForSlots } from '@/lib/genderSlots';
+import { countedMemberIds, hostCounts, hostCanOptIn, hostInRecruitSlots } from '@/lib/hostCount';
+import { hostJoinBlock } from '@/lib/hostJoin';
 
 // Brand launch URL — handled by middleware, redirects to liff.line.me/{id}
 // while preserving the ?to= query so the recipient lands directly on the
@@ -100,6 +101,8 @@ export default function RoundDetailPage() {
   // （2026-10-06・シェアURLを未ログインの Safari で開くと「Application error」。hook は必ず return より前に置く）。
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  // 公式募集の主催者本人の「わたしも参加する／参加をやめる」の送信中（2026-10-12）。hook なので早期 return より前
+  const [hostJoinBusy, setHostJoinBusy] = useState(false);
   // 詳細のセクション切り替えタブ（参加してる人／ピックアップ／組み分け／入金）。
   const [tab, setTab] = useState<'people' | 'pickup' | 'groups' | 'hostnote' | 'album' | 'payment'>(
     () => {
@@ -282,6 +285,14 @@ export default function RoundDetailPage() {
   const applicants = round.applicantIds.filter((id) => !coHostIds.includes(id)).map((id) => users.find((u) => u.id === id)).filter(Boolean);
   const pendingApplicants = (round.pendingApplicantIds || []).map((id) => users.find((u) => u.id === id)).filter(Boolean);
   const isHost = isRoundHost(round, meId);
+  // 公式募集（hostNotCounted）の主催者本人は「わたしも参加する／参加をやめる」を選べる（2026-10-12・lib/hostCount）。
+  // 共同管理者は最初から参加者なので対象外（主催者本人だけ）。
+  const hostOptIn = !!meId && round.hostId === meId && hostCanOptIn(round)
+    && round.status !== 'completed' && !(round as any).heldCancelledAt;
+  const hostPlaying = hostInRecruitSlots(round);
+  const hostJoinBlocked = hostOptIn && !hostPlaying ? hostJoinBlock(round, memberGendersForSlots(round, users as User[]), me?.gender) : null;
+  // 参加確定の一覧に出す「プレーする主催者」（公式募集で参加中のとき。主催者欄は「ゴルトモ公式」のまま）
+  const playingHost = hostPlaying ? host : undefined;
   // 運営が代理で立てた枠（公式スレッド）。主催者がいない企画なので、
   // 募集中〜日程調整中のあいだは参加まわりの操作を専用パネルに寄せる。
   const officialStage = ((round as any).official?.stage as string | undefined);
@@ -452,24 +463,27 @@ export default function RoundDetailPage() {
     // Login is only requested when the visitor takes an action (apply, etc.).
     const url = `https://app.goltomo.com/round/${round!.id}`;
     const text = `${round!.eventType === 'drink' ? '🍻' : '⛳'} ${round!.title}\n${dateLabel}${round!.startTime ? ' ' + round!.startTime : ''}`;
-    track('share_round_click', { roundId: round!.id });
+    // 何を押して、どうなったかを管理画面の操作ログに日本語で出す（2026-10-12）
+    track('share_round_click', { roundId: round!.id, method: 'url' });
     const w = window as any;
     if (w.navigator?.share) {
       try {
         await w.navigator.share({ title: 'ゴルトモ ラウンド募集', text, url });
-        track('share_round_native_ok', { roundId: round!.id });
+        track('share_round_native_ok', { roundId: round!.id, method: 'native', result: 'sent' });
         return;
-      } catch {
+      } catch (e: any) {
         // user cancelled or unsupported — fall through to clipboard
+        track('share', { target: 'round', method: 'native', result: e?.name === 'AbortError' ? 'cancel' : 'error', roundId: round!.id });
       }
     }
     try {
       await navigator.clipboard.writeText(url);
       toast('リンクをコピーしました');
-      track('share_round_clipboard_ok', { roundId: round!.id });
+      track('share_round_clipboard_ok', { roundId: round!.id, method: 'copy_url', result: 'copied' });
     } catch {
       // Clipboard failed (e.g. webview without permission). Show the URL so
       // the user can long-press to copy manually.
+      track('share', { target: 'round', method: 'copy_url', result: 'failed', roundId: round!.id });
       window.prompt('このリンクをコピーして共有してください', url);
     }
   }
@@ -503,17 +517,41 @@ export default function RoundDetailPage() {
       url,
     ].filter((l) => l !== '');
     const text = lines.join('\n');
-    track('share_round_text', { roundId: r.id });
     try {
       await navigator.clipboard.writeText(text);
       toast('テキストをコピーしました');
+      track('share_round_text', { roundId: r.id, method: 'copy_text', result: 'copied' });
     } catch {
+      track('share_round_text', { roundId: r.id, method: 'copy_text', result: 'failed' });
       window.prompt('このテキストをコピーして共有してください', text);
     }
   }
   // 参加確定の人：理由を選び、キャンセル規約を確認してから（LeaveDialog）。
   // 申請中の人：確認だけで取り下げられる（まだ参加が決まっていないので理由は聞かない）。
   // ※ leaveOpen / leaving の useState は上（早期 return より前）にある。
+  // 公式募集の主催者本人：参加者として数える／数えない（運営として残る）を切り替える（2026-10-12）
+  async function toggleHostJoin(join: boolean) {
+    if (hostJoinBusy) return;
+    if (!join) {
+      const ok = await confirmDialog({
+        title: '参加をやめますか？',
+        message: '参加人数から外れ、運営（ゴルトモ公式）として管理だけを続けます。\n組み分け・配車・送迎・入金・スコアに入っているあなたの分は外れます。',
+        confirmText: '参加をやめる', cancelText: 'やめない',
+      });
+      if (!ok) return;
+    }
+    setHostJoinBusy(true);
+    try {
+      const updated = await store.setHostJoined(round!.id, join);
+      if (!storeRound) setFetchedRound(updated);
+      track(join ? 'host_join_self' : 'host_unjoin_self', { roundId: round!.id });
+      toast(join ? 'あなたも参加者になりました' : '参加をやめました（運営として残ります）');
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    } finally {
+      setHostJoinBusy(false);
+    }
+  }
   async function leaveNow(reason?: string, text?: string) {
     setLeaving(true);
     try { await store.leaveRound(round!.id, { reason, text }); toast('参加を取りやめました'); router.push('/home'); }
@@ -687,7 +725,7 @@ export default function RoundDetailPage() {
             </button>
           )}
           <button
-            onClick={() => setShareOpen(true)}
+            onClick={() => { setShareOpen(true); track('share', { target: 'round', method: 'menu_open', roundId: round.id }); }}
             className="px-3 py-1.5 bg-bg border-[1.5px] border-border rounded-full text-xs font-bold flex items-center gap-1"
             aria-label="この募集を友達にシェア"
           >
@@ -891,6 +929,29 @@ export default function RoundDetailPage() {
             消すときは、必ず別の場所に抜け道があることを確かめること。 */}
         {officialActive && !isHost ? null : isHost ? (
           <div className="space-y-2 mb-4">
+            {/* 公式募集の主催者本人：自分もプレーするか（2026-10-12）。参加すると募集枠を1つ使う */}
+            {hostOptIn && (hostPlaying ? (
+              <div className="bg-green-light border-[1.5px] border-green rounded-card p-3.5">
+                <div className="text-[13px] font-black text-green mb-1">✅ あなたも参加者として数えています</div>
+                <div className="text-[11px] text-sub mb-2.5 leading-relaxed">参加人数・組み分け・配車・入金・レビューに、ふつうの参加者として入っています。</div>
+                <button onClick={() => toggleHostJoin(false)} disabled={hostJoinBusy}
+                  className="w-full py-3 bg-card text-sub border border-border rounded-xl text-sm font-bold disabled:opacity-50">
+                  {hostJoinBusy ? '更新中…' : '参加をやめる（運営として残る）'}
+                </button>
+              </div>
+            ) : (
+              <div className="bg-card border-[1.5px] border-hair rounded-card p-3.5">
+                <div className="text-[13px] font-black mb-1">🏌️ あなたもプレーしますか？</div>
+                <div className="text-[11px] text-sub mb-2.5 leading-relaxed">いまは運営（ゴルトモ公式）として管理しているだけで、参加人数には入っていません。参加すると募集枠を1つ使い、ふつうの参加者として数えます。あとでやめることもできます。</div>
+                {hostJoinBlocked && (
+                  <div className="text-[11px] text-orange font-bold mb-2 leading-relaxed">⚠️ {hostJoinBlocked.message}</div>
+                )}
+                <button onClick={() => toggleHostJoin(true)} disabled={hostJoinBusy || !!hostJoinBlocked}
+                  className="w-full py-3 bg-orange text-white rounded-xl text-sm font-black disabled:opacity-40">
+                  {hostJoinBusy ? '更新中…' : 'わたしも参加する（人数に数える）'}
+                </button>
+              </div>
+            ))}
             {round.status === 'open' && (
               <button onClick={() => setInviteOpen(true)} className="w-full py-3 bg-green text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2">
                 <span>💌</span> ゴルトモを招待する
@@ -1094,9 +1155,32 @@ export default function RoundDetailPage() {
         )}
 
         {/* Approved applicants + ゲスト。レビュー/初参加の代わりにピックアップ状態を表示。 */}
-        {!hideOfficialMembers && (applicants.length > 0 || (round.guests?.length ?? 0) > 0) && (
+        {!hideOfficialMembers && (applicants.length > 0 || (round.guests?.length ?? 0) > 0 || !!playingHost) && (
           <div className="mb-4">
-            <div className="text-[13px] font-bold mb-2">参加確定（{applicants.length + (round.guests?.length ?? 0)}名）</div>
+            <div className="text-[13px] font-bold mb-2">参加確定（{applicants.length + (round.guests?.length ?? 0) + (playingHost ? 1 : 0)}名）</div>
+            {/* 公式募集で主催者本人もプレーするとき（2026-10-12）。外すボタンは出さない（本人が募集画面上の「参加をやめる」で外す） */}
+            {playingHost && (
+              <div className="mb-1.5">
+                <div className="flex items-center gap-2 p-2.5 bg-bg rounded-[10px]">
+                  <Link href={`/profile/${playingHost.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
+                    <Avatar user={playingHost} size={36} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-semibold truncate flex items-center gap-1.5">{playingHost.displayName}<span className="text-[10px] text-green font-bold flex-shrink-0">🏆 運営も参加</span></div>
+                      {isHost && participantNames[playingHost.id] && (
+                        <div className="text-[10px] text-green font-bold">📋 {participantNames[playingHost.id]}</div>
+                      )}
+                      <div className="text-[10px] text-sub">{describeUser(playingHost)} ・ {pickupStatusLabel(round.participantPickups?.[playingHost.id])}</div>
+                    </div>
+                  </Link>
+                  {canDmMembers && playingHost.id !== meId && (
+                    <Link href={`/chat/${chatIdFor(meId, playingHost.id)}?other=${playingHost.id}`} className="px-2.5 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
+                  )}
+                </div>
+                {(isHost || playingHost.id === meId) && round.status !== 'completed' && (
+                  <PickupMemberControl round={round} member={playingHost} meId={meId} isHost={isHost} />
+                )}
+              </div>
+            )}
             {applicants.map((u) => u && (
               <div key={u.id} className="mb-1.5">
                 <div className="flex items-center gap-2 p-2.5 bg-bg rounded-[10px]">
@@ -1387,7 +1471,7 @@ export default function RoundDetailPage() {
       )}
 
       {shareOpen && (
-        <div className="absolute inset-0 bg-black/50 z-[150] flex items-center justify-center p-5 backdrop-blur-sm" onClick={() => setShareOpen(false)}>
+        <div className="absolute inset-0 bg-black/50 z-[150] flex items-center justify-center p-5 backdrop-blur-sm" onClick={() => { setShareOpen(false); track('share', { target: 'round', method: 'menu_close', roundId: round.id }); }}>
           <div className="bg-card rounded-card p-5 w-full max-w-[350px] shadow-lg" onClick={(e) => e.stopPropagation()}>
             <div className="text-base font-black mb-1 text-center">シェア方法を選ぶ</div>
             <div className="text-[12px] text-sub text-center mb-4">友達への送り方を選んでください</div>
@@ -1403,7 +1487,7 @@ export default function RoundDetailPage() {
             >
               📋 テキストをコピー<span className="text-[11px] opacity-80 font-medium">（日時・場所・費用）</span>
             </button>
-            <button onClick={() => setShareOpen(false)} className="w-full py-2.5 mt-2 text-muted text-xs font-bold">キャンセル</button>
+            <button onClick={() => { setShareOpen(false); track('share', { target: 'round', method: 'menu_close', roundId: round.id }); }} className="w-full py-2.5 mt-2 text-muted text-xs font-bold">キャンセル</button>
           </div>
         </div>
       )}
@@ -1507,7 +1591,7 @@ ${guestLink.url}`)}`}
           <button
             onClick={async () => {
               try { await navigator.clipboard.writeText(guestLink.url); toast('リンクをコピーしました'); track('guest_invite_link_share', { roundId: round.id, via: 'copy' }); }
-              catch { toast('コピーできませんでした。上のリンクを長押ししてコピーしてください', 'error'); }
+              catch { track('guest_invite_link_share', { roundId: round.id, via: 'copy', result: 'failed' }); toast('コピーできませんでした。上のリンクを長押ししてコピーしてください', 'error'); }
             }}
             className="block w-full py-3 rounded-xl font-bold text-sm bg-card border-[1.5px] border-border text-sub"
           >📋 リンクをコピー</button>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from '@/components/Toast';
+import { track } from '@/lib/telemetry';
 import { confirmDialog } from '@/components/ConfirmDialog';
 import { resizeImage } from '@/lib/resizeImage';
 import type { RoundPhoto } from '@/lib/types';
@@ -51,6 +52,8 @@ export function RoundAlbum({ roundId, meId, isHost }: { roundId: string; meId: s
   // 表示中の写真を端末に保存（ダウンロード）。iOS/LINEアプリ内は Web Share（写真に保存）を
   // 優先し、無ければ <a download>、最後は新規タブ（長押しで保存）にフォールバックする。
   const [saving, setSaving] = useState(false);
+  // 写真の保存・共有を操作ログに残す（管理画面で日本語表示）（2026-10-12）
+  const log = (method: string, result: string) => track('share', { target: 'album_photo', method, result, roundId });
   async function savePhoto(url: string) {
     if (saving) return;
     setSaving(true);
@@ -60,7 +63,14 @@ export function RoundAlbum({ roundId, meId, isHost }: { roundId: string; meId: s
       const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
       const nav = navigator as any;
       if (nav.canShare && nav.canShare({ files: [file] })) {
-        await nav.share({ files: [file] });
+        try {
+          await nav.share({ files: [file] });
+          log('native', 'sent');
+        } catch (e: any) {
+          // 動きは今まで通り（下の「別タブで開く」に回す）。記録だけ足す
+          log('native', e?.name === 'AbortError' ? 'cancel' : 'error');
+          throw e;
+        }
         setSaving(false);
         return;
       }
@@ -70,9 +80,10 @@ export function RoundAlbum({ roundId, meId, isHost }: { roundId: string; meId: s
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(objUrl), 4000);
       toast('写真を保存しました');
+      log('save', 'saved');
     } catch {
-      try { window.open(url, '_blank'); toast('画像を長押しで保存してください'); }
-      catch { toast('保存に失敗しました', 'error'); }
+      try { window.open(url, '_blank'); toast('画像を長押しで保存してください'); log('save', 'opened_browser'); }
+      catch { log('save', 'failed'); toast('保存に失敗しました', 'error'); }
     }
     setSaving(false);
   }
