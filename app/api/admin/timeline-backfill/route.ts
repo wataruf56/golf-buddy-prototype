@@ -4,9 +4,10 @@ import { getAdminDb } from '@/lib/firebase';
 // POST /api/admin/timeline-backfill?token=XXX&days=30&dry=1 … タイムラインの「◯◯さんが「…」に参加しました」を過去にさかのぼって作る（2026-10-12）
 // 参加の記録（_timelineEvents の join）は 2026-10-12 から書き始めたので、それより前の参加は残っていない。
 // 「参加が確定した時刻」を、残っている記録から拾い直す（いちばん早いもの）：
+//   ⓪ 操作ログ（_auditLog の group.join「「…」に入った」）… 承認・空き待ちからの承認・招待リンクで入った、の時刻
 //   ① 本人に届いたお知らせ：承認（applyApproved）／「参加者として追加されました」（知り合い枠の置き換え）… link が /round/<id>
 //   ② 募集のチャットのシステムの1行：「👋 ◯◯さんが参加しました」（承認・空き待ちからの承認）
-//   ③ 主催者に届いたお知らせ（applyReceived）で、本人の名前と「参加」を含むもの（招待の受諾）
+//   ③ 主催者に届いたお知らせ（applyReceived）で「◯◯さんが招待を承認して参加しました」（招待の受諾）。「参加申請しました」は申請なので使わない
 // いまも参加している人だけ・その時刻が days 日以内のものだけ作る。すでに記録がある人はそのまま（上書きしない）。
 // dry=1 なら書かずに一覧だけ返す。表示（タイムライン）は lib/timeline が時刻順に並べるので、間に差し込まれる。
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
@@ -37,6 +38,18 @@ export async function POST(req: NextRequest) {
     return n;
   };
 
+  // 操作ログの「入った」（募集×人 → いちばん早い時刻）
+  const auditJoin = new Map<string, number>();
+  try {
+    const as = await adb.collection('_auditLog').where('action', '==', 'group.join').limit(5000).get();
+    for (const d of as.docs) {
+      const x = d.data() || {};
+      if (x.targetKind !== 'round' || !x.targetId || !x.actorId || !x.ts) continue;
+      const k = `${x.targetId}__${x.actorId}`;
+      if (!auditJoin.has(k) || x.ts < auditJoin.get(k)!) auditJoin.set(k, x.ts);
+    }
+  } catch { /* noop */ }
+
   const rows: Array<{ roundId: string; title: string; userId: string; name: string; at: number; source: string; existed: boolean }> = [];
   for (const r of rounds) {
     const link = `/round/${r.id}`;
@@ -49,6 +62,8 @@ export async function POST(req: NextRequest) {
       if (coHosts.has(uid)) continue;   // 共同管理者は作成時から参加扱い（承認の出来事がない）
       const name = await nameOf(uid);
       const cands: Array<{ at: number; source: string }> = [];
+      const aj = auditJoin.get(`${r.id}__${uid}`);
+      if (aj) cands.push({ at: aj, source: '操作ログ（入った）' });
       try {
         const ns = await adb.collection('users').doc(uid).collection('notifications').where('link', '==', link).limit(50).get();
         for (const d of ns.docs) {
@@ -59,7 +74,7 @@ export async function POST(req: NextRequest) {
       } catch { /* noop */ }
       if (name) {
         for (const m of chat) if (String(m.text || '').startsWith(`👋 ${name}さんが参加しました`)) cands.push({ at: m.createdAt, source: 'チャットの参加の1行' });
-        for (const x of hostNotes) if (x.type === 'applyReceived' && String(x.text || '').includes(name) && String(x.text || '').includes('参加')) cands.push({ at: x.createdAt, source: '招待の受諾' });
+        for (const x of hostNotes) if (x.type === 'applyReceived' && String(x.text || '').includes(`${name}さんが招待を承認して参加しました`)) cands.push({ at: x.createdAt, source: '招待の受諾' });
       }
       const best = cands.filter((c) => Number(c.at) > 0).sort((a, b) => a.at - b.at)[0];
       if (!best || best.at < since) continue;
