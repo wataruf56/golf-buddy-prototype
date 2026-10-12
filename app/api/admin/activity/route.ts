@@ -18,17 +18,40 @@ const DAY = 24 * 60 * 60 * 1000;
 function normPage(raw: string): string {
   let p = String(raw || '').split('?')[0];
   if (!p) return '(不明)';
+  if (p.length > 1) p = p.replace(/\/+$/, '');
+  // メッセージ・日程の決定などの子画面もまとめる。/swing/new は解析の新規なので [id] にしない（2026-10-12）
   p = p
-    .replace(/^\/round\/[^/]+\/chat$/, '/round/[id]/chat')
-    .replace(/^\/round\/[^/]+\/edit$/, '/round/[id]/edit')
+    .replace(/^\/round\/[^/]+\/(chat|edit|message|decide)$/, '/round/[id]/$1')
     .replace(/^\/round\/[^/]+$/, '/round/[id]')
     .replace(/^\/profile\/[^/]+$/, '/profile/[id]')
     .replace(/^\/chat\/[^/]+$/, '/chat/[id]')
     .replace(/^\/poll\/[^/]+$/, '/poll/[id]')
+    .replace(/^\/invite\/[^/]+$/, '/invite/[id]')
     .replace(/^\/rematch\/[^/]+$/, '/rematch/[id]')
-    .replace(/^\/swing\/[^/]+$/, '/swing/[id]');
+    .replace(/^\/share\/swing\/[^/]+$/, '/share/swing/[id]')
+    .replace(/^\/type\/[^/]+$/, '/type/[code]')
+    .replace(/^\/guide\/[^/]+$/, '/guide/[slug]')
+    .replace(/^\/swing\/(?!new$)[^/]+$/, '/swing/[id]');
   return p || '/';
 }
+
+// 操作ログの表示に使う data の項目だけを残す（ポップアップの種類・押したボタン・イチオシのID など）（2026-10-12）
+const DATA_KEYS = ['id', 'action', 'promoId', 'roundId', 'kind', 'via', 'n', 'menu'];
+function pickData(d: any): Record<string, string | number> | undefined {
+  if (!d || typeof d !== 'object') return undefined;
+  const o: Record<string, string | number> = {};
+  for (const k of DATA_KEYS) {
+    const v = d[k];
+    if (typeof v === 'string' && v) o[k] = v.slice(0, 80);
+    else if (typeof v === 'number') o[k] = v;
+  }
+  return Object.keys(o).length ? o : undefined;
+}
+
+// ポップアップ・声かけ系は「見ていた画面の募集」とは無関係に出る。
+// 画面のラウンドを「→ 対象」に付けると、そのラウンドの話に見えてしまうので付けない（2026-10-12）
+const isDetachedEvent = (ev: string) =>
+  ev === 'popup' || ev === 'timeline_tap' || /^(promo_popup_|avail_prompt_|pr_driver_|pr_rider_)/.test(ev);
 
 // GET /api/admin/activity?token=XXX
 // Activity report for the admin: who's opening the app, who's tapping around,
@@ -74,6 +97,7 @@ export async function GET(req: NextRequest) {
     const perUser: Record<string, {
       count: number; lastTs: number; lastPage: string;
       lastActionTs: number; lastActionEvent: string; lastActionPage: string;
+      lastActionData?: Record<string, string | number>;
     }> = {};
     for (const l of logs) {
       const uid = l.userId;
@@ -93,6 +117,7 @@ export async function GET(req: NextRequest) {
         perUser[uid].lastActionTs = l.ts || 0;
         perUser[uid].lastActionEvent = l.event;
         perUser[uid].lastActionPage = l.page || '';
+        perUser[uid].lastActionData = pickData(l.data);
       }
     }
 
@@ -111,7 +136,7 @@ export async function GET(req: NextRequest) {
         if (!to && l.event === 'page_view' && pageNorm === '/profile/[id]') {
           try { to = decodeURIComponent(String(l.page || '').split('?')[0].split('/').pop() || ''); } catch { /* noop */ }
         }
-        return { userId: l.userId, event: l.event, page: l.page, pageNorm, ts: l.ts, to };
+        return { userId: l.userId, event: l.event, page: l.page, pageNorm, ts: l.ts, to, data: pickData(l.data) };
       });
 
     // リッチメニューからの入口（?e= を付けたリンク経由の menu_entry を集計）。
@@ -201,9 +226,32 @@ export async function GET(req: NextRequest) {
       const m = String(page || '').split('?')[0].match(/^\/(?:round|poll)\/([^/]+)/);
       try { return m ? decodeURIComponent(m[1]) : ''; } catch { return m ? m[1] : ''; }
     };
+    // イチオシ募集（promoId）→ すすめた募集のID。ポップアップの「→ 対象」に出す（2026-10-12）
+    const promoIds = Array.from(new Set([
+      ...recentActions.map((a: any) => a.data?.promoId),
+      ...Object.values(perUser).map((v: any) => v.lastActionData?.promoId),
+    ].filter((x) => typeof x === 'string' && x))) as string[];
+    const promoRound: Record<string, string> = {};
+    for (let i = 0; i < promoIds.length; i += 30) {
+      const chunk = promoIds.slice(i, i + 30);
+      try {
+        const ps = await db.collection('_promoPopups').where('__name__', 'in', chunk).get();
+        ps.docs.forEach((d: any) => { const rid = d.data()?.roundId; if (rid) promoRound[d.id] = String(rid); });
+      } catch { /* 消されたイチオシは解決しない */ }
+    }
+    // 操作の対象ラウンド。data に書いてあればそれ、無ければ見ていた画面の募集。
+    // ポップアップ系は画面の募集を使わない（無関係な募集が対象に見えるため）（2026-10-12）
+    const targetRoundId = (ev: string, data: any, page: string): string => {
+      const d = data || {};
+      if (d.promoId && promoRound[d.promoId]) return promoRound[d.promoId];
+      if (typeof d.roundId === 'string' && d.roundId) return d.roundId;
+      if (/^pr_rider_/.test(ev) && typeof d.id === 'string') return d.id;   // 代理募集の声かけは id＝募集ID
+      return isDetachedEvent(ev) ? '' : roundIdOf(page);
+    };
     const roundIds = Array.from(new Set([
-      ...recentActions.map((a: any) => roundIdOf(a.page)),
+      ...recentActions.map((a: any) => targetRoundId(a.event, a.data, a.page)),
       ...Object.values(perUser).map((v: any) => roundIdOf(v.lastPage)),
+      ...Object.values(perUser).map((v: any) => targetRoundId(v.lastActionEvent, v.lastActionData, v.lastActionPage)),
     ].filter(Boolean)));
     const roundTitles: Record<string, string> = {};
     for (let i = 0; i < roundIds.length; i += 30) {
@@ -236,7 +284,9 @@ export async function GET(req: NextRequest) {
       .map(([id, v]) => ({ userId: id, name: nameOf(id), ...v, lastPageNorm: normPage(v.lastPage || ''),
         lastToName: (v as any).lastTo ? nameOf((v as any).lastTo) : '',
         lastRoundTitle: roundTitleOf(v.lastPage || ''),
-        lastRematchWith: rematchWith(v.lastPage || '', id) }))
+        lastRematchWith: rematchWith(v.lastPage || '', id),
+        lastActionDetached: isDetachedEvent(v.lastActionEvent || ''),
+        lastActionRoundTitle: roundTitles[targetRoundId(v.lastActionEvent, v.lastActionData, v.lastActionPage)] || '' }))
       .sort((a, b) => b.lastTs - a.lastTs);
     const active24h = activeUsers.filter((u) => now - u.lastTs <= DAY).length;
     const active7d = activeUsers.filter((u) => now - u.lastTs <= 7 * DAY).length;
@@ -374,8 +424,10 @@ export async function GET(req: NextRequest) {
       menuEntries,
       recentActions: recentActions.map((a: any) => ({
         ...a, name: nameOf(a.userId), toName: a.to ? nameOf(a.to) : '',
-        roundTitle: roundTitleOf(a.page),
-        rematchWith: rematchWith(a.page, a.userId),
+        roundTitle: roundTitles[targetRoundId(a.event, a.data, a.page)] || '',
+        // ポップアップ系は見ていた画面の再会相手も付けない（2026-10-12）
+        rematchWith: isDetachedEvent(a.event) ? '' : rematchWith(a.page, a.userId),
+        detached: isDetachedEvent(a.event),
       })),
       swingUsers,
       recentSwings,

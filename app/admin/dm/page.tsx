@@ -27,6 +27,8 @@ export default function AdminDmPage() {
 function Inner() {
   const search = useSearchParams();
   const tokenFromUrl = search?.get('token') || '';
+  // ?chatId= で開くと、そのスレッドを直接表示する（未読ユーザー画面から飛ぶ用）（2026-10-12）
+  const chatIdFromUrl = search?.get('chatId') || '';
   // 他の管理画面と同じ取得パターンに揃える。URLに ?token= が無くても
   // localStorage と /api/admin/init から拾えるようにしておかないと、
   // この画面だけ直接開けず「トークンが必要です」で止まってしまう。
@@ -72,6 +74,22 @@ function Inner() {
       .catch(() => setMessages([]))
       .finally(() => setMsgLoading(false));
   }
+
+  useEffect(() => {
+    if (!token || !chatIdFromUrl) return;
+    setActive({ chatId: chatIdFromUrl, a: { id: '', name: '…' }, b: { id: '', name: '…' }, lastMessage: '', lastMessageAt: 0 });
+    setMessages([]);
+    setMsgLoading(true);
+    fetch(`/api/admin/dm?token=${encodeURIComponent(token)}&chatId=${encodeURIComponent(chatIdFromUrl)}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => {
+        const ps: { id: string; name: string }[] = Array.isArray(d.participants) ? d.participants : [];
+        setActive({ chatId: chatIdFromUrl, a: ps[0] || { id: '', name: '？' }, b: ps[1] || { id: '', name: '？' }, lastMessage: '', lastMessageAt: 0 });
+        setMessages(Array.isArray(d.messages) ? d.messages : []);
+      })
+      .catch(() => setMessages([]))
+      .finally(() => setMsgLoading(false));
+  }, [token, chatIdFromUrl]);
 
   const filtered = threads.filter((t) =>
     !q.trim() || `${t.a.name} ${t.b.name} ${t.lastMessage}`.toLowerCase().includes(q.trim().toLowerCase()));

@@ -1,46 +1,23 @@
 'use client';
 
-import { Suspense, useEffect, useState, Fragment } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AdminTabs } from '@/components/AdminTabs';
 import { useSearchParams } from 'next/navigation';
+import { Linkify } from '@/components/Linkify';
 
 type UnreadUser = { userId: string; name: string; unread: number; chats: number; lastAt: number };
 type UnreadConfig = { enabled: boolean; delayMinutes: number; messageText: string; updatedAt?: number };
 
-// ごく簡易な Markdown レンダラ（#, ##, ---, - リスト, **太字**, `code`, _斜体_）。
-function renderInline(text: string, keyBase: string) {
-  const nodes: React.ReactNode[] = [];
-  // **bold** / `code` / _italic_ を順に処理。
-  const re = /(\*\*[^*]+\*\*|`[^`]+`|_[^_]+_)/g;
-  let last = 0, m: RegExpExecArray | null, i = 0;
-  while ((m = re.exec(text))) {
-    if (m.index > last) nodes.push(<Fragment key={`${keyBase}-t${i++}`}>{text.slice(last, m.index)}</Fragment>);
-    const tok = m[0];
-    if (tok.startsWith('**')) nodes.push(<b key={`${keyBase}-b${i++}`}>{tok.slice(2, -2)}</b>);
-    else if (tok.startsWith('`')) nodes.push(<code key={`${keyBase}-c${i++}`} className="bg-bg px-1 rounded text-[11px] break-all">{tok.slice(1, -1)}</code>);
-    else nodes.push(<span key={`${keyBase}-i${i++}`} className="text-muted">{tok.slice(1, -1)}</span>);
-    last = m.index + tok.length;
-  }
-  if (last < text.length) nodes.push(<Fragment key={`${keyBase}-t${i++}`}>{text.slice(last)}</Fragment>);
-  return nodes;
-}
+// 未読の内訳（チャットごと・未読メッセージの本文つき）（2026-10-12）
+type UnreadMsg = { senderId: string; senderName: string; text: string; hasImage: boolean; createdAt: number };
+type UnreadChat = { chatId: string; feature: string; fromId: string; fromName: string; unread: number; lastAt: number; messages?: UnreadMsg[] };
+type UnreadDetail = { user: { userId: string; name: string }; total: number; detail: UnreadChat[]; markdown: string };
 
-function Markdown({ md }: { md: string }) {
-  const lines = md.split('\n');
-  return (
-    <div className="text-[13px] leading-relaxed">
-      {lines.map((ln, idx) => {
-        if (ln.trim() === '') return <div key={idx} className="h-2" />;
-        if (ln.startsWith('# ')) return <div key={idx} className="text-lg font-black mt-1 mb-1">{renderInline(ln.slice(2), `l${idx}`)}</div>;
-        if (ln.startsWith('## ')) return <div key={idx} className="text-[14px] font-black mt-3 mb-1 text-green">{renderInline(ln.slice(3), `l${idx}`)}</div>;
-        if (ln.startsWith('### ')) return <div key={idx} className="text-[13px] font-black mt-2">{renderInline(ln.slice(4), `l${idx}`)}</div>;
-        if (ln.trim() === '---') return <hr key={idx} className="my-2 border-border" />;
-        if (ln.startsWith('- ')) return <div key={idx} className="flex gap-1.5 pl-1 my-0.5"><span className="text-muted">•</span><span className="flex-1 min-w-0 break-words">{renderInline(ln.slice(2), `l${idx}`)}</span></div>;
-        return <div key={idx} className="my-0.5 break-words">{renderInline(ln, `l${idx}`)}</div>;
-      })}
-    </div>
-  );
+// 日本時間で「10/12 11:47」
+function jst(ts: number): string {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 export default function AdminUnreadPage() {
@@ -55,6 +32,8 @@ function Inner() {
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState('');
   const [md, setMd] = useState('');
+  const [detail, setDetail] = useState<UnreadDetail | null>(null);
+  const [detailErr, setDetailErr] = useState('');
   const [detailLoading, setDetailLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   // 未読通知の設定（送信タイミング＝経過時間・ON/OFF・通知文）。
@@ -128,12 +107,13 @@ function Inner() {
   }
 
   async function openUser(userId: string) {
-    setActive(userId); setMd(''); setDetailLoading(true); setCopied(false);
+    setActive(userId); setMd(''); setDetail(null); setDetailErr(''); setDetailLoading(true); setCopied(false);
     try {
       const r = await fetch(`/api/admin/unread?token=${encodeURIComponent(token)}&userId=${encodeURIComponent(userId)}`, { cache: 'no-store' });
       const j = await r.json();
-      if (r.ok) setMd(j.markdown || '（未読はありません）');
-    } catch { setMd('取得に失敗しました'); }
+      if (r.ok) { setDetail(j); setMd(j.markdown || ''); }
+      else setDetailErr('取得に失敗しました');
+    } catch { setDetailErr('取得に失敗しました'); }
     finally { setDetailLoading(false); }
   }
 
@@ -150,7 +130,7 @@ function Inner() {
           <Link href={`/admin?token=${token}`} className="text-muted text-sm">‹ 管理</Link>
           <AdminTabs token={token} group="messages" current="/admin/unread" />
           <div className="text-2xl font-black mb-1 mt-1">📩 未読ユーザー</div>
-          <div className="text-[12px] text-muted mb-3">DMに未読があるユーザー。タップすると「何が未読か」をMarkdownで確認できます。</div>
+          <div className="text-[12px] text-muted mb-3">DMに未読があるユーザー。タップすると未読のメッセージ（本文）を確認できます。</div>
 
           {/* ⚙️ 未読通知の設定（送信タイミング＝経過時間・ON/OFF・通知文・今すぐ送信） */}
           <div className="bg-card rounded-xl shadow-card p-4 mb-4">
@@ -230,17 +210,65 @@ function Inner() {
       ) : (
         <>
           <div className="flex items-center gap-2 mb-2">
-            <button onClick={() => { setActive(''); setMd(''); }} className="text-blue text-sm font-semibold">‹ 一覧</button>
+            <button onClick={() => { setActive(''); setMd(''); setDetail(null); }} className="text-blue text-sm font-semibold">‹ 一覧</button>
             <div className="flex-1" />
-            <button onClick={copyMd} disabled={!md} className="px-3 py-1.5 bg-card border border-border rounded-lg text-xs font-bold disabled:opacity-50">{copied ? '✓ コピー' : '📋 Markdownをコピー'}</button>
+            <button onClick={copyMd} disabled={!md} className="px-3 py-1.5 bg-card border border-border rounded-lg text-xs font-bold disabled:opacity-50">{copied ? '✓ コピー' : '📋 コピー'}</button>
             <Link href={`/admin/support?token=${token}&userId=${active}`} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-black">🛡️ 連絡</Link>
           </div>
           {detailLoading ? (
             <div className="text-center text-sm text-muted py-10">読み込み中...</div>
+          ) : detailErr || !detail ? (
+            <div className="text-center text-sm text-muted py-10">{detailErr || '取得に失敗しました'}</div>
           ) : (
-            <div className="bg-card rounded-xl shadow-card p-4">
-              <Markdown md={md} />
-            </div>
+            <>
+              <div className="text-lg font-black">📩 {detail.user.name} さんの未読</div>
+              <div className="text-[12px] text-muted mb-1">未読 <b className="text-text">{detail.total}件</b>（{detail.detail.length}件のやり取り）</div>
+              <div className="text-[11px] text-red mb-3">個人間のやり取りです。取り扱いに注意。</div>
+              {detail.detail.length === 0 ? (
+                <div className="text-center text-sm text-muted py-10">未読はありません</div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {detail.detail.map((c) => {
+                    const msgs = c.messages || [];
+                    return (
+                      <div key={c.chatId} className="bg-card rounded-xl shadow-card p-3.5">
+                        <div className="flex items-start gap-2 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[11px] text-muted">{c.feature === 'DM' ? '💬 DM' : '🛡️ 管理人チャット'}</div>
+                            <div className="text-[14px] font-black break-words">{c.fromName} さんから</div>
+                          </div>
+                          <span className="px-2 py-0.5 bg-orange text-white text-[11px] font-black rounded-full flex-shrink-0">未読 {c.unread}</span>
+                        </div>
+                        {msgs.length === 0 ? (
+                          <div className="text-[12px] text-muted py-2">メッセージを読み込めませんでした。</div>
+                        ) : (
+                          <div className="flex flex-col gap-1.5">
+                            {msgs.map((m, i) => (
+                              <div key={i} className="p-2.5 bg-bg rounded-lg">
+                                <div className="flex items-center justify-between gap-2 mb-0.5">
+                                  <span className="text-[12px] font-bold text-text truncate">{m.senderName}</span>
+                                  <span className="text-[10px] text-muted flex-shrink-0">{jst(m.createdAt)}</span>
+                                </div>
+                                {m.text && <div className="text-[13px] whitespace-pre-wrap break-words"><Linkify text={m.text} /></div>}
+                                {m.hasImage && <div className="text-[12px] text-sub mt-0.5">📷 画像</div>}
+                                {!m.text && !m.hasImage && <div className="text-[12px] text-muted">（本文なし）</div>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {msgs.length > 0 && msgs.length < c.unread && (
+                          <div className="text-[10px] text-muted mt-1">※ 新しい{msgs.length}件だけ表示しています</div>
+                        )}
+                        {/* 前後のやり取りはDMログで（2026-10-12） */}
+                        <Link href={`/admin/dm?token=${encodeURIComponent(token)}&chatId=${encodeURIComponent(c.chatId)}`} className="block text-right text-[12px] text-blue font-bold mt-2">
+                          やり取りをすべて見る（DMログ）›
+                        </Link>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
         </>
       )}

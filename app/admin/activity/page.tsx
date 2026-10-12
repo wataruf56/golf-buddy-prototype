@@ -4,13 +4,16 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { appProfileUrl } from '@/lib/adminLinks';
+import { popupDef } from '@/lib/popupCatalog';
 
 type Report = {
   generatedAt: number;
   // 上部KPI（事業のボトルネックが見える4つ）
   kpi?: { monthPlayers: number; monthRounds: number; monthHosts: number; fillRate: number; active30d: number };
   summary: { active24h: number; active7d: number; totalUsersSeen: number; totalSwingUsers: number; totalSwings: number; logsScanned: number };
-  activeUsers: { userId: string; name: string; count: number; lastTs: number; lastPage: string; lastPageNorm?: string; lastActionTs: number; lastActionEvent: string; lastActionPage: string; lastToName?: string; lastRoundTitle?: string; lastRematchWith?: string }[];
+  activeUsers: { userId: string; name: string; count: number; lastTs: number; lastPage: string; lastPageNorm?: string; lastActionTs: number; lastActionEvent: string; lastActionPage: string; lastToName?: string; lastRoundTitle?: string; lastRematchWith?: string;
+    // ポップアップ系か（画面の募集を対象にしない）・その操作の対象ラウンド・押したボタンなど（2026-10-12）
+    lastActionDetached?: boolean; lastActionRoundTitle?: string; lastActionData?: Record<string, string | number> }[];
   popularPages?: { page: string; views: number; users: number; lastTs: number }[];
   acquisition?: {
     total: number; tagged: number;
@@ -19,7 +22,8 @@ type Report = {
     byChannel?: { channel: string; count: number; tags: { source: string; count: number }[] }[];
   };
   menuEntries?: { menu: string; count: number }[];
-  recentActions: { userId: string; name: string; event: string; page: string; pageNorm?: string; ts: number; to?: string; toName?: string; roundTitle?: string; rematchWith?: string }[];
+  recentActions: { userId: string; name: string; event: string; page: string; pageNorm?: string; ts: number; to?: string; toName?: string; roundTitle?: string; rematchWith?: string;
+    data?: Record<string, string | number>; detached?: boolean }[];
   swingUsers: { userId: string; name: string; total: number; done: number; lastAt: number }[];
   recentSwings: { userId: string; name: string; mode: string; status: string; createdAt: number }[];
 };
@@ -28,29 +32,58 @@ const MODE_LABEL: Record<string, string> = {
   self: '自分解析', compare: 'プロ比較', past: '過去比較', range_vs_round: '練習場vs本番', question: '質問',
 };
 
-// 画面パス → 分かりやすい日本語名（人気の画面の表示用）。
+// 画面パス（正規化済み）→ 分かりやすい日本語名。人気の画面・操作ログ・①の「いま見ている画面」で共用する。
+// 生のパスは見出しに出さない（2026-10-12）。新しい画面を足したらここにも足す。
 const PAGE_LABEL: Record<string, string> = {
+  '/': '🚪 トップ',
+  '/app': '🚪 アプリの入口',
   '/home': '🏠 ホーム',
   '/search': '🔍 さがす',
-  '/create': '➕ ラウンド募集の作成',
-  '/swing': '🏌️ スイング解析',
-  '/swing/new': '🏌️ スイング解析（新規）',
-  '/swing/[id]': '🏌️ スイング解析（結果）',
-  '/buddies': '👥 ゴル友',
+  '/create': '✏️ 募集の作成',
+  '/timeline': '📰 タイムライン',
+  '/availability': '📅 行ける日',
+  '/buddies': '🤝 ゴル友',
+  '/add-friend': '🤝 友達の追加',
+  '/friends/confirm': '🤝 友達の確認',
+  '/qr': '📱 QRコード',
   '/mypage': '👤 マイページ',
   '/mypage/edit': '✏️ プロフィール編集',
-  '/guide': '📖 使い方',
+  '/rounds/upcoming': '📅 参加予定',
+  '/rounds/past': '🏁 過去ラウンド',
   '/round/[id]': '⛳ ラウンド詳細',
   '/round/[id]/chat': '💬 ラウンドチャット',
   '/round/[id]/edit': '✏️ ラウンド編集',
-  '/profile/[id]': '👤 他の人のプロフィール',
-  '/chat/[id]': '💬 DM（チャット）',
+  '/round/[id]/message': '📣 主催者からのメッセージ',
+  '/round/[id]/decide': '📅 日程の決定',
+  '/invite/[id]': '💌 招待',
   '/poll/[id]': '📅 日程調整',
-  '/rematch/[id]': '🔁 再会エンジン',
-  '/qr': '🤝 QRコード',
+  '/profile/[id]': '👤 他の人のプロフィール',
+  '/chat/[id]': '💬 DM',
+  '/rematch/[id]': '🔁 再会',
+  '/swing': '🏌️ スイング解析',
+  '/swing/new': '🏌️ スイング解析（新規）',
+  '/swing/[id]': '🏌️ スイング解析（結果）',
+  '/share/swing/[id]': '🏌️ スイング結果の共有ページ',
+  '/guide': '📖 使い方',
+  '/guide/[slug]': '📰 紹介記事',
+  '/guides': '📰 紹介記事の一覧',
+  '/legal/money': '💴 お金のルール',
+  '/legal/terms': '📄 利用規約',
+  '/legal/privacy': '📄 プライバシーポリシー',
+  '/about': 'ℹ️ ゴルトモについて',
+  '/lp': '📣 紹介ページ（LP）',
+  '/links': '🔗 リンク集',
+  '/links/rounds': '🔗 募集一覧（外部向け）',
+  '/type': '🧩 ゴルフタイプ診断',
+  '/type/[code]': '🧩 ゴルフタイプ診断の結果',
+  '/go': '🚪 案内ページ',
   '/liff': '🔑 ログイン',
+  '/login': '🔑 ログイン',
 };
-const pageLabel = (p: string) => PAGE_LABEL[p] || p;
+const isKnownPage = (p: string) => !!PAGE_LABEL[p];
+const pageLabel = (p: string) => PAGE_LABEL[p] || '📱 その他の画面';
+// 絵文字を外した名前（「見ていた画面：ラウンド詳細」用）
+const pagePlain = (p: string) => pageLabel(p).replace(/^\S+\s/, '');
 
 // 流入経路ソースの日本語ラベル（?ref= の値 → 表示名）。未知の値はそのまま表示。
 const SOURCE_LABEL: Record<string, string> = {
@@ -84,12 +117,14 @@ const tagDetailLabel = (src: string) => {
   return TAG_SUFFIX_LABEL[suffix] || suffix;
 };
 
-// 英語のイベント名 → 日本語の分かりやすい説明
+// 英語のイベント名 → 日本語の分かりやすい説明。
+// track('…') を足したらここにも足す（無いと「その他の操作」になる）（2026-10-12）
 const EVENT_LABEL: Record<string, string> = {
   app_open: 'アプリを開いた',
   hydrate_success: 'アプリ起動（読込成功）',
   hydrate_error: 'アプリ起動エラー',
   mypage_render: 'マイページを表示',
+  menu_entry: 'リッチメニューから入った',
   profile_edit_initialized: 'プロフィール編集を開いた',
   profile_save_click: '［ボタン］プロフィール保存',
   profile_save_success: 'プロフィール保存 完了',
@@ -105,10 +140,10 @@ const EVENT_LABEL: Record<string, string> = {
   round_create_success: '募集を作成 完了',
   round_create_error: '募集作成 エラー',
   round_scores_save: 'スコアを保存',
-  join_round_click: '［ボタン］ラウンド参加',
+  join_round_click: '［ボタン］ラウンドに参加',
   join_round_success: 'ラウンド参加申請 完了',
   join_round_error: 'ラウンド参加 エラー',
-  join_round_profile_gate: 'ラウンド参加（プロフィール未登録）',
+  join_round_profile_gate: 'ラウンド参加（プロフィール未登録で止まった）',
   review_submit_click: '［ボタン］レビュー送信',
   review_submit_success: 'レビュー投稿 完了',
   review_submit_error: 'レビュー エラー',
@@ -129,47 +164,72 @@ const EVENT_LABEL: Record<string, string> = {
   dm_open: '💬 DMを開いた',
   dm_send: '💬 DMを送信',
   round_chat_send: '💬 ラウンドチャット送信',
+  round_chat_react: '😊 チャットにリアクション',
   interest_toggle: '❤️ 気になるを操作',
   match_select: '🤝 マッチ選択（行きたい/回ってみたい/気になる）',
   invite_send: '💌 招待した',
   approve_applicant: '✅ 参加を承認',
   block_user: '🚫 ブロック',
   report_user: '🚩 通報した',
+  // ゲスト枠（2026-10-12）
+  guest_invite_link_open: '🎫 ゲスト用の招待リンクを作った',
+  guest_invite_link_share: '🎫 ゲスト用の招待リンクを共有',
+  replace_guest: '🎫 ゲスト枠を登録ユーザーに置き換えた',
+  // イチオシ募集のポップアップ（2026-10-12）
+  promo_popup_show: '🔥 イチオシ募集のポップアップが出た',
+  promo_popup_go: '🔥 イチオシで『参加してみる』を押した',
+  promo_popup_close: '🔥 イチオシを『見送る』にした',
+  // ラウンド後の「行ける日を入れてみませんか？」（2026-10-12）
+  avail_prompt_show: '📅 「行ける日を入れてみませんか？」が出た',
+  avail_prompt_go: '📅 「行ける日を入れてみませんか？」で『入力する』を押した',
+  avail_prompt_close: '📅 「行ける日を入れてみませんか？」を閉じた',
+  // 管理者の代理ラウンド募集（車を出す人・乗る人への声かけ）（2026-10-12）
+  pr_driver_view: '🚗 代理募集：車を出す声かけを見た',
+  pr_driver_open: '🚗 代理募集：『駅を選ぶ』を押した',
+  pr_driver_done: '🚗 代理募集：駅を登録した（枠が立った）',
+  pr_driver_later: '🚗 代理募集：車を出す声かけを『あとで』',
+  pr_rider_view: '🚗 代理募集：参加の声かけを見た',
+  pr_rider_join: '🚗 代理募集：声かけから参加した',
+  pr_rider_later: '🚗 代理募集：参加の声かけを『あとで』',
+  timeline_tap: '📰 タイムラインの項目を押した',
 };
-function eventJa(ev: string): string {
-  if (EVENT_LABEL[ev]) return EVENT_LABEL[ev];
-  // フォールバック：末尾の語から推測
-  if (/click$/.test(ev)) return '［ボタン］' + ev.replace(/_click$/, '');
-  if (/success$/.test(ev)) return ev.replace(/_success$/, '') + ' 完了';
-  if (/error$/.test(ev)) return ev.replace(/_error$/, '') + ' エラー';
-  return ev;
+const TIMELINE_KIND: Record<string, string> = { signup: '新しく登録した人', avail: '行ける日の入力', round: '募集の開始', join: '募集への参加' };
+const SHARE_VIA: Record<string, string> = { line: 'LINEで', copy: 'リンクをコピーして' };
+
+type Ev = { main: string; raw?: string };
+// 操作ログ1行の見出し。data があればポップアップの種類・押したボタンまで日本語にする（2026-10-12）
+// raw … 名前の無い操作の生の名前（小さく添えるだけ。見出しには使わない）
+function eventJa(ev: string, data?: Record<string, string | number>): Ev {
+  const d = data || {};
+  if (ev === 'popup') {
+    const def = popupDef(String(d.id || ''));
+    const name = def ? `ポップアップ『${def.name}』` : 'ポップアップ（種類不明）';
+    const raw = def ? undefined : String(d.id || '');
+    const act = String(d.action || '');
+    if (act === 'show') return { main: `🪟 ${name}が出た`, raw };
+    const label = def?.actions[act];
+    if (!label) return { main: `🪟 ${name}でその他の操作`, raw: `${d.id || ''} ${act}`.trim() };
+    // 「完了にした」のように動作を言い切っている語はそのまま、ボタン名は『』で囲む
+    return { main: /た$/.test(label) ? `🪟 ${name}：${label}` : `🪟 ${name}で『${label}』を押した`, raw };
+  }
+  if (ev === 'timeline_tap' && d.kind && TIMELINE_KIND[String(d.kind)]) {
+    return { main: `📰 タイムラインで「${TIMELINE_KIND[String(d.kind)]}」を押した` };
+  }
+  if (ev === 'guest_invite_link_share' && d.via && SHARE_VIA[String(d.via)]) {
+    return { main: `🎫 ゲスト用の招待リンクを${SHARE_VIA[String(d.via)]}共有` };
+  }
+  if (ev === 'pr_driver_done' && typeof d.n === 'number') {
+    return { main: `🚗 代理募集：駅を${d.n}つ登録した（枠が立った）` };
+  }
+  if (EVENT_LABEL[ev]) return { main: EVENT_LABEL[ev] };
+  // 名前の無い操作は英語のまま出さない
+  return { main: 'その他の操作', raw: ev };
 }
 
-// 画面パス（正規化済み）→ 日本語ラベル。①で「いま何の画面を見ているか」を表示する用。
-const SCREEN_LABEL: Record<string, string> = {
-  '/home': '🏠 ホーム',
-  '/search': '🔍 さがす',
-  '/create': '✏️ 募集する',
-  '/swing': '📊 スイング',
-  '/buddies': '🤝 ゴル友',
-  '/mypage': '👤 マイページ',
-  '/mypage/edit': '👤 プロフィール編集',
-  '/qr': '📱 QRコード',
-  '/rounds/upcoming': '📅 参加予定',
-  '/rounds/past': '🏁 過去ラウンド',
-  '/chat/[id]': '💬 DM画面',
-  '/round/[id]': '⛳ ラウンド詳細',
-  '/round/[id]/chat': '💬 ラウンドチャット',
-  '/round/[id]/edit': '✏️ ラウンド編集',
-  '/profile/[id]': '👤 他の人のプロフィール',
-  '/poll/[id]': '📅 日程調整',
-  '/rematch/[id]': '🔁 再会',
-  '/swing/[id]': '📊 スイング詳細',
-  '/guide': '📖 ガイド',
-};
+// ①で「いま何の画面を見ているか」を表示する用。
 function screenJa(pageNorm?: string): string {
   if (!pageNorm) return '👀 閲覧中';
-  return SCREEN_LABEL[pageNorm] || `👀 ${pageNorm}`;
+  return pageLabel(pageNorm);
 }
 
 function ago(ts: number): string {
@@ -275,7 +335,11 @@ function Inner() {
               return data.popularPages.map((p, i) => (
                 <div key={p.page} className="py-2 border-b border-border last:border-0">
                   <div className="flex items-baseline justify-between mb-1 gap-2">
-                    <span className="text-[13px] font-bold truncate">{i + 1}. {pageLabel(p.page)}</span>
+                    <span className="text-[13px] font-bold truncate">
+                      {i + 1}. {pageLabel(p.page)}
+                      {/* 名前の無い画面だけ、どの画面かを小さく添える（2026-10-12） */}
+                      {!isKnownPage(p.page) && <span className="text-[10px] text-muted font-normal ml-1">{p.page}</span>}
+                    </span>
                     <span className="text-[12px] font-black text-green flex-shrink-0">{p.views}回<span className="text-[10px] text-muted font-normal ml-1">/ {p.users}人</span></span>
                   </div>
                   <div className="h-2 bg-bg rounded overflow-hidden">
@@ -379,7 +443,12 @@ function Inner() {
               // 直近が操作（lastActionTs が lastTs と同じ）→ 操作を出す。そうでなければ今見ている画面を出す。
               const whenTs = u.lastTs || u.lastActionTs;
               const showAction = !!u.lastActionEvent && u.lastActionTs >= u.lastTs;
-              const what = showAction ? eventJa(u.lastActionEvent) : screenJa(u.lastPageNorm);
+              const what = showAction ? eventJa(u.lastActionEvent, u.lastActionData).main : screenJa(u.lastPageNorm);
+              // ポップアップ系は、見ていた画面の相手・募集を「→ 対象」にしない（その話に見えるため）（2026-10-12）
+              const detached = showAction && !!u.lastActionDetached;
+              const lastTo = detached ? '' : (u.lastToName || '');
+              const lastRound = showAction ? (u.lastActionRoundTitle ?? u.lastRoundTitle ?? '') : (u.lastRoundTitle || '');
+              const lastRematch = detached ? '' : (u.lastRematchWith || '');
               const open = openUser === u.userId;
               const mine = open ? data.recentActions.filter((a) => a.userId === u.userId) : [];
               return (
@@ -393,10 +462,10 @@ function Inner() {
                       <span className="text-muted mr-1">{open ? '▾' : '▸'}</span>{u.name}
                     </div>
                     <div className="text-[10px] text-muted break-words leading-snug">
-                      {what}{u.lastToName && <span className="text-green font-bold"> → {u.lastToName}</span>}
-                      {!u.lastToName && u.lastRoundTitle && <span className="text-blue font-bold"> → {u.lastRoundTitle}</span>}
-                      {!u.lastToName && !u.lastRoundTitle && u.lastRematchWith && (
-                        <span className="text-blue font-bold"> → {u.lastRematchWith}さんとの再会</span>
+                      {what}{lastTo && <span className="text-green font-bold"> → {lastTo}</span>}
+                      {!lastTo && lastRound && <span className="text-blue font-bold"> → {lastRound}</span>}
+                      {!lastTo && !lastRound && lastRematch && (
+                        <span className="text-blue font-bold"> → {lastRematch}さんとの再会</span>
                       )}
                     </div>
                   </div>
@@ -413,25 +482,36 @@ function Inner() {
                     </div>
                     {mine.length === 0 ? (
                       <div className="text-[10px] text-muted py-2">この期間の操作ログはありません。</div>
-                    ) : mine.map((a, i) => (
+                    ) : mine.map((a, i) => {
+                      // 見出しは必ず日本語。生のイベント名・パスは、名前が無いときだけ小さく添える（2026-10-12）
+                      const pn = a.pageNorm || a.page;
+                      const isView = a.event === 'page_view';
+                      const ev: Ev = isView
+                        ? { main: `${pageLabel(pn)}を開いた`, raw: isKnownPage(pn) ? undefined : a.page }
+                        : eventJa(a.event, a.data);
+                      const hasTarget = !!(a.toName || a.roundTitle || a.rematchWith);
+                      return (
                       <div key={i} className="flex items-start justify-between gap-2 py-1 border-b border-border last:border-0">
                         <div className="min-w-0 flex-1">
-                          <div className="text-[11.5px] leading-snug break-words">
-                            {a.event === 'page_view' ? `📱 ${pageLabel(a.pageNorm || a.page)}を開いた` : eventJa(a.event)}
+                          <div className="text-[11.5px] leading-snug break-words" title={ev.raw || a.event}>
+                            {ev.main}
                             {a.toName && <span className="text-green font-bold"> → {a.toName}</span>}
                             {!a.toName && a.roundTitle && <span className="text-blue font-bold"> → {a.roundTitle}</span>}
                             {/* 再会エンジンはURLにペアIDが入るだけなので、相手の名前に置き換える */}
                             {!a.toName && !a.roundTitle && a.rematchWith && (
                               <span className="text-blue font-bold"> → {a.rematchWith}さんとの再会</span>
                             )}
+                            {/* ポップアップ系は「どの画面で出たか」だけを添える（その画面の募集の話ではない） */}
+                            {!isView && (a.detached || !hasTarget) && (
+                              <span className="text-[10px] text-muted">（{a.detached ? '見ていた画面' : '画面'}：{pagePlain(pn)}）</span>
+                            )}
                           </div>
-                          {!a.toName && !a.roundTitle && !a.rematchWith && (
-                            <div className="text-[9px] text-muted break-all">{a.page}</div>
-                          )}
+                          {ev.raw && <div className="text-[9px] text-muted break-all">{ev.raw}</div>}
                         </div>
                         <div className="text-[10px] text-muted flex-shrink-0 whitespace-nowrap">{ago(a.ts)}</div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
