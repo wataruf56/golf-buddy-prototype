@@ -1,5 +1,8 @@
 'use client';
 
+import { computeRoundUnread, threadSeenKey } from '@/lib/roundUnread';
+import { UnreadCountBadge } from '@/components/RoundChatNewBadge';
+import { refreshRoundUnread } from '@/lib/useUnread';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -53,6 +56,8 @@ export default function RoundChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [threads, setThreads] = useState<RoundThread[]>([]);
   const [activeThread, setActiveThread] = useState<string | null>(null); // null = main chat
+  const activeThreadRef = useRef<string | null>(null);
+  useEffect(() => { activeThreadRef.current = activeThread; }, [activeThread]);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [denied, setDenied] = useState(false);
@@ -119,21 +124,34 @@ export default function RoundChatPage() {
   useEffect(() => {
     if (!params.id) return;
     load();
-    markRoundChatSeen(params.id);
-    const interval = setInterval(() => { load(); markRoundChatSeen(params.id); }, 3000);
+    if (!activeThreadRef.current) markRoundChatSeen(params.id);
+    const interval = setInterval(() => { load(); if (!activeThreadRef.current) markRoundChatSeen(params.id); }, 3000);
     return () => clearInterval(interval);
   }, [params.id]);
 
-  // 既読をサーバーにも残す（ほかの端末でも「💬 新着」を消す）。新しい発言・スレッドが見えたときだけ送る（2026-10-12）
-  const seenSentRef = useRef(0);
+  // 既読をサーバーにも残す（ほかの端末でも消す）。本流とスレッドは別々に既読にする＝見ている方だけ（2026-10-13）。
+  // 新しい発言（またはスレッドが立った時刻）が見えたときだけ送る。
+  const seenSentRef = useRef<Record<string, number>>({});
+  const roundChatSeen = useStore((s) => s.roundChatSeen);
   useEffect(() => {
     if (!loaded) return;
-    const newest = Math.max(0, ...messages.map((m) => m.createdAt || 0), ...threads.map((t: any) => Number(t.createdAt) || 0));
-    if (!newest || newest <= seenSentRef.current) return;
-    seenSentRef.current = newest;
-    store.setRoundChatSeen(params.id, newest);
-    fetch(`/api/rounds/${params.id}/chat/seen`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ at: newest }), cache: 'no-store', credentials: 'include' }).catch(() => {});
-  }, [loaded, messages, threads, params.id]);
+    const tid = activeThread || '';
+    const inView = messages.filter((m) => (tid ? m.threadId === tid : !m.threadId));
+    const tAt = tid ? Number((threads.find((t) => t.id === tid) as any)?.createdAt) || 0 : 0;
+    const newest = Math.max(0, tAt, ...inView.map((m) => m.createdAt || 0));
+    const key = tid ? threadSeenKey(params.id, tid) : params.id;
+    if (!newest || newest <= (seenSentRef.current[key] || 0)) return;
+    seenSentRef.current[key] = newest;
+    store.setRoundChatSeen(key, newest);
+    fetch(`/api/rounds/${params.id}/chat/seen`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ at: newest, threadId: tid || undefined }), cache: 'no-store', credentials: 'include' })
+      .then(() => refreshRoundUnread(true)).catch(() => {});
+  }, [loaded, messages, threads, params.id, activeThread]);
+  // この画面の未読（スレッドの①②・本流）。既読はサーバーの記録（無ければこの端末の記録）
+  const unreadHere = useMemo(() => {
+    const seen: Record<string, number> = { ...(roundChatSeen || {}) };
+    seen[params.id] = Math.max(Number(seen[params.id]) || 0, Number((typeof window !== 'undefined' && localStorage.getItem('gb-seen-round-' + params.id)) || 0) || 0);
+    return computeRoundUnread(params.id, meId, messages, threads as any, seen);
+  }, [messages, threads, roundChatSeen, params.id, meId]);
 
   // Messages for the current view (main = no threadId; thread = matching threadId).
   const shown = useMemo(
@@ -335,7 +353,7 @@ export default function RoundChatPage() {
       <div className="flex items-center gap-3 px-5 py-3 border-b border-border bg-card flex-shrink-0 sticky top-0 z-10">
         {activeThread ? (
           <>
-            <button onClick={() => setActiveThread(null)} className="text-blue text-sm font-bold">← 戻る</button>
+            <button onClick={() => setActiveThread(null)} className="text-blue text-sm font-bold inline-flex items-center gap-1">← 戻る{unreadHere.main > 0 && <UnreadCountBadge n={unreadHere.main} />}</button>
             <div className="flex-1 min-w-0">
               <div className="text-[15px] font-bold truncate">{activeThreadObj?.name || 'スレッド'}</div>
               <div className="text-[11px] text-sub truncate">スレッド ・ グループチャットに戻るには「戻る」</div>
@@ -373,7 +391,11 @@ export default function RoundChatPage() {
                 className="flex-shrink-0 inline-flex items-center gap-1.5 bg-green-light text-green rounded-full px-3 py-1.5 text-[12px] font-bold"
               >
                 {t.name}
-                <span className="bg-green text-white rounded-full text-[9px] px-1.5 py-px">{countFor(t.id)}</span>
+                {unreadHere.threads[t.id]
+                  ? <UnreadCountBadge n={unreadHere.threads[t.id]} />
+                  : unreadHere.newThreads.includes(t.id)
+                    ? <UnreadCountBadge n={0} label="NEW" />
+                    : <span className="bg-green/70 text-white rounded-full text-[9px] px-1.5 py-px">{countFor(t.id)}</span>}
               </button>
             ))}
             <button

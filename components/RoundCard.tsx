@@ -1,5 +1,6 @@
 'use client';
 
+import { RoundChatNewBadge } from '@/components/RoundChatNewBadge';
 import Link from 'next/link';
 import type { Round, User } from '@/lib/types';
 import { useStore, getMe } from '@/lib/store';
@@ -72,9 +73,7 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
           {(round.pendingApplicantIds || []).length > 0 && (
             <span className="inline-flex items-center gap-1 px-2 py-[2px] rounded-full text-[10px] font-bold bg-orange-light text-orange border border-orange">📥 申請 {(round.pendingApplicantIds || []).length}</span>
           )}
-          {hasUnread && (
-            <span className="inline-flex items-center gap-1 px-2 py-[2px] rounded-full text-[10px] font-bold bg-red text-white">💬 新着</span>
-          )}
+          {hasUnread && <RoundChatNewBadge roundId={round.id} variant="pill" />}
         </div>
       )}
 

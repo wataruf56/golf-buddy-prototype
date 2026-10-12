@@ -22,6 +22,8 @@ type Store = {
   roundChatActivity: Record<string, number>;
   // グループチャットを最後に見た時刻（サーバー保存・端末をまたいで既読にする）（2026-10-12）
   roundChatSeen: Record<string, number>;
+  // グループチャットの未読件数（募集ごと・本流とスレッド別）。null＝まだ数えていない（2026-10-13・lib/roundUnread）
+  roundUnread: Record<string, import('./roundUnread').RoundUnread> | null;
   banned: boolean;
   // 部分制限フラグ（noCreate / noDM / noChat / noInterest / noReview / noInvite /
   // noApplyAll / applyBlockHostIds）。UIの事前ブロックに使う。
@@ -51,6 +53,7 @@ const initial: Store = {
   buddyIds: [],
   roundChatActivity: {},
   roundChatSeen: {},
+  roundUnread: null,
   banned: false,
   restrictions: {},
   isAdmin: false,
@@ -101,10 +104,12 @@ async function api<T = any>(path: string, init?: RequestInit): Promise<T> {
 export const store = {
   get: () => state,
   // グループチャットをここまで見た（画面の「💬 新着」をすぐ消す。サーバーへは chat/seen）（2026-10-12）
-  setRoundChatSeen: (roundId: string, at: number) => {
-    const cur = Number(state.roundChatSeen?.[roundId]) || 0;
-    if (at > cur) setState({ roundChatSeen: { ...(state.roundChatSeen || {}), [roundId]: at } });
+  // key は募集ID（本流）か「募集ID__スレッドID」（lib/roundUnread.threadSeenKey）
+  setRoundChatSeen: (key: string, at: number) => {
+    const cur = Number(state.roundChatSeen?.[key]) || 0;
+    if (at > cur) setState({ roundChatSeen: { ...(state.roundChatSeen || {}), [key]: at } });
   },
+  setRoundUnread: (u: Record<string, import('./roundUnread').RoundUnread>) => setState({ roundUnread: u }),
   subscribe: (fn: () => void) => { listeners.add(fn); return () => { listeners.delete(fn); }; },
 
   hydrate: async () => {

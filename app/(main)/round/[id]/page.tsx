@@ -882,7 +882,7 @@ export default function RoundDetailPage() {
           <Link href={`/round/${round.id}/chat`} className="flex items-center gap-2 p-3 bg-green-light text-green rounded-xl mb-2 font-bold text-sm">
             <span className="text-lg">💬</span>
             <span className="flex-1">ラウンドチャット（参加者全員）</span>
-            <RoundChatNewBadge roundId={round.id} />
+            <RoundChatNewBadge roundId={round.id} variant="label" />
             <span>›</span>
           </Link>
         )}

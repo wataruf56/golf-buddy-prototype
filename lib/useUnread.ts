@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useStore } from './store';
+import { useStore, store } from './store';
 
 const SEEN_KEY_PREFIX = 'gb-seen-round-';
 
@@ -17,12 +17,34 @@ export function markRoundChatSeen(roundId: string) {
   window.dispatchEvent(new Event('gb-unread-update'));
 }
 
+// 未読件数（①②のバッジ）はサーバーで数える（POST /api/me/round-unread・lib/roundUnread）（2026-10-13）。
+// たくさんの部品が同じフックを使うので、読み込みは1か所にまとめ、10秒に1回まで（既読にしたときは即）。
+let lastFetchAt = 0;
+let inflight = false;
+export async function refreshRoundUnread(force = false) {
+  if (typeof window === 'undefined' || inflight) return;
+  if (!force && Date.now() - lastFetchAt < 10_000) return;
+  const s = store.get();
+  if (!s.meId || s.meId === 'me') return;
+  inflight = true; lastFetchAt = Date.now();
+  try {
+    const localSeen: Record<string, number> = {};
+    for (const r of s.rounds) {
+      if (r.hostId !== s.meId && !(r.applicantIds || []).includes(s.meId)) continue;
+      const v = getSeen(r.id); if (v) localSeen[r.id] = v;
+    }
+    const res = await fetch('/api/me/round-unread', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ localSeen }), cache: 'no-store', credentials: 'include' });
+    if (res.ok) { const j = await res.json(); store.setRoundUnread(j.unread || {}); }
+  } catch { /* noop */ } finally { inflight = false; }
+}
+
 export function useUnreadCounts() {
   const meId = useStore((s) => s.meId);
   const chats = useStore((s) => s.chats);
   const rounds = useStore((s) => s.rounds);
   const activity = useStore((s) => s.roundChatActivity);
   const serverSeen = useStore((s) => s.roundChatSeen);
+  const counts = useStore((s) => s.roundUnread);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
@@ -34,6 +56,9 @@ export function useUnreadCounts() {
       window.removeEventListener('storage', onUpdate);
     };
   }, []);
+  // 新しい動きが来たら（bootstrap の最終投稿時刻が変わったら）件数を読み直す
+  const activityKey = Object.values(activity || {}).reduce((a, b) => a + (Number(b) || 0), 0);
+  useEffect(() => { refreshRoundUnread(false); }, [activityKey, meId]);
 
   // 1on1 chats（DM）: 未読メッセージの「件数」を合計する（LINEのバッジと同じ考え方）。
   let buddiesUnread = 0;
@@ -41,11 +66,17 @@ export function useUnreadCounts() {
     buddiesUnread += c.unreadCount?.[meId] || 0;
   }
 
-  // Round group chats: my participating rounds with last activity > my lastSeen
+  // Round group chats: 件数が読めていればそれ（自分の発言は除く）。まだなら最終投稿時刻と既読の比較（件数なし）
   let roundUnread = 0;
   const unreadRoundIds = new Set<string>();
+  const countByRound: Record<string, number> = {};
   for (const r of rounds) {
     if (r.hostId !== meId && !(r.applicantIds || []).includes(meId)) continue;
+    if (counts) {
+      const n = counts[r.id]?.total || 0;
+      if (n > 0) { roundUnread += 1; unreadRoundIds.add(r.id); countByRound[r.id] = n; }
+      continue;
+    }
     const lastActivity = activity?.[r.id] || 0;
     if (!lastActivity) continue;
     // 一度でも見たら既読（この端末の記録か、ほかの端末で見た記録＝サーバーの新しい方）（2026-10-12）
@@ -64,5 +95,7 @@ export function useUnreadCounts() {
     roundUnread,
     totalUnread: buddiesUnread + roundUnread,
     unreadRoundIds,
+    /** その募集の未読件数（数えられていないときは 0＝バッジは「新着」だけ） */
+    countByRound,
   };
 }

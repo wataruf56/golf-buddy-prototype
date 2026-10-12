@@ -1,5 +1,6 @@
 'use client';
 
+import { RoundChatNewBadge } from '@/components/RoundChatNewBadge';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { getMe, useStore } from '@/lib/store';
@@ -76,7 +77,7 @@ export default function PastRoundsPage() {
                       <div className="text-[14px] font-bold truncate">{r.title}</div>
                       <div className="text-[11px] text-muted mt-0.5 truncate">{formatDate(r.date) || r.dateRange || '日程未定'} ・ {role} ・ {people}人{r.courseName ? ` ・ ${r.courseName}` : ''}</div>
                     </div>
-                    {unread && <span className="px-1.5 py-0.5 bg-orange text-white text-[10px] font-bold rounded-full flex-shrink-0">新着</span>}
+                    {unread && <RoundChatNewBadge roundId={r.id} />}
                     <span className="text-[18px] flex-shrink-0" aria-hidden>💬</span>
                   </Link>
                   {n > 0 && (

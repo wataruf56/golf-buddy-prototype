@@ -1,5 +1,6 @@
 'use client';
 
+import { RoundChatNewBadge } from '@/components/RoundChatNewBadge';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -219,6 +220,7 @@ export default function MyPage() {
                   <div className="text-[13px] font-bold truncate">{r.title}</div>
                   <div className="text-[11px] text-muted">{formatDate(r.date) || r.dateRange} ・ {role}</div>
                 </div>
+                <RoundChatNewBadge roundId={r.id} className="mr-1.5" />
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${r.status === 'open' ? 'bg-green-light text-green' : r.status === 'completed' ? 'bg-blue-light text-blue' : 'bg-bg text-sub'}`}>
                   {r.status === 'open' ? '募集中' : r.status === 'completed' ? '完了' : '終了'}
                 </span>

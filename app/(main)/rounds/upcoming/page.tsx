@@ -1,5 +1,6 @@
 'use client';
 
+import { RoundChatNewBadge } from '@/components/RoundChatNewBadge';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getMe, useStore } from '@/lib/store';
@@ -89,6 +90,7 @@ export default function UpcomingRoundsPage() {
                       {stage ? role : `${formatDate(r.date) || r.dateRange || '日程未定'} ・ ${role}`}
                     </div>
                   </div>
+                  <RoundChatNewBadge roundId={r.id} className="ml-2" />
                   {stage === 'deciding' ? (
                     <span className="text-[10px] font-black px-2 py-0.5 rounded-full ml-2 flex-shrink-0 bg-orange text-white">📝 決めること</span>
                   ) : (
