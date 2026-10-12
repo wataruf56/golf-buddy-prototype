@@ -461,6 +461,8 @@ export type Message = {
   // For round group chat: which thread this message belongs to. Undefined/empty
   // = the main (本流) chat. Set = a named sub-thread (e.g. 配車相談).
   threadId?: string;
+  // グループチャットのリアクション（2026-10-12・lib/chatReactions）。キー → 押した人の userId
+  reactions?: Record<string, string[]>;
 };
 
 // A named sub-thread inside a round's group chat (e.g. 「🚗 配車相談」).

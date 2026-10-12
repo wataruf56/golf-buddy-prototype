@@ -30,6 +30,7 @@ export const LINE_KIND_LABEL: Record<string, string> = {
   availPrompt: '行ける日の入力のおすすめ（ラウンド後）',
   avail_room_nudge: '行ける日の部屋：運営からの声かけ',
   avail_friend_nudge: '行ける日：友達からの声かけ',
+  availMonthly: '行ける日：毎月のお知らせ（月末2日前）',
   friend: 'QR友達追加',
   survey: 'アンケート一致のお知らせ',
   swing: 'スイング解析',

@@ -60,6 +60,14 @@ export async function GET(req: NextRequest) {
     results.upcomingReminders = { error: (e as Error).message };
   }
 
+  // 毎月の「行ける日を入れませんか？」の LINE（月末2日前の12:00以降に1回）（2026-10-12）
+  try {
+    const { sendMonthlyAvailLine } = await import('@/lib/availMonthly');
+    results.availMonthly = await sendMonthlyAvailLine();
+  } catch (e) {
+    results.availMonthly = { error: (e as Error).message };
+  }
+
   // 行ける日の部屋：集まったのに誰も話していない部屋に、運営から声かけ（2026-10-11）
   try {
     const { nudgeQuietRooms } = await import('@/lib/availRooms');

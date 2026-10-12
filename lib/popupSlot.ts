@@ -27,6 +27,7 @@ export const POPUP_PRIORITY = {
   chase: 60,         // 追いDMの確認
   official: 55,      // 運営枠の声かけ
   availPrompt: 50,   // ラウンド後の「行ける日を入れてみませんか？」
+  availMonthly: 48,  // 毎月（月末2日前〜）の「行ける日を入れませんか？」
   availIntro: 45,    // 行ける日の使い方
   swingIntro: 40,    // スイングの使い方
   hostNudge: 30,     // 「次は募集してみない？」

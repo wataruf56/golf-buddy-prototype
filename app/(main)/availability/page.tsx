@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
+import { RoomIntroSheet } from '@/components/RoomIntroSheet';
 import { AvailLegend, AvailPersonChip } from '@/components/AvailPersonChip';
 import { AVAIL_ROOM_MIN, dateLabel, isoOf, monthsBetween, WEEKDAYS, type AvailPerson } from '@/lib/availabilityShared';
 
@@ -23,7 +24,7 @@ type Resp = {
   canOpenProfiles: boolean;
   window: { from: string; to: string; days: number };
   /** 自分が入っている日付ごとのチャット部屋 */
-  rooms?: Record<string, { id: string; count: number }>;
+  rooms?: Record<string, { id: string; count: number; introDone?: boolean }>;
 };
 const NUMS = [2, 3, 4, 5, 6, 7, 8];
 const RETURN_TO = '/mypage/edit?returnTo=' + encodeURIComponent('/availability');
@@ -36,6 +37,8 @@ export default function AvailabilityPage() {
   const [monthIdx, setMonthIdx] = useState(0);
   const [focusIso, setFocusIso] = useState('');
   const [busy, setBusy] = useState(false);
+  // 部屋に入ったときの「ひとこと」（2026-10-12）
+  const [introFor, setIntroFor] = useState<{ roomId: string; date: string } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -92,6 +95,9 @@ export default function AvailabilityPage() {
       if (j?.rooms && next.dates) {
         const opened = next.dates.filter((d) => j.rooms[d] && !(revert.rooms || {})[d]);
         if (opened.length) toast(`${dateLabel(opened[0]).md} のチャットが始まりました`);
+        // 部屋に入ったら、選ぶだけの「ひとこと」を聞く（lib/roomIntro・2026-10-12）
+        const entered = opened.find((d) => !j.rooms[d].introDone);
+        if (entered) setIntroFor({ roomId: j.rooms[entered].id, date: entered });
       }
       if (next.car && next.car !== revert.car) { store.refreshMe().catch(() => {}); }
     } catch {
@@ -298,6 +304,14 @@ export default function AvailabilityPage() {
           {data.canOpenProfiles ? ' 札をタップするとプロフィールが開きます。' : ' 友達（🤝）は名前が出て、タップでプロフィールが開きます。それ以外の人は年齢と、車を出せるかだけです。'}
         </div>
       </div>
+      {introFor && (
+        <RoomIntroSheet roomId={introFor.roomId} dateLabel={`${dateLabel(introFor.date).md}（${dateLabel(introFor.date).w}）`}
+          onDone={(sent) => {
+            const rid = introFor.roomId; setIntroFor(null);
+            setData((cur) => (cur && cur.rooms ? { ...cur, rooms: Object.fromEntries(Object.entries(cur.rooms).map(([k, v]: [string, any]) => [k, v.id === rid ? { ...v, introDone: true } : v])) } : cur));
+            if (sent) router.push(`/round/${rid}/chat`);
+          }} />
+      )}
     </div>
   );
 }

@@ -166,8 +166,9 @@ export async function onAvailabilityRemoved(me: User, date: string): Promise<voi
 }
 
 /** 自分が入っている部屋（日付 → 部屋）。行ける日の画面で「この日のチャットへ」を出すため。 */
-export async function roomsFor(userId: string, dates: string[]): Promise<Record<string, { id: string; count: number }>> {
-  const out: Record<string, { id: string; count: number }> = {};
+// introDone … その部屋で「ひとこと」（lib/roomIntro）を送ったか・送らないを選んだか（2026-10-12）
+export async function roomsFor(userId: string, dates: string[]): Promise<Record<string, { id: string; count: number; introDone?: boolean }>> {
+  const out: Record<string, { id: string; count: number; introDone?: boolean }> = {};
   const adb = getAdminDb() as any;
   if (!dates.length || !adb) return out;
   // 自分が入っている募集を1回で引いて、部屋（availDate つき）だけ拾う（日付ごとに読まない）
@@ -175,7 +176,7 @@ export async function roomsFor(userId: string, dates: string[]): Promise<Record<
   snap.docs.forEach((d: any) => {
     const r = d.data() || {};
     if (r.availDate && dates.includes(r.availDate) && r.status !== 'completed') {
-      out[r.availDate] = { id: d.id, count: (r.applicantIds || []).length };
+      out[r.availDate] = { id: d.id, count: (r.applicantIds || []).length, introDone: !!(r.roomIntroDone || {})[userId] };
     }
   });
   return out;

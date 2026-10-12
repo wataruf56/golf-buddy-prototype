@@ -12,6 +12,8 @@ import { markRoundChatSeen } from '@/lib/useUnread';
 import type { Message, Round, RoundThread } from '@/lib/types';
 import { ADMIN_MANAGER_AVATAR, ADMIN_MANAGER_ID, ADMIN_MANAGER_NAME, SYSTEM_SENDER_ID } from '@/lib/adminManagerId';
 import { linkifyNodes } from '@/components/Linkify';
+import { RoomIntroSheet } from '@/components/RoomIntroSheet';
+import { REACTIONS } from '@/lib/chatReactions';
 
 // Branded launch URL (handled in middleware → LIFF). Lets us share a friendly
 // goltomo.com/app link that deep-links to this group chat after login.
@@ -59,6 +61,10 @@ export default function RoundChatPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const round = storeRound || fetchedRound;
+  // 行ける日の部屋：まだあいさつしていない人に「選ぶだけのあいさつ」を出す（2026-10-12・components/RoomIntroSheet）
+  const [introClosed, setIntroClosed] = useState(false);
+  // リアクションを選ぶ欄を開いている発言（吹き出しをタップで開く）
+  const [pickerFor, setPickerFor] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -191,6 +197,28 @@ export default function RoundChatPage() {
     } finally {
       setSending(false);
     }
+  }
+
+  // リアクション：押すたびに付ける／外す。先に画面を変えてから送る（3秒ごとの読み直しで正しい値にそろう）
+  async function react(messageId: string, key: string) {
+    setPickerFor(null);
+    if (!meId) return;
+    setMessages((prev) => prev.map((m) => {
+      if (m.id !== messageId) return m;
+      const cur: Record<string, string[]> = { ...(m.reactions || {}) };
+      const list = cur[key] || [];
+      const next = list.includes(meId) ? list.filter((x) => x !== meId) : [...list, meId];
+      if (next.length) cur[key] = next; else delete cur[key];
+      return { ...m, reactions: cur };
+    }));
+    try {
+      const res = await fetch(`/api/rounds/${params.id}/chat/react`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId, key }), cache: 'no-store',
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      track('round_chat_react');
+    } catch { toast('リアクションを送れませんでした', 'error'); load(); }
   }
 
   async function send() {
@@ -373,7 +401,8 @@ export default function RoundChatPage() {
                   <div className="text-[10px] text-muted mb-0.5 ml-1">{ADMIN_MANAGER_NAME}</div>
                 )}
                 <div
-                  className={`px-3.5 py-2.5 text-sm leading-relaxed ${mine ? 'bg-green text-white' : 'bg-card text-text shadow-card'}`}
+                  onClick={(e) => { if ((e.target as HTMLElement).closest('a')) return; setPickerFor(pickerFor === m.id ? null : m.id); }}
+                  className={`px-3.5 py-2.5 text-sm leading-relaxed cursor-pointer select-text ${mine ? 'bg-green text-white' : 'bg-card text-text shadow-card'}`}
                   style={{ borderRadius: mine ? '14px 14px 4px 14px' : '14px 14px 14px 4px' }}
                 >
                   {m.imageUrl && (
@@ -386,6 +415,43 @@ export default function RoundChatPage() {
                     {new Date(m.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
+                {/* リアクション：付いている数（自分が押したものは色つき）＋選ぶ欄（吹き出しをタップで開く） */}
+                {(() => {
+                  const rx = m.reactions || {};
+                  const used = REACTIONS.filter((r) => (rx[r.key] || []).length > 0);
+                  if (!used.length && pickerFor !== m.id) return null;
+                  return (
+                    <div className={`flex flex-wrap gap-1 mt-1 ${mine ? 'justify-end' : 'justify-start'}`}>
+                      {used.map((r) => {
+                        const ids = rx[r.key] || [];
+                        const on = !!meId && ids.includes(meId);
+                        return (
+                          <button key={r.key} type="button" onClick={() => react(m.id, r.key)} aria-label={`${r.label} ${ids.length}`}
+                            className={'inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[12px] font-bold border-[1.5px] ' + (on ? 'bg-green-light border-green text-green' : 'bg-card border-border text-sub')}>
+                            <span>{r.emoji}</span><span className="text-[11px]">{ids.length}</span>
+                          </button>
+                        );
+                      })}
+                      {pickerFor !== m.id && (
+                        <button type="button" onClick={() => setPickerFor(m.id)} aria-label="リアクションを付ける"
+                          className="px-2 py-0.5 rounded-full text-[11px] font-bold border-[1.5px] border-dashed border-border text-muted bg-card">＋</button>
+                      )}
+                    </div>
+                  );
+                })()}
+                {pickerFor === m.id && (
+                  <div className={`flex ${mine ? 'justify-end' : 'justify-start'} mt-1`}>
+                    <div className="inline-flex gap-0.5 bg-card border-[1.5px] border-border rounded-full px-1.5 py-1 shadow-card">
+                      {REACTIONS.map((r) => {
+                        const on = !!meId && (m.reactions?.[r.key] || []).includes(meId);
+                        return (
+                          <button key={r.key} type="button" onClick={() => react(m.id, r.key)} aria-label={r.label}
+                            className={'w-8 h-8 rounded-full text-[18px] leading-none grid place-items-center active:scale-90 ' + (on ? 'bg-green-light' : '')}>{r.emoji}</button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -465,6 +531,17 @@ export default function RoundChatPage() {
         <button onClick={send} disabled={sending} aria-label="送信" className="self-end flex-shrink-0 w-10 h-10 bg-green text-white rounded-full text-base font-bold disabled:opacity-50">➤</button>
       </div>
       )}
+
+      {/* 行ける日の部屋：まだ一言も話していない人に、選ぶだけのあいさつを出す（1部屋1回・送っても送らなくても以後は出さない） */}
+      {(() => {
+        const r: any = fetchedRound || round;
+        const show = loaded && !introClosed && !activeThread && !!r?.availDate && !!meId
+          && !(r.roomIntroDone || {})[meId] && !messages.some((m) => m.senderId === meId);
+        if (!show) return null;
+        const d = new Date(`${r.availDate}T00:00:00+09:00`);
+        const label = isNaN(d.getTime()) ? undefined : `${d.getMonth() + 1}/${d.getDate()}`;
+        return <RoomIntroSheet roomId={params.id} dateLabel={label} onDone={() => { setIntroClosed(true); load(); }} />;
+      })()}
     </div>
   );
 }
