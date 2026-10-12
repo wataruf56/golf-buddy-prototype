@@ -14,7 +14,12 @@ export function computeRoundUnread(
   roundId: string, meId: string, messages: Msg[], threads: Thread[], seen: Record<string, number>,
 ): RoundUnread {
   const mainSeen = Number(seen[roundId]) || 0;
-  const seenOf = (tid?: string) => (tid ? Number(seen[threadSeenKey(roundId, tid)]) || mainSeen : mainSeen);
+  // スレッドの記録が無いときだけ本流で代用（0 は「まだ一度も見ていない」なので代用しない）
+  const seenOf = (tid?: string) => {
+    if (!tid) return mainSeen;
+    const v = seen[threadSeenKey(roundId, tid)];
+    return v == null ? mainSeen : Number(v) || 0;
+  };
   let main = 0;
   const th: Record<string, number> = {};
   for (const m of messages) {

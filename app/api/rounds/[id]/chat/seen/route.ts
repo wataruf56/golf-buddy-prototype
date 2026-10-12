@@ -20,6 +20,20 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const adb = getAdminDb() as any;
   const tid = typeof body.threadId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(body.threadId) ? body.threadId : '';
   const key = tid ? threadSeenKey(params.id, tid) : params.id;
-  if (adb) await adb.collection('users').doc(meId).set({ roundChatSeen: { [key]: at } }, { merge: true });
+  if (adb) {
+    const patch: Record<string, number> = { [key]: at };
+    // 本流を既読にするとき、まだ自分の記録が無いスレッドには「これまでの本流の既読」を写しておく。
+    // スレッドの既読は無ければ本流で代用するので、写さないとスレッドを開いていないのに既読になってしまう（2026-10-13）
+    if (!tid) {
+      const [uSnap, thSnap] = await Promise.all([
+        adb.collection('users').doc(meId).get(),
+        adb.collection('rounds').doc(params.id).collection('threads').limit(50).get().catch(() => ({ docs: [] })),
+      ]);
+      const cur: Record<string, number> = (uSnap.data() || {}).roundChatSeen || {};
+      const oldMain = Number(cur[params.id]) || 0;
+      for (const d of thSnap.docs) { const k = threadSeenKey(params.id, d.id); if (cur[k] == null) patch[k] = oldMain; }
+    }
+    await adb.collection('users').doc(meId).set({ roundChatSeen: patch }, { merge: true });
+  }
   return NextResponse.json({ ok: true, at }, { headers: noStore });
 }

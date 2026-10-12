@@ -142,6 +142,11 @@ export default function RoundChatPage() {
     const key = tid ? threadSeenKey(params.id, tid) : params.id;
     if (!newest || newest <= (seenSentRef.current[key] || 0)) return;
     seenSentRef.current[key] = newest;
+    if (!tid) {
+      // 本流を既読にする前に、記録の無いスレッドへ「これまでの本流の既読」を写す（サーバーの chat/seen と同じ）
+      const old = Number(store.get().roundChatSeen?.[params.id]) || 0;
+      for (const t of threads) { const k = threadSeenKey(params.id, t.id); if (store.get().roundChatSeen?.[k] == null) store.setRoundChatSeen(k, old || 1); }
+    }
     store.setRoundChatSeen(key, newest);
     fetch(`/api/rounds/${params.id}/chat/seen`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ at: newest, threadId: tid || undefined }), cache: 'no-store', credentials: 'include' })
       .then(() => refreshRoundUnread(true)).catch(() => {});
