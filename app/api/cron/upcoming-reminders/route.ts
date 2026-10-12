@@ -35,6 +35,9 @@ const DAY = 24 * 60 * 60 * 1000;
 const JST = 9 * 60 * 60 * 1000;
 const SEND_HOUR = 12;
 const MAX_PER_TICK = 60;
+// 🙏 は実行時に作る。文字列を定数のまま並べると、ビルド（SWC）がテンプレート文字列にまとめる際に
+// 絵文字を「\uD83D\uDE4F」と二重にエスケープし、チャットにそのまま文字で出た（2026-10-12）
+const PRAY = String.fromCodePoint(0x1F64F);
 
 const dayNo = (ms: number) => Math.floor((ms + JST) / DAY);   // JST の通し日数
 function targetMs(date: string, startTime?: string): number | null {
@@ -93,7 +96,7 @@ export async function GET(req: NextRequest) {
       const head = daysUntil === 0 ? '本日はいよいよラウンドです！' : daysUntil === 1 ? '明日はいよいよラウンドです！'
         : daysUntil === 7 ? 'ラウンドの1週間前になりました！' : daysUntil >= 28 && daysUntil <= 31 ? 'ラウンドの1か月前になりました！' : `ラウンドの${daysUntil}日前になりました！`;
       const lines = [`@全員`, `⛳ ${head}`, `「${title}」${when}`, ''];
-      lines.push(daysUntil <= 1 ? '集合場所・時間とピックアップ（送迎）の最終確認をお願いします🙏' : 'ピックアップ（送迎）や入金などの確認をお願いします🙏');
+      lines.push(daysUntil <= 1 ? '集合場所・時間とピックアップ（送迎）の最終確認をお願いします' + PRAY : 'ピックアップ（送迎）や入金などの確認をお願いします' + PRAY);
       if (payDl && payDl > now) lines.push(`💴 入金期日：${fmt(payDl)}`);
       if (cancelDl && cancelDl > now) lines.push(`⏰ キャンセル期限：${fmt(cancelDl)}`);
       jobs.push({ round: r, key: `d${daysUntil}`, text: lines.join('\n') });
@@ -104,7 +107,7 @@ export async function GET(req: NextRequest) {
       const isToday = dayNo(cancelDl) === today;
       jobs.push({ round: r, key: `cancel_${cancelDl}`, text: [
         `@全員`, `⏰ ${isToday ? '本日' : '明日'} ${hm(cancelDl)} がキャンセル期限です（「${title}」）`,
-        '', '期限を過ぎると、アプリからは参加を取りやめられなくなります。行けなくなりそうな方は、それまでにお知らせください🙏',
+        '', '期限を過ぎると、アプリからは参加を取りやめられなくなります。行けなくなりそうな方は、それまでにお知らせください' + PRAY,
       ].join('\n') });
       continue;
     }
@@ -113,7 +116,7 @@ export async function GET(req: NextRequest) {
       jobs.push({ round: r, key: `pay3_${payDl}`, text: [
         `@全員`, `💴 入金期日まであと3日です（${fmt(payDl)}）`,
         pi.amount ? `「${title}」の参加費 ${Number(pi.amount).toLocaleString('ja-JP')}円` : `「${title}」の参加費`,
-        '', 'まだの方は「💰 入金」タブの振込先へお願いします。入金済みの方は、このメッセージは気にしないでください🙏',
+        '', 'まだの方は「💰 入金」タブの振込先へお願いします。入金済みの方は、このメッセージは気にしないでください' + PRAY,
       ].join('\n') });
       continue;
     }
@@ -123,7 +126,7 @@ export async function GET(req: NextRequest) {
       jobs.push({ round: r, key: `pay0_${payDl}`, text: [
         `@全員`, `💴 ${isToday ? '本日' : '明日'} ${hm(payDl)} が入金期日です（「${title}」）`,
         pi.amount ? `参加費 ${Number(pi.amount).toLocaleString('ja-JP')}円` : '',
-        '', 'まだの方は「💰 入金」タブの振込先へお願いします。入金済みの方は、このメッセージは気にしないでください🙏',
+        '', 'まだの方は「💰 入金」タブの振込先へお願いします。入金済みの方は、このメッセージは気にしないでください' + PRAY,
       ].filter((x, i) => x !== '' || i > 2).join('\n') });
       continue;
     }
