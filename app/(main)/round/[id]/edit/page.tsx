@@ -14,7 +14,7 @@ import { Stepper } from '@/components/Stepper';
 import { isRoundHost } from '@/lib/roundHost';
 import { guestNamesFrom } from '@/lib/roundGuests';
 import { CancelPolicyEditor, emptyCancelDraft, draftToPayload, type CancelPolicyDraft } from '@/components/CancelPolicy';
-import { jstToMs, msToJst } from '@/lib/cancelPolicy';
+import { jstToMs, msToJst, swapConditionForPayment } from '@/lib/cancelPolicy';
 import { hostCounts, hostSeat, currentCountOf } from '@/lib/hostCount';
 
 // 募集タイトルのプルダウン既定値。管理画面で編集されると /api/round-titles で上書き。
@@ -52,7 +52,7 @@ export default function EditRoundPage() {
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   // 編集画面のセクション切り替えタブ（募集内容／募集人数／ピックアップ）。
-  const [tab, setTab] = useState<'basic' | 'count' | 'pickup' | 'payment'>('basic');
+  const [tab, setTab] = useState<'basic' | 'count' | 'pickup'>('basic');
   // ピックアップ可否（必須）。'' = 未選択 / 'yes' = 送迎できる / 'no' = しない。
   const [pickupMode, setPickupMode] = useState<'' | 'yes' | 'no'>('');
 
@@ -92,6 +92,14 @@ export default function EditRoundPage() {
   const [coHostBusy, setCoHostBusy] = useState(false);
   // 入金管理のON/OFF（作成後でも切り替えられる）。
   const [paymentBusy, setPaymentBusy] = useState(false);
+  // ON/OFF はこの画面の状態で持つ（setRound すると入力中の内容がリセットされるため）（2026-10-12）
+  const [paymentOn, setPaymentOn] = useState(false);
+  // 金額・振込先・入金期日（「変更を保存する」で /payments に保存）（2026-10-12）
+  const [payAmount, setPayAmount] = useState<number | null>(null);
+  const [payAccount, setPayAccount] = useState('');
+  const [payDate, setPayDate] = useState('');
+  const [payTime, setPayTime] = useState('23:59');
+  const payDeadline = jstToMs(payDate, payTime);
 
   async function togglePayment(on: boolean) {
     if (paymentBusy) return;
@@ -103,7 +111,9 @@ export default function EditRoundPage() {
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { toast(d?.message || '更新に失敗しました', 'error'); return; }
-      if (d.round) setRound(d.round);
+      setPaymentOn(on);
+      // キャンセル条件の文例も事前集金あり／なしに合わせて差し替える（自由記入はそのまま・保存は「変更を保存する」で）
+      setCancelDraft((cd) => ({ ...cd, condition: swapConditionForPayment(cd.condition, on) }));
       store.refreshRounds().catch(() => {});
       toast(on ? '入金管理をONにしました' : '入金管理をOFFにしました');
     } catch {
@@ -188,6 +198,9 @@ export default function EditRoundPage() {
     setDate(round.date || '');
     setStartTime(round.startTime || '8:00');
     setMeetingInfo(round.meetingInfo || '');
+    setPaymentOn(!!round.paymentEnabled);
+    { const pi = (round as any).paymentInfo || {}; const j = msToJst(pi.deadline);
+      setPayAmount(pi.amount ?? null); setPayAccount(pi.account || ''); setPayDate(j.date); setPayTime(j.time || '23:59'); }
     { const cp = (round as any).cancelPolicy; const j = msToJst(cp?.deadline);
       setCancelDraft(cp?.deadline ? { on: true, date: j.date, time: j.time, fee: cp.fee ?? null, account: cp.account || '', condition: cp.condition || '' } : emptyCancelDraft); }
     setArea(round.area || '');
@@ -221,7 +234,8 @@ export default function EditRoundPage() {
     setPriceFemale(round.priceFemale || '');
     setSplitPrice(!!(round.priceMale && round.priceFemale));
     setBeginnerOnly(!!round.beginnerOnly);
-    setDescription(round.description || '');
+    // 「主催者からのメッセージ」＝ hostNote。旧「ひとこと」(description)しか無い募集はそれを初期値に（2026-10-12）
+    setDescription((round as any).hostNote || round.description || '');
     setPickupStations(round.pickupStations || []);
     setPickupCapacity(round.pickupCapacity || 0);
     // ピックアップ可否。明示フラグ優先。旧データは駅があれば「可」、なければ「不可」。
@@ -329,6 +343,9 @@ export default function EditRoundPage() {
       toast('ピックアップ（送迎）の可否を選んでください', 'error');
       setTab('pickup'); return;
     }
+    if (paymentOn && payDate && !payDeadline) {
+      toast('入金期日の日付・時刻を確認してください', 'error'); setTab('basic'); return;
+    }
     setSaving(true);
     // 内訳(自分含む全体) → 実募集枠へ変換して送信（保存データの意味は従来どおり）。
     const rSlots = recruitmentSlots();
@@ -350,7 +367,9 @@ export default function EditRoundPage() {
       priceFemale: splitPrice ? (priceFemale || '') : '',
       beginnerOnly,
       genderCondition: deriveGenderCondition(rSlots.spotsMale, rSlots.spotsFemale, rSlots.spotsAny),
-      description: description || '',
+      // hostNote に保存し、旧 description は空にする（二重表示を防ぐ）（2026-10-12）
+      ...({ hostNote: description.trim() } as any),
+      description: '',
       pickupOffered: offerPickup,
       pickupStations: offerPickup ? pickupStations : [],
       pickupCapacity: offerPickup && pickupStations.length && pickupCapacity > 0 ? pickupCapacity : undefined,
@@ -373,6 +392,17 @@ export default function EditRoundPage() {
     }
     try {
       await store.editRound(params.id, patch);
+      // 事前集金の金額・振込先・入金期日が変わっていれば /payments へ（2026-10-12）
+      const pi = ((round as any).paymentInfo || {}) as { amount?: number; account?: string; deadline?: number };
+      if (paymentOn && ((payAmount ?? 0) !== (pi.amount ?? 0) || payAccount.trim() !== (pi.account || '') || payDeadline !== (pi.deadline || 0))) {
+        const res = await fetch(`/api/rounds/${encodeURIComponent(params.id)}/payments`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paymentInfo: { amount: payAmount || 0, account: payAccount.trim(), deadline: payDeadline } }),
+          cache: 'no-store', credentials: 'include',
+        });
+        if (!res.ok) toast('入金の設定の保存に失敗しました（「💰 入金」タブから保存してください）', 'error');
+        await store.refreshRounds().catch(() => {});
+      }
       toast('投稿を更新しました');
       router.push(`/round/${params.id}`);
     } catch (e) {
@@ -403,9 +433,9 @@ export default function EditRoundPage() {
 
       <div className="px-5">
         <div className="bg-card rounded-card p-5 shadow-card">
-          {/* セクション切り替えタブ（募集内容／募集人数／ピックアップ／入金） */}
+          {/* セクション切り替えタブ（募集内容／募集人数／ピックアップ）。入金は「募集内容」のキャンセル日の上へ移動（2026-10-12） */}
           <div className="flex gap-1 mb-4 bg-bg rounded-xl p-1">
-            {([['basic', '募集内容'], ['count', '募集人数'], ['pickup', 'ピックアップ'], ['payment', '入金']] as const).map(([k, label]) => (
+            {([['basic', '募集内容'], ['count', '募集人数'], ['pickup', 'ピックアップ']] as const).map(([k, label]) => (
               <button
                 key={k}
                 type="button"
@@ -655,16 +685,75 @@ export default function EditRoundPage() {
           </>
           )}
 
-          {/* ── 募集内容 タブ（後半：ひとこと・オープンチャット） ── */}
+          {/* ── 募集内容 タブ（後半：主催者からのメッセージ・オープンチャット） ── */}
           {tab === 'basic' && (
           <>
-            <Field label="ひとこと">
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={200} placeholder="募集の趣旨や雰囲気を伝えましょう（200文字以内）" className="w-full h-20 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-none" />
+            {/* 募集ページの「📣 主催者からのメッセージ」と同じ hostNote（2026-10-12） */}
+            <Field label="主催者からのメッセージ" hint="（任意・参加者に表示されます）">
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={4000} placeholder="注意事項・集合や進行のルール・持ち物・表彰などを自由に。改行OK" className="w-full h-28 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-y" />
             </Field>
+
+            {/* 事前集金はキャンセル日より先に決める（条件の文例・期日の「合わせる」が連動する）（2026-10-12） */}
+            {round?.eventType !== 'drink' && (
+              <Field label="事前集金" hint="（任意・事前に集金してまとめて払うとき）">
+                <button
+                  type="button"
+                  disabled={paymentBusy}
+                  onClick={() => togglePayment(!paymentOn)}
+                  className={cn('w-full flex items-center gap-3 p-3 rounded-[10px] border-[1.5px] text-left disabled:opacity-60',
+                    paymentOn ? 'border-green bg-green-light' : 'border-border bg-bg')}
+                >
+                  <span className={cn('w-6 h-6 rounded-md flex items-center justify-center text-[14px] font-black flex-shrink-0 border-2',
+                    paymentOn ? 'bg-green border-green text-white' : 'bg-card border-border text-transparent')}>✓</span>
+                  <span className="flex-1 min-w-0">
+                    <span className={cn('block text-sm font-bold', paymentOn ? 'text-green' : 'text-sub')}>💰 事前集金する（入金管理を使う）</span>
+                    <span className="block text-[10px] text-muted font-medium mt-0.5">参加者ごとに入金済みかチェックできます（ON/OFFはすぐに反映されます）</span>
+                  </span>
+                </button>
+                <div className="mt-1.5 text-[10px] text-muted font-medium">
+                  募集の詳細に「💰 入金」タブが出ます。チェックは主催者・共同管理者のみ、閲覧は参加メンバー全員。ゴルトモ未登録のゲスト追加も「💰 入金」タブで行えます。
+                </div>
+                {paymentOn && (
+                  <div className="mt-2 p-3 rounded-xl border-[1.5px] border-border bg-card flex flex-col gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-sub mb-1">金額（1人あたり・任意）</label>
+                      <div className="flex items-center gap-2">
+                        <NumberInput value={payAmount} onChange={setPayAmount} min={0} max={1000000} placeholder="例: 12000" ariaLabel="金額（1人あたり）"
+                          className="flex-1 min-w-0 p-3 border-[1.5px] border-border rounded-xl text-sm bg-bg outline-none" />
+                        <span className="text-sm font-bold text-sub flex-shrink-0">円</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-sub mb-1">振込先の口座（任意）</label>
+                      <textarea value={payAccount} onChange={(e) => setPayAccount(e.target.value)} rows={2} maxLength={300}
+                        placeholder="例）◯◯銀行 △△支店 普通 1234567 ゴルトモ タロウ ／ PayPay ID: xxxx"
+                        className="w-full p-3 border-[1.5px] border-border rounded-xl text-sm bg-bg outline-none leading-relaxed resize-y" />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-sub mb-1">入金期日（日付と時刻・任意）</label>
+                      <div className="flex gap-2">
+                        <input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)}
+                          className="flex-[3] min-w-0 p-3 border-[1.5px] border-border rounded-xl text-sm bg-bg outline-none" />
+                        <input type="time" value={payTime} onChange={(e) => setPayTime(e.target.value)}
+                          className="flex-[2] min-w-0 p-3 border-[1.5px] border-border rounded-xl text-sm bg-bg outline-none" />
+                      </div>
+                      {payDate && <button type="button" onClick={() => { setPayDate(''); setPayTime('23:59'); }} className="mt-1 text-[11px] text-sub font-bold">期日をなしにする</button>}
+                    </div>
+                    <div className="text-[10px] text-muted">金額・振込先・期日は「変更を保存する」で保存されます。</div>
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/round/${params.id}?tab=payment`)}
+                      className="w-full py-2.5 bg-bg border-[1.5px] border-border rounded-xl text-[12px] font-bold text-sub"
+                    >💰 入金タブを開く（チェック・ゲスト追加）</button>
+                  </div>
+                )}
+              </Field>
+            )}
 
             {round?.eventType !== 'drink' && (
               <Field label="キャンセル日" hint="（任意）">
-                <CancelPolicyEditor value={cancelDraft} onChange={setCancelDraft} roundDate={date || undefined} />
+                <CancelPolicyEditor value={cancelDraft} onChange={setCancelDraft} roundDate={date || undefined}
+                  prepaid={paymentOn} paymentDeadline={paymentOn ? payDeadline : 0} />
               </Field>
             )}
 
@@ -713,38 +802,6 @@ export default function EditRoundPage() {
                 );
               })()}
               <div className="mt-1.5 text-[10px] text-muted font-medium">「外す」は共同管理者権限のみ解除します（参加者としては残ります）。</div>
-            </div>
-          )}
-
-          {/* ── 入金 タブ（後からON/OFF）。ONにすると詳細に「💰 入金」タブが出る。 ── */}
-          {tab === 'payment' && round && (
-            <div className="mb-4">
-              <div className="text-xs font-bold text-sub mb-1.5">入金管理 <span className="text-muted font-medium">（事前に集金してまとめて払うとき）</span></div>
-              <button
-                type="button"
-                disabled={paymentBusy}
-                onClick={() => togglePayment(!round.paymentEnabled)}
-                className={cn('w-full flex items-center gap-3 p-3 rounded-[10px] border-[1.5px] text-left disabled:opacity-60',
-                  round.paymentEnabled ? 'border-green bg-green-light' : 'border-border bg-bg')}
-              >
-                <span className={cn('w-6 h-6 rounded-md flex items-center justify-center text-[14px] font-black flex-shrink-0 border-2',
-                  round.paymentEnabled ? 'bg-green border-green text-white' : 'bg-card border-border text-transparent')}>✓</span>
-                <span className="flex-1 min-w-0">
-                  <span className={cn('block text-sm font-bold', round.paymentEnabled ? 'text-green' : 'text-sub')}>💰 入金管理を使う</span>
-                  <span className="block text-[10px] text-muted font-medium mt-0.5">参加者ごとに入金済みかチェックできます</span>
-                </span>
-              </button>
-              <div className="mt-1.5 text-[10px] text-muted font-medium">
-                募集の詳細に「💰 入金」タブが出ます。チェックは主催者・共同管理者のみ、閲覧は参加メンバー全員。
-                入金の案内（金額・振込先）やゴルトモ未登録のゲスト追加は、その「💰 入金」タブで行えます。
-              </div>
-              {round.paymentEnabled && (
-                <button
-                  type="button"
-                  onClick={() => router.push(`/round/${params.id}?tab=payment`)}
-                  className="mt-2 w-full py-2.5 bg-bg border-[1.5px] border-border rounded-xl text-[12px] font-bold text-sub"
-                >💰 入金タブを開く（チェック・ゲスト追加）</button>
-              )}
             </div>
           )}
 

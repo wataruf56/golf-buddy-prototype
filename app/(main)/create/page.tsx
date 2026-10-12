@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { CancelPolicyEditor, emptyCancelDraft, draftToPayload, type CancelPolicyDraft } from '@/components/CancelPolicy';
-import { jstToMs } from '@/lib/cancelPolicy';
+import { jstToMs, swapConditionForPayment } from '@/lib/cancelPolicy';
 import { useRouter } from 'next/navigation';
 import { allAreas } from '@/lib/mockData';
 import { PickupStationPicker } from '@/components/PickupStationPicker';
@@ -56,7 +56,7 @@ export default function CreatePage() {
   const noCreate = useStore((s) => !!s.restrictions.noCreate);
   const [step, setStep] = useState<'select' | 'form'>('select');
   // フォームのセクション切り替えタブ（募集内容／募集人数／ピックアップ）。
-  const [tab, setTab] = useState<'basic' | 'count' | 'pickup' | 'payment'>('basic');
+  const [tab, setTab] = useState<'basic' | 'count' | 'pickup'>('basic');
   // ピックアップ可否（必須で選択）。'' = 未選択 / 'yes' = 送迎できる / 'no' = しない。
   const [pickupMode, setPickupMode] = useState<'' | 'yes' | 'no'>('');
   const [type, setType] = useState<RoundType>('confirmed');
@@ -108,6 +108,18 @@ export default function CreatePage() {
 
   // 入金管理（主催者が事前集金してまとめて払うケース）。ONにすると詳細に「💰 入金」タブが出る。
   const [paymentEnabled, setPaymentEnabled] = useState(false);
+  // 事前集金の金額・振込先・入金期日（作成時に paymentInfo として保存）（2026-10-12）
+  const [payAmount, setPayAmount] = useState<number | null>(null);
+  const [payAccount, setPayAccount] = useState('');
+  const [payDate, setPayDate] = useState('');
+  const [payTime, setPayTime] = useState('23:59');
+  const payDeadline = jstToMs(payDate, payTime);
+  // 事前集金を切り替えたら、キャンセル条件のテンプレートも同じ記号（a/b）の文例に差し替える（自由記入はそのまま）
+  function togglePaymentEnabled() {
+    const next = !paymentEnabled;
+    setPaymentEnabled(next);
+    setCancelDraft((d) => ({ ...d, condition: swapConditionForPayment(d.condition, next) }));
+  }
   const [cancelDraft, setCancelDraft] = useState<CancelPolicyDraft>(emptyCancelDraft);   // キャンセル規定（任意）
   // 共同管理者（任意・複数可）。ゴル友（マッチ済み）から選ぶ。主催者と同権限＋作成時から参加確定。
   const [coHostIds, setCoHostIds] = useState<string[]>([]);
@@ -280,6 +292,9 @@ export default function CreatePage() {
     if (!isDrink && cancelDraft.on && !jstToMs(cancelDraft.date, cancelDraft.time)) {
       toast('キャンセル日（締切）の日付を入れてください', 'error'); setTab('basic'); return;
     }
+    if (!isDrink && paymentEnabled && payDate && !payDeadline) {
+      toast('入金期日の日付・時刻を確認してください', 'error'); setTab('basic'); return;
+    }
     // 飲み会は募集人数を決めない（定員なし）。人数チェックはゴルフのみ。
     if (!isDrink && maxSpots < 2) {
       toast('募集人数を入力してください', 'error');
@@ -318,7 +333,8 @@ export default function CreatePage() {
       priceFemale: splitPrice ? (priceFemale || undefined) : undefined,
       beginnerOnly,
       genderCondition: deriveGenderCondition(rSlots.spotsMale, rSlots.spotsFemale, rSlots.spotsAny),
-      description: description || undefined,
+      // 「主催者からのメッセージ」は round.hostNote に保存（旧「ひとこと」description は使わない）（2026-10-12）
+      hostNote: description.trim() || undefined,
       pickupOffered: offerPickup,
       pickupStations: offerPickup && pickupStations.length ? pickupStations : undefined,
       pickupCapacity: offerPickup && pickupStations.length && pickupCapacity > 0 ? pickupCapacity : undefined,
@@ -326,6 +342,8 @@ export default function CreatePage() {
       coHostIds: coHostIds.length ? coHostIds : undefined,
       // 入金管理（ONなら詳細に「💰 入金」タブが出て、主催者が入金チェックを付けられる）。
       paymentEnabled,
+      // 金額・振込先・入金期日（2026-10-12）。サーバー側で整形し、paymentEnabled のときだけ保存する。
+      paymentInfo: paymentEnabled ? { amount: payAmount || 0, account: payAccount.trim(), deadline: payDeadline } : undefined,
       cancelPolicy: !isDrink ? draftToPayload(cancelDraft, jstToMs) : null,
       // Admin-only: request publishing under the ゴルトモ公式 identity. Server
       // re-validates the caller is actually an admin before honoring this.
@@ -508,11 +526,11 @@ export default function CreatePage() {
             </div>
           )}
 
-          {/* セクション切り替えタブ（募集内容／募集人数／ピックアップ／入金）。
+          {/* セクション切り替えタブ（募集内容／募集人数／ピックアップ）。入金は「募集内容」のキャンセル日の上へ移動（2026-10-12）。
               飲み会は「募集人数」も「ピックアップ」も無く1セクションのみなのでタブ自体を出さない。 */}
           {!isDrink && (
             <div className="flex gap-1 mb-4 bg-bg rounded-xl p-1">
-              {([['basic', '募集内容'], ['count', '募集人数'], ['pickup', 'ピックアップ'], ['payment', '入金']] as const).map(([k, label]) => (
+              {([['basic', '募集内容'], ['count', '募集人数'], ['pickup', 'ピックアップ']] as const).map(([k, label]) => (
                 <button
                   key={k}
                   type="button"
@@ -773,35 +791,6 @@ export default function CreatePage() {
           </>
           )}
 
-          {/* ── 入金 タブ（事前集金してまとめて払うとき用） ── */}
-          {tab === 'payment' && (
-          <>
-            <Field label="入金管理" hint="（任意・事前に集金してまとめて払うとき）">
-              <button
-                type="button"
-                onClick={() => setPaymentEnabled((v) => !v)}
-                className={cn('w-full flex items-center gap-3 p-3 rounded-[10px] border-[1.5px] text-left',
-                  paymentEnabled ? 'border-green bg-green-light' : 'border-border bg-bg')}
-              >
-                <span className={cn('w-6 h-6 rounded-md flex items-center justify-center text-[14px] font-black flex-shrink-0 border-2',
-                  paymentEnabled ? 'bg-green border-green text-white' : 'bg-card border-border text-transparent')}>✓</span>
-                <span className="flex-1 min-w-0">
-                  <span className={cn('block text-sm font-bold', paymentEnabled ? 'text-green' : 'text-sub')}>💰 入金管理を使う</span>
-                  <span className="block text-[10px] text-muted font-medium mt-0.5">参加者ごとに入金済みかチェックできます</span>
-                </span>
-              </button>
-              <div className="mt-1.5 text-[10px] text-muted font-medium">
-                ONにすると募集の詳細に「💰 入金」タブが出ます。主催者・共同管理者が参加者一覧をポチポチして入金確認でき、その状況は参加メンバー全員が見られます。金額や振込先の案内、ゴルトモ未登録のゲスト追加もそこで行えます。
-              </div>
-            </Field>
-            {!paymentEnabled && (
-              <div className="px-3 py-2.5 bg-bg rounded-lg text-[11px] text-sub font-medium">
-                使わない場合はこのままでOKです（あとから募集の編集画面でONにもできます）。
-              </div>
-            )}
-          </>
-          )}
-
           {/* ── ピックアップ タブ（可否は必須） ── */}
           {tab === 'pickup' && (
           <>
@@ -841,15 +830,68 @@ export default function CreatePage() {
           </>
           )}
 
-          {/* ── 募集内容 タブ（後半：ひとこと） ── */}
+          {/* ── 募集内容 タブ（後半：主催者からのメッセージ） ── */}
           {tab === 'basic' && (
           <>
-          <Field label="ひとこと">
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={200} placeholder="募集の趣旨や雰囲気を伝えましょう（200文字以内）" className="w-full h-20 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-none" />
+          {/* 募集ページの「📣 主催者からのメッセージ」と同じ hostNote（2026-10-12） */}
+          <Field label="主催者からのメッセージ" hint="（任意・参加者に表示されます）">
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={4000} placeholder="注意事項・集合や進行のルール・持ち物・表彰などを自由に。改行OK" className="w-full h-28 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-y" />
           </Field>
+          {/* 事前集金はキャンセル日より先に決める（条件の文例・期日の「合わせる」が連動する）（2026-10-12） */}
+          {!isDrink && (
+            <Field label="事前集金" hint="（任意・事前に集金してまとめて払うとき）">
+              <button
+                type="button"
+                onClick={togglePaymentEnabled}
+                className={cn('w-full flex items-center gap-3 p-3 rounded-[10px] border-[1.5px] text-left',
+                  paymentEnabled ? 'border-green bg-green-light' : 'border-border bg-bg')}
+              >
+                <span className={cn('w-6 h-6 rounded-md flex items-center justify-center text-[14px] font-black flex-shrink-0 border-2',
+                  paymentEnabled ? 'bg-green border-green text-white' : 'bg-card border-border text-transparent')}>✓</span>
+                <span className="flex-1 min-w-0">
+                  <span className={cn('block text-sm font-bold', paymentEnabled ? 'text-green' : 'text-sub')}>💰 事前集金する（入金管理を使う）</span>
+                  <span className="block text-[10px] text-muted font-medium mt-0.5">参加者ごとに入金済みかチェックできます</span>
+                </span>
+              </button>
+              <div className="mt-1.5 text-[10px] text-muted font-medium">
+                ONにすると募集の詳細に「💰 入金」タブが出ます。主催者・共同管理者が参加者一覧をポチポチして入金確認でき、その状況は参加メンバー全員が見られます。使わない場合はこのままでOK（あとから編集画面でONにもできます）。
+              </div>
+              {paymentEnabled && (
+                <div className="mt-2 p-3 rounded-xl border-[1.5px] border-border bg-card flex flex-col gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-sub mb-1">金額（1人あたり・任意）</label>
+                    <div className="flex items-center gap-2">
+                      <NumberInput value={payAmount} onChange={setPayAmount} min={0} max={1000000} placeholder="例: 12000" ariaLabel="金額（1人あたり）"
+                        className="flex-1 min-w-0 p-3 border-[1.5px] border-border rounded-xl text-sm bg-bg outline-none" />
+                      <span className="text-sm font-bold text-sub flex-shrink-0">円</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-sub mb-1">振込先の口座（任意）</label>
+                    <textarea value={payAccount} onChange={(e) => setPayAccount(e.target.value)} rows={2} maxLength={300}
+                      placeholder="例）◯◯銀行 △△支店 普通 1234567 ゴルトモ タロウ ／ PayPay ID: xxxx"
+                      className="w-full p-3 border-[1.5px] border-border rounded-xl text-sm bg-bg outline-none leading-relaxed resize-y" />
+                    <div className="text-[10px] text-muted mt-1">振込先は、参加している人にだけ表示されます。</div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-sub mb-1">入金期日（日付と時刻・任意）</label>
+                    <div className="flex gap-2">
+                      <input type="date" value={payDate} max={date || undefined} onChange={(e) => setPayDate(e.target.value)}
+                        className="flex-[3] min-w-0 p-3 border-[1.5px] border-border rounded-xl text-sm bg-bg outline-none" />
+                      <input type="time" value={payTime} onChange={(e) => setPayTime(e.target.value)}
+                        className="flex-[2] min-w-0 p-3 border-[1.5px] border-border rounded-xl text-sm bg-bg outline-none" />
+                    </div>
+                    {payDate && <button type="button" onClick={() => { setPayDate(''); setPayTime('23:59'); }} className="mt-1 text-[11px] text-sub font-bold">期日をなしにする</button>}
+                  </div>
+                  <div className="text-[10px] text-muted">あとから募集の詳細の「💰 入金」タブでも変更できます。</div>
+                </div>
+              )}
+            </Field>
+          )}
           {!isDrink && (
             <Field label="キャンセル日" hint="（任意）">
-              <CancelPolicyEditor value={cancelDraft} onChange={setCancelDraft} roundDate={date || undefined} />
+              <CancelPolicyEditor value={cancelDraft} onChange={setCancelDraft} roundDate={date || undefined}
+                prepaid={paymentEnabled} paymentDeadline={paymentEnabled ? payDeadline : 0} />
             </Field>
           )}
           </>

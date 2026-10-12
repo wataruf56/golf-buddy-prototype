@@ -10,6 +10,7 @@ import { Linkify } from '@/components/Linkify';
 import { NumberInput } from '@/components/NumberInput';
 import { confirmDialog } from '@/components/ConfirmDialog';
 import { hostCounts } from '@/lib/hostCount';
+import { formatCancelDeadline, hasCancelPolicy } from '@/lib/cancelPolicy';
 
 // 入金期日は JST の日付＋時刻で入力し、ミリ秒で保存する（2026-10-11）
 function msToJstParts(ms?: number): { date: string; time: string } {
@@ -129,6 +130,22 @@ export function PaymentTracker({
     finally { setSavingNote(false); }
   }
 
+  // キャンセル期日を（保存済みの）入金期日に合わせる（2026-10-12）。キャンセル規定がある募集だけ
+  const cp = (round as any).cancelPolicy as import('@/lib/cancelPolicy').CancelPolicy | null | undefined;
+  const canSyncCancel = isHost && hasCancelPolicy(round as any) && !!info.deadline;
+  const cancelSynced = canSyncCancel && Number(cp!.deadline) === info.deadline;
+  const [syncing, setSyncing] = useState(false);
+  async function syncCancelDeadline() {
+    if (!cp || !info.deadline) return;
+    setSyncing(true);
+    try {
+      const { accountHidden, ...rest } = cp as any; void accountHidden;
+      await store.editRound(round.id, { cancelPolicy: { ...rest, deadline: info.deadline } } as any);
+      toast('キャンセル期日を入金期日に合わせました');
+    } catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
+    finally { setSyncing(false); }
+  }
+
   async function savePaid() {
     setSavingPaid(true);
     try {
@@ -188,6 +205,14 @@ export function PaymentTracker({
               className="w-[110px] text-[14px] border-[1.5px] border-border rounded-xl px-3 py-2.5 bg-bg outline-none" />
           </div>
           {dDate && <button type="button" onClick={() => { setDDate(''); setDTime('23:59'); }} className="text-[11px] text-sub font-bold mb-2">期日をなしにする</button>}
+          {canSyncCancel && (cancelSynced
+            ? <div className="text-[11px] font-bold text-green mb-2">✓ キャンセル期日も入金期日と同じ日時です</div>
+            : (
+              <button type="button" onClick={syncCancelDeadline} disabled={syncing}
+                className="w-full mb-2 px-3 py-2 rounded-lg bg-green-light border border-green text-left text-[11.5px] font-bold text-green disabled:opacity-50 leading-snug">
+                キャンセル期日（いまは {formatCancelDeadline(Number(cp!.deadline))}）を入金期日（{fmtJst(info.deadline!)}）と合わせますか？ <span className="underline">{syncing ? '保存中...' : '→ 合わせる'}</span>
+              </button>
+            ))}
           <label className="block text-[11px] font-bold text-sub mb-1 mt-2">補足（任意）</label>
           <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={500}
             placeholder="例）振込名義の頭に「ゴルトモ」を付けてください"

@@ -141,6 +141,8 @@ export async function POST(req: NextRequest) {
     // UIs that only read levelCondition still show the right thing.
     levelCondition: levelConditionLabel({ beginnerOnly, genderCondition, levelCondition: '' }),
     description: body.description,
+    // 主催者からのメッセージ（2026-10-12）。作成画面の入力欄はこちらに保存する
+    ...(String(body.hostNote || '').trim() ? { hostNote: String(body.hostNote).trim().slice(0, 4000) } : {}),
     meetingInfo: body.meetingInfo ? String(body.meetingInfo).slice(0, 200) : undefined,
     pickupStations: isDrink ? undefined : (Array.isArray(body.pickupStations)
       ? body.pickupStations.map((x: any) => String(x).slice(0, 20)).slice(0, 20)
@@ -157,6 +159,8 @@ export async function POST(req: NextRequest) {
     guests: guestList,
     // 入金管理（主催者が事前集金してまとめて払うケース）。ONのとき詳細に「💰 入金」タブが出る。
     paymentEnabled: !!body.paymentEnabled,
+    // 金額・振込先・入金期日（2026-10-12）。入金管理ONのときだけ。整形は /api/rounds/[id]/payments と同じ
+    ...(body.paymentEnabled && sanitizePaymentInfo(body.paymentInfo) ? { paymentInfo: sanitizePaymentInfo(body.paymentInfo)! } : {}),
     // キャンセル規定（任意・2026-10-10）
     ...(sanitizeCancelPolicy(body.cancelPolicy) ? { cancelPolicy: sanitizeCancelPolicy(body.cancelPolicy) } : {}),
     // 飲み会は定員なしのため大きな maxSpots になるが、コンペ扱いにはしない。
@@ -179,4 +183,18 @@ export async function POST(req: NextRequest) {
     console.error('[/api/rounds POST] failed', msg, round);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
+}
+
+// 作成時の paymentInfo 整形（2026-10-12）。中身が空なら null（＝保存しない）
+function sanitizePaymentInfo(raw: any): { amount?: number; account?: string; deadline?: number } | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const amount = Math.max(0, Math.min(1_000_000, Math.floor(Number(raw.amount) || 0)));
+  const account = String(raw.account || '').trim().slice(0, 300);
+  const deadline = Math.floor(Number(raw.deadline) || 0);
+  const out = {
+    ...(amount ? { amount } : {}),
+    ...(account ? { account } : {}),
+    ...(deadline > 1_600_000_000_000 ? { deadline } : {}),
+  };
+  return Object.keys(out).length ? out : null;
 }

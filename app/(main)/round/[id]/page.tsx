@@ -745,7 +745,8 @@ export default function RoundDetailPage() {
         <div className="text-xl font-black mb-4">{round.title}</div>
 
         {/* 自由記入のコメント（投稿の一番上に表示） */}
-        {round.description && (
+        {/* 古い「ひとこと」（description）。2026-10-12 から「主催者からのメッセージ」（hostNote）に一本化。メッセージがあるときは出さない */}
+        {round.description && !(round.hostNote || '').trim() && (
           <div className="mb-4 p-3 bg-bg rounded-xl text-[13px] text-text leading-relaxed whitespace-pre-wrap"><Linkify text={round.description || ''} /></div>
         )}
 

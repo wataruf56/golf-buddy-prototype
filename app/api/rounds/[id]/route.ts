@@ -80,6 +80,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     patch.isOfficial = !!body.asOfficial && isAdminUserId(meId);
   }
   if (has('description')) patch.description = body.description ? String(body.description).slice(0, 200) : '';
+  // 主催者からのメッセージ（編集画面から。/round/[id]/message と同じ hostNote）（2026-10-12）
+  if (has('hostNote')) (patch as any).hostNote = body.hostNote ? String(body.hostNote).trim().slice(0, 4000) : '';
   if (has('meetingInfo')) patch.meetingInfo = body.meetingInfo ? String(body.meetingInfo).slice(0, 200) : '';
   // キャンセル規定（null で外す）（2026-10-10）
   if (has('cancelPolicy')) { const { sanitizeCancelPolicy } = await import('@/lib/cancelPolicy'); (patch as any).cancelPolicy = sanitizeCancelPolicy(body.cancelPolicy); }

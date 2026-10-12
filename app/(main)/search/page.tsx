@@ -147,7 +147,7 @@ export default function SearchPage() {
     // Keyword
     if (keyword.trim()) {
       const k = keyword.trim().toLowerCase();
-      const hay = [r.title, r.area, r.courseName, r.venue, r.description, r.dateRange].filter(Boolean).join(' ').toLowerCase();
+      const hay = [r.title, r.area, r.courseName, r.venue, r.description, (r as any).hostNote, r.dateRange].filter(Boolean).join(' ').toLowerCase();
       if (!hay.includes(k)) return false;
     }
     return true;
