@@ -5,7 +5,7 @@ import { Portal } from '@/components/Portal';
 import { toast } from '@/components/Toast';
 import { useStore, getMe } from '@/lib/store';
 import { usePopupSlot, popupEvent } from '@/lib/popupSlot';
-import { INTRO_AREAS, INTRO_BUDGETS, INTRO_CARS, composeIntro } from '@/lib/roomIntro';
+import { INTRO_AREAS, INTRO_BUDGETS, INTRO_CARS, composeIntro, randomIntroVariant } from '@/lib/roomIntro';
 
 // 行ける日の部屋に入るときの「ひとこと」（2026-10-12・lib/roomIntro）。
 // 選ぶだけの3問 → 本人の発言として最初のあいさつを部屋のチャットに入れる。「最初に話す人」をなくすため。
@@ -16,6 +16,8 @@ export function RoomIntroSheet({ roomId, dateLabel, onDone }: { roomId: string; 
   const [budget, setBudget] = useState('');
   const [car, setCar] = useState(me?.car === 'have' ? 'drive' : '');
   const [busy, setBusy] = useState(false);
+  // 言い回しは開いたときにランダムで1つ（見本と送る文を同じにするため、番号ごと送る）
+  const [variant] = useState(randomIntroVariant);
   const active = usePopupSlot('roomIntro', 58, true);
   if (!active) return null;
 
@@ -24,14 +26,14 @@ export function RoomIntroSheet({ roomId, dateLabel, onDone }: { roomId: string; 
     const base = cur.filter((x) => x !== 'どこでも');
     return base.includes(a) ? base.filter((x) => x !== a) : [...base, a].slice(0, 3);
   });
-  const preview = composeIntro(me?.displayName || 'あなた', { areas, budget, car });
+  const preview = composeIntro(me?.displayName || 'あなた', { areas, budget, car }, variant);
 
   async function submit(skip: boolean) {
     setBusy(true);
     try {
       const res = await fetch(`/api/rounds/${roomId}/room-intro`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store', credentials: 'include',
-        body: JSON.stringify(skip ? { skip: true } : { areas, budget, car }),
+        body: JSON.stringify(skip ? { skip: true } : { areas, budget, car, variant }),
       });
       if (!res.ok) throw new Error(String(res.status));
       popupEvent('roomIntro', skip ? 'skip' : 'send');

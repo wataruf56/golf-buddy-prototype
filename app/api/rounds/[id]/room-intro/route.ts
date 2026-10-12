@@ -5,7 +5,7 @@ import { getAdminDb } from '@/lib/firebase';
 import { composeIntro } from '@/lib/roomIntro';
 
 // POST /api/rounds/[id]/room-intro … 行ける日の部屋に入るときの「ひとこと」（2026-10-12・lib/roomIntro）
-//   { areas: string[], budget, car } … 本人の発言としてチャットに入れる（通知はふつうの発言と同じ）
+//   { areas: string[], budget, car, variant } … 本人の発言としてチャットに入れる（通知はふつうの発言と同じ）
 //   { skip: true }                   … 送らない（もう聞かない）
 // 1部屋1回だけ（round.roomIntroDone[本人] に時刻）。行ける日の部屋（availDate）の参加者だけ。
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const text = composeIntro(me?.displayName || 'メンバー', {
     areas: Array.isArray(body.areas) ? body.areas.map(String).slice(0, 5) : [],
     budget: String(body.budget || ''), car: String(body.car || ''),
-  });
+  }, Number(body.variant));   // 言い回しの番号（画面の見本と同じ文にする・範囲外はランダム）
   await mark();
   const message = await db.addRoundMessage(params.id, meId, text);
   try {
