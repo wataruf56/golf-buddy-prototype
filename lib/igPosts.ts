@@ -181,6 +181,18 @@ export async function listDueScheduled(now = Date.now()): Promise<IgPost[]> {
     .sort((a: IgPost, b: IgPost) => (a.scheduledAt as number) - (b.scheduledAt as number));
 }
 
+/** まだ公開していないもの（下書き・予約・失敗）。
+ *
+ * 毎晩の提案で「もう正しくない下書き」を片付けるために使う。
+ * 公開済みは記録なので絶対に含めない。
+ */
+export async function listUnpublished(limit = 200): Promise<IgPost[]> {
+  const snap = await db().collection(COL).orderBy('createdAt', 'desc').limit(limit).get();
+  return snap.docs
+    .map((s: any) => toPost(s.id, s.data()))
+    .filter((p: IgPost) => p.status === 'draft' || p.status === 'scheduled' || p.status === 'failed');
+}
+
 /** 公開の途中で止まっているもの（リールの変換待ち）。次の巡回で続きをやる。 */
 export async function listPublishing(): Promise<IgPost[]> {
   const snap = await db().collection(COL).where('status', '==', 'publishing').limit(20).get();

@@ -4,7 +4,9 @@ import { pushToMany } from '@/lib/linePush';
 import {
   buildCaption, buildFullCaption, buildAltText, captionSignature, fullSignature, GenderMix,
 } from '@/lib/igCaption';
-import { createIgPost, getRoundImage, signatureExists } from '@/lib/igPosts';
+import {
+  createIgPost, deleteIgPost, getRoundImage, listUnpublished, signatureExists,
+} from '@/lib/igPosts';
 import { countedMemberIds } from '@/lib/hostCount';
 
 // 募集中ラウンドから Instagram の「下書き」を作り、LINEで承認をお願いする。
@@ -82,6 +84,38 @@ export async function GET(req: NextRequest) {
 
     const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 
+    // ------------------------------------------------------------------ 掃除
+    //
+    // 募集は毎日動く。昨日作った下書きは、今日にはもう嘘になっていることがある。
+    // 「10/11 あと2名」の下書きが残っているあいだに満員になり、そのまま予約時刻を
+    // 迎えて間違った数字で公開される、という事故が実際に起きた（2026-10）。
+    //
+    // そこで、まだ公開していない下書き・予約のうち、
+    //   ・ラウンドがもう無い（消された）
+    //   ・開催日が過ぎた
+    //   ・いまの状態から作るはずの指紋と違う（＝残り枠が変わった／満員になった）
+    // ものは、ここで消す。消したぶんは、このあとのループが最新の内容で作り直す。
+    // 公開済みは記録なので絶対に触らない（listUnpublished が除いている）。
+    const byId = new Map<string, any>(rounds.map((r: any) => [r.id, r]));
+    const removed: { id: string; why: string }[] = [];
+    for (const p of await listUnpublished().catch(() => [])) {
+      const rid = p.roundId;
+      if (!rid) continue;                       // カルーセルなど、ラウンドに紐づかないものは対象外
+      const r = byId.get(rid);
+      let why = '';
+      if (!r) why = '募集が無くなった';
+      else if (String(r.date || '').slice(0, 10) && String(r.date).slice(0, 10) < today) why = '開催日が過ぎた';
+      else {
+        const nowRest = Math.max(0, (r.maxSpots || 0) - (r.currentCount || 0));
+        const want = nowRest <= 0 ? fullSignature(rid) : captionSignature(rid, nowRest);
+        if (p.signature && p.signature !== want) why = `内容が変わった（${p.signature} → ${want}）`;
+      }
+      if (!why) continue;
+      await deleteIgPost(p.id).catch(() => {});
+      removed.push({ id: p.id, why });
+    }
+
+
     const created: string[] = [];
     const createdFull: string[] = [];
     const skipped: { id: string; why: string }[] = [];
@@ -154,7 +188,7 @@ export async function GET(req: NextRequest) {
     // （毎日同じ文面が届くと、そのうち読まれなくなるため）。
     const ids = adminIds();
     const made = created.length + createdFull.length;
-    if (ids.length && (made || needImage.length || staleImage.length)) {
+    if (ids.length && (made || removed.length || needImage.length || staleImage.length)) {
       const lines: string[] = [];
       if (made) {
         lines.push(`📷 下書きが${made}件できました`);
@@ -162,6 +196,9 @@ export async function GET(req: NextRequest) {
         if (createdFull.length) lines.push(`・満員 ${createdFull.length}件`);
       } else {
         lines.push('📷 今日は下書きを作れませんでした');
+      }
+      if (removed.length) {
+        lines.push(`🧹 古くなった下書きを${removed.length}件消しました`);
       }
       if (needImage.length || staleImage.length) {
         lines.push('');
@@ -174,7 +211,8 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { ok: true, created: created.length, full: createdFull.length, needImage, staleImage, skipped },
+      { ok: true, created: created.length, full: createdFull.length,
+        removed, needImage, staleImage, skipped },
       { headers: noStore },
     );
   } catch (e) {
