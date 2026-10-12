@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Fragment, Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -39,6 +39,8 @@ function Inner() {
   const [totals, setTotals] = useState<{ events: number; shows: number; users: number } | null>(null);
   const [promos, setPromos] = useState<Promo[]>([]);
   const [open, setOpen] = useState<string | null>(null);
+  // もう1段：誰が・いつ（ポップアップ×操作）
+  const [drill, setDrill] = useState<{ popup: string; who: string } | null>(null);
   const [err, setErr] = useState('');
 
   useEffect(() => {
@@ -115,6 +117,7 @@ function Inner() {
                     <Mini label="何もしなかった" value={pct(p.noActionRate)} sub={`${p.noAction}人`} warn={(p.noActionRate || 0) >= 50} />
                     <Mini label="操作までの時間" value={fmtSec(p.medianSec)} sub="中央値" />
                   </div>
+                  <div className="text-[10px] text-muted mt-1">開くと、押したものごとに「誰が・いつ」まで見られます</div>
                   {/* 日別（棒＝表示・緑＝成果） */}
                   <div className="flex items-end gap-[2px] h-10 mt-2.5" aria-label="日別の表示回数">
                     {p.daily.map((d) => (
@@ -129,18 +132,32 @@ function Inner() {
                 </button>
                 {isOpen && (
                   <div className="border-t-2 border-hair px-3.5 py-3">
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      <DrillBtn on={drill?.popup === p.id && drill?.who === 'show'} onClick={() => setDrill(drill?.popup === p.id && drill?.who === 'show' ? null : { popup: p.id, who: 'show' })}>👀 出した人 {p.shownUsers}人</DrillBtn>
+                      <DrillBtn on={drill?.popup === p.id && drill?.who === '__noaction'} onClick={() => setDrill(drill?.popup === p.id && drill?.who === '__noaction' ? null : { popup: p.id, who: '__noaction' })}>😶 何もしなかった人 {p.noAction}人</DrillBtn>
+                    </div>
+                    {drill?.popup === p.id && (drill.who === 'show' || drill.who === '__noaction') && <WhoList token={token} days={days} withTest={withTest} popup={p.id} who={drill.who} />}
                     {acts.length === 0 ? <div className="text-[12px] text-muted">まだ操作の記録がありません</div> : (
                       <table className="w-full text-[12px]">
                         <thead><tr className="text-sub text-left"><th className="py-1 font-bold">押したもの</th><th className="py-1 font-bold text-right">人数</th><th className="py-1 font-bold text-right">出した人のうち</th><th className="py-1 font-bold text-right">回数</th></tr></thead>
                         <tbody>
-                          {acts.map(([a, v]) => (
-                            <tr key={a} className="border-t border-hair">
-                              <td className="py-1.5">{p.goal.includes(a) && '🎯 '}{p.actionLabels[a] || a}<span className="text-[10px] text-muted ml-1">{a}</span></td>
-                              <td className="py-1.5 text-right font-black">{v.users}人</td>
-                              <td className="py-1.5 text-right">{p.shownUsers ? `${Math.round((v.users / p.shownUsers) * 100)}%` : '—'}</td>
-                              <td className="py-1.5 text-right text-sub">{v.count}回</td>
-                            </tr>
-                          ))}
+                          {acts.map(([a, v]) => {
+                            const on = drill?.popup === p.id && drill?.who === a;
+                            return (
+                              <Fragment key={a}>
+                                <tr onClick={() => setDrill(on ? null : { popup: p.id, who: a })}
+                                  className={'border-t border-hair cursor-pointer hover:bg-green-light/50 ' + (on ? 'bg-green-light/60' : '')}>
+                                  <td className="py-1.5">{on ? '▾ ' : '▸ '}{p.goal.includes(a) && '🎯 '}{p.actionLabels[a] || a}<span className="text-[10px] text-muted ml-1">{a}</span></td>
+                                  <td className="py-1.5 text-right font-black">{v.users}人</td>
+                                  <td className="py-1.5 text-right">{p.shownUsers ? `${Math.round((v.users / p.shownUsers) * 100)}%` : '—'}</td>
+                                  <td className="py-1.5 text-right text-sub">{v.count}回</td>
+                                </tr>
+                                {on && (
+                                  <tr><td colSpan={4} className="pb-2"><WhoList token={token} days={days} withTest={withTest} popup={p.id} who={a} /></td></tr>
+                                )}
+                              </Fragment>
+                            );
+                          })}
                         </tbody>
                       </table>
                     )}
@@ -189,6 +206,51 @@ function Inner() {
         ))}
       </div>
     </div>
+  );
+}
+
+// もう1段：誰が・いつ（何時何分）・どの画面で
+function WhoList({ token, days, withTest, popup, who }: { token: string; days: number; withTest: boolean; popup: string; who: string }) {
+  const [rows, setRows] = useState<any[] | null>(null);
+  const [label, setLabel] = useState('');
+  useEffect(() => {
+    setRows(null);
+    fetch(`/api/admin/popups?token=${encodeURIComponent(token)}&days=${days}${withTest ? '&test=1' : ''}&popup=${encodeURIComponent(popup)}&who=${encodeURIComponent(who)}`, { cache: 'no-store' })
+      .then((r) => r.json()).then((j) => { setRows(j.rows || []); setLabel(j.label || who); }).catch(() => setRows([]));
+  }, [token, days, withTest, popup, who]);
+  const at = (ms: number) => new Date(ms).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  if (!rows) return <div className="text-[11px] text-muted py-2">読み込み中…</div>;
+  return (
+    <div className="mt-1 rounded-xl border-2 border-green bg-green-light/30 p-2.5">
+      <div className="text-[11.5px] font-black mb-1.5">「{label}」 {rows.length}件{rows.length >= 500 ? '（新しい順に500件まで）' : '（新しい順）'}</div>
+      {rows.length === 0 ? <div className="text-[11px] text-muted">記録がありません</div> : (
+        <div className="max-h-[320px] overflow-y-auto">
+          <table className="w-full text-[11.5px]">
+            <thead><tr className="text-sub text-left"><th className="py-0.5 font-bold">日時</th><th className="py-0.5 font-bold">誰が</th><th className="py-0.5 font-bold">どの画面で</th><th className="py-0.5 font-bold">補足</th></tr></thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={`${r.userId}-${r.ts}-${i}`} className="border-t border-hair align-top">
+                  <td className="py-1 whitespace-nowrap font-num">{at(r.ts)}</td>
+                  <td className="py-1">
+                    <a href={`https://app.goltomo.com/profile/${r.userId}`} target="_blank" rel="noreferrer" className="font-bold text-blue">{r.user?.name || r.userId}</a>
+                    <span className="text-[10px] text-muted ml-1">{r.user?.gender === 'female' ? '女性' : r.user?.gender === 'male' ? '男性' : ''}{r.user?.age ? `・${r.user.age}歳` : ''}</span>
+                  </td>
+                  <td className="py-1 text-sub break-all">{r.page || '—'}</td>
+                  <td className="py-1 text-sub">{r.count ? `表示${r.count}回` : r.extra ? Object.entries(r.extra).map(([k, v]) => `${k}:${v}`).join(' ') : ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DrillBtn({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button type="button" onClick={onClick}
+      className={'px-2.5 py-1 rounded-full text-[11px] font-black border-[1.5px] ' + (on ? 'bg-green text-white border-green' : 'bg-card border-border')}>{on ? '▾ ' : '▸ '}{children}</button>
   );
 }
 

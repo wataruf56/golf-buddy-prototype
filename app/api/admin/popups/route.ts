@@ -6,6 +6,7 @@ import { POPUP_CATALOG } from '@/lib/popupCatalog';
 // GET /api/admin/popups?token=XXX&days=30 … ポップアップの反応の集計（2026-10-12）
 // もとデータ：_popupEvents（/api/log が popup イベントを入れる）。テスト垢は除く（?test=1 で含める）。
 // ポップアップごとに：表示回数・表示した人数・操作ごとの人数／回数・成果率・何もしなかった人・表示から操作までの時間（中央値）・日別
+// ?popup=<id>&who=<action|show|__noaction> … その操作をした人の一覧（誰が・いつ・どの画面で）
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 const DAY = 86400000;
 const JST = 9 * 3600 * 1000;
@@ -31,6 +32,38 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
   }
   events.sort((a, b) => a.ts - b.ts);
+
+  // ── もう1段：誰が・いつ（?popup=<id>&who=<action|show|__noaction>）（2026-10-12）──
+  const whoPopup = url.searchParams.get('popup') || '';
+  const who = url.searchParams.get('who') || '';
+  if (whoPopup && who) {
+    const def = POPUP_CATALOG.find((p) => p.id === whoPopup);
+    const evs = events.filter((e) => e.popup === whoPopup);
+    let rows: Array<{ userId: string; ts: number; page?: string; extra?: any; count?: number }> = [];
+    if (who === '__noaction') {
+      const terminal = new Set(def?.terminal || []);
+      const acted = new Set(evs.filter((e) => terminal.has(e.action)).map((e) => e.userId));
+      const lastShow: Record<string, Ev & { page?: string }> = {};
+      const cnt: Record<string, number> = {};
+      for (const e of evs) if (e.action === 'show' && !acted.has(e.userId)) { lastShow[e.userId] = e as any; cnt[e.userId] = (cnt[e.userId] || 0) + 1; }
+      rows = Object.values(lastShow).map((e: any) => ({ userId: e.userId, ts: e.ts, page: e.page, count: cnt[e.userId] }));
+    } else {
+      rows = evs.filter((e) => e.action === who).map((e: any) => ({ userId: e.userId, ts: e.ts, page: e.page, extra: e.extra }));
+    }
+    rows.sort((a, b) => b.ts - a.ts);
+    rows = rows.slice(0, 500);
+    const uids = Array.from(new Set(rows.map((r) => r.userId)));
+    const users: Record<string, any> = {};
+    for (let i = 0; i < uids.length; i += 100) {
+      const refs = uids.slice(i, i + 100).map((id) => adb.collection('users').doc(id));
+      const snaps = refs.length ? await adb.getAll(...refs) : [];
+      for (const sn of snaps) if (sn.exists) { const d = sn.data() || {}; users[sn.id] = { name: d.displayName || '（名前なし）', avatarUrl: d.avatarUrl || '', gender: d.gender || '', age: d.age || 0 }; }
+    }
+    return NextResponse.json({
+      popup: whoPopup, who, label: who === 'show' ? '出した' : who === '__noaction' ? '何もしなかった' : (def?.actions?.[who] || who),
+      rows: rows.map((r) => ({ ...r, user: users[r.userId] || { name: '（退会・不明）' } })),
+    }, { headers: noStore });
+  }
 
   const dayKey = (ts: number) => new Date(ts + JST).toISOString().slice(0, 10);
   const dayList: string[] = [];
