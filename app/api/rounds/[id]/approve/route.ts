@@ -27,6 +27,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const updated = await db.approveApplicant(params.id, userId);
+  // タイムライン「◯◯さんが「…」に参加しました」（2026-10-12）
+  try { const { recordTimelineJoin } = await import('@/lib/timelineEvents'); await recordTimelineJoin(params.id, userId); } catch { /* noop */ }
 
   // Notify the approved applicant — gated on their "applyApproved" pref.
   try {

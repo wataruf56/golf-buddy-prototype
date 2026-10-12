@@ -78,6 +78,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
   }
   const round = await db.replaceGuestWithUser(existing.id, { userId: meId, guestId, gender: me.gender });
+  try { const { recordTimelineJoin } = await import('@/lib/timelineEvents'); await recordTimelineJoin(existing.id, meId); } catch { /* noop */ }
   if (existing.status === 'completed') {
     try {
       const { reReviewAfterChange, notifyNewReviewPairs } = await import('@/lib/reReview');

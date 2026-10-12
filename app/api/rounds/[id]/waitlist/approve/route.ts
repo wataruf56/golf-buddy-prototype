@@ -38,6 +38,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   await db.updateRound(params.id, patch as any);
   if (!(round.pendingApplicantIds || []).includes(userId)) await db.joinRound(params.id, userId);
   const updated = await db.approveApplicant(params.id, userId);
+  try { const { recordTimelineJoin } = await import('@/lib/timelineEvents'); await recordTimelineJoin(params.id, userId); } catch { /* noop */ }
 
   // 本人へ：承認の通知（通常の承認と同じ文面・同じ設定に従う）
   try {

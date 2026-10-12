@@ -58,6 +58,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const round = await db.replaceGuestWithUser(params.id, { userId, guestId: guestId || undefined, gender: gender || invitee.gender });
+  try { const { recordTimelineJoin } = await import('@/lib/timelineEvents'); await recordTimelineJoin(params.id, userId); } catch { /* noop */ }
 
   // 完了したラウンドなら、新しくできた「同じ組」のペアにレビューを立てる。
   // 置き換わった本人と、その組にいた人の双方に未提出レビューが出る。

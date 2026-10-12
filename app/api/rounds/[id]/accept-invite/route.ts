@@ -59,6 +59,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const round = await db.acceptInvite(params.id, meId);
+  try { const { recordTimelineJoin } = await import('@/lib/timelineEvents'); await recordTimelineJoin(params.id, meId); } catch { /* noop */ }
 
   // 招待承認と同時に送られてきたピックアップ回答を保存する（あれば）。
   try {

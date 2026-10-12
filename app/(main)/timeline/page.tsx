@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { track } from '@/lib/telemetry';
 
 // タイムライン（2026-10-08）：みんなの動きを LINE のシステムメッセージ風の灰色1行で。lib/timeline 参照。
-type Item = { id: string; kind: 'signup' | 'avail' | 'round'; at: number; name: string; text: string; sub?: string; link?: string };
+type Item = { id: string; kind: 'signup' | 'avail' | 'round' | 'join'; at: number; name: string; text: string; sub?: string; link?: string };
 
 function dayKey(ts: number): string {
   const d = new Date(ts);
