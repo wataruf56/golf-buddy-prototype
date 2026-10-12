@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { usePopupSlot, POPUP_PRIORITY } from '@/lib/popupSlot';
+import { usePopupSlot, POPUP_PRIORITY, popupEvent } from '@/lib/popupSlot';
 import { Portal } from '@/components/Portal';
 import { toast } from '@/components/Toast';
 import { store } from '@/lib/store';
@@ -48,7 +48,7 @@ export function FriendGate({ reason = '参加の承認やメッセージ、前�
     try {
       const r = await fetch('/api/me/friendship', { method: 'POST', credentials: 'include', cache: 'no-store' });
       const j = r.ok ? await r.json() : { friend: null };
-      if (j.friend === true || j.friend === null) { pass(); return; }
+      if (j.friend === true || j.friend === null) { if (!silent) popupEvent('friendGate', 'passed'); pass(); return; }
       setState('blocked');
       if (!silent) toast('まだ友だち追加が確認できません。追加してから、もう一度押してください', 'error');
     } catch {
@@ -83,13 +83,13 @@ export function FriendGate({ reason = '参加の承認やメッセージ、前�
             {reason}
             追加していないと連絡が届かないため、ゴルトモでは友だち追加を必須にしています。
           </p>
-          <a href={LINE_ADD_URL} target="_blank" rel="noopener noreferrer"
+          <a href={LINE_ADD_URL} target="_blank" rel="noopener noreferrer" onClick={() => popupEvent('friendGate', 'add_friend')}
             className="flex items-center justify-center gap-2 w-full mt-4 py-3 rounded-xl border-2 border-border font-black text-white text-[15px]"
             style={{ background: '#06C755' }}>
             <img src="/line-logo.png" alt="" width="184" height="183" className="h-5 w-auto bg-white rounded border border-border p-0.5" style={{ boxSizing: 'content-box' }} />
             LINEで友だち追加する
           </a>
-          <button type="button" disabled={busy} onClick={() => check(false)}
+          <button type="button" disabled={busy} onClick={() => { popupEvent('friendGate', 'recheck'); check(false); }}
             className="block w-full mt-2 py-3 rounded-xl border-2 border-border bg-white text-[14px] font-black disabled:opacity-60">
             {busy ? '確認中…' : '✓ 追加しました（確認する）'}
           </button>

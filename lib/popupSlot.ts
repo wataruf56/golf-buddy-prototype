@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { track } from './telemetry';
 
 // 自動で出るポップアップは「同時に1つだけ」（2026-10-12）。
 //
@@ -14,6 +15,9 @@ import { useEffect, useSyncExternalStore } from 'react';
 // ユーザーが自分で開くもの（確認ダイアログ・下から出るシート）はここに入れない（操作の続きなので重なってよい）。
 //
 // 最後に何かが閉じた時刻（lastClosedAt）も持つ。イチオシ募集は「ほかのが閉じて1時間後」に使う。
+//
+// 【計測】画面に出たら自動で popupEvent(id, 'show')。ボタンを押したら各ポップアップが popupEvent(id, 'アクション') を呼ぶ。
+// /api/log が _popupEvents にも書き、管理画面「📊 計測ハブ」のポップアップの反応で集計する（app/api/admin/popups）。
 export const POPUP_PRIORITY = {
   completion: 100,   // 主催者：ラウンド完了／中止（閉じられない）
   groups: 95,        // 主催者：組み分け（閉じられない）
@@ -56,7 +60,20 @@ export function usePopupSlot(id: string, priority: number, want: boolean): boole
     return () => { reqs.delete(id); recompute(); };
   }, [id, priority, want]);
   const cur = useSyncExternalStore(subscribe, getCurrent, () => null);
-  return want && cur === id;
+  const active = want && cur === id;
+  // 画面に出たら1回だけ「表示」を記録（出ている間に何度も記録しない）
+  const shown = useRef(false);
+  useEffect(() => {
+    if (active && !shown.current) { shown.current = true; popupEvent(id, 'show'); }
+    if (!active) shown.current = false;
+  }, [active, id]);
+  return active;
+}
+
+/** ポップアップでの操作を記録する（管理画面で集計）。id は usePopupSlot と同じ・action は 'close' 'cta' など */
+export function popupEvent(id: string, action: string, data?: Record<string, unknown>): void {
+  const base = id.split(':')[0];   // chase:<chatId> のような個別IDは種類でまとめる
+  track('popup', { id: base, action, ...(data || {}) });
 }
 
 /** いずれかの自動ポップアップが出ているか（出したい手が挙がっているか） */

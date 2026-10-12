@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { useStore, getMe, store } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { completionDueMs } from '@/lib/completionTiming';
-import { usePopupSlot, POPUP_PRIORITY } from '@/lib/popupSlot';
+import { usePopupSlot, POPUP_PRIORITY, popupEvent } from '@/lib/popupSlot';
 
 // 開催日を1日過ぎても「完了」にされていない募集を、主催者に片付けてもらうためのゲート。
 //
@@ -63,7 +63,7 @@ export function CompletionGate() {
             onClick={async () => {
               if (!(await confirmDialog(isDrink ? '飲み会を完了にしますか？' : 'ラウンドを完了にしますか？（参加者全員にレビュー依頼が送られます）'))) return;
               setBusy(true);
-              try { await store.completeRound(target.id); toast(isDrink ? '飲み会を完了しました' : 'ラウンドを完了しました'); }
+              try { await store.completeRound(target.id); popupEvent('completion', 'complete'); toast(isDrink ? '飲み会を完了しました' : 'ラウンドを完了しました'); }
               catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
               finally { setBusy(false); }
             }}
@@ -74,14 +74,14 @@ export function CompletionGate() {
             onClick={async () => {
               if (!(await confirmDialog(isDrink ? 'この飲み会を「中止」にしますか？' : 'このラウンドを「中止」にしますか？（雨天などで実施しなかったとき。レビュー依頼は送られません）'))) return;
               setBusy(true);
-              try { await store.cancelHeldRound(target.id); toast('中止にしました'); }
+              try { await store.cancelHeldRound(target.id); popupEvent('completion', 'held_cancel'); toast('中止にしました'); }
               catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
               finally { setBusy(false); }
             }}
             className="flex-1 py-3 bg-card text-sub border-[1.5px] border-border rounded-xl font-bold text-sm disabled:opacity-50"
           >{isDrink ? '飲み会中止' : 'ラウンド中止'}</button>
         </div>
-        <button type="button" onClick={() => router.push(`/round/${target.id}`)} className="block w-full mt-2 py-2 text-[12px] text-blue font-bold">募集ページを確認する</button>
+        <button type="button" onClick={() => { popupEvent('completion', 'open_round'); router.push(`/round/${target.id}`); }} className="block w-full mt-2 py-2 text-[12px] text-blue font-bold">募集ページを確認する</button>
         {rest > 0 && (
           <div className="text-[11px] text-muted mt-3">ほかにも未完了が {rest} 件あります</div>
         )}

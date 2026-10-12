@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { track } from '@/lib/telemetry';
-import { usePopupSlot, POPUP_PRIORITY } from '@/lib/popupSlot';
+import { usePopupSlot, POPUP_PRIORITY, popupEvent } from '@/lib/popupSlot';
 
 // ラウンド（コンペ）のあと、「行ける日」が未入力の参加者に1回だけ出すポップアップ（lib/availPrompt）（2026-10-11）
 // 運営が OK を出して時刻を過ぎてから。レビューが残っている間は出さない（レビュー画面が先）。
@@ -52,12 +52,12 @@ export function AvailPromptPopup({ blocked }: { blocked: boolean }) {
         </p>
         <button
           type="button"
-          onClick={() => { seen(); track('avail_prompt_go', { roundId: prompt.roundId }); setPrompt(null); router.push('/availability'); }}
+          onClick={() => { seen(); popupEvent('availPrompt', 'go'); track('avail_prompt_go', { roundId: prompt.roundId }); setPrompt(null); router.push('/availability'); }}
           className="w-full py-3.5 bg-green text-white rounded-xl font-bold text-[15px]"
         >行ける日を入力する</button>
         <button
           type="button"
-          onClick={() => { seen(); track('avail_prompt_close', { roundId: prompt.roundId }); setPrompt(null); }}
+          onClick={() => { seen(); popupEvent('availPrompt', 'close'); track('avail_prompt_close', { roundId: prompt.roundId }); setPrompt(null); }}
           className="block w-full mt-2 py-2 text-[12px] text-sub font-bold"
         >閉じる</button>
       </div>

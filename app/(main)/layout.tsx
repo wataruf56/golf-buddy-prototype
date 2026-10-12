@@ -11,7 +11,7 @@ import { CompletionGate } from '@/components/CompletionGate';
 import { AvailPromptPopup } from '@/components/AvailPromptPopup';
 import { PaymentAckGate } from '@/components/PaymentAckGate';
 import { RoundPromoPopup } from '@/components/RoundPromoPopup';
-import { usePopupSlot, POPUP_PRIORITY } from '@/lib/popupSlot';
+import { usePopupSlot, POPUP_PRIORITY, popupEvent } from '@/lib/popupSlot';
 import { BlockerPopup } from '@/components/BlockerPopup';
 import { ToastHost } from '@/components/Toast';
 import { ConfirmHost } from '@/components/ConfirmDialog';
@@ -108,6 +108,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     // 以前はタブを押すとレビュー画面が閉じて下の小さな案内だけになり、画面の中身を操作できてしまっていた。
     void href;
     if (pendingCount > 0) {
+      popupEvent('review', 'tab_blocked', { to: href || '' });
       setBlockerOpen(false);
       setOverlayOpen(true);
       return true;

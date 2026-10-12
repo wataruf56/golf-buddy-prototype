@@ -91,6 +91,7 @@ function Inner() {
     {
       key: 'report', emoji: '📊', name: 'レポート', lead: '数字を見る。使われ方・流入・LINEの通数・操作の記録',
       items: [
+        { href: `/admin/insights${q}`, emoji: '📊', title: '計測ハブ', desc: '全体の数字 / ポップアップごとの反応（何を押したか・成果率） / イチオシの効果 / ほかの計測への入口' },
         { href: `/admin/activity${q}`, emoji: '📈', title: '利用状況', desc: 'よく開かれる画面 / アクティブ会員 / 登録の推移・カレンダー / スイング' },
         { href: `/admin/lp-funnel${q}`, emoji: '🧭', title: 'LP・診断の流入', desc: '入口別のファネル・離脱ポイント・LINE到達 / 診断の中身・需要プール' },
         { href: `/admin/line-stats${q}`, emoji: '📨', title: 'LINE配信の通数', desc: '種別ごとの送信数・月別の推移（有料枠の把握）' },

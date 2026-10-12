@@ -16,7 +16,7 @@ import { isRoundHost } from '@/lib/roundHost';
 import { isOfficialThread } from '@/lib/officialShared';
 import { isAvailRoom } from '@/lib/availabilityShared';
 import { viewerSlotFull } from '@/lib/genderSlots';
-import { usePopupSlot, POPUP_PRIORITY } from '@/lib/popupSlot';
+import { usePopupSlot, POPUP_PRIORITY, popupEvent } from '@/lib/popupSlot';
 
 function relTime(ts: number): string {
   const diff = Date.now() - ts;
@@ -90,6 +90,7 @@ export default function HomePage() {
   // ポップアップは同時に1つだけ（lib/popupSlot）
   const hostNudgeActive = usePopupSlot('hostNudge', POPUP_PRIORITY.hostNudge, !!hostNudge && !reviewsPendingForNudge);
   function closeHostNudge(go: boolean) {
+    popupEvent('hostNudge', go ? 'create' : 'close');
     if (!go) {
       try {
         const n = Number(localStorage.getItem('gb_hostnudge_dismissed') || 0) + 1;

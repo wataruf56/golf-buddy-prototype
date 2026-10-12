@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { usePopupSlot, POPUP_PRIORITY } from '@/lib/popupSlot';
+import { usePopupSlot, POPUP_PRIORITY, popupEvent } from '@/lib/popupSlot';
 import { Portal } from '@/components/Portal';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/components/Toast';
@@ -84,6 +84,7 @@ export function OfficialHomeCard() {
    * 入れる席が決められなかったときだけ、詳細画面に戻して選んでもらう。
    */
   async function joinNow(p: Prompt) {
+    popupEvent('official', 'join');
     if (!p.id || busy) return;
     setBusy(true);
     track('pr_rider_join', { id: p.id });
@@ -109,6 +110,7 @@ export function OfficialHomeCard() {
   }
 
   function snooze(p: Prompt | null) {
+    if (p) popupEvent('official', 'snooze');
     const days = p?.snoozeDays ?? 7;
     try {
       // 枠ごとに覚える。1つの枠を「あとで」にしても、別の枠の声かけは残す。

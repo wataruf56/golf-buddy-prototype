@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useStore, getMe } from '@/lib/store';
 import { competitionGroupsComplete } from '@/lib/groups';
-import { usePopupSlot, POPUP_PRIORITY } from '@/lib/popupSlot';
+import { usePopupSlot, POPUP_PRIORITY, popupEvent } from '@/lib/popupSlot';
 
 // JST の YYYY-MM-DD（offsetDays 日後）。Date.now を JST に寄せてから日付部分を取る。
 function jstYmd(offsetDays = 0): string {
@@ -48,6 +48,7 @@ export function GroupGate() {
           全参加者を組に割り当てる（当日来れなかった人は「当日来れなかった人」へ移す）まで、他の操作はできません。
         </p>
         <Link
+          onClick={() => popupEvent('groups', 'open_round')}
           href={`/round/${target.id}?tab=groups`}
           className="block w-full py-3 bg-green text-white rounded-xl font-bold text-sm"
         >

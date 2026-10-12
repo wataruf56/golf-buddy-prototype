@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { usePopupSlot, POPUP_PRIORITY } from '@/lib/popupSlot';
+import { usePopupSlot, POPUP_PRIORITY, popupEvent } from '@/lib/popupSlot';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { AvailPersonChip } from '@/components/AvailPersonChip';
@@ -34,6 +34,7 @@ export function AvailabilityIntro({ needsStation, onDone }: { needsStation: bool
 
   async function finish(go: 'calendar' | 'station' | 'close') {
     if (busy) return;
+    popupEvent('availIntro', go === 'close' ? 'close' : `go_${go}`);
     setBusy(true);
     try {
       await fetch('/api/availability/intro-seen', { method: 'POST', credentials: 'include', cache: 'no-store' });
@@ -110,7 +111,7 @@ export function AvailabilityIntro({ needsStation, onDone }: { needsStation: bool
         </div>
         <div className="px-4 pb-3 pt-1 bg-card border-t border-hair flex-shrink-0">
           {!last ? (
-            <button type="button" onClick={() => setPage(page + 1)}
+            <button type="button" onClick={() => { popupEvent('availIntro', 'next', { page: page + 1 }); setPage(page + 1); }}
               className="block w-full py-3 rounded-xl border-2 border-border bg-green text-white text-[15px] font-black">次へ</button>
           ) : (
             <>

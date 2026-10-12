@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { usePopupSlot, POPUP_PRIORITY } from '@/lib/popupSlot';
+import { usePopupSlot, POPUP_PRIORITY, popupEvent } from '@/lib/popupSlot';
 import { Portal } from '@/components/Portal';
 
 const KEY = 'gb_swing_onboarded_v1';
@@ -39,6 +39,7 @@ export function OnboardingModal() {
   }, []);
 
   function close() {
+    popupEvent('swingIntro', step === STEPS.length - 1 ? 'done' : 'skip', { step: step + 1 });
     localStorage.setItem(KEY, '1');
     setOpen(false);
   }

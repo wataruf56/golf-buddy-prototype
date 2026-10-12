@@ -26,6 +26,16 @@ export async function POST(req: NextRequest) {
   if (db && !isDemoMode) {
     try {
       await db.collection('_logs').add(entry);
+      // ポップアップの操作は集計しやすいよう専用の箱にも入れる（管理画面「📊 計測ハブ」・/api/admin/popups）（2026-10-12）
+      if (entry.event === 'popup' && entry.data && typeof entry.data === 'object') {
+        const d: any = entry.data;
+        const extra: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(d)) if (k !== 'id' && k !== 'action' && (typeof v === 'string' || typeof v === 'number')) extra[k] = typeof v === 'string' ? v.slice(0, 80) : v;
+        await db.collection('_popupEvents').add({
+          userId: meId, popup: String(d.id || '').slice(0, 40), action: String(d.action || '').slice(0, 40),
+          ...(Object.keys(extra).length ? { extra } : {}), page: entry.page, ts: entry.ts,
+        });
+      }
     } catch (e) {
       console.error('[log] write failed', e);
     }

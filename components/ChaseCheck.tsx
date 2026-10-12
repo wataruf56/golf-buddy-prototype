@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { usePopupSlot, POPUP_PRIORITY } from '@/lib/popupSlot';
+import { usePopupSlot, POPUP_PRIORITY, popupEvent } from '@/lib/popupSlot';
 import { Portal } from '@/components/Portal';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/components/Toast';
@@ -83,11 +83,13 @@ export function ChaseCheck({ chatId, meId, otherId, otherName, messages }: {
   const label = kind === 'romantic' ? '気になる' : '行きたい';
 
   function keep() {
+    popupEvent('chase', 'keep');
     try { localStorage.setItem(KEY(chatId), streak!.key); } catch { /* noop */ }
     setOpen(false);
   }
 
   async function change() {
+    popupEvent('chase', 'change');
     setBusy(true);
     try {
       // 再会画面の先頭に「いまの気持ち」がある。そこで選び直してもらう。

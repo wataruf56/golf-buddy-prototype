@@ -8,6 +8,7 @@ import { alertDialog } from '@/components/ConfirmDialog';
 import { track } from '@/lib/telemetry';
 import type { User, ReviewVerdict } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { popupEvent } from '@/lib/popupSlot';
 
 // ラウンド後のレビュー。同じ組の人には4択（また回りたい／異性として気になる／
 // ごめんなさい／どっちでもいい）。コンペで別の組だった人には任意の「回ってみたい」
@@ -166,6 +167,7 @@ export function ReviewOverlay() {
 
   async function submitAll() {
     if (!allRated || busy) return;
+    popupEvent('review', 'submit', { count: pending.length });
     if (noReview) { toast('レビュー投稿の利用が制限されています。', 'error'); return; }
     setBusy(true);
     track('review_bulk_submit', { count: pending.length });

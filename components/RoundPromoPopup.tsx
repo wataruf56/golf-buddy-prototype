@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { track } from '@/lib/telemetry';
-import { usePopupSlot, usePopupBusy, lastPopupClosedAt, POPUP_PRIORITY } from '@/lib/popupSlot';
+import { usePopupSlot, usePopupBusy, lastPopupClosedAt, POPUP_PRIORITY, popupEvent } from '@/lib/popupSlot';
 
 // イチオシ募集のポップアップ（lib/promoPopup）（2026-10-12）。1人1回だけ。
 // ほかのポップアップが出ているあいだは出さない。何か出ていた人には、それが閉じてから1時間後に出す
@@ -141,11 +141,11 @@ export function RoundPromoPopup({ blocked }: { blocked: boolean }) {
             )}
 
             <button type="button"
-              onClick={() => { track('promo_popup_go', { promoId: promo.promoId }); fetch('/api/me/promo-popup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ promoId: promo.promoId, action: 'go' }), cache: 'no-store', credentials: 'include' }).catch(() => {}); close(); router.push(`/round/${promo.roundId}`); }}
+              onClick={() => { popupEvent('promo', 'go', { promoId: promo.promoId }); track('promo_popup_go', { promoId: promo.promoId }); fetch('/api/me/promo-popup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ promoId: promo.promoId, action: 'go' }), cache: 'no-store', credentials: 'include' }).catch(() => {}); close(); router.push(`/round/${promo.roundId}`); }}
               className="mt-4 w-full py-3.5 bg-orange text-white rounded-2xl text-[16px] font-black border-[2.5px] border-border shadow-[3px_3px_0_#1E3A30] active:translate-y-[2px] active:shadow-none">
               🏌️ ぜひ参加してみませんか？ →
             </button>
-            <button type="button" onClick={() => { track('promo_popup_close', { promoId: promo.promoId }); close(); }}
+            <button type="button" onClick={() => { popupEvent('promo', 'close', { promoId: promo.promoId }); track('promo_popup_close', { promoId: promo.promoId }); close(); }}
               className="block w-full mt-2 py-1.5 text-[12px] text-sub font-bold">今回は見送る</button>
           </div>
         </div>

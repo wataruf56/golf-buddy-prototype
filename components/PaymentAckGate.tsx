@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useStore, getMe, store } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { confirmDialog } from '@/components/ConfirmDialog';
-import { usePopupSlot, POPUP_PRIORITY } from '@/lib/popupSlot';
+import { usePopupSlot, POPUP_PRIORITY, popupEvent } from '@/lib/popupSlot';
 import { paymentInfoOf, paymentSig, fmtJstDateTime, mdOf, ON_SITE_NOTE } from '@/lib/paymentNotice';
 
 // すでに参加している募集に、主催者があとから事前入金を設定したときの確認（2026-10-11）。
@@ -40,6 +40,7 @@ export function PaymentAckGate({ blocked }: { blocked: boolean }) {
   const md = mdOf(target.date);
 
   async function yes() {
+    popupEvent('paymentAck', 'yes');
     setBusy(true);
     try {
       const res = await fetch(`/api/rounds/${target!.id}/payment-ack`, { method: 'POST', cache: 'no-store', credentials: 'include' });
@@ -49,10 +50,13 @@ export function PaymentAckGate({ blocked }: { blocked: boolean }) {
     finally { setBusy(false); }
   }
   async function no() {
+    popupEvent('paymentAck', 'no');
     if (!(await confirmDialog({ title: '参加の取り消し', message: `${md ? `${md}の` : ''}「${target!.title}」への参加を取り消しますか？`, confirmText: 'はい（取り消す）', cancelText: 'いいえ', danger: true }))) {
       setSkipped((s) => ({ ...s, [target!.id]: true }));
+      popupEvent('paymentAck', 'keep_joined');
       return;
     }
+    popupEvent('paymentAck', 'cancel_round');
     setBusy(true);
     try {
       await store.leaveRound(target!.id, { reason: 'other', text: '事前入金の条件が合わないため' });
