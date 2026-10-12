@@ -264,6 +264,10 @@ export default function RoundDetailPage() {
     }).catch(() => {});
   }, [storeRound, fetchedRound, meId, storeUsers, fetchedUsers]);
 
+  // 事前入金の確認を済ませて申し込むとき（join → submitJoin）の印。hook なので下の早期 return より前に置く
+  // （2026-10-12：早期 return の後ろにあり、読み込み中→表示で hook の数が変わって React #310 で落ちていた）
+  const payAckPending = useRef(false);
+
   if (!round) {
     if (fetchState === 'loading') {
       return <div className="p-5 text-center text-sub">読み込み中...</div>;
@@ -379,7 +383,6 @@ export default function RoundDetailPage() {
     router.push(`/mypage/edit?returnTo=${encodeURIComponent(back)}`);
   }
 
-  const payAckPending = useRef(false);
   async function join() {
     if (requireLogin()) return;
     // 友だち追加が確認できていない人は、先に関所へ（通ったらもう一度 join）。
