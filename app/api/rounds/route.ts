@@ -43,6 +43,10 @@ export async function POST(req: NextRequest) {
   // 性別ごとの募集内訳。指定があればそれを正とし、maxSpots（＝主催者1＋募集枠）を再計算する。
   // 旧クライアント（内訳なし）は maxSpots をそのまま使い、全枠を「どちらでもOK」とみなす。
   const clampN = (v: any) => Math.max(0, Math.min(49, Math.floor(Number(v) || 0)));
+  // ゴルトモ公式（管理者のみ）として立てる募集は、主催者（管理者）を参加人数に数えない（2026-10-12）。
+  // 下の isOfficial と同じ条件。主催者の枠は 0 になる。lib/hostCount
+  const isOfficialNew = !!body.asOfficial && isAdminUserId(meId);
+  const hostSeatN = isOfficialNew ? 0 : 1;
   // イベント種別。'drink' の場合はゴルフ場/組み分け/送迎/レビューを持たない飲み会募集。
   const eventType: 'golf' | 'drink' = body.eventType === 'drink' ? 'drink' : 'golf';
   const isDrink = eventType === 'drink';
@@ -64,10 +68,10 @@ export async function POST(req: NextRequest) {
   } else if (hasBreakdown) {
     let slots = spotsMale + spotsFemale + spotsAny;
     if (slots < 1) { spotsAny = 1; slots = 1; } // 最低1枠
-    maxSpots = Math.min(50, 1 + externalTotal + slots); // 主催者 + 知り合い + 募集枠
+    maxSpots = Math.min(50, hostSeatN + externalTotal + slots); // 主催者 + 知り合い + 募集枠
   } else {
-    maxSpots = Math.max(2, Math.min(50, Number(body.maxSpots) || 2));
-    spotsMale = 0; spotsFemale = 0; spotsAny = Math.max(0, maxSpots - 1 - externalTotal);
+    maxSpots = Math.max(1 + hostSeatN, Math.min(50, Number(body.maxSpots) || 2));
+    spotsMale = 0; spotsFemale = 0; spotsAny = Math.max(0, maxSpots - hostSeatN - externalTotal);
   }
 
   // 共同管理者（任意・複数可）。主催者と同じ権限を持ち、作成時から参加者(applicantIds)として
@@ -95,7 +99,7 @@ export async function POST(req: NextRequest) {
   })();
 
   // 共同管理者は承認済み参加者として1枠を占有する。定員に収まらない場合のみ総定員を広げる。
-  const baseFixedCount = 1 + externalTotal + coHostIds.length; // 主催者 + 知り合い + 共同管理者
+  const baseFixedCount = hostSeatN + externalTotal + coHostIds.length; // 主催者 + 知り合い + 共同管理者
   if (baseFixedCount > maxSpots) maxSpots = Math.min(isDrink ? DRINK_CAP : 50, baseFixedCount);
   // 後方互換の性別条件をサーバー側で内訳から導出（単一性別のみ厳格ゲート）。飲み会は常に 'any'。
   const genderCondition: 'any' | 'male' | 'female' = isDrink ? 'any'
@@ -124,7 +128,7 @@ export async function POST(req: NextRequest) {
     spotsAny,
     externalMale,
     externalFemale,
-    currentCount: 1 + externalTotal + coHostIds.length, // 主催者 + 知り合い + 共同管理者は最初から参加扱い
+    currentCount: hostSeatN + externalTotal + coHostIds.length, // 主催者 + 知り合い + 共同管理者は最初から参加扱い
     applicantIds: [...coHostIds], // 共同管理者は承認済み参加者として初期登録（申請不要）
 
     price: body.price ? String(body.price).slice(0, 40) : undefined,
@@ -159,7 +163,9 @@ export async function POST(req: NextRequest) {
     isCompetition: !isDrink && maxSpots >= 5,
     // "ゴルトモ公式" は管理者（福田渉）のみが選択可能。クライアントの申告は
     // 信用せず、サーバー側で管理者であることを再検証してから true にする。
-    isOfficial: !!body.asOfficial && isAdminUserId(meId),
+    isOfficial: isOfficialNew,
+    // 公式募集は主催者を人数に数えない（2026-10-12）。既存の募集には付けない（数え方を変えない）。
+    ...(isOfficialNew ? { hostNotCounted: true } : {}),
     createdAt: Date.now(),
   };
   try {

@@ -117,6 +117,9 @@ export default function CreatePage() {
   const isComp = maxSpots >= 5;
   const MIN_TOTAL = 2, MAX_TOTAL = 50;
   const extTotal = externalMale + externalFemale;               // 知り合い合計
+  // ゴルトモ公式として投稿するときは主催者（管理者）を人数に数えない（2026-10-12）。主催者の枠は 0。
+  const hostNotCounted = isAdmin && postAsOfficial;
+  const hostSeatN = hostNotCounted ? 0 : 1;
   // 性別内訳は「自分を含めた全体(=募集人数)」の内訳。男 + 女 + どちらでも = maxSpots。
   // spotsMale / spotsFemale は内訳の男/女。どちらでも(bAny)は残りの自動計算。
   const bAny = Math.max(0, maxSpots - spotsMale - spotsFemale);
@@ -202,16 +205,16 @@ export default function CreatePage() {
     const next = Math.max(MIN_TOTAL, Math.min(MAX_TOTAL, maxSpots + delta));
     // 知り合いは「自分以外」の枠に収める（合計 ≤ maxSpots-1）。
     let em = externalMale, ef = externalFemale;
-    let over = (em + ef) - (next - 1);
+    let over = (em + ef) - (next - hostSeatN);
     if (over > 0) { const cf = Math.min(ef, over); ef -= cf; over -= cf; em = Math.max(0, em - over); }
     setMaxSpots(next); setExternalMale(em); setExternalFemale(ef);
     clampBreakdown(next);
   }
   function changeExtMale(delta: number) {
-    setExternalMale(Math.max(0, Math.min(externalMale + delta, maxSpots - 1 - externalFemale)));
+    setExternalMale(Math.max(0, Math.min(externalMale + delta, maxSpots - hostSeatN - externalFemale)));
   }
   function changeExtFemale(delta: number) {
-    setExternalFemale(Math.max(0, Math.min(externalFemale + delta, maxSpots - 1 - externalMale)));
+    setExternalFemale(Math.max(0, Math.min(externalFemale + delta, maxSpots - hostSeatN - externalMale)));
   }
   // 内訳(自分含む全体)の 男/女。男+女 ≤ maxSpots（残りは「どちらでも」）。
   function changeMale(delta: number) {
@@ -223,9 +226,10 @@ export default function CreatePage() {
   // 内訳(自分含む全体) → API用の実募集枠(自分・知り合いを除く)へ変換。
   // これにより保存されるデータ(spots*)の意味は従来どおり「募集枠」のまま保たれる。
   function recruitmentSlots(): { spotsMale: number; spotsFemale: number; spotsAny: number } {
-    const hostMale = me?.gender === 'male' ? 1 : 0;
-    const hostFemale = me?.gender === 'female' ? 1 : 0;
-    const recruitTotal = Math.max(0, maxSpots - 1 - extTotal);
+    // 公式募集は主催者が内訳に入らない（2026-10-12）
+    const hostMale = hostSeatN && me?.gender === 'male' ? 1 : 0;
+    const hostFemale = hostSeatN && me?.gender === 'female' ? 1 : 0;
+    const recruitTotal = Math.max(0, maxSpots - hostSeatN - extTotal);
     const rMale = Math.max(0, Math.min(spotsMale - hostMale - externalMale, recruitTotal));
     const rFemale = Math.max(0, Math.min(spotsFemale - hostFemale - externalFemale, recruitTotal - rMale));
     const rAny = Math.max(0, recruitTotal - rMale - rFemale);
@@ -653,12 +657,14 @@ export default function CreatePage() {
             {maxSpots < 2 ? (
               <div className="mt-1.5 px-3 py-2 bg-orange-light rounded-lg text-[11px] text-orange font-bold">＋ を押して募集人数を選んでください（必須）</div>
             ) : (
-              <div className="mt-1.5 px-3 py-2 bg-green-light rounded-lg text-[11px] text-green font-bold">👤 主催者（あなた）を含めた合計人数です</div>
+              <div className="mt-1.5 px-3 py-2 bg-green-light rounded-lg text-[11px] text-green font-bold">
+                {hostNotCounted ? '🏆 ゴルトモ公式（主催者）は人数に入りません。プレーする人の合計人数です' : '👤 主催者（あなた）を含めた合計人数です'}
+              </div>
             )}
 
             {/* 性別ごとの募集内訳（人数ボタンのすぐ下・間隔を詰める） */}
             <div className="mt-3">
-              <label className="block text-xs font-bold text-sub mb-1.5">性別ごとの募集内訳 <span className="text-muted font-medium">（合計 {maxSpots}人・自分を含む）</span></label>
+              <label className="block text-xs font-bold text-sub mb-1.5">性別ごとの募集内訳 <span className="text-muted font-medium">{hostNotCounted ? `合計 ${maxSpots}人（ゴルトモ公式は人数に入りません）` : `（合計 ${maxSpots}人・自分を含む）`}</span></label>
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-black text-blue flex items-center gap-1.5">👨 男性</span>
@@ -674,7 +680,7 @@ export default function CreatePage() {
                 </div>
               </div>
               <div className="mt-2.5 px-3 py-2 bg-bg rounded-lg text-[11px] font-bold text-sub">
-                合計 <b className="text-text">{spotsMale + spotsFemale + bAny}</b>人（自分を含む）＝ 男性{spotsMale}・女性{spotsFemale}・どちらでも{bAny}
+                合計 <b className="text-text">{spotsMale + spotsFemale + bAny}</b>人{hostNotCounted ? '（ゴルトモ公式は人数に入りません）' : '（自分を含む）'}＝ 男性{spotsMale}・女性{spotsFemale}・どちらでも{bAny}
                 <span className="block text-[10px] text-muted font-medium mt-0.5">この合計が上の「募集人数（{maxSpots}人）」と一致します。「どちらでもOK」は残りから自動計算。</span>
               </div>
             </div>
@@ -684,11 +690,11 @@ export default function CreatePage() {
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-black text-blue flex items-center gap-1.5">👨 男性</span>
-                  <Stepper sm value={externalMale} onMinus={() => changeExtMale(-1)} onPlus={() => changeExtMale(1)} minusDisabled={externalMale <= 0} plusDisabled={extTotal >= maxSpots - 1} suffix="人" />
+                  <Stepper sm value={externalMale} onMinus={() => changeExtMale(-1)} onPlus={() => changeExtMale(1)} minusDisabled={externalMale <= 0} plusDisabled={extTotal >= maxSpots - hostSeatN} suffix="人" />
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-black text-pink-600 flex items-center gap-1.5">👩 女性</span>
-                  <Stepper sm value={externalFemale} onMinus={() => changeExtFemale(-1)} onPlus={() => changeExtFemale(1)} minusDisabled={externalFemale <= 0} plusDisabled={extTotal >= maxSpots - 1} suffix="人" />
+                  <Stepper sm value={externalFemale} onMinus={() => changeExtFemale(-1)} onPlus={() => changeExtFemale(1)} minusDisabled={externalFemale <= 0} plusDisabled={extTotal >= maxSpots - hostSeatN} suffix="人" />
                 </div>
               </div>
               <div className="mt-1.5 text-[10px] text-muted font-medium">

@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { isRoundHost } from '@/lib/roundHost';
 import { getMeId } from '@/lib/session';
 import { addNotification } from '@/lib/notifications';
+import { currentCountOf } from '@/lib/hostCount';
 
 const noStore = { 'Cache-Control': 'no-store' };
 
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       // 新たに参加者(承認済み)として登録。空き枠があればそれを使い、満員なら定員を広げる。
       applicantIds.push(userId);
       patch.applicantIds = applicantIds;
-      const nextCount = (round.currentCount || 1) + 1;
+      const nextCount = currentCountOf(round) + 1;
       patch.currentCount = nextCount;
       const isDrink = round.eventType === 'drink';
       if (nextCount > (round.maxSpots || 0)) patch.maxSpots = Math.min(isDrink ? 99 : 50, nextCount);

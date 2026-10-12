@@ -6,6 +6,7 @@ import { useStore, getMe } from '@/lib/store';
 import { useUnreadCounts } from '@/lib/useUnread';
 import { formatDate, priceLabelForGender } from '@/lib/utils';
 import { viewerSlotFull } from '@/lib/genderSlots';
+import { countedMemberIds } from '@/lib/hostCount';
 
 // コンパクトな募集カード。投稿者名は表示しない。参加状況バーの上に男女比を出す。
 export function RoundCard({ round }: { round: Round; host?: User }) {
@@ -28,10 +29,10 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
   // 費用は閲覧者の性別に応じて表示（男女別料金が設定されている場合）。
   const priceLabel = priceLabelForGender(round, me?.gender);
 
-  // 参加確定メンバーの男女内訳（主催者＋承認済み＋知り合い枠）。
+  // 参加確定メンバーの男女内訳（主催者＋承認済み＋知り合い枠）。公式募集は主催者を数えない（2026-10-12）。
   let male = round.externalMale || 0;
   let female = round.externalFemale || 0;
-  for (const id of [round.hostId, ...(round.applicantIds || [])]) {
+  for (const id of countedMemberIds(round)) {
     const u = users.find((x) => x.id === id);
     if (u?.gender === 'male') male++;
     else if (u?.gender === 'female') female++;

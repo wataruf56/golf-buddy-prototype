@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase';
 import type { Round } from '@/lib/types';
 import { warmTestIds, withoutTestRounds, withoutTestUsers } from '@/lib/testAccounts';
+import { hostCounts } from '@/lib/hostCount';
 
 
 // 管理画面トップの「事業サマリー」。散らばっていた計測を、意思決定に必要な数字だけに絞って返す。
@@ -23,7 +24,8 @@ function authed(req: NextRequest): boolean {
   return !!expected && token === expected;
 }
 
-const membersOf = (r: Round) => [r.hostId, ...(r.coHostIds || []), ...(r.applicantIds || [])].filter(Boolean) as string[];
+// 公式募集（hostNotCounted）は主催者をメンバーに数えない（2026-10-12）
+const membersOf = (r: Round) => [...(hostCounts(r) ? [r.hostId] : []), ...(r.coHostIds || []), ...(r.applicantIds || [])].filter(Boolean) as string[];
 // 開催日（未定の募集は集計対象外）。
 const dateOf = (r: Round) => (r.date ? new Date(`${r.date}T00:00:00+09:00`).getTime() : 0);
 

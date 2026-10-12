@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase';
+import { countedMemberIds } from '@/lib/hostCount';
 
 // あるユーザーの「実績ベース評価」用データ。
 //   roundedWith : これまで完了ラウンドで同組になった人数（重複なしの実人数）
@@ -31,10 +32,12 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       if (r.status !== 'completed') return;
       // 飲み会（eventType='drink'）はゴルフのラウンド実績に数えない。
       if (r.eventType === 'drink') return;
-      const members: string[] = [r.hostId, ...((r.applicantIds as string[]) || [])].filter(Boolean);
-      if (!members.includes(id)) return;
-      if (r.hostId === id) hostedCount++; else joinedCount++;
-      for (const m of members) if (m && m !== id) partners.add(m);
+      // 公式募集（hostNotCounted）の主催者は募集回数には数えるが、プレーしないので一緒に回った人は増やさない（2026-10-12）
+      const members: string[] = countedMemberIds(r);
+      const isHostHere = r.hostId === id;
+      if (!members.includes(id) && !isHostHere) return;
+      if (isHostHere) hostedCount++; else joinedCount++;
+      if (members.includes(id)) for (const m of members) if (m && m !== id) partners.add(m);
     };
     asApplicant.docs.forEach(consider);
     asHost.docs.forEach(consider);

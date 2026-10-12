@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { isRoundHost } from '@/lib/roundHost';
 import { getMeId } from '@/lib/session';
 import type { PickupProposal } from '@/lib/types';
+import { countedMemberIds } from '@/lib/hostCount';
 
 const noStore = { 'Cache-Control': 'no-store' };
 
@@ -18,8 +19,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const round = await db.getRound(params.id);
   if (!round) return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStore });
 
-  const members = new Set([round.hostId, ...(round.applicantIds || [])]);
-  if (!members.has(meId)) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
+  // 公式募集（hostNotCounted）は主催者がプレーしないので外す（2026-10-12）（主催者として提案はできる）
+  const members = new Set(countedMemberIds(round));
+  if (!members.has(meId) && meId !== round.hostId) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
 
   let body: any = {};
   try { body = await req.json(); } catch {}

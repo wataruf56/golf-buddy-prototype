@@ -1,5 +1,6 @@
 import 'server-only';
 import { getAdminDb } from './firebase';
+import { countedMemberIds } from './hostCount';
 
 // 再会エンジンのデータ層。相互マッチ済みペアの「再会セッション」を _rematch に、
 // 5段ファネルの計測を _rematchEvents に保存する。docId はペア単位（ソート済み2ID）
@@ -145,7 +146,7 @@ export async function notifyRematch(
 
 type RoundLike = {
   id: string; date?: string; status?: string; completedAt?: number; createdAt?: number;
-  hostId?: string; applicantIds?: string[]; noShowIds?: string[]; eventType?: string;
+  hostId?: string; applicantIds?: string[]; noShowIds?: string[]; eventType?: string; hostNotCounted?: boolean;
 };
 
 /** そのラウンドで一緒になった（なる）時点。
@@ -166,7 +167,7 @@ export function lastTogetherIn(rounds: RoundLike[], a: string, b: string): { at:
   for (const r of rounds) {
     if (r.eventType === 'drink') continue;
     const noShow = new Set(r.noShowIds || []);
-    const mem = new Set([r.hostId, ...(r.applicantIds || [])].filter(Boolean) as string[]);
+    const mem = new Set(countedMemberIds(r)); // 一緒に回った人。公式募集の主催者は数えない（2026-10-12）
     if (!mem.has(a) || !mem.has(b) || noShow.has(a) || noShow.has(b)) continue;
     const t = togetherAt(r);
     if (t > at) { at = t; best = r; }

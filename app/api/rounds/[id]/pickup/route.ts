@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { isRoundHost } from '@/lib/roundHost';
 import { getMeId } from '@/lib/session';
 import type { PickupStatus } from '@/lib/types';
+import { countedMemberIds } from '@/lib/hostCount';
 
 // 参加者が自分のピックアップ回答（status＋駅）を登録/更新する。主催者の
 // pickupStations とは別枠で round.participantPickups[meId] に保存する。コンペ含め可。
@@ -18,8 +19,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!round) return NextResponse.json({ error: 'notfound' }, { status: 404, headers: noStore });
 
   // 主催者または承認済み参加者のみ。
-  const members = new Set([round.hostId, ...(round.applicantIds || [])]);
-  if (!members.has(meId)) {
+  // 公式募集（hostNotCounted）は主催者がプレーしないので外す（2026-10-12）（主催者として他の人の分を代理入力はできる）
+  const members = new Set(countedMemberIds(round));
+  if (!members.has(meId) && meId !== round.hostId) {
     return NextResponse.json({ error: 'not a participant' }, { status: 403, headers: noStore });
   }
 
@@ -29,7 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const isHost = isRoundHost(round, meId);
   const proxyTargets = new Set([...members, ...((round.guests || []).map((g) => g.id))]);
   const targetId = body?.userId ? String(body.userId) : meId;
-  if (targetId !== meId && !proxyTargets.has(targetId)) {
+  if (!proxyTargets.has(targetId)) {
     return NextResponse.json({ error: 'bad_target' }, { status: 400, headers: noStore });
   }
   const permitted = isHost || targetId === meId;

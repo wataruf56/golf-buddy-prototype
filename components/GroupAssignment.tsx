@@ -7,6 +7,7 @@ import { Avatar } from '@/components/Avatar';
 import { store } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { AssignmentsPublishBar } from '@/components/AssignmentsPublishBar';
+import { countedMemberIds } from '@/lib/hostCount';
 
 const GROUP_MAX = 4;
 let uidSeq = 0;
@@ -18,8 +19,9 @@ const COURSE_PRESETS = ['OUT', 'IN'];
 
 export function GroupAssignment({ round, users, isHost }: { round: Round; users: User[]; isHost: boolean }) {
   const registeredIds = useMemo(
-    () => [round.hostId, ...(round.applicantIds || [])].filter(Boolean),
-    [round.hostId, round.applicantIds],
+    // 公式募集（hostNotCounted）は主催者がプレーしないので入れない（2026-10-12）
+    () => countedMemberIds(round),
+    [round.hostId, round.applicantIds, round.hostNotCounted],
   );
   const [guests, setGuests] = useState<RoundGuest[]>(round.guests || []);
   const [guestName, setGuestName] = useState('');

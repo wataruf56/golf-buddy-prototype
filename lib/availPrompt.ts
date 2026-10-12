@@ -2,6 +2,7 @@ import 'server-only';
 import { getAdminDb } from './firebase';
 import { viewCohort } from './ageGate';
 import type { Round, User } from './types';
+import { hostCounts } from './hostCount';
 
 // ラウンド（コンペ）の参加者に「行ける日」の入力をすすめる、1回だけのポップアップ＋LINE（2026-10-11）
 //
@@ -29,8 +30,9 @@ export type AvailPromptDoc = {
   lineSentAt?: number; lineSent?: number; createdAt: number;
 };
 
-export function participantsOf(r: Pick<Round, 'hostId' | 'coHostIds' | 'applicantIds'>): string[] {
-  return Array.from(new Set([r.hostId, ...(r.coHostIds || []), ...(r.applicantIds || [])].filter(Boolean)));
+// 公式募集（hostNotCounted）の主催者はプレーしないので入れない（2026-10-12）
+export function participantsOf(r: Pick<Round, 'hostId' | 'coHostIds' | 'applicantIds' | 'hostNotCounted'>): string[] {
+  return Array.from(new Set([...(hostCounts(r) ? [r.hostId] : []), ...(r.coHostIds || []), ...(r.applicantIds || [])].filter(Boolean)));
 }
 
 export async function listAvailPrompts(): Promise<AvailPromptDoc[]> {

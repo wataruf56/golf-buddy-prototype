@@ -5,6 +5,7 @@ import {
   buildCaption, buildFullCaption, buildAltText, captionSignature, fullSignature, GenderMix,
 } from '@/lib/igCaption';
 import { createIgPost, getRoundImage, signatureExists } from '@/lib/igPosts';
+import { countedMemberIds } from '@/lib/hostCount';
 
 // 募集中ラウンドから Instagram の「下書き」を作り、LINEで承認をお願いする。
 //
@@ -46,7 +47,7 @@ function baseUrl(): string {
 async function genderMix(r: any): Promise<GenderMix> {
   let male = r.externalMale || 0;
   let female = r.externalFemale || 0;
-  const ids: string[] = [r.hostId, ...(r.applicantIds || [])].filter(Boolean);
+  const ids: string[] = countedMemberIds(r); // 公式募集は主催者を数えない（2026-10-12）
   if (ids.length) {
     const users = await db.listUsers(ids).catch(() => [] as any[]);
     for (const id of ids) {

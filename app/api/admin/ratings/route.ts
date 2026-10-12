@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { revisitScore, hasRevisitStar } from '@/lib/utils';
 import { getAdminDb } from '@/lib/firebase';
 import { warmTestIds, isTestId } from '@/lib/testAccounts';
+import { hostCounts } from '@/lib/hostCount';
 
 
 // 管理画面：全ユーザーの評価状況を一覧＋一人ずつ詳しく見るためのデータ。
@@ -51,7 +52,9 @@ export async function GET(req: NextRequest) {
     for (const d of rSnap.docs) {
       const r: any = { id: d.id, ...(d.data() || {}) };
       if (r.status !== 'completed' || r.eventType === 'drink') continue;
-      const members: string[] = [r.hostId, ...(r.coHostIds || []), ...(r.applicantIds || [])].filter(Boolean);
+      // 公式募集（hostNotCounted）の主催者は主催回数だけ数え、参加者・一緒に回った人には入れない（2026-10-12）
+      const members: string[] = [...(hostCounts(r) ? [r.hostId] : []), ...(r.coHostIds || []), ...(r.applicantIds || [])].filter(Boolean);
+      if (!hostCounts(r) && r.hostId && !members.includes(r.hostId)) of(r.hostId).hosted++;
       const noShow = new Set<string>(r.noShowIds || []);
       for (const m of members) {
         if (noShow.has(m)) { of(m).noShow++; continue; }

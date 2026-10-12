@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { isRoundHost } from '@/lib/roundHost';
 import { getMeId } from '@/lib/session';
 import type { CarAssignment } from '@/lib/types';
+import { countedMemberIds } from '@/lib/hostCount';
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 
@@ -25,7 +26,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   // 乗車できるのは「実参加者（主催者＋承認済み）」または「確定済みゲスト」のみ。
   const guestIds = new Set((round.guests || []).map((g) => g.id));
-  const participants = new Set<string>([round.hostId, ...(round.applicantIds || [])]);
+  // 公式募集（hostNotCounted）は主催者がプレーしないので外す（2026-10-12）
+  const participants = new Set<string>(countedMemberIds(round));
   const allowed = (id: string) => participants.has(id) || guestIds.has(id);
 
   // 各乗客はひとつの車にのみ。運転者IDも重複させない。

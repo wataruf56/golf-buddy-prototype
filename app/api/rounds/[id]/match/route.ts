@@ -7,6 +7,7 @@ import { pushTo, liffUrl } from '@/lib/linePush';
 import { webPushText } from '@/lib/webPush';
 import { isNotifyEnabled } from '@/lib/notifyPrefs';
 import { isSameGroup, isReviewPeer, sameCarPeerIds, isNoShow, groupOfUser, hasBackGroups } from '@/lib/groups';
+import { countedMemberIds } from '@/lib/hostCount';
 
 // ラウンド後のマッチング。2種類の「いいね」を独立に扱う:
 //   again    = また一緒に回りたい（ゴル友的・同性/異性問わず）
@@ -48,8 +49,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const round = await db.getRound(params.id);
   if (!round) return NextResponse.json({ error: 'notfound' }, { status: 404, headers: noStore });
 
-  // 当日来れなかった人（除外）はマッチ対象から外す。
-  const others = Array.from(new Set([round.hostId, ...(round.applicantIds || [])]))
+  // 当日来れなかった人（除外）はマッチ対象から外す。公式募集（hostNotCounted）の主催者も外す（2026-10-12）。
+  const others = countedMemberIds(round)
     .filter((id) => id && id !== meId && !isNoShow(round, id));
 
   // sameGroup … レビューの相手（同じ組か同じ車）。sameCar … 組は違うが同じ車だった（レビュー画面の「🚗 同じ車だった」表記用）（2026-10-11）
@@ -98,8 +99,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const round = await db.getRound(params.id);
   if (!round) return NextResponse.json({ error: 'notfound' }, { status: 404, headers: noStore });
-  // 参加者（主催者＋承認済み）同士のみ
-  const members = new Set([round.hostId, ...(round.applicantIds || [])]);
+  // 参加者（主催者＋承認済み）同士のみ。公式募集（hostNotCounted）の主催者は入れない（2026-10-12）
+  const members = new Set(countedMemberIds(round));
   if (!members.has(meId) || !members.has(toUserId)) {
     return NextResponse.json({ error: 'not a participant' }, { status: 403, headers: noStore });
   }
@@ -134,7 +135,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       if (!(g.memberIds || []).includes(toUserId)) continue;
       for (const id of g.memberIds || []) if (id !== meId && id !== toUserId) mates.add(id);
     }
-    if (!grouped) for (const id of [round.hostId, ...(round.applicantIds || [])]) if (id && id !== meId && id !== toUserId) mates.add(id);
+    if (!grouped) for (const id of countedMemberIds(round)) if (id && id !== meId && id !== toUserId) mates.add(id);
     if (mates.size) {
       const adb = getAdminDb() as any;
       let mine: string[] = [];

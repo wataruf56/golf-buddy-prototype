@@ -5,6 +5,7 @@ import type { Round, User } from '@/lib/types';
 import { Avatar } from '@/components/Avatar';
 import { store } from '@/lib/store';
 import { toast } from '@/components/Toast';
+import { countedMemberIds } from '@/lib/hostCount';
 
 const MAX_AVOID = 2;
 
@@ -14,8 +15,9 @@ const MAX_AVOID = 2;
 //  - 主催者：全参加者の希望を集計表示（組み分けの参考用）。本人の入力欄は出さない。
 export function GroupPrefs({ round, users, meId, isHost }: { round: Round; users: User[]; meId: string; isHost: boolean }) {
   const participantIds = useMemo(
-    () => [round.hostId, ...(round.applicantIds || [])].filter(Boolean),
-    [round.hostId, round.applicantIds],
+    // 公式募集（hostNotCounted）は主催者がプレーしないので入れない（2026-10-12）
+    () => countedMemberIds(round),
+    [round.hostId, round.applicantIds, round.hostNotCounted],
   );
   const userOf = (id: string) => users.find((u) => u.id === id);
   const nameOf = (id: string) => userOf(id)?.displayName || 'メンバー';

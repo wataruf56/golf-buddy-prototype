@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { getMe, useStore } from '@/lib/store';
 import { formatDate } from '@/lib/utils';
 import { useUnreadCounts } from '@/lib/useUnread';
+import { hostSeat } from '@/lib/hostCount';
 
 // 「過去のラウンド」= 自分が主催 or 参加した完了済みラウンド。開催日（なければ完了時刻）の新しい順。
 // 下のタブ「過去ラウンド」とリッチメニュー「過去ラウンド」から開く。
@@ -62,7 +63,7 @@ export default function PastRoundsPage() {
             {pastRounds.map((r) => {
               const role = r.hostId === me.id ? '主催' : '参加';
               const n = photos[r.id] || 0;
-              const people = 1 + (r.applicantIds || []).length;
+              const people = hostSeat(r) + (r.applicantIds || []).length; // 公式募集は主催者を数えない（2026-10-12）
               const unread = !!(unreadRoundIds && unreadRoundIds.has && unreadRoundIds.has(r.id));
               return (
                 <div key={r.id} className="flex items-stretch bg-card rounded-card shadow-card overflow-hidden">

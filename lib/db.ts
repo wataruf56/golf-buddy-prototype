@@ -5,6 +5,7 @@ import { mockUsers, mockRounds, mockReviews, mockChats } from './mockData';
 import type { Chat, Message, PendingReview, Review, Round, RoundThread, RoundPhoto, SchedulePoll, User } from './types';
 import { reviewPeerIdsForCompetition, isNoShow } from './groups';
 import { scrubMemberFromRound, applyScrubInPlace, type MemberScrub } from './roundMembership';
+import { hostCounts, currentCountOf, countFloor, countedMemberIds } from './hostCount';
 
 export interface DB {
   getUser(id: string): Promise<User | null>;
@@ -213,7 +214,7 @@ class MemoryDB implements DB {
       else if (gender === 'female') r.spotsFemale = (r.spotsFemale || 0) + 1;
       else r.spotsAny = (r.spotsAny || 0) + 1;
     } else {
-      r.currentCount = Math.max(1, r.currentCount - 1);   // すでに参加者だった人の重複を消しただけ
+      r.currentCount = Math.max(countFloor(r), currentCountOf(r) - 1);   // すでに参加者だった人の重複を消しただけ
     }
     return r;
   }
@@ -247,7 +248,7 @@ class MemoryDB implements DB {
     if (!r) throw new Error('round not found');
     if (r.applicantIds.includes(userId)) {
       r.applicantIds = r.applicantIds.filter((x) => x !== userId);
-      r.currentCount = Math.max(1, r.currentCount - 1);
+      r.currentCount = Math.max(countFloor(r), currentCountOf(r) - 1);
     }
     r.pendingApplicantIds = (r.pendingApplicantIds || []).filter((x) => x !== userId);
     // 組み分け・配車・送迎の回答などに残る痕跡も消す（lib/roundMembership）
@@ -274,7 +275,8 @@ class MemoryDB implements DB {
     if (!r) throw new Error('round not found');
     r.status = 'completed';
     r.completedAt = Date.now();
-    const participants = [r.hostId, ...r.applicantIds];
+    // 主催者を数えない公式募集は、主催者を参加者に入れない（回数・レビューの対象外）（2026-10-12）
+    const participants = [...(hostCounts(r) ? [r.hostId] : []), ...r.applicantIds];
     // BUG FIX: bump roundCount for every participant. Previously this never
     // incremented, so profile "ラウンド回数" stayed at 0 forever.
     for (const uid of participants) {
@@ -672,7 +674,8 @@ class FirestoreDB implements DB {
 
     // 完了済みラウンドを消したら参加者の roundCount を1減らす（0未満にはしない）。
     if (roundData && roundData.status === 'completed') {
-      const parts: string[] = Array.from(new Set([roundData.hostId, ...((roundData.applicantIds as string[]) || [])].filter(Boolean)));
+      // 完了時に+1した人と同じ（公式募集の主催者は数えていない）（2026-10-12）
+      const parts: string[] = countedMemberIds(roundData as any);
       await Promise.all(parts.map(async (uid) => {
         try {
           const us = await this.fs.collection('users').doc(uid).get();
@@ -709,8 +712,8 @@ class FirestoreDB implements DB {
       const applicants = data.applicantIds || [];
       const applicantIds = applicants.includes(userId) ? applicants : [...applicants, userId];
       const currentCount = applicants.includes(userId)
-        ? (data.currentCount || 1)
-        : (data.currentCount || 1) + 1;
+        ? currentCountOf(data)
+        : currentCountOf(data) + 1;
       tx.set(ref, { pendingApplicantIds: pending, applicantIds, currentCount }, { merge: true });
       return { ...data, id: snap.id, pendingApplicantIds: pending, applicantIds, currentCount } as Round;
     });
@@ -727,7 +730,7 @@ class FirestoreDB implements DB {
       const applicantIds = already ? applicants : [...applicants, userId];
       const pendingApplicantIds = (data.pendingApplicantIds || []).filter((x) => x !== userId);
       const patch: Record<string, unknown> = { applicantIds, pendingApplicantIds };
-      let currentCount = data.currentCount || 1;
+      let currentCount = currentCountOf(data);
       // 席を「知り合い枠」から「ゴルトモの枠」へ移すだけ。**人数は変えない**。
       // ゲストは種類を問わず最初から1席を占めている（ボードから足したゲストも知り合い枠に数える）ので、
       // 本人に置き換わっても頭数は同じ。知り合い枠を1つ減らし、本人の性別の募集枠を1つ増やす
@@ -776,7 +779,7 @@ class FirestoreDB implements DB {
         else if (gender === 'female') patch.spotsFemale = (data.spotsFemale || 0) + 1;
         else patch.spotsAny = (data.spotsAny || 0) + 1;
       } else {
-        currentCount = Math.max(1, currentCount - 1);   // すでに参加者だった人の重複を消しただけ
+        currentCount = Math.max(countFloor(data), currentCount - 1);   // すでに参加者だった人の重複を消しただけ
       }
       patch.currentCount = currentCount;
       tx.set(ref, patch, { merge: true });
@@ -805,7 +808,7 @@ class FirestoreDB implements DB {
       const applicants = data.applicantIds || [];
       const already = applicants.includes(userId);
       const applicantIds = already ? applicants : [...applicants, userId];
-      const currentCount = already ? (data.currentCount || 1) : (data.currentCount || 1) + 1;
+      const currentCount = already ? currentCountOf(data) : currentCountOf(data) + 1;
       const pendingApplicantIds = (data.pendingApplicantIds || []).filter((x) => x !== userId);
       const invitedIds = (data.invitedIds || []).filter((x) => x !== userId);
       tx.set(ref, { applicantIds, currentCount, pendingApplicantIds, invitedIds }, { merge: true });
@@ -848,7 +851,7 @@ class FirestoreDB implements DB {
       const wasApproved = (data.applicantIds || []).includes(userId);
       const applicantIds = (data.applicantIds || []).filter((x) => x !== userId);
       const pending = (data.pendingApplicantIds || []).filter((x) => x !== userId);
-      const currentCount = wasApproved ? Math.max(1, (data.currentCount || 1) - 1) : (data.currentCount || 1);
+      const currentCount = wasApproved ? Math.max(countFloor(data), currentCountOf(data) - 1) : currentCountOf(data);
       // 組み分け・後半の組・送迎の回答・配車・提案・入金・組み分け希望・スコアからも消す。
       // ここを applicantIds だけにしていたせいで、抜けた人が組み分けや配車に出続けていた。
       const scrub = scrubMemberFromRound(data, userId);
@@ -880,7 +883,8 @@ class FirestoreDB implements DB {
     const completedAt = Date.now();
     await ref.set({ status: 'completed', completedAt }, { merge: true });
     const round = { ...data, id: snap.id, status: 'completed' as const, completedAt };
-    const participants = [round.hostId, ...(round.applicantIds || [])];
+    // 主催者を数えない公式募集は、主催者を参加者に入れない（回数・レビューの対象外）（2026-10-12）
+    const participants = [...(hostCounts(round) ? [round.hostId] : []), ...(round.applicantIds || [])];
 
     // BUG FIX: bump roundCount on every participant's user doc. Previously
     // never happened → profile "ラウンド回数" stayed at 0.

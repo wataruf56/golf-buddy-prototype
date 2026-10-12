@@ -4,6 +4,7 @@ import { getAdminDb } from '@/lib/firebase';
 import { db as appDb } from '@/lib/db';
 import { isNoShow } from '@/lib/groups';
 import type { Round } from '@/lib/types';
+import { countedMemberIds } from '@/lib/hostCount';
 
 // 過去に「同組で一緒にラウンドした人」の一覧。完了済みラウンド（status==completed）で
 // 自分と同じ組だった参加者（主催者＋承認済み applicant）を集めて返す。ゴル友タブの
@@ -32,7 +33,8 @@ export async function GET(_req: NextRequest) {
       seenRounds.add(doc.id);
       const r = { id: doc.id, ...(doc.data() || {}) } as Round;
       if (r.status !== 'completed') return;
-      const members: string[] = [r.hostId, ...((r.applicantIds as string[]) || [])].filter(Boolean);
+      // 公式募集（hostNotCounted）の主催者はプレーしないので「一緒に回った」に入れない（2026-10-12）
+      const members: string[] = countedMemberIds(r);
       if (!members.includes(meId)) return;
       if (isNoShow(r, meId)) return; // 自分が当日来られなかった回は対象外
       const when = r.completedAt || r.createdAt || 0;

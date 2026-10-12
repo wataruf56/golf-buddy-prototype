@@ -1,4 +1,5 @@
 import 'server-only';
+import { hostCounts } from './hostCount';
 
 // LPに載せる実績数値。手で書いた数字はすぐ古くなり事実と食い違うので、必ず実データから出す。
 // 母数(n)も一緒に返し、少なすぎるものは表示側で落とす。
@@ -28,7 +29,8 @@ export async function computeLpStats(db: any): Promise<LpStats> {
   ]);
 
   // 完了した募集（飲み会と検証用アカウントの投稿は除く）。LPに出す実績はここから作る。
-  const membersOf = (r: any) => [r.hostId, ...(r.coHostIds || []), ...(r.applicantIds || [])].filter(Boolean);
+  // 公式募集（hostNotCounted）は主催者をメンバーに数えない（2026-10-12）
+  const membersOf = (r: any) => [...(hostCounts(r) ? [r.hostId] : []), ...(r.coHostIds || []), ...(r.applicantIds || [])].filter(Boolean);
   const done = rSnap.docs.map((d: any) => d.data() || {})
     .filter((r: any) => r.status === 'completed' && r.eventType !== 'drink'
       && !String(r.hostId || '').startsWith('test_'));

@@ -6,6 +6,7 @@ import { isNotifyEnabled } from '@/lib/notifyPrefs';
 import { getRematchConfig } from '@/lib/rematchConfig';
 import { getTestAccountIdSet } from '@/lib/testAccounts';
 import { getSession, saveSession, pairIdOf, mutualPairsInRound, rematchDayMs, lastTogetherIn, playedSinceNotify } from '@/lib/rematch';
+import { countedMemberIds } from '@/lib/hostCount';
 
 // ①再会通知バッチ。完了ラウンドの相互マッチ済みペアへ「そろそろまた行きませんか？」
 // を送る。intervalDays=0 なら完了後すぐ発火（テスト用）。housekeeping から毎tick呼ばれる。
@@ -95,7 +96,7 @@ export async function runRematchNotifier(limit = MAX_PER_TICK): Promise<{ ok: bo
   // 人ごとに引けるよう索引にしておく（ペアごとに全件をなめると重い）。
   const roundsOf = new Map<string, typeof everyRound>();
   for (const r of everyRound) {
-    for (const u of [r.hostId, ...(r.applicantIds || [])]) {
+    for (const u of countedMemberIds(r)) { // 公式募集の主催者は数えない（2026-10-12）
       if (!u) continue;
       if (!roundsOf.has(u)) roundsOf.set(u, []);
       roundsOf.get(u)!.push(r);
@@ -117,7 +118,7 @@ export async function runRematchNotifier(limit = MAX_PER_TICK): Promise<{ ok: bo
 
   for (const r of rounds) {
     if (sent >= limit) break;
-    const members = [r.hostId, ...(r.applicantIds || [])];
+    const members = countedMemberIds(r); // 公式募集の主催者は数えない（2026-10-12）
     const pairs = await mutualPairsInRound(members);
     for (const { a, b, kind } of pairs) {
       if (sent >= limit) break;

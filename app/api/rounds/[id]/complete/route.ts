@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { isRoundHost } from '@/lib/roundHost';
 import { getMeId } from '@/lib/session';
 import { competitionGroupsComplete } from '@/lib/groups';
+import { hostCounts } from '@/lib/hostCount';
 
 export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
   const meId = await getMeId();
@@ -32,7 +33,9 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   // スキップしていたが、レビュー画面で「過去に押した状態」で再表示し、外せば解除
   // できるようにするため、スキップせず全員ぶん作る（クライアント側で現在のlike状態を
   // 事前反映する）。
-  const participants = [updatedRound.hostId, ...(updatedRound.applicantIds || [])];
+  // 主催者を数えない公式募集は、主催者（プレーしない）をレビュー・依頼通知の対象にしない（2026-10-12）。
+  // 完了ボタンは従来どおり主催者が押せる。
+  const participants = [...(hostCounts(updatedRound) ? [updatedRound.hostId] : []), ...(updatedRound.applicantIds || [])];
   const allPending = participants.flatMap((reviewer) => pendingForUser(reviewer));
   await db.createPendingReviews(allPending);
 

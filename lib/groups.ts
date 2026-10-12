@@ -1,4 +1,5 @@
 import type { Round, RoundGroup } from './types';
+import { hostCounts } from './hostCount';
 
 // 組み分け・レビュー対象まわりの共通ヘルパー。
 // 「レビューは同じ組の人だけ」「コンペは組み分け必須」「当日来れなかった人は除外」の
@@ -8,8 +9,9 @@ export const isGuestId = (id: string): boolean =>
   typeof id === 'string' && id.startsWith('gst_');
 
 // 登録参加者（主催者＋承認済み参加者）。ゲスト（gst_）は含まない。
+// 主催者を数えない公式募集（hostNotCounted）では主催者を外す（プレーしないため）（2026-10-12）。
 export function registeredParticipantIds(round: Round): string[] {
-  return [round.hostId, ...((round.applicantIds as string[]) || [])].filter(Boolean);
+  return [...(hostCounts(round) ? [round.hostId] : []), ...((round.applicantIds as string[]) || [])].filter(Boolean);
 }
 
 // 当日来れなかった人（除外）か。

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { confirmDialog, alertDialog } from '@/components/ConfirmDialog';
 import { RoundPromoCard, PROMO_DEFAULTS, type PromoTexts, type PromoRoundView } from '@/components/RoundPromoCard';
+import { hostSeat } from '@/lib/hostCount';
 
 // 管理画面：募集のイチオシ（運営からのおすすめポップアップ）（2026-10-12）
 //   ① 募集を選ぶ（募集中・開催前）② 文言（見出し・ひとこと・ボタンなど）と時間 ③ プレビュー（会員に出るものと同じ部品）→ 作成
@@ -14,7 +15,7 @@ export default function AdminPromoPage() {
   return <Suspense fallback={null}><Inner /></Suspense>;
 }
 
-type RoundRow = { id: string; title?: string; date?: string; startTime?: string; area?: string; status?: string; applicantIds?: string[]; maxSpots?: number; price?: string; availDate?: string; courseName?: string; levelCondition?: string; hostId?: string; externalMale?: number; externalFemale?: number; externalCount?: number };
+type RoundRow = { id: string; title?: string; date?: string; startTime?: string; area?: string; status?: string; applicantIds?: string[]; maxSpots?: number; price?: string; availDate?: string; courseName?: string; levelCondition?: string; hostId?: string; externalMale?: number; externalFemale?: number; externalCount?: number; hostNotCounted?: boolean };
 type Promo = {
   id: string; roundId: string; showAt: number; until?: number; approved: boolean; headline?: string; texts?: PromoTexts; createdAt: number;
   round: (PromoRoundView & { id: string; status: string }) | null;
@@ -79,7 +80,7 @@ function Inner() {
   const viewOf = (r: RoundRow): PromoRoundView => ({
     title: r.title || r.courseName || 'ラウンド', date: r.date || '', startTime: r.startTime || '', area: r.area || '', courseName: r.courseName || '',
     price: r.price || '', levelCondition: r.levelCondition || '', maxSpots: Number(r.maxSpots || 0),
-    joined: 1 + (r.applicantIds || []).length + Number(r.externalMale || 0) + Number(r.externalFemale || 0) + Number(r.externalCount || 0),
+    joined: hostSeat(r) + (r.applicantIds || []).length + Number(r.externalMale || 0) + Number(r.externalFemale || 0) + Number(r.externalCount || 0),
     host: r.hostId && users[r.hostId] ? { id: r.hostId, ...users[r.hostId] } : null,
   });
 

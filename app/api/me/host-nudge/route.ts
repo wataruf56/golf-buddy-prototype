@@ -3,6 +3,7 @@ import { getMeId } from '@/lib/session';
 import { getAdminDb } from '@/lib/firebase';
 import { db as appDb } from '@/lib/db';
 import type { Round } from '@/lib/types';
+import { hostCounts } from '@/lib/hostCount';
 
 // GET /api/me/host-nudge
 // ホームで出す「そろそろ募集してみない？」ポップアップを出すべきか判定して返す。
@@ -18,7 +19,8 @@ import type { Round } from '@/lib/types';
 export const dynamic = 'force-dynamic';
 const noStore = { 'Cache-Control': 'no-store' };
 
-const membersOf = (r: Round) => [r.hostId, ...(r.coHostIds || []), ...(r.applicantIds || [])].filter(Boolean) as string[];
+// 公式募集（hostNotCounted）は主催者をメンバーに数えない（2026-10-12）
+const membersOf = (r: Round) => [...(hostCounts(r) ? [r.hostId] : []), ...(r.coHostIds || []), ...(r.applicantIds || [])].filter(Boolean) as string[];
 
 export async function GET(_req: NextRequest) {
   const meId = await getMeId();

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import type { Round, SchedulePoll, ScheduleOption, ScheduleResponse, ScheduleAnswer } from '@/lib/types';
+import { currentCountOf } from '@/lib/hostCount';
 
 // 独立した日程調整ポールの取得・操作。
 //
@@ -55,7 +56,7 @@ async function autoAddRespondentsToRound(roundId: string, poll: SchedulePoll, ho
   const patch: Partial<Round> = {};
   if (toAdd.length) {
     patch.applicantIds = [...(round.applicantIds || []), ...toAdd];
-    patch.currentCount = (round.currentCount || 1) + toAdd.length;
+    patch.currentCount = currentCountOf(round) + toAdd.length;
     patch.maxSpots = Math.max(round.maxSpots || 1, patch.currentCount);
     patch.isCompetition = patch.maxSpots >= 5;
   }

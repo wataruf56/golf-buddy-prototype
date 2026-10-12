@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { isRoundHost } from '@/lib/roundHost';
 import { getMeId } from '@/lib/session';
 import type { RoundGroup, RoundGuest } from '@/lib/types';
+import { currentCountOf, countFloor, countedMemberIds } from '@/lib/hostCount';
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 
@@ -56,12 +57,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const seatPatch: Record<string, unknown> = {};
   if (addedGuests.length || removedGuests.length) {
     let em = round.externalMale || 0, ef = round.externalFemale || 0;
-    let cur = round.currentCount || 1, max = round.maxSpots || 1;
+    let cur = currentCountOf(round), max = round.maxSpots || 1;
     for (const g of addedGuests) { if (g.gender === 'female') ef++; else em++; cur++; max++; }
     for (const g of removedGuests) {
       const gd = g.gender || (em >= ef ? 'male' : 'female');   // 性別が無い古いゲストは多いほうから引く
       if (gd === 'female' && ef > 0) ef--; else if (em > 0) em--; else if (ef > 0) ef--;
-      cur = Math.max(1, cur - 1); max = Math.max(1, max - 1);
+      cur = Math.max(countFloor(round), cur - 1); max = Math.max(1, max - 1);
     }
     Object.assign(seatPatch, { externalMale: em, externalFemale: ef, currentCount: cur, maxSpots: Math.min(50, max) });
     // 消したゲストの痕跡（入金・配車・来れなかった人）も一緒に落とす
@@ -77,7 +78,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const guestIds = new Set(guests.map((g) => g.id));
 
   // メンバーは「実参加者（主催者＋承認済み）」または「確定済みゲスト」のみ許可。
-  const participants = new Set<string>([round.hostId, ...(round.applicantIds || [])]);
+  // 主催者を数えない公式募集では主催者は組に入らない（2026-10-12）。
+  const participants = new Set<string>(countedMemberIds(round));
   const allowed = (id: string) => participants.has(id) || guestIds.has(id);
   // 前半と後半で同じ整形をする。1人が2つの組に入らないよう、組の並びごとに重複を落とす。
   const shape = (list: any[]): RoundGroup[] => {

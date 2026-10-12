@@ -4,6 +4,7 @@ import { getAdminDb } from '@/lib/firebase';
 import { db as appDb } from '@/lib/db';
 import { isNoShow } from '@/lib/groups';
 import type { Round } from '@/lib/types';
+import { countedMemberIds } from '@/lib/hostCount';
 
 // 過去に「同じコンペ（isCompetition の完了ラウンド）」に一緒に参加した人の一覧。
 // 「一緒に回った（同組）」とは違い、組が分かれていても同じコンペにいた全員を返す。
@@ -32,7 +33,8 @@ export async function GET(_req: NextRequest) {
       const r = { id: doc.id, ...(doc.data() || {}) } as Round;
       if (r.status !== 'completed') return;
       if (!r.isCompetition) return; // コンペのみ
-      const members: string[] = [r.hostId, ...((r.applicantIds as string[]) || [])].filter(Boolean);
+      // 公式募集（hostNotCounted）の主催者はプレーしないので「一緒に回った」に入れない（2026-10-12）
+      const members: string[] = countedMemberIds(r);
       if (!members.includes(meId)) return;
       const when = r.completedAt || r.createdAt || 0;
       for (const id of members) {

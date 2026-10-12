@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deletePromo, listPromos, upsertPromo, promoStats } from '@/lib/promoPopup';
 import { db } from '@/lib/db';
+import { hostSeat } from '@/lib/hostCount';
 
 // 管理者用：イチオシ募集のポップアップ（lib/promoPopup）（2026-10-12）
 //   GET    … 一覧
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
         return {
           id: r.id, title: r.title || r.courseName || 'ラウンド', date: r.date || '', startTime: r.startTime || '', area: r.area || '', status: r.status,
           courseName: r.courseName || '', price: r.price || '', levelCondition: r.levelCondition || '',
-          joined: 1 + (r.applicantIds || []).length + Number(r.externalMale || 0) + Number(r.externalFemale || 0) + Number(r.externalCount || 0), maxSpots: r.maxSpots || 0,
+          joined: hostSeat(r) + (r.applicantIds || []).length + Number(r.externalMale || 0) + Number(r.externalFemale || 0) + Number(r.externalCount || 0), maxSpots: r.maxSpots || 0,
           host: host ? { id: host.id, displayName: host.displayName, avatar: host.avatar, avatarUrl: host.avatarUrl || '', avatarMode: host.avatarMode || '', color: host.color || '', golmotiType: host.golmotiType || '' } : null,
         };
       })() : null,

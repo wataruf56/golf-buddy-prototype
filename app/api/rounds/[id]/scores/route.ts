@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import type { ScoreEntry } from '@/lib/types';
+import { countedMemberIds } from '@/lib/hostCount';
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 
@@ -22,8 +23,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const round = await db.getRound(params.id);
   if (!round) return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStore });
 
-  const participants = new Set<string>([round.hostId, ...(round.applicantIds || [])]);
-  if (!participants.has(meId)) {
+  // 公式募集（hostNotCounted）は主催者がプレーしないので外す（2026-10-12）（主催者として入力はできる）
+  const participants = new Set<string>(countedMemberIds(round));
+  if (!participants.has(meId) && meId !== round.hostId) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
   }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
+import { countedMemberIds } from '@/lib/hostCount';
 
 // コンペの組み分け希望。参加者本人が「同じ組は避けたい人（最大2）」「一緒だと嬉しい人（最大1）」を
 // 保存する。保存できるのはそのラウンドの参加者（主催者＋承認済み）だけ。集計の閲覧は主催者のみ
@@ -8,8 +9,9 @@ import { getMeId } from '@/lib/session';
 const noStore = { 'Cache-Control': 'no-store' };
 const MAX_AVOID = 2;
 
+// 公式募集（hostNotCounted）は主催者がプレーしないので外す（2026-10-12）
 function participantSet(round: any): Set<string> {
-  return new Set<string>([round.hostId, ...((round.applicantIds as string[]) || [])].filter(Boolean));
+  return new Set<string>(countedMemberIds(round));
 }
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {

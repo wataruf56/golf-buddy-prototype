@@ -7,6 +7,7 @@ import { Avatar } from '@/components/Avatar';
 import { store } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { AssignmentsPublishBar } from '@/components/AssignmentsPublishBar';
+import { countedMemberIds, hostCounts } from '@/lib/hostCount';
 
 let uidSeq = 0;
 const isGuest = (id: string) => id.startsWith('gst_');
@@ -16,8 +17,9 @@ const isGuest = (id: string) => id.startsWith('gst_');
 // それ以外の参加者・ゲスト。参加者は自分がどの車かを読み取り専用で確認できる。
 export function CarDispatch({ round, users, isHost }: { round: Round; users: User[]; isHost: boolean }) {
   const registeredIds = useMemo(
-    () => [round.hostId, ...(round.applicantIds || [])].filter(Boolean),
-    [round.hostId, round.applicantIds],
+    // 公式募集（hostNotCounted）は主催者がプレーしないので入れない（2026-10-12）
+    () => countedMemberIds(round),
+    [round.hostId, round.applicantIds, round.hostNotCounted],
   );
   const guests = round.guests || [];
   const allPeople = useMemo(
@@ -32,7 +34,7 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
   const pp = round.participantPickups || {};
   const driverIds = useMemo(() => {
     const set = new Set<string>();
-    if ((round.pickupStations?.length ?? 0) > 0) set.add(round.hostId);
+    if (hostCounts(round) && (round.pickupStations?.length ?? 0) > 0) set.add(round.hostId);
     // ゲストも主催者が代わりに「ピックアップできます」と答えられる。登録者だけ見ていたので、
     // 車ありのゲストが車にも未割り当てにも出ず、盤面から消えていた（2026-10-05 本人報告）。
     for (const id of allPeople) {
@@ -41,7 +43,7 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
       if (st === 'can') set.add(id);
     }
     return Array.from(set);
-  }, [round.hostId, round.pickupStations, allPeople, pp]);
+  }, [round.hostId, round.hostNotCounted, round.pickupStations, allPeople, pp]);
 
   const capacityOf = (id: string) => {
     if (id === round.hostId && (round.pickupStations?.length ?? 0) > 0) return round.pickupCapacity || 0;

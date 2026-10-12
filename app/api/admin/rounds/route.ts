@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase';
 import { warmTestIds, isTestId } from '@/lib/testAccounts';
+import { countedMemberIds } from '@/lib/hostCount';
 
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
@@ -100,7 +101,8 @@ export async function DELETE(req: NextRequest) {
     // 完了済みラウンドを消したら、参加者の roundCount を1減らす（完了時に+1して
     // いるため。削除しても減らないバグの修正）。0未満にはしない。
     if (roundData.status === 'completed') {
-      const parts: string[] = Array.from(new Set([roundData.hostId, ...((roundData.applicantIds as string[]) || [])].filter(Boolean)));
+      // 完了時に+1した人と同じ（公式募集の主催者は数えていない）（2026-10-12）
+      const parts: string[] = countedMemberIds(roundData as any);
       await Promise.all(parts.map(async (uid) => {
         try {
           const us = await db.collection('users').doc(uid).get();

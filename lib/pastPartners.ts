@@ -2,6 +2,7 @@ import 'server-only';
 import { getAdminDb } from './firebase';
 import { isNoShow } from './groups';
 import type { Round } from './types';
+import { countedMemberIds } from './hostCount';
 
 // あるユーザーが「過去に同じ組で回った人」のIDセット。
 //   - 完了ラウンド（status==='completed'）のみ
@@ -25,7 +26,8 @@ export async function sameGroupPartnerIds(userId: string): Promise<Set<string>> 
       if (r.status !== 'completed') return;
       // 飲み会などゴルフ以外のイベントは「一緒に回った」に数えない。
       if ((r as any).eventType === 'drink') return;
-      const members: string[] = [r.hostId, ...((r.applicantIds as string[]) || [])].filter(Boolean);
+      // 公式募集（hostNotCounted）の主催者はプレーしないので「一緒に回った」に入れない（2026-10-12）
+      const members: string[] = countedMemberIds(r);
       if (!members.includes(userId)) return;
       if (isNoShow(r, userId)) return;
       const groups: any[] = Array.isArray((r as any).groups) ? (r as any).groups : [];

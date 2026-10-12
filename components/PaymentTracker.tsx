@@ -9,6 +9,7 @@ import { Avatar } from '@/components/Avatar';
 import { Linkify } from '@/components/Linkify';
 import { NumberInput } from '@/components/NumberInput';
 import { confirmDialog } from '@/components/ConfirmDialog';
+import { hostCounts } from '@/lib/hostCount';
 
 // 入金期日は JST の日付＋時刻で入力し、ミリ秒で保存する（2026-10-11）
 function msToJstParts(ms?: number): { date: string; time: string } {
@@ -88,8 +89,9 @@ export function PaymentTracker({
   const userOf = (id: string) => users.find((u) => u.id === id);
 
   // 表示順：主催者 → 共同管理者 → 参加者 → ゲスト
+  // 公式募集（hostNotCounted）は主催者がプレーしないので主催者の行を出さない（2026-10-12）
   const members: Member[] = [
-    { id: round.hostId, name: userOf(round.hostId)?.displayName || '主催者', user: userOf(round.hostId), role: '主催者' },
+    ...(hostCounts(round) ? [{ id: round.hostId, name: userOf(round.hostId)?.displayName || '主催者', user: userOf(round.hostId), role: '主催者' }] : []),
     ...coHostIds.map((id) => ({ id, name: userOf(id)?.displayName || 'メンバー', user: userOf(id), role: '共同管理者' })),
     ...(round.applicantIds || []).filter((id) => !coHostIds.includes(id))
       .map((id) => ({ id, name: userOf(id)?.displayName || 'メンバー', user: userOf(id), role: '参加者' })),

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAdminDb } from '@/lib/firebase';
 import { audit, adminActor, AUDIT_ACTION } from '@/lib/auditLog';
+import { hostSeat } from '@/lib/hostCount';
 
 // 管理画面：ユーザーを完全削除（テストアカウントの後始末用）。
 // 誤削除防止のため、呼び出し側は confirmName に「表示名」を渡し、対象ドキュメントの
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
       };
       if (r.groups) patch.groups = r.groups.map((g) => ({ ...g, memberIds: (g.memberIds || []).filter((x) => x !== userId) }));
       if (inPrefs) { const gp = { ...(r.groupPrefs || {}) }; delete gp[userId]; patch.groupPrefs = gp; }
-      patch.currentCount = Math.max(1, 1 + (r.externalMale || 0) + (r.externalFemale || 0) + patch.applicantIds.length);
+      patch.currentCount = Math.max(hostSeat(r), hostSeat(r) + (r.externalMale || 0) + (r.externalFemale || 0) + patch.applicantIds.length); // 公式募集は主催者0（2026-10-12）
       try { await db.updateRound(r.id, patch); summary.rounds_left++; } catch {}
     }
   } catch {}

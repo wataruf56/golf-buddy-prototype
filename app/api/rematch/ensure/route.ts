@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getMeId } from '@/lib/session';
 import { db } from '@/lib/db';
 import { getSession, saveSession, pairIdOf, mutualMatchKind } from '@/lib/rematch';
+import { countedMemberIds } from '@/lib/hostCount';
 
 // POST /api/rematch/ensure  body: { partnerId }
 // 「また回りたい」リストから直接、候補日調整を始めるための入口。相互マッチ済みなら
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
   let roundId = '';
   try {
     const completed = (await db.listRounds({ status: 'completed' }))
-      .filter((r) => { const m = [r.hostId, ...(r.applicantIds || [])]; return m.includes(meId) && m.includes(partnerId); })
+      .filter((r) => { const m = countedMemberIds(r); /* 公式募集の主催者は数えない（2026-10-12） */ return m.includes(meId) && m.includes(partnerId); })
       .sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
     if (completed[0]) { courseName = completed[0].courseName || completed[0].title || 'ゴルフ'; roundDate = completed[0].date || ''; roundId = completed[0].id; }
   } catch { /* best-effort */ }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { stripPrivate } from '@/lib/sanitizeUser';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
+import { countedMemberIds } from '@/lib/hostCount';
 
 // Bucket a numeric age into the display label used on reviewer chips.
 // Anonymity-friendly bucketing — 5-year windows up to 40, 40+ collapsed.
@@ -51,7 +52,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   try {
     const allRounds = await db.listRounds();
     const completed = allRounds.filter((r) =>
-      r.status === 'completed' && (r.hostId === params.id || (r.applicantIds || []).includes(params.id))
+      // 完了時の回数+1と同じ数え方（公式募集の主催者は数えない）（2026-10-12）
+      r.status === 'completed' && countedMemberIds(r).includes(params.id)
     ).length;
     roundCount = Math.max(roundCount, completed);
   } catch { /* fall back to stored */ }

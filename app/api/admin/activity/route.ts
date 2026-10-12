@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase';
 import { warmTestIds, isTestId } from '@/lib/testAccounts';
+import { hostCounts } from '@/lib/hostCount';
 
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
@@ -323,7 +324,8 @@ export async function GET(req: NextRequest) {
       const monthStart = Date.UTC(jst.getUTCFullYear(), jst.getUTCMonth(), 1) - 9 * 3600 * 1000;
       const rSnap = await db.collection('rounds').limit(2000).get();
       const rounds = rSnap.docs.map((d: any) => ({ id: d.id, ...(d.data() || {}) }));
-      const membersOf = (r: any) => [r.hostId, ...(r.coHostIds || []), ...(r.applicantIds || [])].filter(Boolean) as string[];
+      // 公式募集（hostNotCounted）は主催者をメンバーに数えない（2026-10-12）
+      const membersOf = (r: any) => [...(hostCounts(r) ? [r.hostId] : []), ...(r.coHostIds || []), ...(r.applicantIds || [])].filter(Boolean) as string[];
       const dateOf = (r: any) => (r.date ? new Date(`${r.date}T00:00:00+09:00`).getTime() : 0);
 
       const players = new Set<string>();

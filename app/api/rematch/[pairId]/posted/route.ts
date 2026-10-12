@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getMeId } from '@/lib/session';
 import { db } from '@/lib/db';
 import { getSession, saveSession, membersOfPair, recordRematchEvent, notifyRematch } from '@/lib/rematch';
+import { currentCountOf } from '@/lib/hostCount';
 
 // POST /api/rematch/[pairId]/posted  body: { roundId }
 // ⑥ 再会からラウンドが立ったことを記録し、相手を「誘う/承認」なしで参加確定にする。
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest, { params }: { params: { pairId: str
       const round = await db.getRound(roundId);
       if (round && round.hostId === meId && !(round.applicantIds || []).includes(partnerId)) {
         const applicantIds = [...(round.applicantIds || []), partnerId];
-        await db.updateRound(roundId, { applicantIds, currentCount: (round.currentCount || 1) + 1 } as any);
+        await db.updateRound(roundId, { applicantIds, currentCount: currentCountOf(round) + 1 } as any);
         joined = true;
         const { renderNotif } = await import('@/lib/notificationTemplateStore');
         const n = await renderNotif('rematchJoined', {});

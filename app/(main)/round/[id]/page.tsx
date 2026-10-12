@@ -41,6 +41,7 @@ import { LoginButtons } from '@/components/LoginButtons';
 import { GenderSlots } from '@/components/GenderSlots';
 import { WaitlistBox } from '@/components/WaitlistBox';
 import { viewerSlotFull, isWaitlisted, slotGenderLabel } from '@/lib/genderSlots';
+import { countedMemberIds, hostCounts } from '@/lib/hostCount';
 
 // Brand launch URL — handled by middleware, redirects to liff.line.me/{id}
 // while preserving the ?to= query so the recipient lands directly on the
@@ -481,10 +482,10 @@ export default function RoundDetailPage() {
         ? `${r.courseName || 'コース調整中'}${r.area ? `（${r.area}）` : ''}`
         : (r.area || 'エリア未定');
     const priceStr = priceLabelForGender(r, undefined); // 両性別を併記（受け取る側に合わせて判断できる）
-    // 参加人数と男女内訳（主催者＋承認済み参加者＋知り合い枠）。
+    // 参加人数と男女内訳（主催者＋承認済み参加者＋知り合い枠）。公式募集は主催者を数えない（2026-10-12）。
     let male = r.externalMale || 0;
     let female = r.externalFemale || 0;
-    for (const id of [r.hostId, ...(r.applicantIds || [])]) {
+    for (const id of countedMemberIds(r)) {
       const u = users.find((x) => x.id === id);
       if (u?.gender === 'male') male++;
       else if (u?.gender === 'female') female++;
@@ -777,7 +778,7 @@ export default function RoundDetailPage() {
             (incl. competitions) so you can see the mix at a glance.
             運営枠だけは、そろうまで出さない（「女性2名」だけでも顔ぶれが推せてしまう）。 */}
         {!hideOfficialMembers && (() => {
-          const ids = [round.hostId, ...round.applicantIds];
+          const ids = countedMemberIds(round); // 公式募集は主催者を数えない（2026-10-12）
           let m = 0, f = 0, o = 0;
           for (const id of ids) {
             const u = users.find((x) => x.id === id);
@@ -1586,7 +1587,8 @@ function ScoreEntryCard({ round, host, applicants }: {
 }) {
   // Build the participant list = host + approved applicants. Host first so
   // their slot is always at the top regardless of join order.
-  const people = [host, ...applicants].filter(Boolean) as import('@/lib/types').User[];
+  // 公式募集（hostNotCounted）は主催者がプレーしないので入れない（2026-10-12）。
+  const people = [...(hostCounts(round) ? [host] : []), ...applicants].filter(Boolean) as import('@/lib/types').User[];
 
   // Local form state mirrors round.scores. Empty string means "no score yet".
   const initial: Record<string, string> = {};

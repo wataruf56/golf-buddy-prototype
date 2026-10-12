@@ -2,6 +2,7 @@ import 'server-only';
 import { getAdminDb } from './firebase';
 import { viewCohort, getCohort } from './ageGate';
 import type { User } from './types';
+import { hostSeat } from './hostCount';
 
 // 募集中の1件を「イチオシ」としてポップアップで1回だけすすめる（2026-10-12）。
 // 運営が登録（/api/admin/promo-popup）→ showAt を過ぎたら、アプリを開いた人に1回だけ出す（users.promoSeen[promoId]）。
@@ -57,7 +58,8 @@ export async function activePromoFor(me: User): Promise<Record<string, unknown> 
     const roundCohort = r.hostCohort || getCohort((await db.getUser(r.hostId))?.age || 0);
     if (roundCohort && myCohort !== roundCohort) continue;
     const host = await db.getUser(r.hostId);
-    const joined = 1 + (r.applicantIds || []).length + Number(r.externalMale || 0) + Number(r.externalFemale || 0) + Number(r.externalCount || 0);
+    // 公式募集は主催者を数えない（2026-10-12）
+    const joined = hostSeat(r) + (r.applicantIds || []).length + Number(r.externalMale || 0) + Number(r.externalFemale || 0) + Number(r.externalCount || 0);
     return {
       promoId: p.id, roundId: r.id, headline: p.headline || '',
       texts: { ...(p.texts || {}), ...(p.headline && !(p.texts || {}).headline ? { headline: p.headline } : {}) },

@@ -4,6 +4,7 @@ import { isRoundHost } from '@/lib/roundHost';
 import { getMeId } from '@/lib/session';
 import { levelConditionLabel } from '@/lib/roundEligibility';
 import { reconcileGuests } from '@/lib/roundGuests';
+import { hostSeat, currentCountOf } from '@/lib/hostCount';
 import type { Round } from '@/lib/types';
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
@@ -117,10 +118,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
     // 名前つきゲスト（guests）は「知り合い枠(external)に名前を付けたもの」なので、
     // 人数は external でカウント済み。ここで二重に足さない。
-    const nextMax = Math.min(50, 1 + external + slots);
+    // 主催者の枠：公式募集（hostNotCounted）は 0（2026-10-12）
+    const seat = hostSeat(round);
+    const nextMax = Math.min(50, seat + external + slots);
     patch.spotsMale = sm; patch.spotsFemale = sf; patch.spotsAny = sa;
     patch.externalMale = em; patch.externalFemale = ef;
-    patch.currentCount = 1 + external + approvedApp; // 主催者 + 知り合い(=ゲスト) + 承認済み(共同管理者含む)
+    patch.currentCount = seat + external + approvedApp; // 主催者 + 知り合い(=ゲスト) + 承認済み(共同管理者含む)
     // 知り合い枠の人数に合わせてゲストのスロットを増減。名前は募集人数タブの入力を反映し、
     // 同じ位置の既存ゲストは id を維持する（入金チェック・組み分けが外れない）。
     if (Array.isArray(body.guestNames)) {
@@ -154,9 +157,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (has('maxSpots')) {
       const next = Math.max(1, Math.min(50, Number(body.maxSpots) || round.maxSpots));
       // Can't shrink below the number of people already in (host + approved).
-      if (next < (round.currentCount || 1)) {
+      if (next < currentCountOf(round)) {
         return NextResponse.json(
-          { error: 'too_small', message: `すでに${round.currentCount}人が参加しているため、それ未満にはできません` },
+          { error: 'too_small', message: `すでに${currentCountOf(round)}人が参加しているため、それ未満にはできません` },
           { status: 400, headers: noStore },
         );
       }

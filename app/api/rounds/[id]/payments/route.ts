@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { isRoundHost } from '@/lib/roundHost';
 import { getMeId } from '@/lib/session';
+import { hostCounts } from '@/lib/hostCount';
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 
@@ -33,8 +34,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (Object.prototype.hasOwnProperty.call(body, 'paymentEnabled')) {
     patch.paymentEnabled = !!body.paymentEnabled;
   }
+  // 公式募集（hostNotCounted）は主催者がプレーしないので外す（2026-10-12）
+  const hostIdIfCounted = hostCounts(round) ? round.hostId : '';
   const memberSet = new Set<string>([
-    round.hostId, ...(round.coHostIds || []), ...(round.applicantIds || []), ...((round.guests || []).map((g) => g.id)),
+    hostIdIfCounted, ...(round.coHostIds || []), ...(round.applicantIds || []), ...((round.guests || []).map((g) => g.id)),
   ].filter(Boolean));
   // 金額・振込先・入金期日
   if (Object.prototype.hasOwnProperty.call(body, 'paymentInfo')) {
@@ -56,7 +59,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const userId = String(body.userId);
     // 対象は「このラウンドのメンバー」だけ（主催者・共同管理者・承認済み参加者・名前付きゲスト）。
     const members = new Set<string>([
-      round.hostId,
+      hostIdIfCounted,
       ...(round.coHostIds || []),
       ...(round.applicantIds || []),
       ...((round.guests || []).map((g) => g.id)),

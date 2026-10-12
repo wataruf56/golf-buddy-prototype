@@ -151,6 +151,7 @@ export type Round = {
   dateRange?: string;
   startTime?: string;
   // maxSpots = 主催者(1) + 募集枠。つまり「自分を含めた合計人数」。
+  // ただし hostNotCounted の募集（ゴルトモ公式）は主催者を含まない（＝知り合い枠＋募集枠）（2026-10-12）。
   maxSpots: number;
   // 募集枠（＝maxSpots-1）の性別内訳。未設定の旧データは「すべてどちらでもOK」とみなす。
   // spotsMale + spotsFemale + spotsAny = maxSpots - 1。
@@ -192,6 +193,9 @@ export type Round = {
   // isAdminUserId — cannot be spoofed by the client). Official rounds render
   // with a dedicated icon + "ゴルトモ公式" name + badge.
   isOfficial?: boolean;
+  // 主催者（管理者）を参加人数に数えない募集（2026-10-12）。ゴルトモ公式として新しく立てた募集だけ true。
+  // currentCount・maxSpots・組み分け・レビュー等から主催者を外す（主催者としての管理はできる）。lib/hostCount
+  hostNotCounted?: boolean;
   // 「行ける日」の集まり（日付ごとのチャット部屋）。その日に「行ける」を押した人が
   // 4人以上で自動で作られる、運営主催のラウンド。lib/availRooms
   availDate?: string;

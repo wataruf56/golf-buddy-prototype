@@ -2,6 +2,7 @@ import 'server-only';
 import { db } from './db';
 import { getAdminDb } from './firebase';
 import { blockDm, unblockDm, closeDm, reopenDm } from './dmBlock';
+import { countedMemberIds } from './hostCount';
 
 // マッチしている相手への「いまの気持ち」を選び直す共通処理（2026-10-11 切り出し）。
 // 再会画面（/api/rematch/[pairId]/feeling）と、DM画面・プロフィールの
@@ -59,7 +60,7 @@ async function upsertVerdict(reviewerId: string, revieweeId: string, roundId: st
 export async function lastSharedRoundId(a: string, b: string): Promise<string> {
   try {
     const completed = (await db.listRounds({ status: 'completed' }))
-      .filter((r) => { const m = [r.hostId, ...(r.applicantIds || [])]; return m.includes(a) && m.includes(b); })
+      .filter((r) => { const m = countedMemberIds(r); /* 公式募集の主催者は数えない（2026-10-12） */ return m.includes(a) && m.includes(b); })
       .sort((x, y) => (y.completedAt || 0) - (x.completedAt || 0));
     return completed[0]?.id || '';
   } catch { return ''; }
