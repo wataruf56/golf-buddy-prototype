@@ -120,8 +120,11 @@ export async function GET() {
   await Promise.all(myRounds.map(async (r) => {
     try {
       // 最終投稿の時刻だけ取得（以前は最大200件を全部読んでいた）。
-      const at = await db.latestRoundMessageAt(r.id);
-      if (at) roundChatActivity[r.id] = at;
+      // スレッドが立っただけ（まだ発言なし）も「新着」に入れる（2026-10-12）
+      const [at, threads] = await Promise.all([db.latestRoundMessageAt(r.id), db.listRoundThreads(r.id).catch(() => [])]);
+      const tAt = Math.max(0, ...threads.map((t: any) => Number(t.createdAt) || 0));
+      const last = Math.max(at || 0, tAt);
+      if (last) roundChatActivity[r.id] = last;
     } catch {}
   }));
 
@@ -168,7 +171,7 @@ export async function GET() {
   } catch { /* 失敗時はそのまま（万一でも致命的でない） */ }
 
   return NextResponse.json({
-    ok: true, meId, me, users: safeUsers, rounds, pendingReviews, chats, buddyIds, roundChatActivity, banned, restrictions, isAdmin, notifications,
+    ok: true, meId, me, users: safeUsers, rounds, pendingReviews, chats, buddyIds, roundChatActivity, roundChatSeen: ((me as any)?.roundChatSeen || {}), banned, restrictions, isAdmin, notifications,
     isTestAccount: isTestMe, featureFlags,
   });
 }

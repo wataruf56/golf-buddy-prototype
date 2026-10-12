@@ -11,7 +11,8 @@ export function stripPrivate(user: User, selfId?: string | null): User {
   if (selfId && user.id === selfId) return user;
   // 実名・友達リスト・最寄り駅は本人以外に見せない。
   // 最寄り駅は運営がピックアップ調整に使うためのもので、会員同士では出さない約束（入力欄に明記）。
-  const { realNameLast, realNameFirst, friendIds, nearestStation, ...rest } = user;
+  // チャットを見た時刻・毎月のお知らせを見た記録も本人だけのもの（2026-10-12）
+  const { realNameLast, realNameFirst, friendIds, nearestStation, roundChatSeen, availMonthlySeen, ...rest } = user as any;
   return rest as User;
 }
 

@@ -20,6 +20,8 @@ type Store = {
   chats: Chat[];
   buddyIds: string[];
   roundChatActivity: Record<string, number>;
+  // グループチャットを最後に見た時刻（サーバー保存・端末をまたいで既読にする）（2026-10-12）
+  roundChatSeen: Record<string, number>;
   banned: boolean;
   // 部分制限フラグ（noCreate / noDM / noChat / noInterest / noReview / noInvite /
   // noApplyAll / applyBlockHostIds）。UIの事前ブロックに使う。
@@ -48,6 +50,7 @@ const initial: Store = {
   chats: [],
   buddyIds: [],
   roundChatActivity: {},
+  roundChatSeen: {},
   banned: false,
   restrictions: {},
   isAdmin: false,
@@ -97,6 +100,11 @@ async function api<T = any>(path: string, init?: RequestInit): Promise<T> {
 
 export const store = {
   get: () => state,
+  // グループチャットをここまで見た（画面の「💬 新着」をすぐ消す。サーバーへは chat/seen）（2026-10-12）
+  setRoundChatSeen: (roundId: string, at: number) => {
+    const cur = Number(state.roundChatSeen?.[roundId]) || 0;
+    if (at > cur) setState({ roundChatSeen: { ...(state.roundChatSeen || {}), [roundId]: at } });
+  },
   subscribe: (fn: () => void) => { listeners.add(fn); return () => { listeners.delete(fn); }; },
 
   hydrate: async () => {
@@ -104,7 +112,7 @@ export const store = {
     type BootstrapData = {
       meId: string; me: User; users: User[]; rounds: Round[];
       pendingReviews: PendingReview[]; chats: Chat[];
-      buddyIds?: string[]; roundChatActivity?: Record<string, number>; banned?: boolean; isAdmin?: boolean;
+      buddyIds?: string[]; roundChatActivity?: Record<string, number>; roundChatSeen?: Record<string, number>; banned?: boolean; isAdmin?: boolean;
       restrictions?: UserRestriction;
       notifications?: AppNotification[];
     };
@@ -145,6 +153,7 @@ export const store = {
         chats: data.chats,
         buddyIds: data.buddyIds || [],
         roundChatActivity: data.roundChatActivity || {},
+        roundChatSeen: data.roundChatSeen || {},
         banned: !!data.banned,
         restrictions: data.restrictions || {},
         isAdmin: !!data.isAdmin,

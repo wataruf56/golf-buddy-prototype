@@ -1,5 +1,6 @@
 'use client';
 
+import { RoundChatNewBadge } from '@/components/RoundChatNewBadge';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -394,6 +395,7 @@ export default function HomePage() {
                       <div className="text-[13px] font-bold truncate">{r.title}</div>
                       <div className="text-[10px] text-muted truncate">{[r.eventType === 'drink' ? (r.venue || '🍻 飲み会') : (r.courseName || r.area), r.status === 'closed' ? '締切' : null].filter(Boolean).join(' ・ ') || (r.eventType === 'drink' ? '🍻 飲み会' : 'コース未定')}</div>
                     </div>
+                    <RoundChatNewBadge roundId={r.id} />
                     <span className={`text-[10px] font-black px-2 py-0.5 rounded-full flex-shrink-0 ${roleCls}`}>{role}</span>
                     <span className="text-muted flex-shrink-0">›</span>
                   </Link>

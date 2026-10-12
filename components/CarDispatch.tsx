@@ -266,21 +266,6 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
     setCarsDirty(cars.map((c) => (c.driverId === did ? { ...c, station: s } : c)));
   }
 
-  // 未割り当ての候補（希望・未入力）を、空きのある車へ上から詰めていく自動割り当て。
-  function autoAssign() {
-    const seekers = pool.filter((id) => !driverSet.has(id));   // 運転者は自動では乗せない
-    let next = cars.map((c) => ({ ...c }));
-    for (const sid of seekers) {
-      // 定員（運転者含む）に空きがある最初の車へ。
-      const car = next.find((c) => {
-        const cap = capacityOf(c.driverId);
-        return cap === 0 || c.passengerIds.length < cap - 1;
-      });
-      if (car) car.passengerIds = [...car.passengerIds, sid];
-    }
-    setCarsDirty(next);
-  }
-
   async function save() {
     setSaving(true);
     try {
@@ -349,7 +334,7 @@ export function CarDispatch({ round, users, isHost }: { round: Round; users: Use
       <div className="text-[10px] text-muted mb-2.5">各車の「＋ 乗せる」から未割り当ての人を選んで乗せられます（ドラッグでも可）。運転者は「ピックアップできます」と答えた人です。<b>車がある人をほかの車に乗せることもできます</b>（その人の車はその日は使わない扱い）。定員は運転者を含みます。<b>自分の車で行く人・送迎がいらない人は「🚶 自分で行く」へ。</b>ゲストのぶんはここでしか設定できません。</div>
 
       <div className="flex gap-2 mb-3">
-        <button onClick={autoAssign} disabled={pool.length === 0} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold disabled:opacity-50">🪄 自動割り当て</button>
+        {/* 「🪄 自動割り当て」は不要とのことで外した（2026-10-12）。割り振りは各車の「＋ 乗せる」から */}
         <span className="text-[11px] text-muted self-center">車 {cars.length}台 / 未割り当て {pool.length}人</span>
       </div>
 

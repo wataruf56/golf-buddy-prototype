@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useStore } from '@/lib/store';
+import { useStore, store } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { AutoGrowTextarea } from '@/components/AutoGrowTextarea';
 import { toast } from '@/components/Toast';
@@ -123,6 +123,17 @@ export default function RoundChatPage() {
     const interval = setInterval(() => { load(); markRoundChatSeen(params.id); }, 3000);
     return () => clearInterval(interval);
   }, [params.id]);
+
+  // 既読をサーバーにも残す（ほかの端末でも「💬 新着」を消す）。新しい発言・スレッドが見えたときだけ送る（2026-10-12）
+  const seenSentRef = useRef(0);
+  useEffect(() => {
+    if (!loaded) return;
+    const newest = Math.max(0, ...messages.map((m) => m.createdAt || 0), ...threads.map((t: any) => Number(t.createdAt) || 0));
+    if (!newest || newest <= seenSentRef.current) return;
+    seenSentRef.current = newest;
+    store.setRoundChatSeen(params.id, newest);
+    fetch(`/api/rounds/${params.id}/chat/seen`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ at: newest }), cache: 'no-store', credentials: 'include' }).catch(() => {});
+  }, [loaded, messages, threads, params.id]);
 
   // Messages for the current view (main = no threadId; thread = matching threadId).
   const shown = useMemo(

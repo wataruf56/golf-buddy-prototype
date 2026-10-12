@@ -22,6 +22,7 @@ export function useUnreadCounts() {
   const chats = useStore((s) => s.chats);
   const rounds = useStore((s) => s.rounds);
   const activity = useStore((s) => s.roundChatActivity);
+  const serverSeen = useStore((s) => s.roundChatSeen);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
@@ -47,7 +48,8 @@ export function useUnreadCounts() {
     if (r.hostId !== meId && !(r.applicantIds || []).includes(meId)) continue;
     const lastActivity = activity?.[r.id] || 0;
     if (!lastActivity) continue;
-    const seen = getSeen(r.id);
+    // 一度でも見たら既読（この端末の記録か、ほかの端末で見た記録＝サーバーの新しい方）（2026-10-12）
+    const seen = Math.max(getSeen(r.id), Number(serverSeen?.[r.id]) || 0);
     if (lastActivity > seen) {
       roundUnread += 1;
       unreadRoundIds.add(r.id);
