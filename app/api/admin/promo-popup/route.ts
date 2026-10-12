@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 
 // 管理者用：イチオシ募集のポップアップ（lib/promoPopup）（2026-10-12）
 //   GET    … 一覧
-//   POST   … { id, roundId, showAt: ms | 'YYYY-MM-DDTHH:mm'(JST), until?, approved, headline? }
+//   POST   … { id | create:true, roundId, showAt: ms | 'YYYY-MM-DDTHH:mm'(JST), until?, approved, headline?, texts?: { badge, headline, message, ctaLabel, closeLabel, sideNote } }
 //   DELETE … { id }
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 function ok(req: NextRequest) {
@@ -26,7 +26,15 @@ export async function GET(req: NextRequest) {
     const r: any = await db.getRound(p.roundId).catch(() => null);
     return {
       ...p,
-      round: r ? { id: r.id, title: r.title || r.courseName || 'ラウンド', date: r.date || '', startTime: r.startTime || '', area: r.area || '', status: r.status, joined: 1 + (r.applicantIds || []).length, maxSpots: r.maxSpots || 0 } : null,
+      round: r ? await (async () => {
+        const host: any = await db.getUser(r.hostId).catch(() => null);
+        return {
+          id: r.id, title: r.title || r.courseName || 'ラウンド', date: r.date || '', startTime: r.startTime || '', area: r.area || '', status: r.status,
+          courseName: r.courseName || '', price: r.price || '', levelCondition: r.levelCondition || '',
+          joined: 1 + (r.applicantIds || []).length + Number(r.externalMale || 0) + Number(r.externalFemale || 0) + Number(r.externalCount || 0), maxSpots: r.maxSpots || 0,
+          host: host ? { id: host.id, displayName: host.displayName, avatar: host.avatar, avatarUrl: host.avatarUrl || '', avatarMode: host.avatarMode || '', color: host.color || '', golmotiType: host.golmotiType || '' } : null,
+        };
+      })() : null,
       stats: await promoStats(p),
     };
   }));
@@ -44,6 +52,12 @@ export async function POST(req: NextRequest) {
   const u = toMs(b.until); if (u !== undefined) patch.until = u;
   if (typeof b.approved === 'boolean') patch.approved = b.approved;
   if (typeof b.headline === 'string') patch.headline = b.headline.slice(0, 60);
+  if (b.texts && typeof b.texts === 'object') {
+    const t: Record<string, string> = {};
+    for (const k of ['badge', 'headline', 'message', 'ctaLabel', 'closeLabel', 'sideNote']) if (typeof b.texts[k] === 'string') t[k] = b.texts[k].slice(0, k === 'message' ? 120 : 60);
+    patch.texts = t;
+    if (t.headline !== undefined) patch.headline = t.headline;
+  }
   return NextResponse.json({ ok: true, promo: await upsertPromo(id, patch) }, { headers: noStore });
 }
 export async function DELETE(req: NextRequest) {

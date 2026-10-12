@@ -10,7 +10,8 @@ import type { User } from './types';
 // ほかのポップアップとの兼ね合い（何か出ていれば閉じて1時間後）は画面側（components/RoundPromoPopup）で判定する。
 const COLL = '_promoPopups';
 
-export type PromoDoc = { id: string; roundId: string; showAt: number; until: number; approved: boolean; headline?: string; createdAt: number };
+// texts … ポップアップの文言（components/RoundPromoCard の PromoTexts。空なら既定）
+export type PromoDoc = { id: string; roundId: string; showAt: number; until: number; approved: boolean; headline?: string; texts?: Record<string, string>; createdAt: number };
 
 export async function listPromos(): Promise<PromoDoc[]> {
   const adb = getAdminDb() as any;
@@ -59,6 +60,7 @@ export async function activePromoFor(me: User): Promise<Record<string, unknown> 
     const joined = 1 + (r.applicantIds || []).length + Number(r.externalMale || 0) + Number(r.externalFemale || 0) + Number(r.externalCount || 0);
     return {
       promoId: p.id, roundId: r.id, headline: p.headline || '',
+      texts: { ...(p.texts || {}), ...(p.headline && !(p.texts || {}).headline ? { headline: p.headline } : {}) },
       title: r.title || r.courseName || 'ラウンド', date: r.date || '', startTime: r.startTime || '',
       area: r.area || '', courseName: r.courseName || '', price: r.price || '', levelCondition: r.levelCondition || '',
       maxSpots: Number(r.maxSpots || 0), joined,
