@@ -1436,7 +1436,7 @@ export default function RoundDetailPage() {
       )}
 
       {pickupOpen && (
-        <PickupJoinModal me={me} onClose={() => setPickupOpen(false)} onSubmit={submitJoin} />
+        <PickupJoinModal me={me} official={!!(round as any).isOfficial} onClose={() => setPickupOpen(false)} onSubmit={submitJoin} />
       )}
 
       {/* 画面下に貼りつく参加ボタン。スクロールしても押せる状態を保つ。
@@ -2127,8 +2127,20 @@ function PickupInfo({ round, meId, users, isHost, isApproved }: { round: Round; 
 // 常に userId=member.id で送信。入力できるのは主催者か本人のみ（サーバ側でも判定）。
 // 参加申込時のピックアップ回答モーダル。回答を親に返し、親が join API に同梱する
 // （申込直後は承認前でメンバー扱いされず /pickup を単独で叩けないため）。
-function PickupJoinModal({ me, onClose, onSubmit }: {
+// ゴルトモ公式の募集で「ピックアップしてほしい」を選んだ人に必ず出す案内（2026-10-12）。
+// 送迎は運営が調整し、開催日の10日〜1週間前に運転手と希望者のスレッドを作る。
+function OfficialPickupNotice({ compact }: { compact?: boolean }) {
+  return (
+    <div className={'rounded-lg border-[1.5px] border-orange bg-orange-light text-text leading-relaxed ' + (compact ? 'px-2.5 py-2 text-[11px] mt-1.5' : 'px-3 py-2.5 text-[11.5px] mb-2')}>
+      <div className="font-black text-orange mb-0.5">🚗 ピックアップについてのご案内</div>
+      ピックアップは基本こちらで調整しますが、開催日の10日〜1週間前くらいに、運転手とピックアップ希望者を含めたスレッドを作成してやり取りさせていただきますので、それまで少々お待ちください。
+    </div>
+  );
+}
+
+function PickupJoinModal({ me, official, onClose, onSubmit }: {
   me: User | undefined;
+  official?: boolean;
   onClose: () => void;
   onSubmit: (p: { status?: PickupStatus; stations?: string[]; capacity?: number }) => Promise<void> | void;
 }) {
@@ -2179,6 +2191,7 @@ function PickupJoinModal({ me, onClose, onSubmit }: {
             <SegBtn active={status === 'no_need'} onClick={() => setStatus('no_need')}>不要</SegBtn>
           </div>
         )}
+        {official && status === 'want' && <OfficialPickupNotice />}
         {needsStations && (
           <div className="bg-bg rounded-lg p-2 mb-2">
             <div className="text-[11px] font-bold text-sub mb-1">{status === 'can' ? '送迎できる駅' : '希望する駅'}</div>
@@ -2305,9 +2318,11 @@ function PickupMemberControl({ round, member, meId, isHost, guest }: {
   const proposal = round.pickupProposals?.[member.id] || null;
   // 自分宛ての提案（希望者のみ）。
   const showProposal = isSelf && isSeeker && !!proposal;
+  const showOfficialNotice = isSelf && isSeeker && !!(round as any).isOfficial;
 
   return (
     <div className="mt-1">
+      {showOfficialNotice && <OfficialPickupNotice compact />}
       <button
         onClick={() => setOpen((v) => !v)}
         className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border-[1.5px] text-[12px] font-bold ${open ? 'border-green bg-green-light text-green' : 'border-border bg-card text-sub'}`}
