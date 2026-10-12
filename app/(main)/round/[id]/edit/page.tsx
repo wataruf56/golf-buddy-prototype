@@ -202,7 +202,7 @@ export default function EditRoundPage() {
     { const pi = (round as any).paymentInfo || {}; const j = msToJst(pi.deadline);
       setPayAmount(pi.amount ?? null); setPayAccount(pi.account || ''); setPayDate(j.date); setPayTime(j.time || '23:59'); }
     { const cp = (round as any).cancelPolicy; const j = msToJst(cp?.deadline);
-      setCancelDraft(cp?.deadline ? { on: true, date: j.date, time: j.time, fee: cp.fee ?? null, account: cp.account || '', condition: upgradeCondition(cp.condition || '') } : emptyCancelDraft); }
+      setCancelDraft(cp?.deadline ? { on: true, date: j.date, time: j.time, fee: cp.fee ?? null, account: cp.account || '', condition: swapConditionForPayment(upgradeCondition(cp.condition || ''), !!round.paymentEnabled) } : emptyCancelDraft); }
     setArea(round.area || '');
     setDateType(round.dateType === 'range' ? 'range' : 'fixed');
     setDateRange(round.dateRange || '');

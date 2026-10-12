@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { NumberInput } from '@/components/NumberInput';
-import { cancelConditionTemplates, upgradeCondition, formatCancelDeadline, isPastCancelDeadline, msToJst, type CancelPolicy } from '@/lib/cancelPolicy';
+import { cancelConditionTemplates, upgradeCondition, swapConditionForPayment, formatCancelDeadline, isPastCancelDeadline, msToJst, type CancelPolicy } from '@/lib/cancelPolicy';
 
 // キャンセル規定（2026-10-10）。lib/cancelPolicy 参照。
 
@@ -16,10 +16,12 @@ export function CancelPolicyEditor({ value, onChange, roundDate, prepaid = false
 }) {
   const set = (p: Partial<CancelPolicyDraft>) => onChange({ ...value, ...p });
   const templates = cancelConditionTemplates(prepaid);
-  const isTemplate = templates.includes(upgradeCondition(value.condition));
+  // 古い文例・事前集金の有無と食い違う文例も、同じ記号（A/B）の今の文例として扱う
+  const normCond = swapConditionForPayment(upgradeCondition(value.condition), prepaid);
+  const isTemplate = templates.includes(normCond);
   const payJ = prepaid && paymentDeadline ? msToJst(paymentDeadline) : null;
   const sameAsPay = !!payJ && payJ.date === value.date && payJ.time === value.time;
-  const sel = !value.condition ? '' : isTemplate ? upgradeCondition(value.condition) : '__free__';
+  const sel = !value.condition ? '' : isTemplate ? normCond : '__free__';
   const pick = (v: string) => set({ condition: v === '__free__' ? (isTemplate ? '' : value.condition) || ' ' : v });
   const card = (on: boolean) => 'w-full flex items-start gap-2.5 p-2.5 rounded-xl border-[1.5px] text-left ' + (on ? 'border-green bg-green-light' : 'border-border bg-bg');
   const dot = (on: boolean) => 'mt-0.5 w-[18px] h-[18px] rounded-full border-2 flex-shrink-0 grid place-items-center ' + (on ? 'border-green' : 'border-border');
