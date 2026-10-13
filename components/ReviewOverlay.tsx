@@ -211,7 +211,7 @@ export function ReviewOverlay() {
           {/* 2026-10-10：いちばん大事な安心材料を大きく（本音で選んでもらうため） */}
           <div className="mt-2.5 px-3 py-3 rounded-xl border-2 border-border bg-[#FFF8E1] text-center">
             <div className="text-[17px] font-black text-text leading-snug">🔒 あなたが選んだものは<br />相手には伝わりません</div>
-            <div className="text-[11.5px] text-sub mt-1 leading-relaxed">お互いに選び合ったときだけ「マッチ」として2人に届きます。<br />片方だけなら、相手に知られることは一切ありません。</div>
+            <div className="text-[11.5px] text-sub mt-1 leading-relaxed">お互いに選び合ったときだけ「マッチ」として2人に届きます。<br />片方だけなら、相手に知られることは一切ありません。<br />★（評価）に反映されるのは、お互いにレビューし終わってからです。</div>
           </div>
           <div className="mt-2 px-3 py-2 bg-green-light rounded-xl text-[11.5px] text-green leading-relaxed">
             🎁 <b>マッチすると</b>、次回のゴルトモ<b>公式コンペ等で“同じ組”になるよう配慮</b>されます。

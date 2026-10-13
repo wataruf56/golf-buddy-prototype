@@ -120,5 +120,26 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     }
   } catch { /* best-effort：共通の友達が出せなくてもプロフィールは表示する */ }
 
-  return NextResponse.json({ user: publicUser, reviews: enriched, mutualFriends });
+  // 同じ組で回った共通の人：閲覧者(A)とこのプロフィール(B)が、それぞれ「過去に同じ組で回った人」の積集合
+  // （2026-10-14 までの「共通の友達」と同じ定義。プロフィールの下のほうに、共通の友達とは別に出す）。
+  let mutualPartners: Array<{ id: string; displayName: string; avatar: string; avatarUrl?: string }> = [];
+  try {
+    const viewerId = await getMeId();
+    if (viewerId && viewerId !== params.id) {
+      const { sameGroupPartnerIds } = await import('@/lib/pastPartners');
+      const [aSet, bSet] = await Promise.all([sameGroupPartnerIds(viewerId), sameGroupPartnerIds(params.id)]);
+      const ids = Array.from(aSet).filter((id) => bSet.has(id) && id !== viewerId && id !== params.id).slice(0, 30);
+      if (ids.length) {
+        let bset = new Set<string>();
+        try { const { getBannedIdSet } = await import('@/lib/banAccess'); bset = await getBannedIdSet(); } catch {}
+        const mUsers = await db.listUsers(ids);
+        mutualPartners = mUsers
+          .filter((u) => !(u as any).isSystem && !bset.has(u.id))
+          .map((u) => ({ id: u.id, displayName: u.displayName || 'メンバー', avatar: u.avatar || '⛳', avatarUrl: (u as any).avatarUrl || undefined }))
+          .slice(0, 24);
+      }
+    }
+  } catch { /* best-effort */ }
+
+  return NextResponse.json({ user: publicUser, reviews: enriched, mutualFriends, mutualPartners });
 }

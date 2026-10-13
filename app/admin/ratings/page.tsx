@@ -9,10 +9,10 @@ import { appProfileUrl } from '@/lib/adminLinks';
 // 管理画面：全員の評価状況を一覧し、一人ずつ詳しく見る。
 // ★はアプリと同じ「また回りたい率」の定義（レビューをくれた人のうち、ごめんなさいが何人か）。
 
-type Rev = { from: string; fromName: string; verdict: string; comment: string; ts: number };
+type Rev = { from: string; fromName: string; verdict: string; comment: string; ts: number; reflected?: boolean };
 type Row = {
   id: string; name: string; avatarUrl: string; isTest: boolean;
-  star: number | null; roundedWith: number; againCount: number; neverCount: number; againRate: number;
+  star: number | null; roundedWith: number; againCount: number; neverCount: number; waitingCount?: number; againRate: number;
   hosted: number; joined: number; noShow: number; partners: number;
   mannerPenalty: number; gaveReviews: number; againGiven: number;
   reviews: Rev[];
@@ -99,7 +99,7 @@ function Inner() {
         <AdminTabs token={token} group="trust" current="/admin/ratings" />
       <div className="text-2xl font-black mb-1">⭐ 評価の状況（全員）</div>
       <div className="text-[11px] text-muted mb-3">
-        ★＝レビューの答えを点数にした平均（行きたい・💘＝5点／どっちでも＝3点／思わない＝1点。運営ペナルティ1件で−1）。数字は小数2桁、星の絵は0.5刻み。名前をタップすると、誰からどう評価されたかが開きます。
+        ★＝お互いにレビューし終わった相手の答えを点数にした平均（片方だけのレビューは「⏳ 本人のレビュー待ち」で★に入らない・2026-10-14〜。行きたい・💘＝5点／どっちでも＝3点／思わない＝1点。運営ペナルティ1件で−1）。数字は小数2桁、星の絵は0.5刻み。名前をタップすると、誰からどう評価されたかが開きます。
       </div>
 
       {err && <div className="bg-red-50 text-red-700 p-3 rounded-xl mb-3 text-[12px]">エラー: {err}</div>}
@@ -108,7 +108,7 @@ function Inner() {
         <div className="grid grid-cols-2 gap-2 mb-3">
           <Kpi label="評価がある人" value={`${s.rated}人`} sub={`未評価 ${s.unrated}人`} accent="text-green" />
           <Kpi label="平均★" value={s.avgStar ? `★${s.avgStar.toFixed(2)}` : '—'} sub={`レビュー ${s.totalReviews}件`} accent="text-blue" />
-          <Kpi label="ごめんなさりあり" value={`${s.withNever}人`} sub="1人以上から" accent="text-orange" />
+          <Kpi label="思わないあり" value={`${s.withNever}人`} sub="1人以上から" accent="text-orange" />
           <Kpi label="運営ペナルティ" value={`${s.withPenalty}人`} sub="ドタキャン等" accent="text-red-600" />
         </div>
       )}
@@ -176,6 +176,7 @@ function Inner() {
                           <div className="flex items-center gap-2 text-[11.5px]">
                             <span className="font-bold truncate">{v.fromName}</span>
                             <span className="text-sub">{verdictJa(v.verdict)}</span>
+                            {v.reflected === false && <span className="text-[9.5px] font-bold text-orange bg-orange-light rounded-full px-1.5 py-0.5 flex-none">⏳ 本人のレビュー待ち・★に未反映</span>}
                             <span className="ml-auto text-[10px] text-muted flex-none">{fmt(v.ts)}</span>
                           </div>
                           {v.comment && <div className="text-[11.5px] text-text mt-1 whitespace-pre-wrap leading-relaxed">{v.comment}</div>}

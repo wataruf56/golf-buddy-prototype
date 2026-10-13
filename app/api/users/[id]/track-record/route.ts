@@ -49,12 +49,21 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
     // このユーザーを「レビューした人」（＝評価をくれた人）。分母はここに限定する：
     // 一緒に回っても“未レビュー”の人は「また回りたい」の分母に入れない。
-    const revSnap = await db.collection('reviews').where('revieweeId', '==', id).limit(1000).get();
+    // 2026-10-14〜：★に入れるのは「お互いにレビューし終わった」相手だけ（本人判断）。片方だけのレビューは、
+    // 相手（このユーザー）がその人をレビューするまで分母にも分子にも入れない（＝★は動かない）。
+    const [revSnap, givenSnap] = await Promise.all([
+      db.collection('reviews').where('revieweeId', '==', id).limit(1000).get(),
+      db.collection('reviews').where('reviewerId', '==', id).limit(1000).get(),
+    ]);
+    const reviewedByMe = new Set<string>(givenSnap.docs.map((d: any) => (d.data() || {}).revieweeId).filter(Boolean));
     const reviewers = new Set<string>();
     const neverFrom = new Set<string>(); // 「ごめんなさい」(verdict==='never')を付けた人。
+    let waitingCount = 0;                // レビューをもらったが、まだこの人が相手をレビューしていない人数（★に未反映）
+    const waiting = new Set<string>();
     revSnap.docs.forEach((d: any) => {
       const x = d.data() || {};
       if (!x.reviewerId) return;
+      if (!reviewedByMe.has(x.reviewerId)) { waiting.add(x.reviewerId); return; }
       reviewers.add(x.reviewerId);
       if (x.verdict === 'never') neverFrom.add(x.reviewerId);
     });
@@ -67,7 +76,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       if (x.kind === 'again' && x.from) againFrom.add(x.from);
     });
 
-    // 分母 = レビューをくれた人数。分子 = そのうち「また回りたい」を押した人数。
+    // 分母 = レビューをくれた人数（お互いにレビュー済みの相手だけ）。分子 = そのうち「また回りたい」を押した人数。
+    waitingCount = waiting.size;
     const roundedWith = reviewers.size;
     let againCount = 0;
     let neverCount = 0; // ごめんなさいを付けた人数（星の減点に使う）。
@@ -87,7 +97,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     let friendCount = 0;
     try { const { friendSetOf } = await import('@/lib/friendSet'); friendCount = (await friendSetOf(id)).size; } catch { /* 引けなければ0 */ }
 
-    return NextResponse.json({ roundedWith, againCount, neverCount, mannerPenalty, hostedCount, joinedCount, officialCount, recruitCount, friendCount }, { headers: noStore });
+    return NextResponse.json({ roundedWith, againCount, neverCount, mannerPenalty, hostedCount, joinedCount, officialCount, recruitCount, friendCount, waitingCount }, { headers: noStore });
   } catch (e) {
     return NextResponse.json({ roundedWith: 0, againCount: 0, neverCount: 0, hostedCount: 0, joinedCount: 0, error: (e as Error).message }, { headers: noStore });
   }

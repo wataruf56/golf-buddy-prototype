@@ -8,7 +8,7 @@ import { hostCounts } from '@/lib/hostCount';
 // 管理画面：全ユーザーの評価状況を一覧＋一人ずつ詳しく見るためのデータ。
 //
 // アプリ側の ★（また回りたい率）と同じ定義でそろえる（lib/utils.revisitStar）：
-//   分母 roundedWith = そのユーザーをレビューした人数
+//   分母 roundedWith = そのユーザーをレビューした人数（2026-10-14〜 お互いにレビューし終わった相手だけ。片方だけは「相手待ち」）
 //   減点 neverCount  = そのうち「ごめんなさい」(verdict:'never') を付けた人数
 //   星               = (1 - never/rounded) * 5
 // これに実績（完了ラウンドの参加/主催）とマナーペナルティを添えて、
@@ -64,7 +64,13 @@ export async function GET(req: NextRequest) {
     }
 
     // --- 受けたレビュー ---
-    type Rev = { from: string; fromName: string; verdict: string; comment: string; ts: number };
+    type Rev = { from: string; fromName: string; verdict: string; comment: string; ts: number; reflected?: boolean };
+    // お互いにレビューし終わったペアだけ★に入れる（2026-10-14）。given[A] = A がレビューした相手
+    const given: Record<string, Set<string>> = {};
+    for (const d of revSnap.docs) {
+      const x: any = d.data() || {};
+      if (x.reviewerId && x.revieweeId) (given[x.reviewerId] = given[x.reviewerId] || new Set()).add(x.revieweeId);
+    }
     const received: Record<string, Rev[]> = {};
     const gaveCount: Record<string, number> = {};
     for (const d of revSnap.docs) {
@@ -76,6 +82,7 @@ export async function GET(req: NextRequest) {
         verdict: String(x.verdict || ''),
         comment: String(x.comment || x.text || '').slice(0, 300),
         ts: Number(x.createdAt || x.ts || 0),
+        reflected: !!given[to]?.has(from),   // false＝本人がまだ相手をレビューしていない（★に未反映）
       });
       gaveCount[from] = (gaveCount[from] || 0) + 1;
     }
@@ -94,8 +101,9 @@ export async function GET(req: NextRequest) {
       .filter((u: any) => !u.isSystem)
       .map((u: any) => {
         const revs = (received[u.id] || []).sort((a, b) => b.ts - a.ts);
-        const reviewers = new Set(revs.map((r) => r.from));
-        const never = new Set(revs.filter((r) => r.verdict === 'never').map((r) => r.from));
+        const reviewers = new Set(revs.filter((r) => r.reflected).map((r) => r.from));
+        const waitingCount = new Set(revs.filter((r) => !r.reflected).map((r) => r.from)).size;
+        const never = new Set(revs.filter((r) => r.reflected && r.verdict === 'never').map((r) => r.from));
         const again = againFrom[u.id] || new Set<string>();
         const roundedWith = reviewers.size;
         let againCount = 0, neverCount = 0;
@@ -112,7 +120,7 @@ export async function GET(req: NextRequest) {
           avatarUrl: u.avatarUrl || '',
           isTest: !!u.isTestAccount,
           star,                                   // null = まだ評価なし（🆕 初参加）
-          roundedWith, againCount, neverCount,
+          roundedWith, againCount, neverCount, waitingCount,
           againRate: roundedWith ? Math.round((againCount / roundedWith) * 100) : 0,
           hosted: s.hosted, joined: s.joined, noShow: s.noShow,
           partners: s.partners.size,

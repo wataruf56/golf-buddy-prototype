@@ -8,7 +8,8 @@ import { getMeId } from '@/lib/session';
 //   roundedWith = このユーザーをレビューした人数（＝分母）
 //   againCount  = そのうち「また回りたい」を押した人数
 //   neverCount  = そのうち「ごめんなさい(never)」を付けた人数
-// N+1 を避けるため、reviews は revieweeId、_matchLikes は to の `in` クエリでまとめて取得する。
+// 2026-10-14〜：★に入れるのは「お互いにレビューし終わった」相手だけ（そのユーザーも相手をレビュー済みのときだけ数える）。
+// N+1 を避けるため、reviews は revieweeId／reviewerId、_matchLikes は to の `in` クエリでまとめて取得する。
 const noStore = { 'Cache-Control': 'no-store' };
 const MAX_IDS = 90;   // 表示上限。30件ずつのチャンクで処理。
 const CHUNK = 30;     // Firestore `in` の上限。
@@ -31,19 +32,26 @@ export async function POST(req: NextRequest) {
   const reviewers: Record<string, Set<string>> = {};
   const neverFrom: Record<string, Set<string>> = {};
   const againFrom: Record<string, Set<string>> = {};
-  for (const id of ids) { reviewers[id] = new Set(); neverFrom[id] = new Set(); againFrom[id] = new Set(); }
+  const reviewedBy: Record<string, Set<string>> = {};   // uid → そのユーザーがレビューした相手
+  for (const id of ids) { reviewers[id] = new Set(); neverFrom[id] = new Set(); againFrom[id] = new Set(); reviewedBy[id] = new Set(); }
 
   try {
     for (let i = 0; i < ids.length; i += CHUNK) {
       const chunk = ids.slice(i, i + CHUNK);
-      const [revSnap, likeSnap] = await Promise.all([
+      const [revSnap, likeSnap, givenSnap] = await Promise.all([
         db.collection('reviews').where('revieweeId', 'in', chunk).limit(3000).get(),
         db.collection('_matchLikes').where('to', 'in', chunk).limit(5000).get(),
+        db.collection('reviews').where('reviewerId', 'in', chunk).limit(3000).get(),
       ]);
+      givenSnap.docs.forEach((d: any) => {
+        const x = d.data() || {};
+        if (x.reviewerId && x.revieweeId && reviewedBy[x.reviewerId]) reviewedBy[x.reviewerId].add(x.revieweeId);
+      });
       revSnap.docs.forEach((d: any) => {
         const x = d.data() || {};
         const to = x.revieweeId; const from = x.reviewerId;
         if (!to || !from || !reviewers[to]) return;
+        if (!reviewedBy[to].has(from)) return;   // まだお互いにレビューし終わっていない
         reviewers[to].add(from);
         if (x.verdict === 'never') neverFrom[to].add(from);
       });
