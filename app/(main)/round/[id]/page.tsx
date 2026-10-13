@@ -280,6 +280,16 @@ export default function RoundDetailPage() {
   // 事前入金の確認を済ませて申し込むとき（join → submitJoin）の印。hook なので下の早期 return より前に置く
   // （2026-10-12：早期 return の後ろにあり、読み込み中→表示で hook の数が変わって React #310 で落ちていた）
   const payAckPending = useRef(false);
+  // 参加者一覧の「ゴルトモで◯回」「公式コンペ◯回」（2026-10-13・POST /api/users/round-stats）
+  const [roundStats, setRoundStats] = useState<Record<string, { rounds: number; official: number }>>({});
+  const statsKey = round ? [round.hostId, ...(round.coHostIds || []), ...(round.applicantIds || []), ...((round as any).pendingApplicantIds || [])].filter(Boolean).join(',') : '';
+  useEffect(() => {
+    if (!statsKey || !meId) return;
+    let off = false;
+    fetch('/api/users/round-stats', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: statsKey.split(',') }), cache: 'no-store', credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null)).then((j) => { if (!off && j?.stats) setRoundStats((cur) => ({ ...cur, ...j.stats })); }).catch(() => {});
+    return () => { off = true; };
+  }, [statsKey, meId]);
 
   if (!round) {
     if (fetchState === 'loading') {
@@ -1231,6 +1241,7 @@ export default function RoundDetailPage() {
                       <div className="flex-1 min-w-0">
                         <div className="text-[13px] font-bold truncate flex items-center gap-1.5">{h.displayName}<span className="text-[10px] text-green font-black flex-shrink-0 px-1.5 py-px rounded-full bg-green-light border border-green">⛳ 参加幹事</span></div>
                         <div className="text-[11px] text-sub truncate">{describeUser(h)}{h.scoreRange ? ' ・ ' + h.scoreRange : ''}</div>
+                        <MemberCounts s={roundStats[h.id]} />
                       </div>
                     </Link>
                     {!!meId && h.id !== meId && canDmHost && (
@@ -1251,6 +1262,7 @@ export default function RoundDetailPage() {
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-bold truncate flex items-center gap-1.5">{h.displayName}{idx > 0 && <span className="text-[10px] text-green font-bold flex-shrink-0">🤝 共同管理者</span>}</div>
                     <div className="text-[11px] text-sub truncate">{describeUser(h)}{ratingText(h.id, true) ? ' ・ ' + ratingText(h.id, true) : ''}{h.scoreRange ? ' ・ ' + h.scoreRange : ''}</div>
+                    <MemberCounts s={roundStats[h.id]} />
                   </div>
                 </Link>
                 {!!meId && h.id !== meId && canDmHost && (
@@ -1293,6 +1305,7 @@ export default function RoundDetailPage() {
                         <div className="text-[10px] text-green font-bold">📋 {participantNames[playingHost.id]}</div>
                       )}
                       <div className="text-[10px] text-sub">{describeUser(playingHost)} ・ {pickupStatusLabel(round.participantPickups?.[playingHost.id])}</div>
+                      <MemberCounts s={roundStats[playingHost.id]} />
                     </div>
                   </Link>
                   {canDmMembers && playingHost.id !== meId && (
@@ -1315,6 +1328,7 @@ export default function RoundDetailPage() {
                         <div className="text-[10px] text-green font-bold">📋 {participantNames[u.id]}</div>
                       )}
                       <div className="text-[10px] text-sub">{describeUser(u)} ・ {pickupStatusLabel(round.participantPickups?.[u.id])}</div>
+                      <MemberCounts s={roundStats[u.id]} />
                     </div>
                   </Link>
                   {canDmMembers && !isHost && u.id !== meId && (
@@ -1419,6 +1433,7 @@ export default function RoundDetailPage() {
                           <div className="text-[10px] text-green font-bold">📋 {participantNames[u.id]}</div>
                         )}
                         <div className="text-[10px] text-sub">{describeUser(u)}{ratingText(u.id, true) ? ' ・ ' + ratingText(u.id, true) : ''}</div>
+                        <MemberCounts s={roundStats[u.id]} />
                       </div>
                     </Link>
                     <Link href={`/chat/${chatIdFor(meId, u.id)}?other=${u.id}`} className="px-2.5 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
@@ -2095,6 +2110,17 @@ function GuestReplacePicker({ roundId, excludeIds, busy, onPick }: { roundId: st
           <button disabled={busy} onClick={() => onPick(u.id, u.displayName)} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold flex-shrink-0 disabled:opacity-50">この人にする</button>
         </div>
       ))}
+    </div>
+  );
+}
+
+// 「⛳ ゴルトモで3回 ・ 🏆 公式コンペ1回」（2026-10-13）。数字がまだ読めていなければ何も出さない
+function MemberCounts({ s }: { s?: { rounds: number; official: number } }) {
+  if (!s) return null;
+  return (
+    <div className="mt-0.5 flex items-center gap-1 flex-wrap">
+      <span className="text-[10px] font-bold px-1.5 py-px rounded-full bg-green-light text-green">⛳ ゴルトモで{s.rounds}回</span>
+      <span className={'text-[10px] font-bold px-1.5 py-px rounded-full ' + (s.official ? 'bg-orange-light text-orange' : 'bg-bg text-muted')}>🏆 公式コンペ{s.official}回</span>
     </div>
   );
 }
