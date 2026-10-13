@@ -27,7 +27,7 @@ export default function MyPage() {
   const [showNotifySettings, setShowNotifySettings] = useState(false);
   const myRounds = useStore((s) =>
     s.rounds.filter((r) =>
-      !(r as any).availDate && (   // 「行ける日」の集まりは並べない（入口はホームの行ける日カード）
+      !(r as any).availDate && (   // 「行ける日」の集まりは並べない（入口は下のタブ「行ける日」）
       r.hostId === s.meId ||
       r.applicantIds.includes(s.meId) ||
       (r.pendingApplicantIds || []).includes(s.meId))

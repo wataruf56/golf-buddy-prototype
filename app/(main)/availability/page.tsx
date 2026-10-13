@@ -7,6 +7,8 @@ import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { RoomIntroSheet } from '@/components/RoomIntroSheet';
 import { AvailLegend, AvailPersonChip } from '@/components/AvailPersonChip';
+import { AvailabilityIntro } from '@/components/AvailabilityIntro';
+import { markAvailSeen } from '@/lib/availBadge';
 import { AVAIL_ROOM_MIN, dateLabel, isoOf, monthsBetween, WEEKDAYS, type AvailPerson } from '@/lib/availabilityShared';
 
 // 「行ける日」カレンダー（モック3版・2026-09-27）。
@@ -17,8 +19,13 @@ import { AVAIL_ROOM_MIN, dateLabel, isoOf, monthsBetween, WEEKDAYS, type AvailPe
 //   ・車あり／なしはプロフィールの値（ここで変えるとプロフィールも変わる）
 //   ・最寄り駅が未登録の人は、見るのはできるが出せない。登録を案内し、済んだら使える
 //   ・20〜30代にだけ出る。並ぶのも同じ年代だけ（API 側で決まる）
+//   ・2026-10-14〜 下のタブ（左から2番目）から開く。開いたらタブの①②バッジを消す（lib/availBadge）。
+//     使い方ポップアップ（AvailabilityIntro）もホームからここへ移した（初めて開いたときに1回）。
+//     名前と写真は男性・女性どちらが見ても出る
 type Resp = {
   enabled: boolean; needsStation?: boolean; profileMissing?: string[];
+  /** 使い方ポップアップを見終わったか。false なら1回出す */
+  introSeen?: boolean;
   byDate: Record<string, AvailPerson[]>; mine: string[];
   car: 'have' | 'none'; seats: number | null; bags: number | null;
   canOpenProfiles: boolean;
@@ -50,6 +57,9 @@ export default function AvailabilityPage() {
     } catch { setFailed(true); }
   }, []);
   useEffect(() => { load(); }, [load]);
+  // タブを開いた＝ここまでの新しい「行ける日」は見た（バッジを消す）。使える人（20〜30代）だけ
+  const enabled = !!data?.enabled;
+  useEffect(() => { if (enabled) markAvailSeen(); }, [enabled]);
 
   const months = useMemo(() => (data?.enabled ? monthsBetween(data.window.from, data.window.to) : []), [data]);
   const month = months[monthIdx];
@@ -140,7 +150,6 @@ export default function AvailabilityPage() {
   if (!data.enabled) {
     return (
       <div className="px-5 py-6">
-        <button onClick={() => router.back()} className="text-sm text-blue font-semibold mb-4">← 戻る</button>
         <div className="bg-card rounded-card shadow-card border-2 border-border p-5 text-[13px] font-bold text-sub leading-relaxed">
           「行ける日」は20〜30代の会員向けの機能です。
         </div>
@@ -155,10 +164,11 @@ export default function AvailabilityPage() {
   const focusSeats = focusCars.reduce((n, p) => n + (p.seats || 4), 0);
 
   return (
-    <div className="px-5 pt-2 pb-8">
-      <div className="flex items-center gap-2 mb-2">
-        <button onClick={() => router.back()} className="text-sm text-blue font-semibold">← 戻る</button>
-      </div>
+    <div className="px-5 pt-3 pb-8">
+      {/* 下のタブから開く画面なので「← 戻る」は置かない（2026-10-14） */}
+      {data.introSeen === false && (
+        <AvailabilityIntro needsStation={!!data.needsStation} inCalendar onDone={() => setData((cur) => (cur ? { ...cur, introSeen: true } : cur))} />
+      )}
       <div className="text-2xl font-black tracking-tight">📅 行ける日</div>
       <div className="text-[12px] text-sub font-bold mt-1 leading-relaxed">
         同じ日に「行ける」を押した人が{AVAIL_ROOM_MIN}人集まると、その日のチャットが始まります。
@@ -301,7 +311,7 @@ export default function AvailabilityPage() {
         <div className="mt-2"><AvailLegend /></div>
         <div className="text-[11px] text-sub font-bold mt-1.5 leading-relaxed">
           日付を押すと、その日に行ける人がここに出ます。「この日に行ける」を押すとすぐ保存されます。
-          {data.canOpenProfiles ? ' 札をタップするとプロフィールが開きます。' : ' 友達（🤝）は名前が出て、タップでプロフィールが開きます。それ以外の人は年齢と、車を出せるかだけです。'}
+          {data.canOpenProfiles ? ' 札をタップするとプロフィールが開きます。友達には🤝が付きます。' : ' 友達（🤝）は名前が出て、タップでプロフィールが開きます。それ以外の人は年齢と、車を出せるかだけです。'}
         </div>
       </div>
       {introFor && (

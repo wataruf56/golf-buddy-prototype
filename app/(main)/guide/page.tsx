@@ -11,7 +11,7 @@ import { ADMIN_MANAGER_ID } from '@/lib/adminManagerId';
 // 使い方・ヘルプ（2026-10-11 作り直し → 2026-10-13 トップを2つに分けた）。
 //   トップ（/guide）            … ①メインの機能 ②タブごとに機能を見る の2枚の大きな入口＋新機能・よくある質問・わからないことがあったら
 //   メインの機能（?view=main）   … 行ける日 → 参加/募集 → チャット → 当日 → レビュー → ゴル友 の流れ
-//   タブごと（?view=tabs&tab=…） … 下のタブ（ホーム／さがす／タイムライン／過去ラウンド／スイング／ゴル友／使い方）を1つずつ
+//   タブごと（?view=tabs&tab=…） … 下のタブ（ホーム／行ける日／さがす／タイムライン／過去ラウンド／スイング／ゴル友／使い方）を1つずつ（2026-10-14 行ける日を追加）
 // クエリで切り替えるので、どこからでも直リンクできる（例：/guide?view=tabs&tab=buddies）。
 // 文章は最小限にして、**実際の画面**を横にめくって見せる（Tour）。タップで拡大（Lightbox）。
 // 画面は /guide-shots/v2/{name}.webp。テスト用アカウントで撮ったもの（実在の会員は写っていない）。
@@ -21,12 +21,13 @@ const IMG = (n: string) => `/guide-shots/v2/${n}.webp`;
 
 type TourItem = { src: string; title: string; text?: string };
 type View = 'top' | 'main' | 'tabs';
-type TabKey = 'home' | 'search' | 'timeline' | 'past' | 'swing' | 'buddies' | 'guide';
+type TabKey = 'home' | 'avail' | 'search' | 'timeline' | 'past' | 'swing' | 'buddies' | 'guide';
 
 // 下のタブバー（components/TabBar.tsx）と同じ並び・名前・絵文字。
-// lines … 7つ並べる小さい切り替えで2行に折る名前（360px幅だと「タイムライン」「過去ラウンド」が隣とくっつくため）
+// lines … 8つ並べる小さい切り替えで2行に折る名前（「タイムライン」「過去ラウンド」が隣とくっつくため）
 const TABS: Array<{ key: TabKey; label: string; lines?: [string, string]; emoji: string; href: string; lead: string }> = [
-  { key: 'home', label: 'ホーム', emoji: '🏠', href: '/home', lead: '行ける日・参加予定・直近の募集がまとまる場所' },
+  { key: 'home', label: 'ホーム', emoji: '🏠', href: '/home', lead: '参加予定・直近の募集がまとまる場所' },
+  { key: 'avail', label: '行ける日', emoji: '📅', href: '/availability', lead: 'カレンダーで行ける日を押す。同じ日に3人でチャット' },
   { key: 'search', label: 'さがす', emoji: '🔍', href: '/search', lead: '募集をキーワードと条件でしぼりこむ' },
   { key: 'timeline', label: 'タイムライン', lines: ['タイム', 'ライン'], emoji: '📰', href: '/timeline', lead: '同じ年代のみんなの動きが流れる' },
   { key: 'past', label: '過去ラウンド', lines: ['過去', 'ラウンド'], emoji: '🏁', href: '/rounds/past', lead: '参加したラウンドのチャットとアルバム' },
@@ -184,7 +185,7 @@ function TopView({ open, adminDmHref }: { open: OpenFn; adminDmHref: string }) {
       </div>
       <div className="flex gap-2.5 overflow-x-auto -mx-5 px-5 pb-2 mb-7 snap-x snap-mandatory no-scrollbar">
         {([
-          { img: 'buddies', t: '友達になると', d: '名前が見えて、声をかけられる', to: () => open('main', { anchor: 'friends' }) },
+          { img: 'buddies', t: '友達になると', d: '🤝が付いて、声をかけられる', to: () => open('main', { anchor: 'friends' }) },
           { img: 'room_dm', t: '行ける日', d: '人数がそろうと運営が声かけ', to: () => open('main', { anchor: 'avail' }) },
           { img: 'review_car', t: 'レビュー', d: '同じ車の人も・必ず選ぶ形に', to: () => open('main', { anchor: 'review' }) },
           { img: 'past', t: '過去ラウンド', d: 'チャットとアルバムがすぐ開く', to: () => open('tabs', { tab: 'past' }) },
@@ -363,7 +364,7 @@ function TabsView({ tab, open, onZoom, adminDmHref }: { tab: TabKey; open: OpenF
       <div className="sticky top-0 z-20 bg-bg/95 backdrop-blur border-b-2 border-hair">
         <BackBar title="📱 タブごとの機能" onBack={() => open('top')} />
         {/* 下のタブバーと同じ並び。押すとそのタブの説明に切り替わる */}
-        <div className="grid grid-cols-7 gap-0.5 px-2 pb-2">
+        <div className="grid grid-cols-8 gap-0.5 px-2 pb-2">
           {TABS.map((t) => {
             const active = t.key === tab;
             return (
@@ -388,6 +389,7 @@ function TabsView({ tab, open, onZoom, adminDmHref }: { tab: TabKey; open: OpenF
         </div>
 
         {tab === 'home' && <HomeTab open={open} onZoom={onZoom} />}
+        {tab === 'avail' && <AvailTab open={open} onZoom={onZoom} />}
         {tab === 'search' && <SearchTab open={open} onZoom={onZoom} />}
         {tab === 'timeline' && <TimelineTab onZoom={onZoom} />}
         {tab === 'past' && <PastTab onZoom={onZoom} />}
@@ -427,12 +429,10 @@ function HomeTab({ open, onZoom }: { open: OpenFn; onZoom: (s: string) => void }
     <>
       <Head emoji="🏠" title="ホームに並ぶもの" sub="上から順に。アプリを開いたら、まずここを見ればOK" />
       <Tour onZoom={onZoom} items={[
-        { src: IMG('home_top'), title: '行ける日が出ている人', text: '日付ごとに並ぶ。そろった日はチャットへ' },
         { src: IMG('home_rounds'), title: '参加予定と直近のラウンド', text: '主催・参加確定・承認待ちがひと目で' },
       ]} />
       <div className="mb-5" />
       <Points items={[
-        ['📅', '行ける日', 'この先の日付ごとに、行ける人が何人いるか。押すとカレンダーへ'],
         ['📅', '参加予定のラウンド', '自分が主催・参加・申請中で、まだ開催前のもの。押すと募集ページ'],
         ['⛳', '直近のラウンド', 'ゴルトモ公式コンペと、募集中のラウンド。「もっと見る」で「さがす」へ'],
       ]} />
@@ -442,7 +442,27 @@ function HomeTab({ open, onZoom }: { open: OpenFn; onZoom: (s: string) => void }
         ['＋', '＋ 募集', '自分でラウンドを募集する'],
         ['🔔', 'お知らせ', '承認・メッセージ・リマインドなど。赤い数字は未読'],
       ]} />
-      <Tip>LINEの友だち追加がまだの人には、一番上に「LINEで通知を受け取る」が出ます。<button type="button" onClick={() => open('main', { anchor: 'avail' })} className="text-blue font-bold ml-1">行ける日の使い方</button></Tip>
+      <Tip>LINEの友だち追加がまだの人には、一番上に「LINEで通知を受け取る」が出ます。「行ける日」はホームではなく、下の左から2番目のタブです。<button type="button" onClick={() => open('tabs', { tab: 'avail' })} className="text-blue font-bold ml-1">行ける日タブ</button></Tip>
+    </>
+  );
+}
+
+// 2026-10-14：「行ける日」がホームのカードから下のタブ（左から2番目）に移った
+function AvailTab({ open, onZoom }: { open: OpenFn; onZoom: (s: string) => void }) {
+  return (
+    <>
+      <Head emoji="📅" title="行ける日 — 日付を押すだけ" sub="20〜30代の会員向け。同じ日に3人そろうと、その日のチャットが始まります" />
+      <Tour onZoom={onZoom} items={[
+        { src: IMG('av_friend'), title: 'カレンダーで日付を押す', text: '「この日に行ける」で保存' },
+        { src: IMG('room_chat'), title: '3人そろうとチャット', text: 'コース・集合場所を相談' },
+      ]} />
+      <div className="mb-5" />
+      <Points items={[
+        ['📅', 'カレンダー', '今日から約3か月先まで。日付を押すと、その日に行ける人が下に並ぶ'],
+        ['👤', '行ける人の札', '名前・年齢・車を出せるか。押すとプロフィール。友達には🤝'],
+        ['🔴', 'タブの赤い数字', 'ほかの人が新しく行ける日を押した数。タブを開くと消える'],
+      ]} />
+      <Tip>行ける日を出すには、プロフィールの最寄り駅が必要です（ほかの会員には見えません）。<button type="button" onClick={() => open('main', { anchor: 'avail' })} className="text-blue font-bold ml-1">行ける日の使い方</button></Tip>
     </>
   );
 }
@@ -574,7 +594,7 @@ function FriendsSection({ onZoom }: { onZoom: (s: string) => void }) {
       {/* 番号の丸がカードの左上に飛び出すので、行の間を広めに（上の行の影に重なっていた） */}
       <div className="grid grid-cols-2 gap-x-2.5 gap-y-4 mb-4 pt-1 pl-1">
         <Benefit n="1" icon="💬" title="メッセージ" text="いつでも直接送れる" />
-        <Benefit n="2" icon="👀" title="行ける日で見える" text="名前と🤝印が出る" />
+        <Benefit n="2" icon="👀" title="行ける日でわかる" text="友達には🤝印が付く" />
         <Benefit n="3" icon="📣" title="声をかけられる" text="自分の行ける日を送れる" />
         <Benefit n="4" icon="⭐" title="レビューがラク" text="「すでに友達」で選ばずにOK" />
       </div>
@@ -582,7 +602,7 @@ function FriendsSection({ onZoom }: { onZoom: (s: string) => void }) {
         { src: IMG('fr_send'), title: '相手のプロフィールから申請', text: 'どこで一緒だったかを選んで送る' },
         { src: IMG('fr_receive'), title: '相手が承認', text: '受け取った側は「友達の確認」に届く' },
         { src: IMG('buddies'), title: 'ゴル友に並ぶ', text: '💬メッセージ・📣声をかける' },
-        { src: IMG('av_friend'), title: '行ける日で名前が見える', text: '友達には🤝。タップでプロフィール' },
+        { src: IMG('av_friend'), title: '行ける日に🤝が付く', text: '友達には🤝。タップでプロフィール' },
         { src: IMG('nudge_sheet'), title: '行ける日で声をかける', text: '自分の行ける日を選んでまとめて送る' },
         { src: IMG('nudge_dm'), title: '相手に届く', text: 'ボタンからそのまま行ける日へ' },
       ]} />
@@ -719,7 +739,7 @@ function Benefit({ n, icon, title, text }: { n: string; icon: string; title: str
   );
 }
 
-// 7つ並ぶタブの名前。長い名前は2行に折る（1行の名前も同じ高さにそろえる）
+// 8つ並ぶタブの名前。長い名前は2行に折る（1行の名前も同じ高さにそろえる）
 function TabLabel({ t, className }: { t: { label: string; lines?: [string, string] }; className?: string }) {
   return (
     <span className={'flex flex-col items-center justify-start h-[22px] text-[9px] leading-[11px] whitespace-nowrap ' + (className || '')}>
@@ -752,7 +772,7 @@ const STAGES: Array<{ icon: string; title: string; anchor?: string; cells: Recor
   { icon: '⭐', title: 'レビュー', anchor: 'review', cells: {
     you: ['⭐', '1人ずつ「また行きたい？」を選ぶ'], others: ['⭐', 'あなたのことも選ぶ'], host: ['⭐', '主催者も同じく選ぶ'], app: ['🔒', '選んだ内容は相手に見えない'] } },
   { icon: '🤝', title: 'ゴル友', anchor: 'friends', cells: {
-    you: ['📣', 'メッセージや行ける日で声をかける'], others: ['📅', '行ける日に名前と🤝が出る'], host: ['✏️', '次の募集でまた集まる'], app: ['🤝', 'お互い「行きたい」ならゴル友'] } },
+    you: ['📣', 'メッセージや行ける日で声をかける'], others: ['📅', '行ける日に🤝が付く'], host: ['✏️', '次の募集でまた集まる'], app: ['🤝', 'お互い「行きたい」ならゴル友'] } },
 ];
 const SL_COL = 168;      // 1段の幅(px)
 const SL_HEAD = 54;      // 段の見出しの高さ

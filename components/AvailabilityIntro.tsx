@@ -8,7 +8,8 @@ import { AvailPersonChip } from '@/components/AvailPersonChip';
 import { getMe, useStore } from '@/lib/store';
 import { AVAIL_ROOM_MIN, type AvailPerson } from '@/lib/availabilityShared';
 
-// 「行ける日」の使い方を、ホームで1回だけ見せるポップアップ（モックA案・2026-10-04 本人判断）。
+// 「行ける日」の使い方を1回だけ見せるポップアップ（モックA案・2026-10-04 本人判断）。
+//   2026-10-14〜 ホームではなく、下のタブ「行ける日」を初めて開いたときに出す（inCalendar）。
 //   ・20〜30代の会員全員に1回（押した人・押していない人を問わず）
 //   ・「あとで」は無い。3枚を「次へ」でめくり、最後まで読んでから閉じる
 //   ・見終わったことはサーバーに記録する（別の端末でも出し直さない）。途中で閉じた（アプリを落とした）
@@ -20,7 +21,7 @@ const SAMPLE: AvailPerson[] = [
   { age: 29, gender: 'male', car: false },
 ];
 
-export function AvailabilityIntro({ needsStation, onDone }: { needsStation: boolean; onDone: () => void }) {
+export function AvailabilityIntro({ needsStation, onDone, inCalendar }: { needsStation: boolean; onDone: () => void; inCalendar?: boolean }) {
   const router = useRouter();
   const me = useStore(getMe);
   const [page, setPage] = useState(0);
@@ -41,7 +42,7 @@ export function AvailabilityIntro({ needsStation, onDone }: { needsStation: bool
     } catch { /* 記録できなくても閉じる（次回また出るだけ） */ }
     setBusy(false);
     onDone();
-    if (go === 'calendar') router.push('/availability');
+    if (go === 'calendar' && !inCalendar) router.push('/availability');
     if (go === 'station') router.push('/mypage/edit?returnTo=' + encodeURIComponent('/availability'));
   }
 
@@ -58,7 +59,7 @@ export function AvailabilityIntro({ needsStation, onDone }: { needsStation: bool
     },
     {
       title: '最寄り駅を登録して、カレンダーで「行ける日」を押す',
-      body: '最寄り駅は集合駅や乗り合いを決めるために使います（ほかの会員には見えません）。行ける日は何日でも。押した日は、同年代の会員に年齢と車の有無だけが出ます。',
+      body: '最寄り駅は集合駅や乗り合いを決めるために使います（ほかの会員には見えません）。行ける日は何日でも。押した日は、同年代の会員に名前・年齢・車の有無が出ます。',
       hero: (
         <div className="flex flex-wrap items-center justify-center gap-3">
           <div className="border-2 border-border rounded-xl px-3 py-2 bg-card text-[13px] font-black leading-tight">
@@ -117,7 +118,7 @@ export function AvailabilityIntro({ needsStation, onDone }: { needsStation: bool
             <>
               <button type="button" disabled={busy} onClick={() => finish(needsStation ? 'station' : 'calendar')}
                 className="block w-full py-3 rounded-xl border-2 border-border bg-green text-white text-[15px] font-black disabled:opacity-60">
-                {needsStation ? '最寄り駅を登録する' : 'カレンダーを開く'}
+                {needsStation ? '最寄り駅を登録する' : inCalendar ? 'はじめる' : 'カレンダーを開く'}
               </button>
               <button type="button" disabled={busy} onClick={() => finish('close')}
                 className="block w-full mt-1 py-1.5 text-[12px] font-bold text-sub">閉じる</button>

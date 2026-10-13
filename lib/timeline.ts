@@ -13,7 +13,7 @@ import type { User } from './types';
 //            いまも参加している人だけ出す（取りやめ・除外されたら消える）。行ける日の部屋・運営の代理募集（そろうまで顔ぶれを伏せる枠）は出さない
 // 新しく記録を書くのではなく、users / _availability / rounds から毎回組み立てる（重複がそもそも起きない）。
 // 誰にも通知はしない。見えるのは同じ年代（コホート）の動きだけ。テスト垢・赤バン・退会者は出さない。
-// 「行ける日」は lib/availability と同じく男性には名前を出さない（女性を日付で特定できないように）。
+// 「行ける日」の行も、男性・女性どちらが見ても名前を出す（2026-10-14 本人判断・lib/availability と同じ。以前は男性には「女性メンバー」等で伏せていた）。
 
 export type TimelineItem = {
   id: string;
@@ -69,10 +69,6 @@ export async function buildTimeline(viewer: User, limit = 80): Promise<TimelineI
   }
   const sameCohort = (u: any) => !!u && getCohort(u.age) === cohort;
   const nameOf = (u: any) => String(u?.displayName || 'メンバー').slice(0, 20);
-  const viewerIsFemale = viewer.gender === 'female';
-  // 友達（ゴル友・お互いに選んだ相手）は男性が見ても名前を出す（2026-10-11・行ける日と同じ）
-  const { availFriendSet } = await import('./availability');
-  const friends = await availFriendSet(viewer as any).catch(() => new Set<string>());
 
   const items: TimelineItem[] = [];
   for (const d of usersSnap.docs) {
@@ -86,8 +82,7 @@ export async function buildTimeline(viewer: User, limit = 80): Promise<TimelineI
     const u = userMap.get(d.id);
     if (hidden(d.id) || !sameCohort(u) || u?.banned) continue;
     if (!Array.isArray(a.dates) || !a.dates.length || !a.updatedAt) continue;
-    const name = viewerIsFemale || d.id === viewer.id || friends.has(d.id) ? nameOf(u) : (u?.gender === 'female' ? '女性メンバー' : u?.gender === 'male' ? '男性メンバー' : 'メンバー');
-    items.push({ id: `avail_${d.id}`, kind: 'avail', at: a.updatedAt, name, text: 'さんが行ける日を入力しました', link: '/availability' });
+    items.push({ id: `avail_${d.id}`, kind: 'avail', at: a.updatedAt, name: nameOf(u), text: 'さんが行ける日を入力しました', link: '/availability' });
   }
   for (const d of roundsSnap.docs) {
     const r = d.data() || {};

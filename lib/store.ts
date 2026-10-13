@@ -30,6 +30,9 @@ type Store = {
   restrictions: UserRestriction;
   isAdmin: boolean;
   notifications: AppNotification[];
+  // 下のタブ「行ける日」の①②バッジ（2026-10-14・lib/availability.countNewAvailFor）。
+  // count＝最後にタブを開いてから、ほかの人が新しく押した日の数。ats＝その押した時刻（端末側の既読と比べ直す予備）
+  availNew: { count: number; ats: number[] };
 };
 
 export type UserRestriction = {
@@ -58,6 +61,7 @@ const initial: Store = {
   restrictions: {},
   isAdmin: false,
   notifications: [],
+  availNew: { count: 0, ats: [] },
 };
 
 let state: Store = initial;
@@ -110,6 +114,8 @@ export const store = {
     if (at > cur) setState({ roundChatSeen: { ...(state.roundChatSeen || {}), [key]: at } });
   },
   setRoundUnread: (u: Record<string, import('./roundUnread').RoundUnread>) => setState({ roundUnread: u }),
+  // 「行ける日」タブを開いた（バッジをすぐ消す。サーバーへは /api/me/avail-seen）
+  clearAvailNew: () => setState({ availNew: { count: 0, ats: [] } }),
   subscribe: (fn: () => void) => { listeners.add(fn); return () => { listeners.delete(fn); }; },
 
   hydrate: async () => {
@@ -120,6 +126,7 @@ export const store = {
       buddyIds?: string[]; roundChatActivity?: Record<string, number>; roundChatSeen?: Record<string, number>; banned?: boolean; isAdmin?: boolean;
       restrictions?: UserRestriction;
       notifications?: AppNotification[];
+      availNew?: { count: number; ats: number[] };
     };
     // Transient failures are common in the LINE in-app webview (cold starts,
     // a fetch aborted by navigation → "Load failed"). Retry a few times with
@@ -163,6 +170,7 @@ export const store = {
         restrictions: data.restrictions || {},
         isAdmin: !!data.isAdmin,
         notifications: data.notifications || [],
+        availNew: data.availNew && typeof data.availNew.count === 'number' ? data.availNew : { count: 0, ats: [] },
       });
       // Fire-and-forget telemetry
       if (typeof window !== 'undefined') {

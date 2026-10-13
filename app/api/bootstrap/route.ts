@@ -168,6 +168,10 @@ export async function GET() {
   let notifications: any[] = [];
   try { const { listNotifications } = await import('@/lib/notifications'); notifications = await listNotifications(meId, 30); } catch {}
 
+  // 下のタブ「行ける日」の①②バッジ：最後にタブを開いてから、ほかの人が新しく押した日の数（20〜30代だけ）（2026-10-14）
+  let availNew: { count: number; ats: number[] } = { count: 0, ats: [] };
+  try { const { countNewAvailFor } = await import('@/lib/availability'); if (me) availNew = await countNewAvailFor(me); } catch { /* バッジが出ないだけ */ }
+
   // 組み分け希望（groupPrefs）は主催者のみ集計閲覧可。閲覧者以外の希望は落とす。
   // 「見に来た人」(viewedBy) は誰にも配らない（主催者は /viewers 経由で取得）。
   try {
@@ -177,6 +181,6 @@ export async function GET() {
 
   return NextResponse.json({
     ok: true, meId, me, users: safeUsers, rounds, pendingReviews, chats, buddyIds, roundChatActivity, roundChatSeen: ((me as any)?.roundChatSeen || {}), banned, restrictions, isAdmin, notifications,
-    isTestAccount: isTestMe, featureFlags,
+    isTestAccount: isTestMe, featureFlags, availNew,
   });
 }

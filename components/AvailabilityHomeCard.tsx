@@ -7,6 +7,7 @@ import { AvailabilityIntro } from '@/components/AvailabilityIntro';
 import { AVAIL_ROOM_MIN, dateLabel, type AvailPerson } from '@/lib/availabilityShared';
 
 // ホーム上部の「行ける日が出ている人」。
+// ※ 2026-10-14〜 ホームには出していない（「行ける日」は下のタブへ移した）。戻すならホームに1行足すだけ。
 //   ・20〜30代の会員にだけ出る（API が enabled:false を返したら何も出さない）
 //   ・日付ごとに、その日に行ける人の札を並べる（名前が出るかは API 側で決まる）
 //   ・入口は「カレンダーを開く」ひとつ。最寄り駅が未登録の人には、その旨だけ添える

@@ -42,8 +42,8 @@ export async function GET(_req: NextRequest) {
     car: me.car === 'have' ? 'have' : 'none',
     seats: r.mineCar.seats ?? null,
     bags: r.mineCar.bags ?? null,
-    // 女性はプロフィールを開ける。男性には名前もIDも渡していない（lib/availability）
-    canOpenProfiles: me.gender === 'female',
+    // 2026-10-14〜 男性も女性も、札からプロフィールを開ける（lib/availability）
+    canOpenProfiles: true,
     window: { from: todayJst(), to: windowEndJst(), days: WINDOW_DAYS },
   }, { headers: noStore });
 }

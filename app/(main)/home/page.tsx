@@ -9,7 +9,6 @@ import { RoundCard } from '@/components/RoundCard';
 import { Avatar } from '@/components/Avatar';
 import { HomeUpdateCard } from '@/components/HomeUpdateCard';
 import { OfficialHomeCard } from '@/components/OfficialHomeCard';
-import { AvailabilityHomeCard } from '@/components/AvailabilityHomeCard';
 import { FriendGate } from '@/components/FriendGate';
 import { InviteDeclineSheet } from '@/components/InviteDeclineSheet';
 import { toast } from '@/components/Toast';
@@ -165,7 +164,7 @@ export default function HomePage() {
   const users = useStore((s) => s.users);
   // 自分が「主催 or 参加/申請中」で、まだ完了していない（開催前の）ラウンド。
   // 開催日の昇順（日程未定は末尾）。ホーム上部の「参加予定」枠に出す。
-  // 「行ける日」の集まりは参加予定に並べない（入口は上の行ける日カード）
+  // 「行ける日」の集まりは参加予定に並べない（入口は下のタブ「行ける日」）
   const myUpcoming = allRounds
     .filter((r) => r.status !== 'completed' && !isAvailRoom(r) && (r.hostId === me.id || (r.applicantIds || []).includes(me.id) || (r.pendingApplicantIds || []).includes(me.id)))
     .slice()
@@ -350,8 +349,8 @@ export default function HomePage() {
           2026-09-26 に一旦やめた（見た21人のうち登録1人）。代わりに「行ける日」を集める。
           部品（DriverAskCard）と API は残してある。戻すならこの1行。 */}
 
-      {/* 「行ける日」（20〜30代にだけ出る。日付ごとに誰が行けるかと、カレンダーへの入口） */}
-      <AvailabilityHomeCard />
+      {/* 「行ける日」はホームのカードをやめて、下のタブ（左から2番目）に移した（2026-10-14 本人指定）。
+          部品（components/AvailabilityHomeCard）は残してある。 */}
 
       <OfficialHomeCard />
 

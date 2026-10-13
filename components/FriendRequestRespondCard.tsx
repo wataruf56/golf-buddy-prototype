@@ -128,7 +128,7 @@ export function FriendRequestRespondCard({
           <div className="text-[11px] font-bold text-sub leading-relaxed mt-1.5 bg-bg rounded-lg px-2.5 py-2">
             友達になると…<br />
             ・お互いにメッセージ（DM）を送れます<br />
-            ・ゴル友の一覧に出て、行ける日に名前が出ます
+            ・ゴル友の一覧に出て、行ける日に🤝の印が付きます
           </div>
           <div className="flex gap-2 mt-2.5">
             <button
