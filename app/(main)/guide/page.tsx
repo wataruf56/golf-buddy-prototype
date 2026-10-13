@@ -23,12 +23,13 @@ type TourItem = { src: string; title: string; text?: string };
 type View = 'top' | 'main' | 'tabs';
 type TabKey = 'home' | 'search' | 'timeline' | 'past' | 'swing' | 'buddies' | 'guide';
 
-// 下のタブバー（components/TabBar.tsx）と同じ並び・名前・絵文字
-const TABS: Array<{ key: TabKey; label: string; emoji: string; href: string; lead: string }> = [
+// 下のタブバー（components/TabBar.tsx）と同じ並び・名前・絵文字。
+// lines … 7つ並べる小さい切り替えで2行に折る名前（360px幅だと「タイムライン」「過去ラウンド」が隣とくっつくため）
+const TABS: Array<{ key: TabKey; label: string; lines?: [string, string]; emoji: string; href: string; lead: string }> = [
   { key: 'home', label: 'ホーム', emoji: '🏠', href: '/home', lead: '行ける日・参加予定・直近の募集がまとまる場所' },
   { key: 'search', label: 'さがす', emoji: '🔍', href: '/search', lead: '募集をキーワードと条件でしぼりこむ' },
-  { key: 'timeline', label: 'タイムライン', emoji: '📰', href: '/timeline', lead: '同じ年代のみんなの動きが流れる' },
-  { key: 'past', label: '過去ラウンド', emoji: '🏁', href: '/rounds/past', lead: '参加したラウンドのチャットとアルバム' },
+  { key: 'timeline', label: 'タイムライン', lines: ['タイム', 'ライン'], emoji: '📰', href: '/timeline', lead: '同じ年代のみんなの動きが流れる' },
+  { key: 'past', label: '過去ラウンド', lines: ['過去', 'ラウンド'], emoji: '🏁', href: '/rounds/past', lead: '参加したラウンドのチャットとアルバム' },
   { key: 'swing', label: 'スイング', emoji: '🏌️', href: '/swing', lead: '動画を送るとAIがスイングを解析' },
   { key: 'buddies', label: 'ゴル友', emoji: '👥', href: '/buddies', lead: '友達の一覧・メッセージ・管理者にDM' },
   { key: 'guide', label: '使い方', emoji: '📖', href: '/guide', lead: 'いま見ているこのページ' },
@@ -142,11 +143,12 @@ function TopView({ open, adminDmHref }: { open: OpenFn; adminDmHref: string }) {
             </span>
             <span className="text-[20px] text-muted">›</span>
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-1 text-[11px] font-bold text-sub">
-            {['📅 行ける日', '🙋 参加・✏️ 募集', '💬 チャット', '⛳ 当日', '⭐ レビュー', '🤝 ゴル友'].map((s, i, a) => (
-              <span key={s} className="flex items-center gap-1">
-                <span className="px-2 py-0.5 rounded-full bg-green-light border border-green text-text whitespace-nowrap">{s}</span>
-                {i < a.length - 1 && <span className="text-muted">→</span>}
+          {/* 流れの6段。番号つきの3列にして、狭い画面でも「→」が行末に取り残されないように */}
+          <div className="mt-3 grid grid-cols-3 gap-1">
+            {['行ける日', '参加・募集', 'チャット', '当日', 'レビュー', 'ゴル友'].map((s, i) => (
+              <span key={s} className="flex items-center gap-1 min-w-0 px-1.5 py-1 rounded-full bg-green-light border border-green text-[11px] font-bold text-text">
+                <span className="w-3.5 h-3.5 rounded-full bg-green text-white text-[8.5px] font-black grid place-items-center flex-none">{i + 1}</span>
+                <span className="truncate">{s}</span>
               </span>
             ))}
           </div>
@@ -163,11 +165,11 @@ function TopView({ open, adminDmHref }: { open: OpenFn; adminDmHref: string }) {
             </span>
             <span className="text-[20px] text-muted">›</span>
           </div>
-          <div className="mt-3 grid grid-cols-7 gap-1">
+          <div className="mt-3 grid grid-cols-7 gap-0.5">
             {TABS.map((t) => (
-              <span key={t.key} className="flex flex-col items-center gap-0.5">
+              <span key={t.key} className="flex flex-col items-center gap-0.5 min-w-0">
                 <span className="text-[18px] leading-none">{t.emoji}</span>
-                <span className="text-[8.5px] font-bold text-sub whitespace-nowrap tracking-tighter">{t.label}</span>
+                <TabLabel t={t} className="font-bold text-sub" />
               </span>
             ))}
           </div>
@@ -196,7 +198,7 @@ function TopView({ open, adminDmHref }: { open: OpenFn; adminDmHref: string }) {
             </div>
             <div className="px-2.5 py-2">
               <div className="text-[12.5px] font-black">{c.t}</div>
-              <div className="text-[10.5px] text-sub leading-snug mt-0.5">{c.d}</div>
+              <div className="text-[10.5px] text-sub leading-snug mt-0.5 text-pretty">{c.d}</div>
             </div>
           </button>
         ))}
@@ -253,11 +255,16 @@ function MainView({ open, go, onZoom, adminDmHref }: { open: OpenFn; go: (id: st
     <>
       <div className="sticky top-0 z-20 bg-bg/95 backdrop-blur border-b-2 border-hair">
         <BackBar title="⭐ メインの機能" onBack={() => open('top')} />
-        <div className="flex gap-1.5 overflow-x-auto px-4 pb-2.5 no-scrollbar">
-          {MAIN_NAV.map((n) => (
-            <button key={n.id} type="button" onClick={() => go(n.id)}
-              className="flex-none px-3 py-1.5 rounded-full bg-card border-[1.5px] border-border text-[11.5px] font-black whitespace-nowrap active:bg-green-light">{n.label}</button>
-          ))}
+        {/* 横にスクロールするチップ。右端を薄くして「まだ続く」が分かるように（360px幅で「募集する」以降が切れて見えていた） */}
+        <div className="relative">
+          <div className="flex gap-1.5 overflow-x-auto px-4 pb-2.5 no-scrollbar">
+            {MAIN_NAV.map((n) => (
+              <button key={n.id} type="button" onClick={() => go(n.id)}
+                className="flex-none px-3 py-1.5 rounded-full bg-card border-[1.5px] border-border text-[11.5px] font-black whitespace-nowrap active:bg-green-light">{n.label}</button>
+            ))}
+            <span className="flex-none w-6" aria-hidden />
+          </div>
+          <span className="pointer-events-none absolute right-0 top-0 bottom-2.5 w-8 bg-gradient-to-l from-bg to-transparent" aria-hidden />
         </div>
       </div>
 
@@ -265,17 +272,12 @@ function MainView({ open, go, onZoom, adminDmHref }: { open: OpenFn; go: (id: st
         {/* 全体の流れ */}
         <Anchor id="m-flow" />
         <Head emoji="🗺️" title="ゴルフに行くまでの流れ" sub="入り口は3つ。どれから始めても、そのあとは同じです" />
-        <div className="grid grid-cols-3 gap-2 mb-3">
+        <div className="grid grid-cols-3 gap-2 mb-5">
           <EntryChip icon="📅" title="行ける日を押す" onClick={() => go('avail')} />
           <EntryChip icon="🙋" title="募集に参加" onClick={() => go('join')} />
           <EntryChip icon="✏️" title="自分で募集" onClick={() => go('host')} accent />
         </div>
-        <Flow steps={[
-          ['チャットで相談', '人数がそろう／参加が決まると、その日のグループチャットへ。集合・送迎・組み分けを決める'],
-          ['ラウンド当日', '開催が近づくとチャットにリマインド（1週間前・前日など）。事前入金がある募集は期日までに振り込み'],
-          ['レビュー', 'ラウンドが終わると届きます。一緒に回った人に「また行きたいか」を1人ずつ'],
-          ['ゴル友になる', 'お互いに「行きたい」ならゴル友に。次は行ける日で声をかけられる'],
-        ]} />
+        <Swimlane go={go} />
         <div className="mb-8" />
 
         {/* 行ける日 */}
@@ -294,7 +296,7 @@ function MainView({ open, go, onZoom, adminDmHref }: { open: OpenFn; go: (id: st
         <Flow steps={[
           ['プロフィール登録', '名前・年齢・スコア・エリア。主催者はこれを見て承認します'],
           ['募集をさがす', 'ホームか「さがす」タブで'],
-          ['「参加を申請する」', '承認されると参加決定（LINEで届く）。車がない人は送迎の希望も'],
+          ['「この募集に参加する」', '主催者が承認すると参加確定（LINEで届く）。車がない人は送迎の希望も'],
           ['グループチャット → 当日', '集合場所・時間はチャットで'],
         ]} />
         <Cta href="/mypage/edit" color="green">プロフィールを登録する</Cta>
@@ -368,7 +370,7 @@ function TabsView({ tab, open, onZoom, adminDmHref }: { tab: TabKey; open: OpenF
               <button key={t.key} type="button" onClick={() => open('tabs', { tab: t.key })} aria-pressed={active}
                 className={'flex flex-col items-center gap-0.5 py-1.5 rounded-xl border-[1.5px] ' + (active ? 'bg-green-light border-green text-green' : 'border-transparent text-muted')}>
                 <span className="text-[19px] leading-none">{t.emoji}</span>
-                <span className={'text-[8.5px] whitespace-nowrap tracking-tighter ' + (active ? 'font-black' : 'font-bold')}>{t.label}</span>
+                <TabLabel t={t} className={active ? 'font-black' : 'font-bold'} />
               </button>
             );
           })}
@@ -385,11 +387,11 @@ function TabsView({ tab, open, onZoom, adminDmHref }: { tab: TabKey; open: OpenF
           </div>
         </div>
 
-        {tab === 'home' && <HomeTab open={open} />}
-        {tab === 'search' && <SearchTab open={open} />}
-        {tab === 'timeline' && <TimelineTab />}
+        {tab === 'home' && <HomeTab open={open} onZoom={onZoom} />}
+        {tab === 'search' && <SearchTab open={open} onZoom={onZoom} />}
+        {tab === 'timeline' && <TimelineTab onZoom={onZoom} />}
         {tab === 'past' && <PastTab onZoom={onZoom} />}
-        {tab === 'swing' && <SwingTab />}
+        {tab === 'swing' && <SwingTab onZoom={onZoom} />}
         {tab === 'buddies' && <BuddiesTab onZoom={onZoom} adminDmHref={adminDmHref} />}
         {tab === 'guide' && <GuideTab open={open} />}
 
@@ -420,10 +422,15 @@ function TabsView({ tab, open, onZoom, adminDmHref }: { tab: TabKey; open: OpenF
   );
 }
 
-function HomeTab({ open }: { open: OpenFn }) {
+function HomeTab({ open, onZoom }: { open: OpenFn; onZoom: (s: string) => void }) {
   return (
     <>
       <Head emoji="🏠" title="ホームに並ぶもの" sub="上から順に。アプリを開いたら、まずここを見ればOK" />
+      <Tour onZoom={onZoom} items={[
+        { src: IMG('home_top'), title: '行ける日が出ている人', text: '日付ごとに並ぶ。そろった日はチャットへ' },
+        { src: IMG('home_rounds'), title: '参加予定と直近のラウンド', text: '主催・参加確定・承認待ちがひと目で' },
+      ]} />
+      <div className="mb-5" />
       <Points items={[
         ['📅', '行ける日', 'この先の日付ごとに、行ける人が何人いるか。押すとカレンダーへ'],
         ['📅', '参加予定のラウンド', '自分が主催・参加・申請中で、まだ開催前のもの。押すと募集ページ'],
@@ -440,29 +447,39 @@ function HomeTab({ open }: { open: OpenFn }) {
   );
 }
 
-function SearchTab({ open }: { open: OpenFn }) {
+function SearchTab({ open, onZoom }: { open: OpenFn; onZoom: (s: string) => void }) {
   return (
     <>
       <Head emoji="🔍" title="募集をさがす" sub="キーワードと「詳細フィルタ」でしぼりこみ" />
+      <Tour onZoom={onZoom} items={[
+        { src: IMG('search_list'), title: '募集中のラウンドが並ぶ', text: '開催日が近い順。満員は下に' },
+        { src: IMG('search_filter'), title: '詳細フィルタでしぼる', text: '種別・期間・エリア・性別・予算' },
+        { src: IMG('search_round'), title: '押すと募集の詳細', text: '「この募集に参加する」で申請' },
+      ]} />
+      <div className="mb-5" />
       <Points items={[
         ['⌨️', 'キーワード', 'タイトル・コース名・エリアで検索'],
-        ['🎛️', '詳細フィルタ', '種別（ゴルフ／飲み会）・期間・エリア・募集の性別・予算上限・並び順'],
+        ['🎛️', '詳細フィルタ', '種別（ゴルフ／飲み会）・期間・並び順・募集状況・エリア・募集の性別・予算上限'],
         ['✓', 'その他', '「空きありのみ」「🏆 コンペのみ」「🔰 初心者歓迎」'],
       ]} />
       <Head emoji="🙋" title="気になる募集があったら" />
       <Flow steps={[
         ['募集を押す', '日時・費用・主催者のプロフィールを確認。質問は主催者欄の💬から'],
-        ['「参加を申請する」', '承認されると参加決定。LINEにも届きます'],
+        ['「この募集に参加する」', '主催者が承認すると参加確定。LINEにも届きます'],
       ]} />
       <Tip>はじめての人は、先にプロフィールを登録しておくと承認されやすくなります。<button type="button" onClick={() => open('main', { anchor: 'join' })} className="text-blue font-bold ml-1">参加する流れ</button></Tip>
     </>
   );
 }
 
-function TimelineTab() {
+function TimelineTab({ onZoom }: { onZoom: (s: string) => void }) {
   return (
     <>
       <Head emoji="📰" title="みんなの動き" sub="同じ年代のメンバーだけ・30日分。新しい順に1行ずつ流れます" />
+      <Tour onZoom={onZoom} items={[
+        { src: IMG('timeline'), title: '新しい募集・参加が流れる', text: '「›」の行は押すと募集が開く' },
+      ]} />
+      <div className="mb-5" />
       <Points items={[
         ['👋', '新しく入った人', '新規登録'],
         ['📅', '行ける日', '誰かが行ける日を入れた'],
@@ -487,16 +504,22 @@ function PastTab({ onZoom }: { onZoom: (s: string) => void }) {
   );
 }
 
-function SwingTab() {
+function SwingTab({ onZoom }: { onZoom: (s: string) => void }) {
   return (
     <>
       <Head emoji="🏌️" title="AIスイング解析" sub="スマホで撮った動画を送ると、AIがフェーズごとに見てアドバイスします" />
+      <Tour onZoom={onZoom} items={[
+        { src: IMG('swing_list'), title: 'スコアの推移と履歴', text: '解析するたびに伸びがグラフに' },
+        { src: IMG('swing_new'), title: '「＋ 新規分析」で種類を選ぶ', text: '自分の解析／2つを比較／自由質問' },
+        { src: IMG('swing_result'), title: '結果はタブで読む', text: '最優先で直す1つ・総評・改善点など' },
+      ]} />
+      <p className="text-[10.5px] text-muted mb-5 text-center">※ 画面の点数・コメントは見本です</p>
       <Flow steps={[
         ['「＋ 新規分析」を押す', 'スイングタブの右上から'],
-        ['モードを選んで動画を送る', '🏌️ 自分解析／🆚 プロ比較／📈 過去比較／🏟️ 練習場vs本番／❓ 質問'],
-        ['結果を見る', 'スコアとフェーズごとのアドバイス。履歴に残るので前回とくらべられます'],
+        ['種類を選んで動画を送る', '🏌️ 自分のスイング解析／🆚 2つの動画を比較（プロ・過去の自分・練習場と本番）／❓ 自由質問。使ったクラブも選びます'],
+        ['結果を見る', '1〜2分で完了（LINEでお知らせ）。スコアとフェーズごとのアドバイスが履歴に残り、前回とくらべられます'],
       ]} />
-      <Tip>動画は結果ページからいつでも削除できます。</Tip>
+      <Tip>動画は結果ページからいつでも削除できます。無料の解析は月ごとに回数があります（スイングタブの上に残り回数）。</Tip>
     </>
   );
 }
@@ -520,7 +543,7 @@ function BuddiesTab({ onZoom, adminDmHref }: { onZoom: (s: string) => void; admi
       <Points items={[
         ['💬', 'メッセージ', '右の💬から。未読はオレンジの数字'],
         ['📣', '声をかける', '自分の行ける日を選んで、まとめて送る'],
-        ['📅', '候補日', '💘「気になる」同士のときだけ。日程をすり合わせる'],
+        ['📅', '候補日', '💘「気になる」同士だけ。日程をすり合わせる'],
         ['🏆', '同じコンペ参加者', '上の切り替えで。まだつながっていない人には友達申請'],
       ]} />
 
@@ -548,11 +571,12 @@ function FriendsSection({ onZoom }: { onZoom: (s: string) => void }) {
   return (
     <>
       <Head emoji="🤝" title="友達になると、できること" sub="友達申請の承認・QR・レビューでお互いに「行きたい」を選ぶと友達（ゴル友）になります" />
-      <div className="grid grid-cols-2 gap-2 mb-3">
+      {/* 番号の丸がカードの左上に飛び出すので、行の間を広めに（上の行の影に重なっていた） */}
+      <div className="grid grid-cols-2 gap-x-2.5 gap-y-4 mb-4 pt-1 pl-1">
         <Benefit n="1" icon="💬" title="メッセージ" text="いつでも直接送れる" />
         <Benefit n="2" icon="👀" title="行ける日で見える" text="名前と🤝印が出る" />
         <Benefit n="3" icon="📣" title="声をかけられる" text="自分の行ける日を送れる" />
-        <Benefit n="4" icon="⭐" title="レビューがラク" text="「すでに友達」で選ばなくてOK" />
+        <Benefit n="4" icon="⭐" title="レビューがラク" text="「すでに友達」で選ばずにOK" />
       </div>
       <Tour onZoom={onZoom} items={[
         { src: IMG('fr_send'), title: '相手のプロフィールから申請', text: 'どこで一緒だったかを選んで送る' },
@@ -575,10 +599,14 @@ function HelpBox({ adminDmHref }: { adminDmHref: string }) {
       <p className="text-[12px] text-sub leading-relaxed">
         運営に直接メッセージできます。トラブル・要望・不具合、何でもどうぞ。
       </p>
-      <div className="mt-2.5 flex items-center gap-1.5 text-[11.5px] font-black flex-wrap">
-        <span className="px-2 py-1 rounded-full bg-green-light border border-green whitespace-nowrap">👥 下の「ゴル友」タブ</span>
-        <span className="text-muted">→</span>
-        <span className="px-2 py-1 rounded-full bg-green-light border border-green whitespace-nowrap">🛡️ 一番上の「管理者にDM」</span>
+      {/* 2つの手順は縦に並べる（横並びだと360px幅で「→」が行末に取り残されていた） */}
+      <div className="mt-2.5 flex flex-col items-start gap-1.5 text-[11.5px] font-black">
+        {['👥 下の「ゴル友」タブ', '🛡️ 一番上の「管理者にDM」'].map((s, i) => (
+          <span key={s} className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-green-light border border-green">
+            <span className="w-4 h-4 rounded-full bg-green text-white text-[9px] grid place-items-center flex-none">{i + 1}</span>
+            <span>{s}</span>
+          </span>
+        ))}
       </div>
       <Link href={adminDmHref}
         className="block mt-3 py-2.5 rounded-xl text-[13px] font-black text-white text-center border-2 border-border shadow-[2px_2px_0_#1E3A30] bg-green">
@@ -652,7 +680,7 @@ function Points({ items }: { items: Array<[string, string, string]> }) {
           <span className="w-6 text-center text-[17px] leading-none pt-0.5 font-black flex-none">{icon}</span>
           <span className="min-w-0">
             <span className="block text-[13px] font-black leading-snug">{t}</span>
-            <span className="block text-[11.5px] text-sub leading-relaxed mt-0.5">{d}</span>
+            <span className="block text-[11.5px] text-sub leading-relaxed mt-0.5 text-pretty">{d}</span>
           </span>
         </div>
       ))}
@@ -682,7 +710,98 @@ function Benefit({ n, icon, title, text }: { n: string; icon: string; title: str
       <span className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-green text-white text-[10px] font-black grid place-items-center border-2 border-border">{n}</span>
       <div className="text-[20px] leading-none">{icon}</div>
       <div className="text-[12.5px] font-black mt-1">{title}</div>
-      <div className="text-[10.5px] text-sub leading-snug mt-0.5">{text}</div>
+      <div className="text-[10.5px] text-sub leading-snug mt-0.5 text-pretty">{text}</div>
+    </div>
+  );
+}
+
+// 7つ並ぶタブの名前。長い名前は2行に折る（1行の名前も同じ高さにそろえる）
+function TabLabel({ t, className }: { t: { label: string; lines?: [string, string] }; className?: string }) {
+  return (
+    <span className={'flex flex-col items-center justify-start h-[22px] text-[9px] leading-[11px] whitespace-nowrap ' + (className || '')}>
+      {t.lines ? (<><span>{t.lines[0]}</span><span>{t.lines[1]}</span></>) : <span>{t.label}</span>}
+    </span>
+  );
+}
+
+/* ───────────────────────── スイムレーン（全体の流れ） ───────────────────────── */
+// 縦＝流れ（上から下へ6つの段）、横＝誰がするか（4つのレーン）。
+// 390px／360px のスマホで横スクロールなしに読めるよう、レーンは4列に固定し、
+// 段の名前はレーンをまたぐ帯にして上に置く。帯を押すとその説明へ飛ぶ。
+type LaneKey = 'you' | 'others' | 'host' | 'app';
+const LANES: Array<{ k: LaneKey; icon: string; label: string; stripe: string; cell: string; head: string }> = [
+  { k: 'you', icon: '🙋', label: 'あなた', stripe: 'bg-green-light', cell: 'border-green', head: 'text-green' },
+  { k: 'others', icon: '👥', label: 'ほかの参加者', stripe: 'bg-blue-light', cell: 'border-blue', head: 'text-blue' },
+  { k: 'host', icon: '✏️', label: '主催者・運営', stripe: 'bg-orange-light', cell: 'border-orange', head: 'text-orange' },
+  { k: 'app', icon: '🤖', label: 'アプリ（自動）', stripe: 'bg-yellow-light', cell: 'border-yellow border-dashed', head: 'text-[#9A6B12]' },
+];
+// [絵文字, ことば]。\n で改行。360px幅のマスは全角6文字ほどなので、1行は6文字以内にする
+type LaneCell = [string, string] | null;
+const STAGES: Array<{ title: string; anchor?: string; cells: Record<LaneKey, LaneCell> }> = [
+  { title: '行ける日・募集を見つける', anchor: 'avail', cells: {
+    you: ['📅', '行ける日を\n押す／\n募集をさがす'], others: ['📅', '同じ日を\n押す'], host: ['✏️', '募集を\n投稿する'], app: ['💬', '3人そろうと\nチャット'] } },
+  { title: '参加申請 → 承認', anchor: 'join', cells: {
+    you: ['🙋', '参加する\nを押す'], others: ['🙋', '同じように\n申請'], host: ['✅', 'プロフィール\nを見て承認'], app: ['🔔', '参加確定を\nLINEで通知'] } },
+  { title: 'グループチャット・ピックアップ・入金', anchor: 'pay', cells: {
+    you: ['💬', '集合・送迎を\n相談・入金'], others: ['💬', 'あいさつ・\n相談'], host: ['🚗', '組み分け・\n配車・\n入金チェック'], app: ['⏰', 'リマインド\n1週間前・\n前日'] } },
+  { title: 'ラウンド当日', cells: {
+    you: ['⛳', 'いっしょに\nラウンド'], others: ['⛳', 'いっしょに\nラウンド'], host: ['🏁', '夜8時の\n通知で\n「完了」'], app: ['⭐', '完了すると\nレビュー\nが届く'] } },
+  { title: 'レビュー', anchor: 'review', cells: {
+    you: ['⭐', '1人ずつ\n「また\n行きたい？」'], others: ['⭐', 'あなたの\nことも選ぶ'], host: ['⭐', '主催者も\n同じく選ぶ'], app: ['🔒', '選んだ内容は\n相手に\n見えない'] } },
+  { title: 'ゴル友（また回る）', anchor: 'friends', cells: {
+    you: ['📣', 'メッセージ・\n行ける日で\n声かけ'], others: ['📅', '行ける日に\n名前と🤝'], host: ['✏️', '次の募集で\nまた集まる'], app: ['🤝', 'お互い\n「行きたい」\nならゴル友'] } },
+];
+
+function Swimlane({ go }: { go: (id: string) => void }) {
+  return (
+    <div className="-mx-2 rounded-card border-[2.5px] border-border bg-card shadow-card p-2 pb-2.5">
+      <div className="px-1 pb-2 text-[10.5px] text-sub leading-snug">
+        <b className="text-text">上から下へ</b>進みます。列は<b className="text-text">「だれがするか」</b>。<br />黒い帯を押すと、くわしい説明へ。
+      </div>
+      <div className="relative">
+        {/* レーンの色の帯（背景） */}
+        <div className="absolute inset-0 grid grid-cols-4 gap-1 pointer-events-none" aria-hidden>
+          {LANES.map((l) => <div key={l.k} className={'rounded-xl ' + l.stripe} />)}
+        </div>
+        <div className="relative">
+          {/* レーン名 */}
+          <div className="grid grid-cols-4 gap-1 pt-1.5 pb-1">
+            {LANES.map((l) => (
+              <div key={l.k} className="flex flex-col items-center text-center px-0.5">
+                <span className="text-[17px] leading-none">{l.icon}</span>
+                <span className={'mt-0.5 text-[9.5px] font-black leading-tight ' + l.head}>{l.label}</span>
+              </div>
+            ))}
+          </div>
+          {STAGES.map((s, i) => (
+            <div key={s.title}>
+              {/* 段の帯（4つのレーンをまたぐ） */}
+              <button type="button" disabled={!s.anchor} onClick={() => s.anchor && go(s.anchor)}
+                className="mt-1.5 w-full flex items-center gap-1.5 px-2 py-1 rounded-lg bg-border text-card text-left">
+                <span className="w-4 h-4 rounded-full bg-card text-border text-[9.5px] font-black grid place-items-center flex-none">{i + 1}</span>
+                <span className="flex-1 min-w-0 text-[11.5px] font-black leading-tight text-pretty">{s.title}</span>
+                {s.anchor && <span className="text-[9.5px] font-bold opacity-80 whitespace-nowrap">くわしく ›</span>}
+              </button>
+              <div className="grid grid-cols-4 gap-1 pt-1">
+                {LANES.map((l) => {
+                  const c = s.cells[l.k];
+                  return c ? (
+                    <div key={l.k} className={'mx-0.5 rounded-lg bg-card border-[1.5px] px-1 py-1.5 text-center ' + l.cell}>
+                      <div className="text-[15px] leading-none">{c[0]}</div>
+                      <div className="mt-1 text-[9.5px] font-bold leading-[1.35] text-text whitespace-pre-line [overflow-wrap:anywhere]">{c[1]}</div>
+                    </div>
+                  ) : <div key={l.k} />;
+                })}
+              </div>
+            </div>
+          ))}
+          {/* また①へ */}
+          <button type="button" onClick={() => go('avail')}
+            className="mt-2 mx-auto flex items-center gap-1 px-3 py-1 rounded-full bg-card border-[1.5px] border-border text-[10.5px] font-black">
+            🔁 次の行ける日・募集へ（①にもどる）
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -698,7 +817,7 @@ function Tour({ items, onZoom }: { items: TourItem[]; onZoom: (src: string) => v
   };
   return (
     <div className="mb-3">
-      <div ref={ref} onScroll={onScroll} className="flex gap-3 overflow-x-auto -mx-5 px-5 pb-1 snap-x snap-mandatory no-scrollbar">
+      <div ref={ref} onScroll={onScroll} className={'flex gap-3 overflow-x-auto -mx-5 px-5 pb-1 snap-x snap-mandatory no-scrollbar ' + (items.length === 1 ? 'justify-center' : '')}>
         {items.map((it, i) => (
           <figure key={it.src + i} className="flex-none w-[58%] snap-center">
             <button type="button" onClick={() => onZoom(it.src)} className="block w-full rounded-[18px] overflow-hidden border-2 border-border bg-card shadow-[3px_3px_0_#1E3A30]" aria-label={`${it.title}（拡大）`}>

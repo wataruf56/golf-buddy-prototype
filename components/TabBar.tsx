@@ -7,6 +7,8 @@ import { useUnreadCounts } from '@/lib/useUnread';
 
 // モック準拠の7タブ（2026-10-08 タイムライン、2026-10-11 過去ラウンドを追加）（絵文字アイコン・クリーム地・インク枠・アクティブはティール）。
 // 「募集」はホームのタイルから、「マイ」はホームのプロフィールカードから到達する。
+const TWO_LINE: Record<string, [string, string]> = { timeline: ['タイム', 'ライン'], past: ['過去', 'ラウンド'] };
+
 type Tab = { id: string; label: string; href: string; emoji: string; external?: boolean };
 
 const tabs: Tab[] = [
@@ -44,7 +46,10 @@ export function TabBar({ onBlock }: { onBlock?: (href: string) => boolean }) {
                 </span>
               )}
             </div>
-            <span className={cn('text-[9px] whitespace-nowrap tracking-tighter', active ? 'font-bold' : 'font-medium')}>{t.label}</span>
+            {/* 狭い画面（380px未満）では長い名前を2行に（「タイムライン」「過去ラウンド」が隣とくっつくため）。高さは全タブそろえる（2026-10-13） */}
+            <span className={cn('text-[9px] whitespace-nowrap tracking-tighter text-center leading-[1.15] max-[379px]:min-h-[21px]', active ? 'font-bold' : 'font-medium')}>
+              {TWO_LINE[t.id] ? <><span className="max-[379px]:hidden">{t.label}</span><span className="hidden max-[379px]:inline">{TWO_LINE[t.id][0]}<br />{TWO_LINE[t.id][1]}</span></> : t.label}
+            </span>
           </>
         );
         if (t.external) return <a key={t.id} href={t.href} className={cls}>{inner}</a>;
