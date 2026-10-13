@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getMe, useStore } from '@/lib/store';
 import { formatDate } from '@/lib/utils';
+import { activeHoldOf, fmtHoldDeadline } from '@/lib/roundHold';
 
 // 「参加予定ラウンド」= 自分が主催 or 参加/申請中で、まだ完了していないラウンド
 // （募集中open＋締切closed の両方。参加後に締め切られても残る）。開催日の昇順
@@ -45,15 +46,19 @@ export default function UpcomingRoundsPage() {
           <div className="mb-4">
             <div className="text-[13px] font-black mb-1.5">📨 申請の状況</div>
             <div className="flex flex-col gap-1.5">
-              {pendingRounds.map((r) => (
+              {pendingRounds.map((r) => {
+                // 主催者から「⏸ 保留」が届いている申請（2026-10-13・lib/roundHold）。「待ちますか？」は募集ページで答える
+                const hold = activeHoldOf(r, meId);
+                return (
                 <Link href={`/round/${r.id}`} key={`p_${r.id}`} className="flex justify-between items-center p-3.5 rounded-card shadow-card bg-card border-[1.5px] border-[#E6D3A0]">
                   <div className="min-w-0 flex-1">
                     <div className="text-[14px] font-bold truncate">{r.title}</div>
-                    <div className="text-[11px] text-muted mt-0.5">{formatDate(r.date) || r.dateRange || '日程未定'} ・ 主催者の承認を待っています</div>
+                    <div className="text-[11px] text-muted mt-0.5">{formatDate(r.date) || r.dateRange || '日程未定'} ・ {hold ? `主催者が${fmtHoldDeadline(hold.until)}までにお返事します` : '主催者の承認を待っています'}</div>
                   </div>
-                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full ml-2 flex-shrink-0" style={{ background: '#FFF1C9', color: '#8A5A00', border: '1px solid #C9A24A' }}>⏳ 申請中です</span>
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full ml-2 flex-shrink-0" style={{ background: '#FFF1C9', color: '#8A5A00', border: '1px solid #C9A24A' }}>{hold ? (hold.answer === 'wait' ? '⏸ 保留中' : '⏸ 待ちますか？') : '⏳ 申請中です'}</span>
                 </Link>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

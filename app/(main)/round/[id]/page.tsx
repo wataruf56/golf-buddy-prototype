@@ -46,6 +46,9 @@ import { WaitlistBox } from '@/components/WaitlistBox';
 import { viewerSlotFull, isWaitlisted, slotGenderLabel, memberGendersForSlots } from '@/lib/genderSlots';
 import { countedMemberIds, hostCounts, hostCanOptIn, hostInRecruitSlots } from '@/lib/hostCount';
 import { hostJoinBlock } from '@/lib/hostJoin';
+import { HoldSheet } from '@/components/HoldSheet';
+import { HoldNoticeCard } from '@/components/HoldNoticeCard';
+import { activeHoldOf, holdAlreadyUsed, fmtHoldDeadline } from '@/lib/roundHold';
 
 // Brand launch URL — handled by middleware, redirects to liff.line.me/{id}
 // while preserving the ?to= query so the recipient lands directly on the
@@ -108,6 +111,8 @@ export default function RoundDetailPage() {
   const [declineOpen, setDeclineOpen] = useState(false);
   // 公式募集の主催者本人の「わたしも参加する／参加をやめる」の送信中（2026-10-12）。hook なので早期 return より前
   const [hostJoinBusy, setHostJoinBusy] = useState(false);
+  // 参加申請の「⏸ 保留する」シートの相手（2026-10-13・lib/roundHold）。hook なので早期 return より前に置く
+  const [holdTarget, setHoldTarget] = useState<{ id: string; name: string } | null>(null);
   // 詳細のセクション切り替えタブ（参加してる人／ピックアップ／組み分け／入金）。
   const [tab, setTab] = useState<'people' | 'pickup' | 'groups' | 'hostnote' | 'album' | 'payment'>(
     () => {
@@ -338,6 +343,14 @@ export default function RoundDetailPage() {
   const isComp = !isDrink && round.maxSpots >= 5;
   // 招待された本人（まだ参加していない）。招待者は承認待ちを経由せず即参加できる。
   const isInvited = !!meId && (round.invitedIds || []).includes(meId) && !isHost && !isApproved && !isPending;
+  // 参加申請の保留（2026-10-13・lib/roundHold）：申請中の自分に主催者からの「⏸ 保留中」があるか
+  const myHold = isPending ? activeHoldOf(round, meId) : undefined;
+  // 見送られた申請（2026-10-13）：本人にだけ「📨 今回は見送りとなりました」を出し、参加ボタンは出さない。
+  // rejectedApplicants は主催者以外には自分のぶんだけ届く（lib/roundView）。招待し直されたときは招待の表示を優先
+  const myDeclined = (!!meId && !isHost && !isApproved && !isPending && !isInvited)
+    ? ((round as any).rejectedApplicants as Array<{ userId: string; at: number; afterHold?: boolean }> | undefined || []).find((e) => e?.userId === meId)
+    : undefined;
+  const isDeclined = !!myDeclined;
   // 主催者向け「ラウンドは完了しましたか？」プロンプト：まだ open で、スタート時間+6.5hを過ぎたら出す。
   const startMs = (() => {
     const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(round.date || '');
@@ -379,6 +392,11 @@ export default function RoundDetailPage() {
       .sort((a, b) => (order[a.st.kind] - order[b.st.kind]) || ((b.st.invitedAt || 0) - (a.st.invitedAt || 0)));
   })() : [];
   const invitedWaiting = invitedRows.filter((x) => x.st.kind === 'unread' || x.st.kind === 'seen');
+  // 保留に「待てない」を選んで申請を取り消した人（主催者の「参加申請」欄にグレーで出す・14日以内・いま申請中／参加中の人は除く）（2026-10-13）
+  const holdCantRows = isHost ? (round.cancellations || [])
+    .filter((c) => c.holdCant && Date.now() - (c.at || 0) < 14 * 86400_000
+      && !(round.pendingApplicantIds || []).includes(c.userId) && !(round.applicantIds || []).includes(c.userId))
+    .slice().reverse() : [];
   // Membership sets used to style invite buttons (participating → grey out).
   const participatingIds = new Set<string>([
     ...(round.applicantIds || []),
@@ -566,6 +584,16 @@ export default function RoundDetailPage() {
       setHostJoinBusy(false);
     }
   }
+  // ストアに無い募集（共有リンクから開いた等）を表示しているとき、操作のあとに取り直す（2026-10-13）
+  async function reloadFetchedRound() {
+    if (storeRound) return;
+    try {
+      const r = await fetch(`/api/rounds/${encodeURIComponent(params.id)}`, { cache: 'no-store' });
+      if (!r.ok) return;
+      const j = await r.json();
+      if (j?.round) setFetchedRound(j.round);
+    } catch { /* noop */ }
+  }
   async function leaveNow(reason?: string, text?: string) {
     setLeaving(true);
     try { await store.leaveRound(round!.id, { reason, text }); toast('参加を取りやめました'); router.push('/home'); }
@@ -618,8 +646,8 @@ export default function RoundDetailPage() {
     catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }
   async function reject(userId: string) {
-    if (!(await confirmDialog('この申請を断りますか？'))) return;
-    try { await store.rejectApplicant(round!.id, userId); toast('却下しました'); }
+    if (!(await confirmDialog({ title: '今回は見送りますか？', message: 'この申請を今回は見送ります。申請した方にお知らせが届きます。', confirmText: '見送る', cancelText: 'やめる', danger: true }))) return;
+    try { await store.rejectApplicant(round!.id, userId); toast('見送りました'); }
     catch (e) { toast('失敗: ' + (e as Error).message, 'error'); }
   }
   async function kick(userId: string, name: string) {
@@ -1047,8 +1075,24 @@ export default function RoundDetailPage() {
           </div>
         ) : isPending ? (
           <div className="space-y-2 mb-4">
-            <div className="text-center py-3 bg-yellow-light text-orange rounded-xl text-sm font-bold">⏳ 承認待ち</div>
-            <button onClick={withdraw} className="w-full py-3 bg-card text-sub border border-border rounded-xl text-sm font-bold">申請を取り下げる</button>
+            {/* 主催者から「⏸ 保留」が届いているとき（2026-10-13）：お知らせと「待ちますか？」（答えるまで出す・ポップアップにはしない） */}
+            {myHold ? (
+              <HoldNoticeCard roundId={round.id} hold={myHold} onChanged={reloadFetchedRound} />
+            ) : (
+              <div className="text-center py-3 bg-yellow-light text-orange rounded-xl text-sm font-bold">⏳ 承認待ち</div>
+            )}
+            {(!myHold || myHold.answer === 'wait') && (
+              <button onClick={withdraw} className="w-full py-3 bg-card text-sub border border-border rounded-xl text-sm font-bold">申請を取り下げる</button>
+            )}
+          </div>
+        ) : isDeclined ? (
+          /* 見送られた申請（2026-10-13）：本人にだけ出す。もう一度の申請ボタンは出さない */
+          <div className="mb-4 rounded-[14px] p-3" style={{ background: '#F3F3F3', border: '2px solid #BDBDBD' }}>
+            <div className="text-[14px] font-black mb-0.5" style={{ color: '#555' }}>📨 今回は見送りとなりました</div>
+            <div className="text-[12px] leading-relaxed" style={{ color: '#666' }}>
+              {myDeclined?.afterHold ? 'お待たせしてすみません。' : ''}この募集への参加は今回はできませんでした。ほかの募集を見てみませんか？
+            </div>
+            <Link href="/search" className="block mt-2.5 py-3 bg-green text-white rounded-xl text-[14px] font-black text-center">🔍 ほかの募集をさがす</Link>
           </div>
         ) : mySlotGender ? (
           <WaitlistBox round={round} gender={mySlotGender} />
@@ -1341,7 +1385,7 @@ export default function RoundDetailPage() {
               <div key={`${c.userId}-${c.at}-${i}`} className="p-2.5 bg-bg rounded-[10px] mb-1.5">
                 <div className="flex items-center gap-2">
                   <span className="text-[12.5px] font-bold truncate">{users.find((u) => u.id === c.userId)?.displayName || c.name || 'メンバー'}</span>
-                  <span className={'text-[10px] font-bold ' + (c.wasApproved ? 'text-red' : 'text-sub')}>{c.wasApproved ? '参加確定を取りやめ' : '申請を取り下げ'}</span>
+                  <span className={'text-[10px] font-bold ' + (c.wasApproved ? 'text-red' : 'text-sub')}>{c.wasApproved ? '参加確定を取りやめ' : c.holdCant ? '保留に「待てない」で取り消し' : '申請を取り下げ'}</span>
                   <span className="text-[10px] text-muted ml-auto flex-shrink-0">{timeAgo(c.at)}</span>
                   {/* 主催者 → 取りやめた人へDM（理由を聞く・誘い直す）（2026-10-11） */}
                   {c.userId && c.userId !== meId && (
@@ -1356,28 +1400,67 @@ export default function RoundDetailPage() {
           </div>
         )}
 
-        {/* Pending applicants — host only */}
-        {isHost && pendingApplicants.length > 0 && (
+        {/* Pending applicants — host only。2026-10-13：「承認する／⏸ 保留する／今回は見送る」（保留は1人1回・延長なし・lib/roundHold） */}
+        {isHost && (pendingApplicants.length > 0 || holdCantRows.length > 0) && (
           <div className="mb-4">
-            <div className="text-[13px] font-bold mb-2">申請中（{pendingApplicants.length}名）— 承認/却下を選んでください</div>
-            {pendingApplicants.map((u) => u && (
-              <div key={u.id} className="flex items-center gap-2 p-2.5 bg-yellow-light rounded-[10px] mb-1.5 flex-wrap">
-                <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
-                  <Avatar user={u} size={36} />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
-                    {participantNames[u.id] && (
-                      <div className="text-[10px] text-green font-bold">📋 {participantNames[u.id]}</div>
-                    )}
-                    <div className="text-[10px] text-sub">{describeUser(u)}{ratingText(u.id, true) ? ' ・ ' + ratingText(u.id, true) : ''}</div>
+            <div className="text-[13px] font-bold mb-2">📥 参加申請（{pendingApplicants.length}）</div>
+            {pendingApplicants.map((u) => {
+              if (!u) return null;
+              const h = activeHoldOf(round, u.id);
+              const used = holdAlreadyUsed(round, u.id);
+              return (
+                <div key={u.id} className="p-2.5 bg-yellow-light rounded-[10px] mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
+                      <Avatar user={u} size={36} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
+                        {participantNames[u.id] && (
+                          <div className="text-[10px] text-green font-bold">📋 {participantNames[u.id]}</div>
+                        )}
+                        <div className="text-[10px] text-sub">{describeUser(u)}{ratingText(u.id, true) ? ' ・ ' + ratingText(u.id, true) : ''}</div>
+                      </div>
+                    </Link>
+                    <Link href={`/chat/${chatIdFor(meId, u.id)}?other=${u.id}`} className="px-2.5 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
                   </div>
-                </Link>
-                <Link href={`/chat/${chatIdFor(meId, u.id)}?other=${u.id}`} className="px-2.5 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
-                <button onClick={() => approve(u.id)} className="px-3 py-1.5 bg-green text-white rounded-lg text-xs font-bold flex-shrink-0">承認</button>
-                <button onClick={() => reject(u.id)} className="px-2.5 py-1 bg-card text-sub border border-border rounded-lg text-xs font-bold flex-shrink-0">却下</button>
+                  {h && (
+                    <div className="mt-1.5 flex gap-1.5 flex-wrap">
+                      <span className="inline-block text-[10.5px] font-black px-2 py-[2px] rounded-full" style={{ background: '#FBF0D6', color: '#8a5a00', border: '1.5px solid #E8A93C' }}>⏸ 保留中 {fmtHoldDeadline(h.until)}まで</span>
+                      {h.answer === 'wait'
+                        ? <span className="inline-block text-[10.5px] font-black px-2 py-[2px] rounded-full bg-green-light text-green" style={{ border: '1.5px solid #2A8C82' }}>⏳「待つ」と回答</span>
+                        : <span className="inline-block text-[10.5px] font-black px-2 py-[2px] rounded-full" style={{ background: '#eee', color: '#777' }}>まだ答えていません</span>}
+                    </div>
+                  )}
+                  <div className={`grid gap-1.5 mt-2 ${h || used ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                    <button onClick={() => approve(u.id)} className="py-2 bg-green text-white rounded-[10px] text-[12px] font-black border-2 border-green">承認する</button>
+                    {!h && !used && (
+                      <button onClick={() => setHoldTarget({ id: u.id, name: u.displayName || 'メンバー' })}
+                        className="py-2 bg-card rounded-[10px] text-[12px] font-black border-2" style={{ color: '#8a5a00', borderColor: '#E8A93C' }}>⏸ 保留する</button>
+                    )}
+                    <button onClick={() => reject(u.id)} className="py-2 bg-card text-red rounded-[10px] text-[12px] font-black border-2 border-red">今回は見送る</button>
+                  </div>
+                  {!h && used && (
+                    <div className="text-[10px] text-muted mt-1">この方の保留はもう使いました（保留は1回だけです）</div>
+                  )}
+                </div>
+              );
+            })}
+            {/* 「待てない」を選んで取り消した人（2026-10-13・14日以内）。グレーで残して経緯が分かるように */}
+            {holdCantRows.map((c, i) => (
+              <div key={`hc-${c.userId}-${c.at}-${i}`} className="flex items-center gap-2.5 p-2.5 bg-bg rounded-[10px] mb-1.5 opacity-60">
+                {users.find((x) => x.id === c.userId) ? <Avatar user={users.find((x) => x.id === c.userId) as User} size={32} /> : <span className="w-8 h-8 rounded-full bg-card border border-border flex items-center justify-center">👤</span>}
+                <div className="min-w-0">
+                  <div className="text-[12.5px] font-bold truncate">{users.find((x) => x.id === c.userId)?.displayName || c.name || 'メンバー'}</div>
+                  <div className="text-[10.5px] text-sub">「待てない」を選んだため、申請を取り消しました（{new Date(c.at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}）</div>
+                </div>
               </div>
             ))}
           </div>
+        )}
+        {holdTarget && (
+          <HoldSheet round={round} userId={holdTarget.id} name={holdTarget.name}
+            onClose={() => setHoldTarget(null)}
+            onDone={() => { const n = holdTarget.name; setHoldTarget(null); track('hold_applicant', { roundId: round.id }); toast(`${n}さんの申請を保留にしました`); reloadFetchedRound(); }} />
         )}
 
         {/* 空きが出たら参加したい人（主催者だけに見せる）。男女別の枠が満員のときに登録される（2026-10-07） */}
@@ -1536,7 +1619,7 @@ export default function RoundDetailPage() {
       {/* 画面下に貼りつく参加ボタン。スクロールしても押せる状態を保つ。
           .screen が唯一のスクロール領域で、タブバーはその外にあるため
           sticky bottom-0 でタブバーのすぐ上に止まる。 */}
-      {round.status === 'open' && !officialActive && !isHost && !isApproved && !isPending && !isFull && (
+      {round.status === 'open' && !officialActive && !isHost && !isApproved && !isPending && !isFull && !isDeclined && (
         <div className="sticky bottom-0 -mx-5 mt-4 px-4 pt-2.5 pb-3 bg-card border-t-2 border-border">
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">

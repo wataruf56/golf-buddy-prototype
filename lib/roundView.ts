@@ -99,9 +99,32 @@ export function stripWaitlistForViewer(round: Round, viewerId: string | null): R
 
 // 見送った申請は、主催者には全員ぶん、それ以外には自分のぶんだけ（2026-10-11）
 export function stripRejectedForViewer(round: Round, viewerId: string | null): Round {
-  const list = (round as any).rejectedApplicants as Array<{ userId: string; at: number }> | undefined;
+  const list = (round as any).rejectedApplicants as Array<{ userId: string; at: number; afterHold?: boolean }> | undefined;
   if (!list?.length || isRoundHost(round, viewerId)) return round;
   return { ...round, rejectedApplicants: viewerId ? list.filter((e) => e.userId === viewerId) : [] } as Round;
+}
+
+// 参加申請の保留（2026-10-13・lib/roundHold）：主催者には全員ぶん、それ以外には自分のぶんだけ。
+// 「1回使った人」（holdUsedIds）も同じ（自分のIDだけ残す）。
+export function stripHoldsForViewer(round: Round, viewerId: string | null): Round {
+  const holds = round.holds;
+  const used = round.holdUsedIds;
+  if ((!holds || !Object.keys(holds).length) && !used?.length) return round;
+  if (isRoundHost(round, viewerId)) return round;
+  const mineHold = viewerId && holds && Object.prototype.hasOwnProperty.call(holds, viewerId) ? { [viewerId]: holds[viewerId] } : {};
+  return {
+    ...round,
+    ...(holds ? { holds: mineHold } : {}),
+    ...(used ? { holdUsedIds: viewerId && used.includes(viewerId) ? [viewerId] : [] } : {}),
+  };
+}
+
+// 取りやめ・取り下げの記録（cancellations：名前・理由つき）は主催者・共同管理者だけのもの（types.ts の約束）。
+// 以前は配信で落としておらず全員に届いていた（2026-10-13 保留の実装時に気づいた）。主催者以外には自分のぶんだけ。
+export function stripCancellationsForViewer(round: Round, viewerId: string | null): Round {
+  const list = round.cancellations;
+  if (!list?.length || isRoundHost(round, viewerId)) return round;
+  return { ...round, cancellations: viewerId ? list.filter((c) => c?.userId === viewerId) : [] };
 }
 
 // 入金の振込先は、主催者・共同主催・承認済みの参加者だけに見せる（2026-10-11）
@@ -115,7 +138,7 @@ export function stripPaymentForViewer(round: Round, viewerId: string | null): Ro
 }
 
 export function stripRoundForViewer(round: Round, viewerId: string | null): Round {
-  return _strip(stripPaymentForViewer(stripRejectedForViewer(round, viewerId), viewerId), viewerId);
+  return _strip(stripCancellationsForViewer(stripHoldsForViewer(stripPaymentForViewer(stripRejectedForViewer(round, viewerId), viewerId), viewerId), viewerId), viewerId);
 }
 function _strip(round: Round, viewerId: string | null): Round {
   return stripCancelAccountForViewer(stripWaitlistForViewer(stripAssignmentsForViewer(stripViews(stripGroupPrefsForViewer(stripInvitesForViewer(round, viewerId), viewerId)), viewerId), viewerId), viewerId);

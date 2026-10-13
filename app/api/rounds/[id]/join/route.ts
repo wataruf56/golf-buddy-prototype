@@ -87,8 +87,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
   }
 
+  // 見送られた人は、もう一度は申請できない（募集ページにも「今回は見送り」を出して参加ボタンを隠している）（2026-10-13）。
+  // 主催者・運営が招待し直した人だけは通す（招待の表示を優先）。
+  {
+    const rejected = ((existing as any).rejectedApplicants || []).some((e: any) => e?.userId === meId);
+    const reinvited = ((existing as any).invitedIds || []).includes(meId);
+    if (rejected && !reinvited) {
+      return NextResponse.json({ error: 'declined', message: 'この募集は今回は見送りとなりました。ほかの募集をさがしてみてください。' }, { status: 409 });
+    }
+  }
   const round = await db.joinRound(params.id, meId);
-  // 前に見送られた人がもう一度申請したら、見送りの記録は消す（2026-10-11）
+  // 前に見送られた人が（招待し直されて）申請したら、見送りの記録は消す（2026-10-11）
   if (((existing as any).rejectedApplicants || []).some((e: any) => e?.userId === meId)) {
     try { await db.updateRound(params.id, { rejectedApplicants: ((existing as any).rejectedApplicants || []).filter((e: any) => e?.userId !== meId) } as any); } catch { /* noop */ }
   }
@@ -124,5 +133,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     pushTo(existing.hostId, n.line, liffUrl(link), 'joined').catch(() => {});
     webPushText(existing.hostId, n.webTitle, n.webBody, link, `round-${params.id}`).catch(() => {});
   }
-  return NextResponse.json({ round });
+  // 配信用に整える（他の人の保留・見送り・招待・取りやめの記録などを申請者に返さない・2026-10-13）
+  const { stripRoundForViewer } = await import('@/lib/roundView');
+  return NextResponse.json({ round: stripRoundForViewer(round as any, meId) });
 }

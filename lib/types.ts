@@ -270,7 +270,14 @@ export type Round = {
   //   未設定 … 旧データ。これまでどおり見えている扱い（急に隠さない）
   // 主催者が見送った（却下した）申請（2026-10-11）。申請者が「参加予定」で結果を見られるように残す。
   // 主催者には全員ぶん、それ以外には自分のぶんだけ配信（lib/roundView）。同じ人がもう一度申請したら消す。
-  rejectedApplicants?: Array<{ userId: string; at: number }>;
+  rejectedApplicants?: Array<{ userId: string; at: number; afterHold?: boolean }>;
+  // 参加申請の保留（2026-10-13・lib/roundHold）。キー: 申請中の userId → 保留の内容。
+  // 主催者・共同管理者が「⏸ 保留する」で期日とひとことを決める。承認・見送り・取り下げ・除外で消える（lib/roundMembership・lib/db.approveApplicant）。
+  // 主催者には全員ぶん、それ以外には自分のぶんだけ配信（lib/roundView）。
+  holds?: Record<string, RoundHold>;
+  // 一度でも保留にした申請者（2026-10-13）。保留は1人1回だけ（取り下げて申請し直しても、もう保留にはできない）。holds が消えても残す。
+  // 主催者以外には自分のIDだけ配信（lib/roundView）。
+  holdUsedIds?: string[];
   // キャンセル規定（2026-10-10・任意）。締切・キャンセル料・振込先・条件。lib/cancelPolicy
   cancelPolicy?: import('./cancelPolicy').CancelPolicy | null;
   // 2026-10-08：組み分けと配車（ピックアップ）の公開を分けた。assignmentsPublished は「組み分け」の公開。
@@ -440,7 +447,19 @@ export type RoundCancellation = {
   reason: string;       // lib/leaveReasons のキー。申請中の取り下げは 'withdraw'
   text?: string;        // 「その他」の自由入力
   wasApproved: boolean; // 参加確定だったか（false＝申請中の取り下げ）
+  holdCant?: boolean;   // 保留のお知らせに「待てない」を選んで取り消した（2026-10-13・lib/roundHold）
   at: number;
+};
+
+// 参加申請の保留（2026-10-13・lib/roundHold）。round.holds[userId]
+export type RoundHold = {
+  until: number;            // 主催者がお返事する期日（ms）
+  message: string;          // 申請者に伝えるひとこと（日時を差し込み済みの文・最大300文字）
+  at: number;               // 保留にした時刻
+  by: string;               // 保留にした主催者・共同管理者の userId
+  answer?: 'wait' | 'cant'; // 申請者の答え（'cant' はすぐ申請の取り消しになるので、残るのは 'wait' だけ）
+  answeredAt?: number;
+  dueNotifiedAt?: number;   // 期日に主催者へ LINE を送った時刻（housekeeping cron の二重送信防止）
 };
 
 // ラウンド後の相手への判定。星評価は廃止し、この4択に。

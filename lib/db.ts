@@ -2,7 +2,7 @@ import 'server-only';
 import { isDemoMode } from './demoMode';
 import { getAdminDb } from './firebase';
 import { mockUsers, mockRounds, mockReviews, mockChats } from './mockData';
-import type { Chat, Gender, Message, PendingReview, Review, Round, RoundThread, RoundPhoto, SchedulePoll, User } from './types';
+import type { Chat, Gender, Message, PendingReview, Review, Round, RoundHold, RoundThread, RoundPhoto, SchedulePoll, User } from './types';
 import { reviewPeerIdsForCompetition, isNoShow } from './groups';
 import { scrubMemberFromRound, applyScrubInPlace, type MemberScrub } from './roundMembership';
 import { hostCounts, currentCountOf, countFloor, countedMemberIds } from './hostCount';
@@ -16,6 +16,16 @@ function needsInviteSeen(r: Partial<Round>, userId: string): boolean {
   const invitedAt = (r.invitedAt || {})[userId] || 0;
   return !seen || seen < invitedAt;
 }
+
+/** 参加申請の保留（setApplicantHold）で、いまできないときに投げる（2026-10-13・lib/roundHold）。 */
+export class HoldError extends Error {
+  constructor(public code: 'not_found' | 'not_pending' | 'already_held', message: string) { super(message); }
+}
+const HOLD_ERR_MSG = {
+  not_found: '募集が見つかりません',
+  not_pending: 'この方はいま申請中ではありません（取り下げ・承認・見送り済み）',
+  already_held: '保留は1人1回だけです（期日を延ばすことはできません）',
+} as const;
 
 /** 主催者の参加切り替え（setHostJoined）で、いまできないときに投げる。code/message は lib/hostJoin。 */
 export class HostJoinError extends Error {
@@ -40,8 +50,14 @@ export interface DB {
   updateRound(id: string, patch: Partial<Round>): Promise<void>;
   deleteRound(id: string): Promise<void>;
   joinRound(id: string, userId: string): Promise<Round>;
+  // 承認すると、その人の保留（holds[userId]）も消す（2026-10-13）
   approveApplicant(id: string, userId: string): Promise<Round>;
   rejectApplicant(id: string, userId: string): Promise<Round>;
+  // 参加申請の保留（2026-10-13・lib/roundHold）。申請中で、まだ保留を使っていない人だけ（1人1回）。
+  // holds[userId] を書き、holdUsedIds に足す。できないときは HoldError。
+  setApplicantHold(id: string, userId: string, hold: RoundHold): Promise<Round>;
+  // 保留の中身を一部だけ書き換える（申請者の答え・期日の LINE を送った印）。保留が無ければ false。
+  patchApplicantHold(id: string, userId: string, patch: Partial<RoundHold>): Promise<boolean>;
   kickApplicant(id: string, userId: string): Promise<Round>;
   leaveRound(id: string, userId: string): Promise<Round>;
   // 公式募集（hostNotCounted）の主催者本人の参加を切り替える（2026-10-12・lib/hostCount の hostJoined）。
@@ -208,7 +224,24 @@ class MemoryDB implements DB {
       r.applicantIds.push(userId);
       r.currentCount += 1;
     }
+    if (r.holds && userId in r.holds) { const { [userId]: _drop, ...rest } = r.holds; r.holds = rest; }
     return r;
+  }
+  async setApplicantHold(id: string, userId: string, hold: RoundHold) {
+    const r = this.rounds.find((x) => x.id === id);
+    if (!r) throw new HoldError('not_found', HOLD_ERR_MSG.not_found);
+    if (!(r.pendingApplicantIds || []).includes(userId)) throw new HoldError('not_pending', HOLD_ERR_MSG.not_pending);
+    if ((r.holdUsedIds || []).includes(userId) || (r.holds || {})[userId]) throw new HoldError('already_held', HOLD_ERR_MSG.already_held);
+    r.holds = { ...(r.holds || {}), [userId]: hold };
+    r.holdUsedIds = [...(r.holdUsedIds || []), userId];
+    return r;
+  }
+  async patchApplicantHold(id: string, userId: string, patch: Partial<RoundHold>) {
+    const r = this.rounds.find((x) => x.id === id);
+    const cur = r?.holds?.[userId];
+    if (!r || !cur) return false;
+    r.holds = { ...(r.holds || {}), [userId]: { ...cur, ...patch } };
+    return true;
   }
   async replaceGuestWithUser(id: string, opts: { userId: string; guestId?: string; gender?: string }) {
     const r = this.rounds.find((x) => x.id === id);
@@ -774,8 +807,53 @@ class FirestoreDB implements DB {
       const currentCount = applicants.includes(userId)
         ? currentCountOf(data)
         : currentCountOf(data) + 1;
-      tx.set(ref, { pendingApplicantIds: pending, applicantIds, currentCount }, { merge: true });
-      return { ...data, id: snap.id, pendingApplicantIds: pending, applicantIds, currentCount } as Round;
+      // 保留（holds[userId]）があれば一緒に消す（2026-10-13）。map のキーは merge では消せないので FieldValue.delete()
+      const hadHold = !!data.holds && Object.prototype.hasOwnProperty.call(data.holds, userId);
+      if (hadHold) {
+        const admin = require('firebase-admin');
+        const { FieldPath, FieldValue } = admin.firestore;
+        tx.update(ref,
+          new FieldPath('pendingApplicantIds'), pending,
+          new FieldPath('applicantIds'), applicantIds,
+          new FieldPath('currentCount'), currentCount,
+          new FieldPath('holds', userId), FieldValue.delete());
+      } else {
+        tx.set(ref, { pendingApplicantIds: pending, applicantIds, currentCount }, { merge: true });
+      }
+      const out = { ...data, id: snap.id, pendingApplicantIds: pending, applicantIds, currentCount } as Round;
+      if (hadHold) { const { [userId]: _drop, ...rest } = data.holds || {}; out.holds = rest; }
+      return out;
+    });
+  }
+  async setApplicantHold(id: string, userId: string, hold: RoundHold) {
+    const ref = this.fs.collection('rounds').doc(id);
+    return await this.fs.runTransaction(async (tx: any) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new HoldError('not_found', HOLD_ERR_MSG.not_found);
+      const data = snap.data() as Omit<Round, 'id'>;
+      if (!(data.pendingApplicantIds || []).includes(userId)) throw new HoldError('not_pending', HOLD_ERR_MSG.not_pending);
+      if ((data.holdUsedIds || []).includes(userId) || (data.holds || {})[userId]) throw new HoldError('already_held', HOLD_ERR_MSG.already_held);
+      const holdUsedIds = [...(data.holdUsedIds || []), userId];
+      const admin = require('firebase-admin');
+      const { FieldPath } = admin.firestore;
+      tx.update(ref, new FieldPath('holds', userId), hold, new FieldPath('holdUsedIds'), holdUsedIds);
+      return { ...data, id: snap.id, holds: { ...(data.holds || {}), [userId]: hold }, holdUsedIds } as Round;
+    });
+  }
+  async patchApplicantHold(id: string, userId: string, patch: Partial<RoundHold>) {
+    const ref = this.fs.collection('rounds').doc(id);
+    return await this.fs.runTransaction(async (tx: any) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) return false;
+      const data = snap.data() as Omit<Round, 'id'>;
+      const cur = (data.holds || {})[userId];
+      if (!cur) return false;
+      const clean: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries({ ...cur, ...patch })) if (v !== undefined) clean[k] = v;
+      const admin = require('firebase-admin');
+      const { FieldPath } = admin.firestore;
+      tx.update(ref, new FieldPath('holds', userId), clean);
+      return true;
     });
   }
   async replaceGuestWithUser(id: string, opts: { userId: string; guestId?: string; gender?: string }) {

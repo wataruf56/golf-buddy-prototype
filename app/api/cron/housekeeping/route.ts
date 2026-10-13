@@ -60,6 +60,14 @@ export async function GET(req: NextRequest) {
     results.upcomingReminders = { error: (e as Error).message };
   }
 
+  // 参加申請の保留：期日が来たら主催者・共同管理者へ LINE＋お知らせを1回（夜中は朝7時以降に）（2026-10-13・lib/roundHoldServer）
+  try {
+    const { sendDueHoldLines } = await import('@/lib/roundHoldServer');
+    results.holdDue = await sendDueHoldLines();
+  } catch (e) {
+    results.holdDue = { error: (e as Error).message };
+  }
+
   // 毎月の「行ける日を入れませんか？」の LINE（月末2日前の12:00以降に1回）（2026-10-12）
   try {
     const { sendMonthlyAvailLine } = await import('@/lib/availMonthly');

@@ -269,6 +269,24 @@ export const store = {
     setState({ rounds: state.rounds.map((r) => (r.id === roundId ? round : r)) });
   },
 
+  // 参加申請の保留（2026-10-13・lib/roundHold）。主催者・共同管理者が期日とひとことを決める（1人1回だけ）
+  holdApplicant: async (roundId: string, userId: string, until: number, message: string) => {
+    const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/hold`, {
+      method: 'POST', body: JSON.stringify({ userId, until, message }),
+    });
+    if (round) setState({ rounds: state.rounds.map((r) => (r.id === roundId ? round : r)) });
+    return round;
+  },
+
+  // 保留のお知らせへの答え（申請者）。'cant' はこの募集への申請の取り消し
+  answerHold: async (roundId: string, answer: 'wait' | 'cant') => {
+    const { round } = await api<{ round: Round | null }>(`/api/rounds/${roundId}/hold-answer`, {
+      method: 'POST', body: JSON.stringify({ answer }),
+    });
+    if (round) setState({ rounds: state.rounds.map((r) => (r.id === roundId ? round : r)) });
+    return round;
+  },
+
   kickApplicant: async (roundId: string, userId: string) => {
     const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/kick`, {
       method: 'POST', body: JSON.stringify({ userId }),

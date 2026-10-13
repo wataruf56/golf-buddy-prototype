@@ -15,6 +15,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!isRoundHost(round, meId)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const { userId } = await req.json();
   if (!userId) return NextResponse.json({ error: 'invalid' }, { status: 400 });
+  // 申請中でない人（取り下げた・見送った・「待てない」を選んだ）は承認できない（2026-10-13）。
+  // 古い画面や期日のポップアップから押されると、抜けた人を参加確定に入れてしまうため。
+  if (!(round.pendingApplicantIds || []).includes(userId)) {
+    if ((round.applicantIds || []).includes(userId)) return NextResponse.json({ round });   // もう承認済み（二度押し）
+    return NextResponse.json({ error: 'not_pending', message: 'この方はもう申請中ではありません（取り下げ・見送り済み）' }, { status: 409 });
+  }
 
   // 性別ごとの募集枠ガード：承認で枠が消費されるため、ここでも空きを確認する。
   {

@@ -13,6 +13,7 @@ import { NotifySettings } from '@/components/NotifySettings';
 import { AppUpdateButton } from '@/components/AppUpdateButton';
 import { track } from '@/lib/telemetry';
 import { formatDate, instagramUrl } from '@/lib/utils';
+import { activeHoldOf } from '@/lib/roundHold';
 import { ProfileDetails } from '@/components/ProfileDetails';
 
 const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
@@ -212,7 +213,7 @@ export default function MyPage() {
             const role = r.hostId === me.id
               ? '主催'
               : r.applicantIds.includes(me.id) ? '参加確定'
-              : (r.pendingApplicantIds || []).includes(me.id) ? '承認待ち'
+              : (r.pendingApplicantIds || []).includes(me.id) ? (activeHoldOf(r, me.id) ? '⏸ 保留中' : '承認待ち')
               : '参加';
             return (
               <Link href={`/round/${r.id}`} key={r.id} className="flex justify-between items-center p-2.5 bg-bg rounded-[10px] mb-1.5">

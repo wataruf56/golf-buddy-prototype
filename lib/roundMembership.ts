@@ -49,7 +49,9 @@ export function scrubMemberFromRound(data: Partial<Round>, uid: string): MemberS
   }
 
   // ── map のキー ──
-  for (const k of ['participantPickups', 'pickupProposals', 'scores', 'inviteMessages', 'invitedBy', 'invitedAt', 'inviteSeenAt', 'inviteDeclined', 'groupPrefs'] as const) {
+  // holds（参加申請の保留・2026-10-13）も消す。見送り・取り下げ・除外のあとに「保留中」が残らないように。
+  // 「1人1回だけ」の記録（holdUsedIds）は消さない（申請し直しても、もう保留にはできない）。
+  for (const k of ['participantPickups', 'pickupProposals', 'scores', 'inviteMessages', 'invitedBy', 'invitedAt', 'inviteSeenAt', 'inviteDeclined', 'groupPrefs', 'holds'] as const) {
     const m = data[k] as Record<string, unknown> | undefined;
     if (m && Object.prototype.hasOwnProperty.call(m, uid)) deleteKeys.push([k, uid]);
   }

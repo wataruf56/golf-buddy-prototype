@@ -20,7 +20,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     db.listRoundMessages(params.id),
     db.listRoundThreads(params.id),
   ]);
-  return NextResponse.json({ messages, threads, round }, { headers: noStore });
+  // 配信用に整える（他の人の保留・取りやめの記録などを返さない・2026-10-13）
+  const { stripRoundForViewer } = await import('@/lib/roundView');
+  return NextResponse.json({ messages, threads, round: stripRoundForViewer(round, meId) }, { headers: noStore });
 }
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {

@@ -20,6 +20,7 @@ import { track } from './telemetry';
 // /api/log が _popupEvents にも書き、管理画面「📊 計測ハブ」のポップアップの反応で集計する（app/api/admin/popups）。
 export const POPUP_PRIORITY = {
   completion: 100,   // 主催者：ラウンド完了／中止（閉じられない）
+  holdDue: 98,       // 主催者：保留にしていた申請の期日（承認か見送りを選ぶまで閉じられない・その場で選べる）（2026-10-13）
   groups: 95,        // 主催者：組み分け（閉じられない）
   review: 90,        // ラウンド後のレビュー（閉じられない）
   paymentAck: 80,    // 事前入金の確認

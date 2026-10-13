@@ -94,5 +94,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     console.error('[leave] driver replacement failed (non-fatal)', (e as Error).message);
   }
 
-  return NextResponse.json({ round: { ...updated, cancellations } });
+  // 配信用に整える（他の人の保留・取りやめの記録などを本人に返さない・2026-10-13）
+  const { stripRoundForViewer } = await import('@/lib/roundView');
+  return NextResponse.json({ round: stripRoundForViewer({ ...updated, cancellations } as any, meId) });
 }

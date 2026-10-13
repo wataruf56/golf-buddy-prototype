@@ -15,6 +15,7 @@ import { InviteDeclineSheet } from '@/components/InviteDeclineSheet';
 import { toast } from '@/components/Toast';
 import { RESTRICTION_MSG } from '@/lib/restrictions';
 import { isRoundHost } from '@/lib/roundHost';
+import { activeHoldOf } from '@/lib/roundHold';
 import { isOfficialThread } from '@/lib/officialShared';
 import { isAvailRoom } from '@/lib/availabilityShared';
 import { viewerSlotFull } from '@/lib/genderSlots';
@@ -410,7 +411,7 @@ export default function HomePage() {
                 <div className="text-sm font-black text-orange">
                   参加申請が {myHostedPending.length} 件届いています
                 </div>
-                <div className="text-[11px] text-sub mt-0.5">タップして承認/却下</div>
+                <div className="text-[11px] text-sub mt-0.5">タップして承認・保留・見送り</div>
               </div>
               <span className="text-orange">›</span>
             </div>
@@ -430,8 +431,10 @@ export default function HomePage() {
               {myUpcoming.slice(0, 5).map((r) => {
                 const mine = r.hostId === me.id;
                 const joined = (r.applicantIds || []).includes(me.id);
-                const role = mine ? '主催' : joined ? '参加確定' : '承認待ち';
-                const roleCls = mine ? 'bg-orange-light text-orange' : joined ? 'bg-green-light text-green' : 'bg-bg text-sub';
+                // 主催者から「⏸ 保留」が届いている申請（2026-10-13・lib/roundHold）。答えるまで「待ちますか？」と出す
+                const hold = !mine && !joined ? activeHoldOf(r, me.id) : undefined;
+                const role = mine ? '主催' : joined ? '参加確定' : hold ? (hold.answer === 'wait' ? '⏸ 保留中' : '⏸ 待ちますか？') : '承認待ち';
+                const roleCls = mine ? 'bg-orange-light text-orange' : joined ? 'bg-green-light text-green' : hold ? (hold.answer === 'wait' ? 'bg-yellow-light text-[#8a5a00]' : 'bg-yellow text-white') : 'bg-bg text-sub';
                 const md = r.date ? `${Number(r.date.slice(5, 7))}/${Number(r.date.slice(8, 10))}` : '未定';
                 return (
                   <Link href={`/round/${r.id}`} key={r.id} className="flex items-center gap-2.5 bg-bg rounded-xl px-3 py-2.5">

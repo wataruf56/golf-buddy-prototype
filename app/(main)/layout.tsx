@@ -10,6 +10,7 @@ import { GroupGate } from '@/components/GroupGate';
 import { CompletionGate } from '@/components/CompletionGate';
 import { AvailPromptPopup } from '@/components/AvailPromptPopup';
 import { PaymentAckGate } from '@/components/PaymentAckGate';
+import { HoldDueGate } from '@/components/HoldDueGate';
 import { RoundPromoPopup } from '@/components/RoundPromoPopup';
 import { AvailMonthlyPopup } from '@/components/AvailMonthlyPopup';
 import { usePopupSlot, POPUP_PRIORITY, popupEvent } from '@/lib/popupSlot';
@@ -165,6 +166,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       {reviewActive && overlayOpen && pendingCount > 0 && <ReviewOverlay />}
       <GroupGate />
       <CompletionGate />
+      {/* 保留にしていた参加申請の期日（主催者・共同管理者・閉じられない・その場で承認か見送りを選べる）（2026-10-13）。
+          レビュー待ちでは止めない（優先98＞レビュー90。どちらもその場で解けるので詰まらない） */}
+      <HoldDueGate blocked={banGated || loggedOut} />
       {/* ラウンド後の「行ける日を入力してみませんか？」（運営がOKを出してから・レビューが先）（2026-10-11） */}
       <AvailPromptPopup blocked={pendingCount > 0 || banGated || loggedOut || ageGated} />
       {/* すでに参加している募集に、あとから事前入金が設定されたときの確認（2026-10-11） */}
