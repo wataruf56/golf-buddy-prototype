@@ -200,13 +200,19 @@
   </url>
   <url>
     <loc>https://goltomo.com/legal/terms</loc>
-    <lastmod>2026-08-22</lastmod>
+    <lastmod>2026-10-11</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.2</priority>
   </url>
   <url>
     <loc>https://goltomo.com/legal/privacy</loc>
     <lastmod>2026-08-22</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  <url>
+    <loc>https://goltomo.com/legal/money</loc>
+    <lastmod>2026-10-11</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.2</priority>
   </url>
