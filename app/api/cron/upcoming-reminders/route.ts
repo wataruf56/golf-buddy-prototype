@@ -14,8 +14,9 @@ const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 // 書き込むもの（どれも1回だけ。round.upcomingRemindersSent[key] に時刻を記録）
 //   d{N}         … 開催の N 日前（管理画面の設定。既定 30/7/1）「1週間前になりました！ピックアップや入金などの確認を」
 //   cancel_{ms}  … キャンセル期限の日（期限が12時より前なら前日）「本日◯時がキャンセル期限です」
-//   pay3_{ms}    … 入金期日の3日前
-//   pay0_{ms}    … 入金期日の日（期日が12時より前なら前日）
+//   pay{N}_{ms}  … 入金期日の 10・5・2 日前と当日（N=0・期日が12時より前なら前日）（2026-10-13 変更）
+//                  **グループチャットには書かない**。まだ入金チェックされていない人にだけ、運営（管理人）から1人ずつ
+//                  DM＋アプリ内お知らせ＋LINE。入金済みの人・主催者には送らない（誰が未入金かを他の人に見せない）。
 // 期限・期日の値をキーに含めるので、主催者が日時を変えたら新しい日時でまた1回。
 //
 // 対象：開催前の募集（open／締切 closed）。中止（heldCancelledAt）・完了・行ける日の部屋・日付未定は除く。
@@ -38,6 +39,8 @@ const MAX_PER_TICK = 60;
 // 🙏 は実行時に作る。文字列を定数のまま並べると、ビルド（SWC）がテンプレート文字列にまとめる際に
 // 絵文字を「\uD83D\uDE4F」と二重にエスケープし、チャットにそのまま文字で出た（2026-10-12）
 const PRAY = String.fromCodePoint(0x1F64F);
+// 入金期日のお知らせを送る日（期日の何日前か。0＝当日）（2026-10-13）
+const PAY_DAYS = [10, 5, 2, 0];
 
 const dayNo = (ms: number) => Math.floor((ms + JST) / DAY);   // JST の通し日数
 function targetMs(date: string, startTime?: string): number | null {
@@ -77,6 +80,8 @@ export async function GET(req: NextRequest) {
 
   type Job = { round: any; key: string; text: string };
   const jobs: Job[] = [];
+  type PayJob = { round: any; key: string; n: number; payDl: number; title: string; amount: number };
+  const payJobs: PayJob[] = [];
   for (const r of allRounds as any[]) {
     if (jobs.length >= MAX_PER_TICK) break;
     if (r.status !== 'open' && r.status !== 'closed') continue;
@@ -96,8 +101,8 @@ export async function GET(req: NextRequest) {
       const head = daysUntil === 0 ? '本日はいよいよラウンドです！' : daysUntil === 1 ? '明日はいよいよラウンドです！'
         : daysUntil === 7 ? 'ラウンドの1週間前になりました！' : daysUntil >= 28 && daysUntil <= 31 ? 'ラウンドの1か月前になりました！' : `ラウンドの${daysUntil}日前になりました！`;
       const lines = [`@全員`, `⛳ ${head}`, `「${title}」${when}`, ''];
-      lines.push(daysUntil <= 1 ? '集合場所・時間とピックアップ（送迎）の最終確認をお願いします' + PRAY : 'ピックアップ（送迎）や入金などの確認をお願いします' + PRAY);
-      if (payDl && payDl > now) lines.push(`💴 入金期日：${fmt(payDl)}`);
+      // 入金のことは全員には書かない（未入金の人にだけ個別に知らせる・下の pay{N}）（2026-10-13）
+      lines.push(daysUntil <= 1 ? '集合場所・時間とピックアップ（送迎）の最終確認をお願いします' + PRAY : 'ピックアップ（送迎）などの確認をお願いします' + PRAY);
       if (cancelDl && cancelDl > now) lines.push(`⏰ キャンセル期限：${fmt(cancelDl)}`);
       jobs.push({ round: r, key: `d${daysUntil}`, text: lines.join('\n') });
       continue;   // 1回の見回りで同じ募集に書くのは1件まで（次の見回りで残りを書く）
@@ -111,24 +116,12 @@ export async function GET(req: NextRequest) {
       ].join('\n') });
       continue;
     }
-    // 入金期日の3日前
-    if (payDl && payDl > now && dayNo(payDl) - 3 === today && !sent[`pay3_${payDl}`]) {
-      jobs.push({ round: r, key: `pay3_${payDl}`, text: [
-        `@全員`, `💴 入金期日まであと3日です（${fmt(payDl)}）`,
-        pi.amount ? `「${title}」の参加費 ${Number(pi.amount).toLocaleString('ja-JP')}円` : `「${title}」の参加費`,
-        '', 'まだの方は「💰 入金」タブの振込先へお願いします。入金済みの方は、このメッセージは気にしないでください' + PRAY,
-      ].join('\n') });
-      continue;
-    }
-    // 入金期日の当日
-    if (payDl && payDl > now && noticeDayOf(payDl) === today && !sent[`pay0_${payDl}`]) {
-      const isToday = dayNo(payDl) === today;
-      jobs.push({ round: r, key: `pay0_${payDl}`, text: [
-        `@全員`, `💴 ${isToday ? '本日' : '明日'} ${hm(payDl)} が入金期日です（「${title}」）`,
-        pi.amount ? `参加費 ${Number(pi.amount).toLocaleString('ja-JP')}円` : '',
-        '', 'まだの方は「💰 入金」タブの振込先へお願いします。入金済みの方は、このメッセージは気にしないでください' + PRAY,
-      ].filter((x, i) => x !== '' || i > 2).join('\n') });
-      continue;
+    // 入金期日のお知らせ（10・5・2日前・当日）→ 下でまとめて、未入金の人にだけ個別に送る
+    if (payDl && payDl > now) {
+      for (const n of PAY_DAYS) {
+        const due = n === 0 ? noticeDayOf(payDl) === today : dayNo(payDl) - n === today;
+        if (due && !sent[`pay${n}_${payDl}`]) { payJobs.push({ round: r, key: `pay${n}_${payDl}`, n, payDl, title, amount: Number(pi.amount) || 0 }); break; }
+      }
     }
   }
 
@@ -149,5 +142,39 @@ export async function GET(req: NextRequest) {
       console.warn('[upcoming-reminders] post failed', { roundId: round.id, key, err: (e as Error).message });
     }
   }
-  return NextResponse.json({ ok: true, posted: results.length, results }, { headers: noStore });
+  // 入金期日のお知らせ：未入金の人にだけ、運営（管理人）から1人ずつ（2026-10-13）
+  const payResults: any[] = [];
+  if (payJobs.length) {
+    await ensureAdminManager();
+    const { countedMemberIds } = await import('@/lib/hostCount');
+    const { chatIdFor } = await import('@/lib/utils');
+    const { addNotification } = await import('@/lib/notifications');
+    const { pushTo, liffUrl } = await import('@/lib/linePush');
+    for (const { round, key, n, payDl, title, amount } of payJobs) {
+      const stamp = { ...(round.upcomingRemindersSent || {}), [key]: now };
+      await db.updateRound(round.id, { upcomingRemindersSent: stamp } as any);
+      const paid = new Set<string>(round.paidIds || []);
+      const unpaid = countedMemberIds(round).filter((uid) => uid && uid !== round.hostId && !paid.has(uid) && !uid.startsWith('gst_'));
+      const when = n === 0 ? `${dayNo(payDl) === today ? '本日' : '明日'} ${hm(payDl)} が入金期日です` : `入金期日まであと${n}日です（${fmt(payDl)}）`;
+      const text = [
+        `💴【ゴルトモ】「${title}」の${when}`,
+        amount ? `参加費：${amount.toLocaleString('ja-JP')}円` : '',
+        `まだ入金の確認ができていません。「💰 入金」タブの振込先へお願いします` + PRAY,
+        `すでにお振り込み済みの場合は、主催者の確認をお待ちください。`,
+      ].filter(Boolean).join('\n');
+      const link = `/round/${round.id}?tab=payment`;
+      let sentN = 0;
+      for (const uid of unpaid) {
+        try {
+          const chatId = chatIdFor(ADMIN_MANAGER_ID, uid);
+          await db.sendMessage(chatId, [ADMIN_MANAGER_ID, uid].sort() as [string, string], ADMIN_MANAGER_ID, text);
+          await addNotification(uid, 'dm', `💴 「${title}」の${n === 0 ? '入金期日です' : `入金期日まであと${n}日です`}`, link).catch(() => {});
+          await pushTo(uid, text, liffUrl(link), 'paymentReminder').catch(() => {});
+          sentN += 1;
+        } catch (e) { console.warn('[upcoming-reminders] pay notice failed', { roundId: round.id, uid, err: (e as Error).message }); }
+      }
+      payResults.push({ roundId: round.id, key, unpaid: unpaid.length, sent: sentN });
+    }
+  }
+  return NextResponse.json({ ok: true, posted: results.length, results, payNotices: payResults }, { headers: noStore });
 }

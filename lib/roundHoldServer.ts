@@ -6,12 +6,12 @@ import { activeHoldOf, holdDueText, roundStillActive, jstParts } from './roundHo
 // 画面のポップアップ（components/HoldDueGate）は時刻どおりに出るので、ここは「アプリを開いていない主催者」向け。
 //   ・送ったら holds[userId].dueNotifiedAt を打つ（先に打ってから送る＝二重送信しない）
 //   ・同じ募集で同時に期日が来た人は1通にまとめる
-//   ・夜中（JST 23:00〜6:59）は送らず、朝7時以降の回にまとめて送る（ポップアップはその間も出る）
+//   ・夜中（JST 23:00〜7:59）は送らず、朝8時以降の回にまとめて送る（ポップアップはその間も出る）（2026-10-13 7時→8時）
 //   ・募集が完了・中止、申請者が取り下げた／承認・見送り済みなら送らない
 // 宛先の絞り込み（テスト垢）は pushTo / addNotificationMany の中の lib/testIsolation が、リンク /round/<id> から判定する。
 export async function sendDueHoldLines(now = Date.now()): Promise<{ rounds: number; holds: number; skippedNight?: boolean }> {
   const h = jstParts(now).h;
-  if (h >= 23 || h < 7) return { rounds: 0, holds: 0, skippedNight: true };
+  if (h >= 23 || h < 8) return { rounds: 0, holds: 0, skippedNight: true };
   const all = await db.listRounds();
   let rounds = 0; let holds = 0;
   for (const r of all) {
