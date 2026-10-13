@@ -107,6 +107,7 @@ function Inner() {
         { href: `/admin/official${q}`, emoji: '📣', title: '運営が立てる枠', desc: '代理募集を立てる / ホームの声かけ / レポート' },
         { href: `/admin/promo${q}`, emoji: '🔥', title: '募集のイチオシ', desc: '選んだ募集をおすすめポップアップで1人1回すすめる（予約・停止・効果）' },
         { href: `/admin/ratings${q}`, emoji: '⭐', title: '評価・通報・マナー', desc: '★の状況（全員）/ 通報 / ドタキャン・マナー / レビュー / 友達のつながり（QR・申請）' },
+        { href: `/admin/requests${q}`, emoji: '💡', title: '改修要望', desc: '会員から届いた「こんな機能がほしい」のスレッド。運営として返信・状態（受付→検討中→対応中→対応済み／見送り）・ピン留め' },
         { href: `/admin/dm${q}`, emoji: '💬', title: 'DMログ・未読', desc: '誰↔誰の本文 / 未読ユーザー・未読通知の設定' },
         { href: `/admin/support${q}`, emoji: '🛡️', title: '管理人としてDM', desc: '「管理人」名義でユーザーとやりとり（サポート窓口）' },
         { href: `/admin/hobby-tags${q}`, emoji: '🎯', title: '趣味タグ', desc: 'ユーザーが足した趣味タグの確認・不適切なものの削除' },

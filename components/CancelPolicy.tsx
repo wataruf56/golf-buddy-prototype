@@ -139,7 +139,8 @@ export function CancelClosedBox({ round, dmHref }: { round: { cancelPolicy?: Can
       <div className="text-[11px] text-sub mt-1 leading-relaxed">
         どうしても参加できなくなった場合は、主催者に直接連絡してください。{cp?.fee ? `キャンセル料（${cp.fee.toLocaleString('ja-JP')}円）がかかる場合があります。` : ''}
       </div>
-      <Link href={dmHref} className="block w-full mt-2 py-2.5 rounded-xl bg-blue text-white text-center text-[13px] font-black">💬 主催者にDMで連絡する</Link>
+      {/* 2026-10-13：主催者への連絡は 1対1 DM ではなく、グループチャット内の「❓ 主催者に質問」（主催者とあなただけが読めるスレッド）へ */}
+      <Link href={dmHref} className="block w-full mt-2 py-2.5 rounded-xl bg-blue text-white text-center text-[13px] font-black">❓ 主催者に連絡する（主催者だけに届きます）</Link>
     </div>
   );
 }

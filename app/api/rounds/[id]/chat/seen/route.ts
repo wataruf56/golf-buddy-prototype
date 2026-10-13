@@ -13,12 +13,19 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: noStore });
   const round = await db.getRound(params.id);
   if (!round) return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStore });
-  if (round.hostId !== meId && !(round.applicantIds || []).includes(meId)) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
   let body: any = {};
   try { body = (await req.json()) || {}; } catch { /* noop */ }
   const at = Math.min(Date.now(), Number(body.at) || Date.now());
   const adb = getAdminDb() as any;
   const tid = typeof body.threadId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(body.threadId) ? body.threadId : '';
+  const participant = round.hostId === meId || (round.coHostIds || []).includes(meId) || (round.applicantIds || []).includes(meId);
+  if (!participant) {
+    // 参加者でない人は、自分が入っている非公開の質問スレッドだけ既読にできる（2026-10-13・lib/roundQuestion）
+    if (!tid) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
+    const threads = await db.listRoundThreads(params.id);
+    const t = threads.find((x) => x.id === tid);
+    if (!t || !(t.memberIds || []).includes(meId)) return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: noStore });
+  }
   const key = tid ? threadSeenKey(params.id, tid) : params.id;
   if (adb) {
     const patch: Record<string, number> = { [key]: at };

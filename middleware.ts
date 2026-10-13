@@ -27,6 +27,7 @@ const ADMIN_HOSTS = new Set(['admin.goltomo.com']);
 const APP_PROTECTED_PREFIXES = [
   '/home', '/search', '/create', '/buddies', '/mypage',
   '/chat', '/swing', '/rematch', '/invite', '/timeline',
+  '/requests', // 💡 改修要望（会員向け・2026-10-13）
 ];
 
 const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';

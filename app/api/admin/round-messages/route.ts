@@ -53,7 +53,18 @@ export async function GET(req: NextRequest) {
       } catch { return null; }
     }))).filter(Boolean);
     const round = { title: rd.title || '', availDate: rd.availDate || '', date: rd.date || '', courseName: rd.courseName || '', maxSpots: rd.maxSpots || 0 };
-    return NextResponse.json({ count: items.length, items, users, members, round }, { headers: noStore });
+    // スレッドの一覧（公開スレッド＋「❓ 主催者に質問」の非公開スレッド）。管理画面では区別して表示する（2026-10-13・lib/roundQuestion）
+    let threads: any[] = [];
+    try {
+      const thSnap = await db.collection('rounds').doc(roundId).collection('threads').limit(100).get();
+      threads = thSnap.docs.map((d: any) => { const t = d.data() || {}; return { id: d.id, name: t.name || '', kind: t.kind || '', memberIds: t.memberIds || [], askerId: t.askerId || '', createdAt: t.createdAt || 0 }; });
+      threads.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+      // 質問した人の名前も解決しておく
+      await Promise.all(threads.filter((t) => t.askerId && !users[t.askerId]).map(async (t) => {
+        try { const us = await db.collection('users').doc(t.askerId).get(); users[t.askerId] = us.exists ? { displayName: us.data().displayName || '', avatar: us.data().avatar || '⛳' } : { displayName: '(削除済み)', avatar: '?' }; } catch { /* noop */ }
+      }));
+    } catch { /* 無ければ空 */ }
+    return NextResponse.json({ count: items.length, items, users, members, round, threads }, { headers: noStore });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers: noStore });
   }

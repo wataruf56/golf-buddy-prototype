@@ -44,8 +44,11 @@ export async function POST(req: NextRequest) {
         ref.collection('chat').where('createdAt', '>', minSeen).orderBy('createdAt', 'asc').limit(200).get(),
         ref.collection('threads').limit(50).get().catch(() => ({ docs: [] })),
       ]);
-      const msgs = msgSnap.docs.map((d: any) => d.data() || {});
-      const threads = thSnap.docs.map((d: any) => ({ id: d.id, ...(d.data() || {}) }));
+      // 非公開の質問スレッド（memberIds あり）は、自分が入っているものだけ数える（2026-10-13・lib/roundQuestion）
+      const allThreads = thSnap.docs.map((d: any) => ({ id: d.id, ...(d.data() || {}) }));
+      const hidden = new Set<string>(allThreads.filter((t: any) => Array.isArray(t.memberIds) && t.memberIds.length && !t.memberIds.includes(meId)).map((t: any) => t.id));
+      const threads = allThreads.filter((t: any) => !hidden.has(t.id));
+      const msgs = msgSnap.docs.map((d: any) => d.data() || {}).filter((m: any) => !m.threadId || !hidden.has(m.threadId));
       const u = computeRoundUnread(rid, meId, msgs, threads, seen);
       if (u.total > 0) unread[rid] = u;
     } catch (e) { console.warn('[round-unread]', rid, (e as Error).message); }

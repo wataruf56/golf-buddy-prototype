@@ -25,7 +25,9 @@ export default function BuddiesPage() {
 }
 
 // ゴル友＝1つの「友達」リストに統合。QRでつながった友達／また回りたい・気になる
-// （相互マッチ）／一緒に回った人を、それぞれラベル付きで1覧に表示する。
+// （相互マッチ）を、それぞれラベル付きで1覧に表示する。
+// 2026-10-13：「一緒に回った人」「メッセージした相手」はリストから外した。DM できる相手（lib/dmPolicy）と
+// このリストを一致させるため。以前は募集の主催者に問い合わせただけの人が、終了後もここに残って DM できた。
 function Inner() {
   const router = useRouter();
   const meId = useStore((s) => s.meId);
@@ -66,8 +68,6 @@ function Inner() {
 
   const [matches, setMatches] = useState<Record<string, MatchInfo>>({});
   const [matchUsers, setMatchUsers] = useState<Record<string, MUser>>({});
-  const [pastIds, setPastIds] = useState<string[]>([]);
-  const [pastUsers, setPastUsers] = useState<Record<string, MUser>>({});
   const [loaded, setLoaded] = useState(false);
   // タブ：friends=友達リスト / comp=過去に同じコンペに参加した人。
   const [tab, setTab] = useState<'friends' | 'comp'>('friends');
@@ -84,15 +84,6 @@ function Inner() {
         if (cancelled) return;
         if (d?.matches) setMatches(d.matches);
         if (d?.users) setMatchUsers(d.users);
-      } catch { /* noop */ }
-    })();
-    (async () => {
-      try {
-        const res = await fetch('/api/me/past-partners', { cache: 'no-store', credentials: 'include' });
-        const d = await res.json();
-        if (cancelled) return;
-        if (Array.isArray(d?.partners)) setPastIds(d.partners);
-        if (d?.users) setPastUsers(d.users);
       } catch { /* noop */ } finally { if (!cancelled) setLoaded(true); }
     })();
     (async () => {
@@ -109,22 +100,15 @@ function Inner() {
   }, []);
 
   // 各カテゴリの集合（ブロック・自分を除外）。
-  const pastSet = new Set(pastIds.filter((id) => !blocked.has(id) && id !== meId));
   const friendSet = new Set((me.friendIds || []).filter((id) => !blocked.has(id) && id !== meId));
   const againSet = new Set(Object.keys(matches).filter((id) => matches[id]?.again && !blocked.has(id) && id !== meId));
   const romanticSet = new Set(Object.keys(matches).filter((id) => matches[id]?.romantic && !blocked.has(id) && id !== meId));
-  // DMでやり取りした相手（招待→DMなど、まだ一緒に回っていない相手も含む）。1対1チャットの
-  // 相手を友達リストに含める。管理人チャットは別枠なので除外。
-  const dmSet = new Set(
-    chats
-      .map((c) => (c.participants || []).find((p) => p !== meId))
-      .filter((id): id is string => !!id && id !== ADMIN_MANAGER_ID && !blocked.has(id) && id !== meId)
-  );
 
-  // 表示対象（また回りたい／気になる／QR友達／一緒に回った／メッセージ相手）を重複なしで集約し、
+  // 表示対象（また回りたい／気になる／QR友達）＝ DM を送れる相手（lib/dmPolicy）と同じ範囲。重複なしで集約し、
   // 「ログインが新しい順」（lastActiveAt 降順）で並べる。最終ログイン不明の人は末尾。
+  // 「一緒に回っただけ」「メッセージしただけ」の人は載せない（2026-10-13・友達ではないのに DM できた抜け道の解消）。
   const memberSet = new Set<string>();
-  for (const id of [...againSet, ...romanticSet, ...friendSet, ...pastSet, ...dmSet]) memberSet.add(id);
+  for (const id of [...againSet, ...romanticSet, ...friendSet]) memberSet.add(id);
   const lastActiveOf = (id: string): number => (users.find((x) => x.id === id) as any)?.lastActiveAt || 0;
   const order = Array.from(memberSet).sort((a, b) => lastActiveOf(b) - lastActiveOf(a));
   const seen = memberSet; // comp タブの重複除外に流用（従来どおり）。
@@ -134,14 +118,14 @@ function Inner() {
   const compList = compIds.filter((id) => !blocked.has(id) && id !== meId && !seen.has(id));
 
   function userOf(id: string): MUser {
-    return (users.find((x) => x.id === id) as any) || matchUsers[id] || pastUsers[id] || compUsers[id] || { displayName: 'ゴルファー' };
+    return (users.find((x) => x.id === id) as any) || matchUsers[id] || compUsers[id] || { displayName: 'ゴルファー' };
   }
 
   return (
     <div className="h-full overflow-y-auto">
       <div className="px-5 pt-2 pb-1 text-2xl font-black tracking-tight">友達</div>
       <div className="px-5 pb-3 text-[13px] text-sub">
-        QRでつながった友達／レビューで「行きたい」「💘 気になる」同士の人・一緒に回った人／メッセージした相手が集まります。<b className="text-text">ログインが新しい順</b>に表示（名前の下に最終ログイン）。タップでプロフィール、💬でメッセージ。
+        QRや友達申請でつながった友達／レビューで「行きたい」「💘 気になる」同士の人が集まります（メッセージを送れる相手）。<b className="text-text">ログインが新しい順</b>に表示（名前の下に最終ログイン）。タップでプロフィール、💬でメッセージ。募集の主催者への連絡は、募集ページの「❓ 主催者に質問」から。
       </div>
 
       {/* 🛡️ 管理者にDM（運営への問い合わせ窓口）。2026-10-13：マイページに入口が無いので、
@@ -163,6 +147,13 @@ function Inner() {
                 {unread > 0 && <div className="px-1.5 py-0.5 bg-orange text-white text-[10px] font-bold rounded-full min-w-[18px] text-center">{unread}</div>}
                 <span className="text-lg">💬</span>
               </div>
+            </Link>
+            {/* 💡 改修要望（システム要望）の小さな導線（2026-10-13）。「こんな機能がほしい」「こうだったらいいのに」を
+                運営に伝える。要望ごとにスレッド＝運営とチャット／ほかの会員も読めて👍で後押し。個人の相談・通報は上のDMへ。 */}
+            <Link href="/requests" className="mt-1.5 flex items-center gap-1.5 px-2 py-1 text-[11.5px] font-bold text-sub">
+              <span>💡</span>
+              <span className="flex-1 min-w-0 truncate">こんな機能がほしい・こうだったらいいのに（改修要望）</span>
+              <span className="text-muted">›</span>
             </Link>
           </div>
         );
@@ -187,7 +178,7 @@ function Inner() {
       {tab === 'comp' && (
         <div className="px-5 pb-24">
           <div className="text-[12px] text-sub mb-3 leading-relaxed">
-            過去に<b>同じコンペ</b>に参加した人（組が分かれていた人も含む）。💬からメッセージを送れます。まだつながっていない人には「🤝 友達申請」が出ます（承認されるとメッセージできます）。
+            過去に<b>同じコンペ</b>に参加した人（組が分かれていた人も含む）。友達・マッチの人には💬が出てメッセージを送れます。まだつながっていない人には「🤝 友達申請」が出ます（承認されるとメッセージできます）。
           </div>
           {compList.length === 0 ? (
             <Empty title={loaded ? 'まだいません' : '読み込み中...'} desc="コンペ（5人以上）に参加して完了すると、ここに同じコンペの人が表示されます" />
@@ -213,14 +204,15 @@ function Inner() {
                       </div>
                     </div>
                   </Link>
-                  {compDm && !compDm.has(id) && !chat?.lastMessageAt ? (
-                    <Link href={`/profile/${id}?friend=1`} className="flex-shrink-0 px-2.5 py-1.5 rounded-full bg-green text-white text-[11px] font-black">🤝 友達申請</Link>
-                  ) : (
+                  {/* 💬 は DM を送れる相手（lib/dmPolicy＝友達・マッチ）だけ。過去にやり取りがあっても、友達でなければ友達申請（2026-10-13） */}
+                  {compDm?.has(id) ? (
                     <Link href={`/chat/${cid}?other=${id}`} className="flex items-center gap-1.5 flex-shrink-0">
                       {unread > 0 && <div className="px-1.5 py-0.5 bg-orange text-white text-[10px] font-bold rounded-full min-w-[18px] text-center">{unread}</div>}
                       <span className="text-lg">💬</span>
                     </Link>
-                  )}
+                  ) : compDm ? (
+                    <Link href={`/profile/${id}?friend=1`} className="flex-shrink-0 px-2.5 py-1.5 rounded-full bg-green text-white text-[11px] font-black">🤝 友達申請</Link>
+                  ) : null}
                 </div>
               );
             })
@@ -257,7 +249,7 @@ function Inner() {
         {order.length === 0 ? (
           <Empty
             title={loaded ? 'まだ友達がいません' : '読み込み中...'}
-            desc="マイページの「QRコードで友達」で直接つながるか、ラウンドで一緒に回ると増えていきます"
+            desc="マイページの「QRコードで友達」や友達申請で直接つながるか、一緒に回ったあとのレビューでお互いに「行きたい」を選ぶと増えていきます"
           />
         ) : (
           order.map((id) => {
@@ -282,9 +274,7 @@ function Inner() {
                     <div className="flex items-center gap-1 mt-1 flex-wrap">
                       {againSet.has(id) && <Badge className="text-green bg-green-light border-green">🏌️ 行きたい同士</Badge>}
                       {romanticSet.has(id) && <Badge className="text-pink-600 bg-pink-100 border-pink-600">💘 気になる</Badge>}
-                      {friendSet.has(id) && <Badge className="text-blue bg-blue-light border-blue">🤝 QR友達</Badge>}
-                      {pastSet.has(id) && !againSet.has(id) && !romanticSet.has(id) && <Badge className="text-sub bg-bg border-border">⛳ 一緒に回った</Badge>}
-                      {dmSet.has(id) && !againSet.has(id) && !romanticSet.has(id) && !friendSet.has(id) && !pastSet.has(id) && <Badge className="text-purple-600 bg-purple-100 border-purple-600">💬 メッセージ</Badge>}
+                      {friendSet.has(id) && <Badge className="text-blue bg-blue-light border-blue">🤝 友達</Badge>}
                     </div>
                   </div>
                 </Link>

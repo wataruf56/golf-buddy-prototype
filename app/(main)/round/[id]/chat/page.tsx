@@ -63,6 +63,12 @@ export default function RoundChatPage() {
   const [denied, setDenied] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  // 「❓ 主催者に質問」の限定表示（2026-10-13・lib/roundQuestion）：参加者でない人（申請中・見に来た人など）は、
+  // 自分の質問スレッドだけが見える。本流・他のスレッド・スレッド作成は出さない。
+  const [limited, setLimited] = useState(false);
+  // ?ask=1（自分が質問する）／?ask={userId}（主催者がその人に連絡）で来たら、スレッドを用意して開く
+  const askParam = search?.get('ask') || '';
+  const askHandledRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const round = storeRound || fetchedRound;
@@ -83,9 +89,37 @@ export default function RoundChatPage() {
       setMessages(d.messages || []);
       setThreads(d.threads || []);
       if (d.round) setFetchedRound(d.round);
+      setLimited(!!d.limited);
+      // 限定表示なら、自分の質問スレッドを開いたままにする（本流は無い）
+      if (d.limited && d.questionThreadId && !activeThreadRef.current) setActiveThread(String(d.questionThreadId));
       setDenied(false);
       setLoaded(true);
     } catch { /* silent (keep last good state) */ }
+  }
+
+  // ?ask= で来たとき：質問スレッドを用意（あれば再利用）して、そのスレッドを開く。URL は ?thread= に置き換える
+  async function ensureAskThread(): Promise<boolean> {
+    try {
+      const res = await fetch(`/api/rounds/${params.id}/question`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(askParam && askParam !== '1' ? { userId: askParam } : {}), cache: 'no-store', credentials: 'include',
+      });
+      if (!res.ok) {
+        const { readApiError } = await import('@/lib/apiError');
+        toast(await readApiError(res, '質問スレッドを開けませんでした'), 'error');
+        router.replace(`/round/${params.id}`);
+        return false;
+      }
+      const d = await res.json();
+      if (d?.threadId) {
+        setActiveThread(String(d.threadId));
+        activeThreadRef.current = String(d.threadId);
+        if (d.thread) setThreads((prev) => (prev.some((t) => t.id === d.thread.id) ? prev : [...prev, d.thread]));
+        track('round_question_open', { roundId: String(params.id), created: !!d.created });
+        router.replace(`/round/${params.id}/chat?thread=${encodeURIComponent(String(d.threadId))}`);
+      }
+      return true;
+    } catch { toast('通信に失敗しました', 'error'); return false; }
   }
 
   async function shareChat() {
@@ -123,10 +157,20 @@ export default function RoundChatPage() {
 
   useEffect(() => {
     if (!params.id) return;
-    load();
-    if (!activeThreadRef.current) markRoundChatSeen(params.id);
-    const interval = setInterval(() => { load(); if (!activeThreadRef.current) markRoundChatSeen(params.id); }, 3000);
-    return () => clearInterval(interval);
+    let cancelled = false;
+    (async () => {
+      // ?ask= のときは先にスレッドを用意する（参加者でない人は、スレッドが無いと読み込みが 403 になる）
+      if (askParam && !askHandledRef.current) {
+        askHandledRef.current = true;
+        const ok = await ensureAskThread();
+        if (!ok || cancelled) return;
+      }
+      load();
+      if (!activeThreadRef.current) markRoundChatSeen(params.id);
+    })();
+    const interval = setInterval(() => { if (askParam && !askHandledRef.current) return; load(); if (!activeThreadRef.current) markRoundChatSeen(params.id); }, 3000);
+    return () => { cancelled = true; clearInterval(interval); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
   // 既読をサーバーにも残す（ほかの端末でも消す）。本流とスレッドは別々に既読にする＝見ている方だけ（2026-10-13）。
@@ -165,6 +209,10 @@ export default function RoundChatPage() {
   );
   const countFor = (tid: string) => messages.filter((m) => m.threadId === tid).length;
   const activeThreadObj = threads.find((t) => t.id === activeThread);
+  // 「❓ 主催者に質問」のスレッドか／自分が質問した側か（主催者側には「〇〇さんからの質問」、質問した側には「主催者への質問」）
+  const isQuestionView = activeThreadObj?.kind === 'question';
+  const iAmAsker = isQuestionView && activeThreadObj?.askerId === meId;
+  const threadTitle = (t: RoundThread) => (t.kind === 'question' && t.askerId === meId ? '❓ 主催者への質問' : t.name);
 
   // メンション着色用：このラウンドの参加者の表示名（長い順＝部分一致の取りこぼし防止）。
   const memberNames = useMemo(() => {
@@ -195,15 +243,16 @@ export default function RoundChatPage() {
   }
 
   // メンション候補：このラウンドの参加者（主催者＋承認済み）から自分を除く。
+  // 質問スレッド（主催者⇄質問した人だけ）では相手に自動で通知が届くので、メンションは出さない。
   const mentionMembers = useMemo(() => {
-    if (!round) return [] as { id: string; displayName: string }[];
+    if (!round || isQuestionView || limited) return [] as { id: string; displayName: string }[];
     const ids = [round.hostId, ...(round.applicantIds || [])].filter((id) => id && id !== meId);
     const uniq = Array.from(new Set(ids));
     return uniq
       .map((id) => users.find((u) => u.id === id))
       .filter(Boolean)
       .map((u) => ({ id: (u as any).id as string, displayName: (u as any).displayName as string }));
-  }, [round, users, meId]);
+  }, [round, users, meId, isQuestionView, limited]);
   const [showMention, setShowMention] = useState(false);
 
   // 一度のメッセージで複数人を指名できるよう、@表示名 を本文に追記していく。
@@ -308,7 +357,8 @@ export default function RoundChatPage() {
         <div className="text-4xl mb-3">🔒</div>
         <div className="text-base font-black mb-2">参加者専用のグループチャットです</div>
         <div className="text-[13px] text-sub leading-relaxed mb-5">
-          このグループチャットは、ラウンドに参加している人だけが閲覧できます。
+          このグループチャットは、ラウンドに参加している人だけが閲覧できます。<br />
+          主催者に聞きたいことがあるときは、募集ページの「❓ 主催者に質問」からどうぞ（主催者だけに届きます）。
         </div>
         <button onClick={() => router.push(`/round/${params.id}`)} className="px-5 py-2.5 bg-green text-white rounded-xl text-sm font-bold">
           募集の詳細を見る
@@ -334,7 +384,8 @@ export default function RoundChatPage() {
 
   // 運営枠のチャットは**人がそろってから**始まる。募集中に開かせない。
   // 入口は出していないが、URL を直接叩けば来られてしまうのでここでも止める。
-  if ((round as any).official?.stage === 'recruiting') {
+  // 「❓ 主催者に質問」のスレッドは募集中でも開ける（運営に申し込む前の質問のため）
+  if ((round as any).official?.stage === 'recruiting' && !limited && !isQuestionView) {
     return (
       <div className="p-5">
         <div className="bg-card border-2 border-border rounded-card p-4 text-center">
@@ -356,12 +407,25 @@ export default function RoundChatPage() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center gap-3 px-5 py-3 border-b border-border bg-card flex-shrink-0 sticky top-0 z-10">
-        {activeThread ? (
+        {limited ? (
+          /* 限定表示（参加者でない人の「❓ 主催者に質問」）：戻る先は募集ページ。本流は無い */
+          <>
+            <button onClick={() => router.push(`/round/${params.id}`)} className="text-xl text-blue">←</button>
+            <Link href={`/round/${params.id}`} className="flex-1 min-w-0">
+              <div className="text-[15px] font-bold truncate">❓ 主催者への質問 ・ {round.title}</div>
+              <div className="text-[11px] text-sub truncate">主催者（と共同管理者）とあなただけが読めるスレッドです</div>
+            </Link>
+          </>
+        ) : activeThread ? (
           <>
             <button onClick={() => setActiveThread(null)} className="text-blue text-sm font-bold inline-flex items-center gap-1">← 戻る{unreadHere.main > 0 && <UnreadCountBadge n={unreadHere.main} />}</button>
             <div className="flex-1 min-w-0">
-              <div className="text-[15px] font-bold truncate">{activeThreadObj?.name || 'スレッド'}</div>
-              <div className="text-[11px] text-sub truncate">スレッド ・ グループチャットに戻るには「戻る」</div>
+              <div className="text-[15px] font-bold truncate">{activeThreadObj ? threadTitle(activeThreadObj) : 'スレッド'}</div>
+              <div className="text-[11px] text-sub truncate">
+                {isQuestionView
+                  ? (iAmAsker ? '主催者だけに届きます ・ ほかの参加者には見えません' : 'この人と主催者だけが読めるスレッド ・ ほかの参加者には見えません')
+                  : 'スレッド ・ グループチャットに戻るには「戻る」'}
+              </div>
             </div>
           </>
         ) : (
@@ -382,8 +446,8 @@ export default function RoundChatPage() {
         )}
       </div>
 
-      {/* Thread bar — only in main view */}
-      {!activeThread && (
+      {/* Thread bar — only in main view（限定表示では出さない） */}
+      {!activeThread && !limited && (
         <div className="bg-card border-b border-border px-4 py-2 flex-shrink-0">
           <div className="text-[10px] font-bold text-sub mb-1.5 flex items-center justify-between">
             <span>📌 スレッド</span><span className="text-muted">{threads.length}件</span>
@@ -393,9 +457,9 @@ export default function RoundChatPage() {
               <button
                 key={t.id}
                 onClick={() => setActiveThread(t.id)}
-                className="flex-shrink-0 inline-flex items-center gap-1.5 bg-green-light text-green rounded-full px-3 py-1.5 text-[12px] font-bold"
+                className={'flex-shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-bold ' + (t.kind === 'question' ? 'bg-yellow-light text-text border border-yellow' : 'bg-green-light text-green')}
               >
-                {t.name}
+                {threadTitle(t)}
                 {unreadHere.threads[t.id]
                   ? <UnreadCountBadge n={unreadHere.threads[t.id]} />
                   : unreadHere.newThreads.includes(t.id)
@@ -415,8 +479,10 @@ export default function RoundChatPage() {
       <div ref={scrollRef} className="flex-1 px-5 py-4 flex flex-col gap-2.5 overflow-y-auto">
         {shown.length === 0 && (
           <div className="text-center my-10 text-sub text-sm">
-            {activeThread ? '🧵 このスレッドの最初の投稿を書きましょう' : '🏌️ ラウンドについて話しましょう'}<br />
-            <span className="text-[11px] text-muted">最初のメッセージを送ってみましょう</span>
+            {isQuestionView
+              ? (iAmAsker ? '❓ 主催者に聞きたいことを書きましょう' : '❓ この人への連絡を書きましょう')
+              : activeThread ? '🧵 このスレッドの最初の投稿を書きましょう' : '🏌️ ラウンドについて話しましょう'}<br />
+            <span className="text-[11px] text-muted">{isQuestionView ? '送ると相手に通知が届きます（ほかの参加者には見えません）' : '最初のメッセージを送ってみましょう'}</span>
           </div>
         )}
         {shown.map((m) => {
@@ -542,7 +608,7 @@ export default function RoundChatPage() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           maxRows={4}
-          placeholder={activeThread ? `「${activeThreadObj?.name || 'スレッド'}」に返信...` : 'メッセージを入力...（改行OK）'}
+          placeholder={isQuestionView ? (iAmAsker ? '主催者に質問・連絡...' : '返事を書く...') : activeThread ? `「${activeThreadObj?.name || 'スレッド'}」に返信...` : 'メッセージを入力...（改行OK）'}
           className="flex-1 px-4 py-2.5 border-[1.5px] border-border rounded-[18px] text-sm outline-none bg-bg resize-none"
         />
         <button onClick={send} disabled={sending} aria-label="送信" className="self-end flex-shrink-0 w-10 h-10 bg-green text-white rounded-full text-base font-bold disabled:opacity-50">➤</button>

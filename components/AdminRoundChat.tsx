@@ -35,6 +35,8 @@ export function AdminRoundChat({ token, roundId, defaultOpen = false, label = '�
   const [users, setUsers] = useState<Record<string, any>>({});
   const [members, setMembers] = useState<Member[]>([]);
   const [info, setInfo] = useState<RoundInfo | null>(null);
+  // スレッド（公開＋「❓ 主催者に質問」の非公開）。発言の横に「どのスレッドか」を出す（2026-10-13・lib/roundQuestion）
+  const [threads, setThreads] = useState<Array<{ id: string; name: string; kind?: string; memberIds?: string[]; askerId?: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [body, setBody] = useState('');
   const [mentions, setMentions] = useState<string[]>([]);   // 選んだ人の id。'all' は @全員
@@ -45,7 +47,7 @@ export function AdminRoundChat({ token, roundId, defaultOpen = false, label = '�
     try {
       const r = await fetch(`/api/admin/round-messages?token=${encodeURIComponent(token)}&roundId=${encodeURIComponent(roundId)}`, { cache: 'no-store' });
       const d = await r.json();
-      if (r.ok) { setMsgs(d.items || []); setUsers(d.users || {}); setMembers(d.members || []); setInfo(d.round || null); }
+      if (r.ok) { setMsgs(d.items || []); setUsers(d.users || {}); setMembers(d.members || []); setInfo(d.round || null); setThreads(Array.isArray(d.threads) ? d.threads : []); }
       else { alertDialog('取得失敗: ' + (d.error || r.status)); }
     } catch { alertDialog('取得失敗'); }
     finally { setLoading(false); }
@@ -103,6 +105,15 @@ export function AdminRoundChat({ token, roundId, defaultOpen = false, label = '�
   }
 
   const chip = (on: boolean) => 'px-2 py-1 rounded-full text-[11px] font-bold border ' + (on ? 'bg-green text-white border-green' : 'bg-bg text-sub border-border');
+  // 発言がどのスレッドのものかのラベル。質問スレッドは「❓ 質問（〇〇さん・非公開）」
+  function threadLabel(threadId?: string): string {
+    if (!threadId) return '';
+    const t = threads.find((x) => x.id === threadId);
+    if (!t) return ' ・スレッド';
+    if (t.kind === 'question') return ` ・❓ 質問（${users[t.askerId || '']?.displayName || '不明'}さん・主催者とのみ）`;
+    return ` ・スレッド「${t.name}」`;
+  }
+  const questionThreads = threads.filter((t) => t.kind === 'question');
   return (
     <details
       className="mt-2"
@@ -130,13 +141,28 @@ export function AdminRoundChat({ token, roundId, defaultOpen = false, label = '�
           </div>
         )}
 
+        {/* 「❓ 主催者に質問」のスレッド（主催者と質問した人だけが読める非公開スレッド）。発言の横にも印を出す */}
+        {msgs && questionThreads.length > 0 && (
+          <div className="bg-card border border-border rounded-lg p-2">
+            <div className="text-[11px] font-black mb-1">❓ 主催者への質問スレッド（{questionThreads.length}件・非公開）</div>
+            <div className="flex flex-wrap gap-1">
+              {questionThreads.map((t) => (
+                <span key={t.id} className="text-[11px] bg-bg border border-border rounded-full px-2 py-0.5">
+                  {users[t.askerId || '']?.displayName || '不明'}さん
+                  <span className="text-muted text-[10px] ml-1">{(msgs || []).filter((m) => m.threadId === t.id).length}件</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {msgs && msgs.length === 0 && <div className="text-[10px] text-muted">メッセージはありません</div>}
         {msgs && msgs.map((m) => {
           const u = users[m.senderId] || { displayName: m.senderId, avatar: '?' };
           return (
             <div key={m.id} className="bg-bg rounded-lg p-2">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] font-bold truncate">{u.avatar} {u.displayName}{m.threadId ? ' ・スレッド' : ''}</span>
+                <span className="text-[10px] font-bold truncate">{u.avatar} {u.displayName}{threadLabel(m.threadId)}</span>
                 <button onClick={() => del(m.id)} className="text-[10px] font-bold text-red-600 px-2 py-0.5 bg-red-50 rounded flex-shrink-0">削除</button>
               </div>
               <div className="text-[12px] mt-0.5 whitespace-pre-wrap break-words"><Linkify text={m.text} /></div>

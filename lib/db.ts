@@ -102,7 +102,8 @@ export interface DB {
   latestRoundMessageAt(roundId: string): Promise<number>;
   addRoundMessage(roundId: string, senderId: string, text: string, threadId?: string, imageUrl?: string): Promise<Message>;
   listRoundThreads(roundId: string): Promise<RoundThread[]>;
-  createRoundThread(roundId: string, name: string, userId: string): Promise<RoundThread>;
+  // extra: 非公開の質問スレッド用（kind / memberIds / askerId）（2026-10-13）
+  createRoundThread(roundId: string, name: string, userId: string, extra?: Pick<RoundThread, 'kind' | 'memberIds' | 'askerId'>): Promise<RoundThread>;
 
   // ラウンドの写真アルバム。
   listRoundPhotos(roundId: string): Promise<RoundPhoto[]>;
@@ -528,8 +529,8 @@ class MemoryDB implements DB {
   async listRoundThreads(roundId: string) {
     return [...(this.roundThreads.get(roundId) || [])].sort((a, b) => a.createdAt - b.createdAt);
   }
-  async createRoundThread(roundId: string, name: string, userId: string) {
-    const t: RoundThread = { id: `th_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, name, createdBy: userId, createdAt: Date.now() };
+  async createRoundThread(roundId: string, name: string, userId: string, extra?: Pick<RoundThread, 'kind' | 'memberIds' | 'askerId'>) {
+    const t: RoundThread = { id: `th_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, name, createdBy: userId, createdAt: Date.now(), ...(extra || {}) };
     const arr = this.roundThreads.get(roundId) || [];
     arr.push(t);
     this.roundThreads.set(roundId, arr);
@@ -1423,10 +1424,14 @@ class FirestoreDB implements DB {
       return [];
     }
   }
-  async createRoundThread(roundId: string, name: string, userId: string) {
+  async createRoundThread(roundId: string, name: string, userId: string, extra?: Pick<RoundThread, 'kind' | 'memberIds' | 'askerId'>) {
     const now = Date.now();
-    const ref = await this.fs.collection('rounds').doc(roundId).collection('threads').add({ name, createdBy: userId, createdAt: now });
-    return { id: ref.id, name, createdBy: userId, createdAt: now };
+    const data: any = { name, createdBy: userId, createdAt: now };
+    if (extra?.kind) data.kind = extra.kind;
+    if (extra?.memberIds) data.memberIds = extra.memberIds;
+    if (extra?.askerId) data.askerId = extra.askerId;
+    const ref = await this.fs.collection('rounds').doc(roundId).collection('threads').add(data);
+    return { id: ref.id, ...data } as RoundThread;
   }
   async listRoundPhotos(roundId: string) {
     const snap = await this.fs.collection('rounds').doc(roundId).collection('photos')

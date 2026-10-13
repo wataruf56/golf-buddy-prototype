@@ -18,7 +18,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: noStore });
   const chk = await ensureParticipant(params.id, meId);
   if (chk.error) return chk.error;
-  const threads = await db.listRoundThreads(params.id);
+  // 非公開の質問スレッド（kind:'question'）は memberIds に入っている人にだけ返す（2026-10-13・lib/roundQuestion）
+  const { canSeeThread } = await import('@/lib/roundQuestion');
+  const threads = (await db.listRoundThreads(params.id)).filter((t) => canSeeThread(t, meId));
   return NextResponse.json({ threads }, { headers: noStore });
 }
 

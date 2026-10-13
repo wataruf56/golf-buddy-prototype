@@ -513,6 +513,12 @@ export type RoundThread = {
   name: string;
   createdBy: string;
   createdAt: number;
+  // 「❓ 主催者に質問」の非公開スレッド（2026-10-13・lib/roundQuestion）。
+  //   kind='question' のスレッドは memberIds（主催者・共同管理者・質問した人）だけが読める・書ける。
+  //   kind/memberIds が無いスレッドは従来どおり参加者全員に見える公開スレッド。
+  kind?: 'question';
+  memberIds?: string[];
+  askerId?: string;
 };
 
 // ラウンドの写真アルバム（参加者で写真を共有）。画像は resize 済みの dataURL を保存。

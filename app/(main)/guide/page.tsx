@@ -612,6 +612,10 @@ function HelpBox({ adminDmHref }: { adminDmHref: string }) {
         className="block mt-3 py-2.5 rounded-xl text-[13px] font-black text-white text-center border-2 border-border shadow-[2px_2px_0_#1E3A30] bg-green">
         🛡️ 管理者にDMする
       </Link>
+      {/* 💡 改修要望（「こんな機能がほしい」）は DM とは別の窓口（/requests・2026-10-13） */}
+      <Link href="/requests" className="block mt-2 text-center text-[11.5px] font-bold text-sub">
+        💡 改修の要望はこちら ›
+      </Link>
     </div>
   );
 }

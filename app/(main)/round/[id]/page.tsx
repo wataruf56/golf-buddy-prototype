@@ -291,6 +291,22 @@ export default function RoundDetailPage() {
     return () => { off = true; };
   }, [statsKey, meId]);
 
+  // 「❓ 主催者に質問」とDM可否（2026-10-13・lib/roundQuestion／lib/dmPolicy）。
+  //   canAsk    … 自分がこの募集で質問スレッドを立ててよいか（主催者は false）
+  //   threadId  … 自分の質問スレッド（あれば）
+  //   dmAllowed … この募集に出てくる人のうち 1対1 DM を送れる相手（友達・マッチ・管理人だけ）。それ以外の人には 💬 を出さない
+  const [qInfo, setQInfo] = useState<{ canAsk: boolean; threadId: string | null; dmAllowed: string[] } | null>(null);
+  const qKey = round && meId ? `${round.id}|${meId}|${statsKey}|${(round.status || '')}` : '';
+  useEffect(() => {
+    if (!qKey) return;
+    let off = false;
+    fetch(`/api/rounds/${qKey.split('|')[0]}/question`, { cache: 'no-store', credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (!off && j) setQInfo({ canAsk: !!j.canAsk, threadId: j.threadId || null, dmAllowed: Array.isArray(j.dmAllowed) ? j.dmAllowed : [] }); })
+      .catch(() => {});
+    return () => { off = true; };
+  }, [qKey]);
+
   if (!round) {
     if (fetchState === 'loading') {
       return <div className="p-5 text-center text-sub">読み込み中...</div>;
@@ -333,12 +349,14 @@ export default function RoundDetailPage() {
     && !isHost && !round.applicantIds.includes(meId);
   const isApproved = round.applicantIds.includes(meId);
   const isPending = (round.pendingApplicantIds || []).includes(meId);
-  // 参加者同士のDMは「主催者/共同管理者 or 承認済み参加者」だけに開放する。未参加の閲覧者は
-  // 参加者一覧からDMを送れない（問い合わせは主催者欄の💬に集約）。
-  const canDmMembers = isHost || isApproved;
-  // 主催者への💬：募集中(open)は誰でも可（問い合わせ）。締切/完了後はメンバー・申請中・招待中のみ
-  // （lib/dmPolicy のサーバー判定と同じ範囲に揃える）。
-  const canDmHost = round.status === 'open' || canDmMembers || isPending || (round.invitedIds || []).includes(meId);
+  // 1対1 DM（💬）は「友達・マッチ・管理人」だけ（2026-10-13・lib/dmPolicy。判定は /api/rounds/[id]/question の dmAllowed）。
+  // 以前は「募集中の主催者」「同じ組」「申請・招待の関係」でも 💬 を出していたが、その相手が終了後も友達リストに残って
+  // DM し続けられる抜け道になっていたのでやめた。募集まわりの連絡は「❓ 主催者に質問」（グループチャット内の非公開スレッド）へ。
+  const dmOk = (id: string) => !!meId && id !== meId && !!qInfo && qInfo.dmAllowed.includes(id);
+  // 「❓ 主催者に質問」を出すか：サーバー判定（あれば）。届く前は、募集中／承認済み／申請中／招待中なら出す
+  const canAskHost = !!meId && !isHost && (qInfo ? qInfo.canAsk : (round.status === 'open' || isApproved || isPending || (round.invitedIds || []).includes(meId)));
+  const askHref = `/round/${round.id}/chat?ask=1`;                                            // 自分が質問する
+  const contactHref = (uid: string) => `/round/${round.id}/chat?ask=${encodeURIComponent(uid)}`; // 主催者 → その人に個別に連絡
   // 飲み会（eventType='drink'）: 定員なし・ゴルフ場/組み分け/送迎/レビュー無し。
   const isDrink = round.eventType === 'drink';
   // 画面下に貼りつく参加ボタンを出すか。
@@ -1070,7 +1088,7 @@ export default function RoundDetailPage() {
           <div className="space-y-2 mb-4">
             <div className="text-center py-3 bg-green-light text-green rounded-xl text-sm font-bold">✅ 参加確定</div>
             {isPastCancelDeadline(round as any) ? (
-              <CancelClosedBox round={round as any} dmHref={`/chat/${chatIdFor(meId, round.hostId)}?other=${round.hostId}`} />
+              <CancelClosedBox round={round as any} dmHref={askHref} />
             ) : (
               <>
                 <button onClick={() => setLeaveOpen(true)} className="w-full py-3 bg-card text-red border border-red rounded-xl text-sm font-bold">参加を取りやめる</button>
@@ -1244,12 +1262,21 @@ export default function RoundDetailPage() {
                         <MemberCounts s={roundStats[h.id]} />
                       </div>
                     </Link>
-                    {!!meId && h.id !== meId && canDmHost && (
+                    {/* 幹事への連絡：友達・マッチなら💬（1対1 DM）、それ以外は「❓ 質問」（幹事を含む主催者側と自分だけのスレッド） */}
+                    {dmOk(h.id) ? (
                       <Link href={`/chat/${chatIdFor(meId, h.id)}?other=${h.id}`} className="px-2.5 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
-                    )}
+                    ) : canAskHost ? (
+                      <Link href={askHref} className="px-2.5 py-1 bg-card text-blue border border-blue rounded text-[11px] font-bold flex-shrink-0">❓ 質問</Link>
+                    ) : null}
                   </div>
                 ))}
               </>
+            )}
+            {/* 公式募集（主催者欄は「ゴルトモ公式」）でも、運営に聞きたいことはここから。運営側（主催者＋幹事）と自分だけに届く */}
+            {canAskHost && coHosts.length === 0 && (
+              <Link href={askHref} className="mt-2.5 flex items-center justify-center gap-1.5 w-full py-2.5 bg-card text-blue border-[1.5px] border-blue rounded-xl text-[13px] font-black">
+                ❓ 主催者に質問{qInfo?.threadId ? '（続きを見る）' : ''}
+              </Link>
             )}
           </div>
         ) : (host || coHosts.length > 0) ? (
@@ -1265,16 +1292,30 @@ export default function RoundDetailPage() {
                     <MemberCounts s={roundStats[h.id]} />
                   </div>
                 </Link>
-                {!!meId && h.id !== meId && canDmHost && (
+                {/* 主催者への連絡（2026-10-13）：友達・マッチなら💬（1対1 DM）。それ以外は「❓ 主催者に質問」
+                    ＝グループチャット内の、主催者（＋共同管理者）と自分だけが読めるスレッド。共同管理者の行には出さない（同じスレッドに届く） */}
+                {dmOk(h.id) ? (
                   <Link
                     href={`/chat/${chatIdFor(meId, h.id)}?other=${h.id}`}
                     className="px-3 py-1.5 bg-blue text-white rounded-lg text-xs font-bold flex-shrink-0"
                   >
                     💬 メッセージ
                   </Link>
-                )}
+                ) : canAskHost && idx === 0 ? (
+                  <Link
+                    href={askHref}
+                    className="px-3 py-1.5 bg-card text-blue border-[1.5px] border-blue rounded-lg text-xs font-black flex-shrink-0"
+                  >
+                    ❓ 主催者に質問
+                  </Link>
+                ) : null}
               </div>
             ))}
+            {canAskHost && (
+              <div className="text-[10.5px] text-sub leading-relaxed px-1">
+                「❓ 主催者に質問」は、主催者{coHosts.length > 0 ? '・共同管理者' : ''}とあなただけが読めるスレッドです（ほかの参加者には見えません）。{qInfo?.threadId ? 'すでに質問スレッドがあります。' : ''}
+              </div>
+            )}
           </div>
         ) : null}
 
@@ -1308,7 +1349,7 @@ export default function RoundDetailPage() {
                       <MemberCounts s={roundStats[playingHost.id]} />
                     </div>
                   </Link>
-                  {canDmMembers && playingHost.id !== meId && (
+                  {dmOk(playingHost.id) && (
                     <Link href={`/chat/${chatIdFor(meId, playingHost.id)}?other=${playingHost.id}`} className="px-2.5 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
                   )}
                 </div>
@@ -1331,12 +1372,15 @@ export default function RoundDetailPage() {
                       <MemberCounts s={roundStats[u.id]} />
                     </div>
                   </Link>
-                  {canDmMembers && !isHost && u.id !== meId && (
+                  {/* 参加者同士の 💬 は友達・マッチだけ（それ以外はグループチャットで）。主催者は友達でなくても「❓ 連絡」で個別スレッドを立てられる */}
+                  {dmOk(u.id) && (
                     <Link href={`/chat/${chatIdFor(meId, u.id)}?other=${u.id}`} className="px-2.5 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
                   )}
                   {isHost && (
                     <>
-                      <Link href={`/chat/${chatIdFor(meId, u.id)}?other=${u.id}`} className="px-2.5 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
+                      {!dmOk(u.id) && u.id !== meId && (
+                        <Link href={contactHref(u.id)} className="px-2.5 py-1 bg-card text-blue border border-blue rounded text-[11px] font-bold flex-shrink-0">❓ 連絡</Link>
+                      )}
                       {!round.coHostIds?.includes(u.id) && (
                         <button onClick={() => kick(u.id, u.displayName)} className="px-2.5 py-1 bg-card text-red border border-red rounded text-[11px] font-bold flex-shrink-0">外す</button>
                       )}
@@ -1401,9 +1445,12 @@ export default function RoundDetailPage() {
                   <span className="text-[12.5px] font-bold truncate">{users.find((u) => u.id === c.userId)?.displayName || c.name || 'メンバー'}</span>
                   <span className={'text-[10px] font-bold ' + (c.wasApproved ? 'text-red' : 'text-sub')}>{c.wasApproved ? '参加確定を取りやめ' : c.holdCant ? '保留に「待てない」で取り消し' : '申請を取り下げ'}</span>
                   <span className="text-[10px] text-muted ml-auto flex-shrink-0">{timeAgo(c.at)}</span>
-                  {/* 主催者 → 取りやめた人へDM（理由を聞く・誘い直す）（2026-10-11） */}
+                  {/* 主催者 → 取りやめた人へ連絡（理由を聞く・誘い直す）（2026-10-11）。
+                      2026-10-13：1対1 DM は友達・マッチだけ。それ以外は「❓ 連絡」＝その人と主催者だけのスレッド */}
                   {c.userId && c.userId !== meId && (
-                    <Link href={`/chat/${chatIdFor(meId, c.userId)}?other=${c.userId}`} className="px-2 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
+                    dmOk(c.userId)
+                      ? <Link href={`/chat/${chatIdFor(meId, c.userId)}?other=${c.userId}`} className="px-2 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
+                      : <Link href={contactHref(c.userId)} className="px-2 py-1 bg-card text-blue border border-blue rounded text-[11px] font-bold flex-shrink-0">❓ 連絡</Link>
                   )}
                 </div>
                 {c.wasApproved && (
@@ -1436,7 +1483,10 @@ export default function RoundDetailPage() {
                         <MemberCounts s={roundStats[u.id]} />
                       </div>
                     </Link>
-                    <Link href={`/chat/${chatIdFor(meId, u.id)}?other=${u.id}`} className="px-2.5 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
+                    {/* 申請者への連絡：友達・マッチなら💬、それ以外は「❓ 連絡」（この人と主催者だけのスレッド） */}
+                    {dmOk(u.id)
+                      ? <Link href={`/chat/${chatIdFor(meId, u.id)}?other=${u.id}`} className="px-2.5 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
+                      : <Link href={contactHref(u.id)} className="px-2.5 py-1 bg-card text-blue border border-blue rounded text-[11px] font-bold flex-shrink-0">❓ 連絡</Link>}
                   </div>
                   {h && (
                     <div className="mt-1.5 flex gap-1.5 flex-wrap">
@@ -1496,7 +1546,9 @@ export default function RoundDetailPage() {
                         <div className="text-[10px] text-sub">{u ? describeUser(u as User) : ''}{e.at ? ` ・ ${new Date(e.at).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })} 登録` : ''}</div>
                       </div>
                     </Link>
-                    <Link href={`/chat/${chatIdFor(meId, e.userId)}?other=${e.userId}`} className="px-2.5 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
+                    {dmOk(e.userId)
+                      ? <Link href={`/chat/${chatIdFor(meId, e.userId)}?other=${e.userId}`} className="px-2.5 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
+                      : <Link href={contactHref(e.userId)} className="px-2.5 py-1 bg-card text-blue border border-blue rounded text-[11px] font-bold flex-shrink-0">❓ 連絡</Link>}
                     <button onClick={() => approveFromWaitlist(e.userId, u?.displayName || 'メンバー', g)} className="px-2.5 py-1.5 bg-green text-white rounded-lg text-[11px] font-bold flex-shrink-0">枠を増やして承認</button>
                   </div>
                 );

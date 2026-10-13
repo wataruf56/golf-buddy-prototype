@@ -3,11 +3,21 @@ import { db } from './db';
 import { pushToMany, liffUrl } from './linePush';
 import { webPushToMany } from './webPush';
 import { isNotifyEnabled } from './notifyPrefs';
-import type { Round } from './types';
+import type { Round, RoundThread } from './types';
 
 // ラウンドのグループチャットに発言があったときの通知（2026-10-08 に chat/route.ts から切り出し）。
 // 参加者の発言と、管理画面から「管理人」として発言したときの両方で使う。
-export async function notifyRoundChat(round: Round, senderId: string, senderName: string, trimmed: string, threadId?: string): Promise<void> {
+// 非公開の「❓ 主催者に質問」スレッド（kind:'question'）の発言は、そのスレッドの人だけに届く（lib/roundQuestion）。
+export async function notifyRoundChat(round: Round, senderId: string, senderName: string, trimmed: string, threadId?: string, thread?: RoundThread): Promise<void> {
+  if (threadId) {
+    let t = thread;
+    if (!t) { try { t = (await db.listRoundThreads(round.id)).find((x) => x.id === threadId); } catch { /* 取れなければ通常の通知 */ } }
+    if (t && Array.isArray(t.memberIds) && t.memberIds.length) {
+      const { notifyQuestionThread } = await import('./roundQuestion');
+      await notifyQuestionThread(round, t, senderId, senderName, trimmed);
+      return;
+    }
+  }
   // Notify other participants. A user mentioned via "@名前" gets a mention
   // notification (gated on their "mention" pref); everyone else gets the
   // general round-chat notification (gated on "roundChat", off by default).

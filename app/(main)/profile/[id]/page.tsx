@@ -24,8 +24,8 @@ export default function ProfilePage() {
   const cachedUser = useStore((s) => s.users.find((u) => u.id === params.id));
   const meId = useStore((s) => s.meId);
   const me = useStore(getMe);
-  // メッセージを送れるのは「ゴル友／一緒にラウンド・コンペ／申請・招待の関係／募集中の主催者」
-  // のみ（/api/me/can-dm で判定・サーバーの /api/messages も同じ lib/dmPolicy で強制）。
+  // メッセージを送れるのは「ゴル友／レビューでお互いに選んだ相手（マッチ）／管理人」だけ（2026-10-13・lib/dmPolicy）
+  // （/api/me/can-dm で判定・サーバーの /api/messages も同じ lib/dmPolicy で強制）。
   const isBlocked = (me.blockedUserIds || []).includes(params.id || '');
   const isMe = meId === params.id;
   const [dmAllowed, setDmAllowed] = useState<boolean | null>(null); // null=判定中（ボタン非表示）
@@ -34,6 +34,7 @@ export default function ProfilePage() {
   const [declined, setDeclined] = useState(false);
   const [declinedByMe, setDeclinedByMe] = useState(false);
   const [closedByMe, setClosedByMe] = useState(false);   // 「どっちでもいい」を選んだのが自分
+  const [policyMsg, setPolicyMsg] = useState('');          // 送れない理由の案内文（lib/dmPolicy.DM_POLICY_MSG を API 経由で）
 
   const [user, setUser] = useState<User | undefined>(cachedUser);
   const [notFound, setNotFound] = useState(false);
@@ -75,6 +76,7 @@ export default function ProfilePage() {
         setDeclined(!!d.declined);
         setDeclinedByMe(!!d.declinedByMe);
         setClosedByMe(!!d.closedByMe);
+        setPolicyMsg(d.message || '');
       })
       .catch(() => { /* 判定失敗時はボタンを出さない（サーバー側でも弾かれる） */ });
     return () => { cancelled = true; };
@@ -273,7 +275,8 @@ export default function ProfilePage() {
           ) : dmAllowed === false ? (
             <>
               <div className="text-center py-3 px-4 bg-bg rounded-xl text-[11px] text-sub leading-relaxed">
-                💬 メッセージを送れるのは「ゴル友（QR・友達申請）」「レビューでお互いに『行きたい』『回ってみたい』を選んだ相手」「これから一緒に回る同じ組の人」「参加申請・招待中の相手」「募集中ラウンドの主催者」のみです
+                {/* 規則の説明は lib/dmPolicy の文言（/api/me/can-dm の message）をそのまま出す。ここに書き写すと古くなる（2026-10-13） */}
+                💬 {policyMsg || 'メッセージを送れるのは「ゴル友（QR・友達申請でつながった人）」「レビューでお互いに『行きたい』『💘 気になる』を選んだ相手」、それと運営（管理人）だけです'}
               </div>
               {/* 断った本人にだけ理由を出す。自分の操作の結果だと分からないと
                   「なぜ送れないのか」で混乱するため。相手には出さない。 */}
