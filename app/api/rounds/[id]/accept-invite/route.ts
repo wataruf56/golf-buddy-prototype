@@ -45,7 +45,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
   // 既に参加確定ならそのまま成功扱い。
   if ((existing.applicantIds || []).includes(meId)) {
-    return NextResponse.json({ round: existing }, { headers: noStore });
+    const { stripRoundForViewer } = await import('@/lib/roundView');
+    return NextResponse.json({ round: stripRoundForViewer(existing, meId) }, { headers: noStore });
   }
 
   // 年齢帯（コホート）は尊重する。
@@ -56,6 +57,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   // 満員（枠）は尊重する。
   if ((existing.currentCount || 0) >= existing.maxSpots) {
     return NextResponse.json({ error: 'full', message: '満員のため参加できません' }, { status: 403, headers: noStore });
+  }
+  // 運営が代わりに送った招待（2026-10-13）は主催者が選んだ相手ではないので、参加申請と同じく
+  // 性別・初心者の条件と男女別の枠を見る（招待してから承認するまでに枠が埋まることがある）。
+  if ((existing.invitedBy || {})[meId] === 'admin') {
+    const { checkRoundEligibility, canGenderJoin, genderFullMessage } = await import('@/lib/roundEligibility');
+    const elig = checkRoundEligibility(existing, me || undefined);
+    if (!elig.ok) return NextResponse.json({ error: elig.code, message: elig.message }, { status: 403, headers: noStore });
+    const { memberGendersFromDb } = await import('@/lib/genderSlotsServer');
+    if (!canGenderJoin(existing, await memberGendersFromDb(existing), me?.gender)) {
+      return NextResponse.json({ error: 'gender_full', message: genderFullMessage(me?.gender) }, { status: 403, headers: noStore });
+    }
   }
 
   const round = await db.acceptInvite(params.id, meId);
@@ -90,5 +102,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     webPushText(existing.hostId, '招待から参加', `${name}さんが参加しました`, link, `round-${params.id}`).catch(() => {});
   }
 
-  return NextResponse.json({ round }, { headers: noStore });
+  // 配信の口なので閲覧者向けに整える（招待した相手・誰が招待したか などは自分のぶんだけ）
+  const { stripRoundForViewer } = await import('@/lib/roundView');
+  return NextResponse.json({ round: stripRoundForViewer(round, meId) }, { headers: noStore });
 }

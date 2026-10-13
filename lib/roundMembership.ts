@@ -49,7 +49,7 @@ export function scrubMemberFromRound(data: Partial<Round>, uid: string): MemberS
   }
 
   // ── map のキー ──
-  for (const k of ['participantPickups', 'pickupProposals', 'scores', 'inviteMessages', 'groupPrefs'] as const) {
+  for (const k of ['participantPickups', 'pickupProposals', 'scores', 'inviteMessages', 'invitedBy', 'invitedAt', 'groupPrefs'] as const) {
     const m = data[k] as Record<string, unknown> | undefined;
     if (m && Object.prototype.hasOwnProperty.call(m, uid)) deleteKeys.push([k, uid]);
   }

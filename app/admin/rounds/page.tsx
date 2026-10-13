@@ -9,6 +9,7 @@ import { useSearchParams } from 'next/navigation';
 import { appRoundUrl } from '@/lib/adminLinks';
 import { Linkify } from '@/components/Linkify';
 import { AdminRoundChat as RoundMessages } from '@/components/AdminRoundChat';
+import { AdminRoundInvite } from '@/components/AdminRoundInvite';
 
 type Round = {
   id: string;
@@ -233,6 +234,8 @@ function Inner() {
                   className="flex-1 py-1.5 text-[11px] font-bold bg-red-100 text-red-700 rounded"
                 >🗑 全部削除</button>
               </div>
+              {/* 運営が主催者の代わりに招待を送る（募集中だけ・2026-10-13） */}
+              {r.status === 'open' && <AdminRoundInvite token={token} roundId={r.id} />}
               <RoundMessages token={token} roundId={r.id} />
 
               <details className="mt-1">

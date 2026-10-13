@@ -436,7 +436,7 @@ export default function RoundDetailPage() {
     try {
       if (isInvited) {
         await store.acceptInvite(round!.id, pickup);
-        track('accept_invite_success', { roundId: round!.id });
+        track('accept_invite_success', { roundId: round!.id, by: (round!.invitedBy || {})[meId] || 'host' });
         if (payAckPending.current) {
           payAckPending.current = false;
           fetch(`/api/rounds/${round!.id}/payment-ack`, { method: 'POST', cache: 'no-store', credentials: 'include' }).then(() => store.refreshRounds()).catch(() => {});
@@ -749,7 +749,11 @@ export default function RoundDetailPage() {
       {!!meId && (round.invitedIds || []).includes(meId) && round.hostId !== meId
         && !(round.applicantIds || []).includes(meId) && !(round.pendingApplicantIds || []).includes(meId) && (
         <div className="bg-green-light border-[1.5px] border-green rounded-card p-4 mb-4">
-          <div className="text-[13px] font-black text-green mb-1.5">💌 {host?.displayName || '主催者'}さんから招待されています</div>
+          <div className="text-[13px] font-black text-green mb-1.5">
+            {(round.invitedBy || {})[meId] === 'admin'
+              ? <>💌 ゴルトモ運営から招待されています<span className="block text-[11px] font-bold text-sub mt-0.5">{host?.displayName || '主催者'}さんの募集です。「参加する」を押すとそのまま参加できます。</span></>
+              : <>💌 {host?.displayName || '主催者'}さんから招待されています</>}
+          </div>
           {(round.inviteMessages || {})[meId] && (
             <div className="text-[13px] text-text bg-card rounded-xl p-3 whitespace-pre-wrap leading-relaxed shadow-card">
               <Linkify text={(round.inviteMessages || {})[meId] || ''} />
@@ -1364,7 +1368,10 @@ export default function RoundDetailPage() {
                 <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
                   <Avatar user={u} size={36} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
+                    <div className="text-[13px] font-semibold truncate">
+                      {u.displayName}
+                      {(round.invitedBy || {})[u.id] === 'admin' && <span className="ml-1.5 text-[10px] font-bold text-green bg-green-light rounded-full px-1.5 py-[1px]">運営が招待</span>}
+                    </div>
                     <div className="text-[10px] text-sub">{describeUser(u)}{ratingText(u.id) ? ' ・ ' + ratingText(u.id) : ''}</div>
                   </div>
                 </Link>

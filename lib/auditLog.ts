@@ -50,6 +50,8 @@ export const AUDIT_ACTION = {
   broadcast: 'broadcast.send',
   reviewBlast: 'broadcast.review_blast',
   roundDelete: 'round.delete',
+  // 管理画面「代わりに招待する」：運営が主催者の代わりに、募集中のラウンドへ会員を招待した（2026-10-13）
+  roundAdminInvite: 'round.admin_invite',
   officialCreate: 'official.create',
   officialClose: 'official.close',
   officialDelete: 'official.delete',

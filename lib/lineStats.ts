@@ -17,6 +17,7 @@ export const LINE_KIND_LABEL: Record<string, string> = {
   rematch: '再会エンジン',
   interest: '気になる・締切間近',
   invited: '招待',
+  invited_admin: '招待（運営が代わりに）',
   joined: '参加申請（主催者へ）',
   approved: '参加承認',
   chat: 'ラウンドチャット',

@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { isRoundHost } from '@/lib/roundHost';
 import { getMeId } from '@/lib/session';
-import { pushTo, liffUrl } from '@/lib/linePush';
-import { webPushText } from '@/lib/webPush';
-import { isNotifyEnabled } from '@/lib/notifyPrefs';
 
 // POST /api/rounds/[id]/invite  body: { userId }
 // The host invites a past ゴル友 (mutual review) OR someone who marked the round
@@ -52,31 +49,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
   }
 
-  const { round, added } = await db.inviteToRound(params.id, userId);
-
-  // 招待時の一言メッセージをラウンドに保存（招待された本人がラウンドを開いたときに
-  // 通知だけでなく画面内でも見られるように）。空なら以前の値を保持。
-  if (inviteMessage) {
-    const nextMsgs = { ...(existing.inviteMessages || {}), [userId]: inviteMessage };
-    await db.updateRound(params.id, { inviteMessages: nextMsgs } as any);
-    (round as any).inviteMessages = nextMsgs;
-  }
-
-  if (added) {
-    const invitee = await db.getUser(userId);
-    const host = await db.getUser(meId);
-    const hostName = host?.displayName || '募集者';
-    const link = `/round/${params.id}`;
-    const vars = { '主催者名': hostName, '募集タイトル': existing.title, 'ひとこと': inviteMessage ? `\n「${inviteMessage}」` : '' };
-    const { renderNotif } = await import('@/lib/notificationTemplateStore');
-    const n = await renderNotif('invited', vars);
-    const { addNotification } = await import('@/lib/notifications');
-    if (n.inApp) addNotification(userId, 'invited', n.inApp, link).catch(() => {});
-    if (isNotifyEnabled(invitee as any, 'invited')) {
-      pushTo(userId, n.line, liffUrl(link), 'invited').catch(() => {});
-      webPushText(userId, n.webTitle, n.webBody, link, `invite-${params.id}`).catch(() => {});
-    }
-  }
+  // 招待の保存と通知は運営の「代わりに招待」と共通（lib/roundInvite）。招待された人が受け取るものは同じ。
+  const { sendRoundInvite } = await import('@/lib/roundInvite');
+  const { round } = await sendRoundInvite({ round: existing, inviteeId: userId, by: 'host', message: inviteMessage });
 
   return NextResponse.json({ round, invited: true });
 }

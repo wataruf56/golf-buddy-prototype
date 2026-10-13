@@ -35,6 +35,7 @@ const ACTION_LABEL: Record<string, string> = {
   'broadcast.send': '📣 一斉配信',
   'broadcast.review_blast': '📝 レビュー依頼の一斉送信',
   'round.delete': '🗑 募集の削除',
+  'round.admin_invite': '💌 運営が代わりに招待',
   'official.create': '📣 運営枠を立てた',
   'official.close': '📣 運営枠を閉じた',
   'official.delete': '📣 運営枠を削除',

@@ -244,6 +244,11 @@ export type Round = {
   // 招待時に主催者が添えた一言メッセージ。キー: 招待された userId → メッセージ。
   // 通知だけでなく、招待された本人がラウンドを開いたときに画面内でも表示する。
   inviteMessages?: Record<string, string>;
+  // 誰が招待したか（2026-10-13）。キー: 招待された userId → 'host'（主催者・共同管理者）／'admin'（ゴルトモ運営が
+  // 管理画面から代わりに招待）。invitedAt は招待した時刻(ms)。承認して参加した後も残す（「運営の招待から参加」を数えるため）。
+  // 招待した相手と同じく主催者だけが全員ぶん見られる（それ以外には自分のぶんだけ。lib/roundView）。lib/roundInvite
+  invitedBy?: Record<string, 'host' | 'admin'>;
+  invitedAt?: Record<string, number>;
   // ms timestamp when the "締切間近" LINE push was sent to 気になる users.
   // Used by the interest-deadline reminder to avoid double-sending. Unset
   // = never sent.

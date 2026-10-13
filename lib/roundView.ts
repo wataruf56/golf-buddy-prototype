@@ -31,9 +31,21 @@ export function stripViews(round: Round): Round {
 // 主催者以外へは**自分のIDだけ**を残す。
 export function stripInvitesForViewer(round: Round, viewerId: string | null): Round {
   const ids = round.invitedIds || [];
-  if (!ids.length) return round;
+  const hasMaps = !!(round.invitedBy || round.invitedAt || round.inviteMessages);
+  if (!ids.length && !hasMaps) return round;
   if (isRoundHost(round, viewerId)) return round;
-  return { ...round, invitedIds: viewerId && ids.includes(viewerId) ? [viewerId] : [] };
+  // 招待の付帯情報（誰が招待したか・時刻・一言）も userId がキーなので、自分のぶんだけ残す（2026-10-13）
+  const mine = <T,>(m?: Record<string, T>): Record<string, T> | undefined => {
+    if (!m) return undefined;
+    return viewerId && Object.prototype.hasOwnProperty.call(m, viewerId) ? { [viewerId]: m[viewerId] } : {};
+  };
+  return {
+    ...round,
+    invitedIds: viewerId && ids.includes(viewerId) ? [viewerId] : [],
+    ...(round.invitedBy ? { invitedBy: mine(round.invitedBy) } : {}),
+    ...(round.invitedAt ? { invitedAt: mine(round.invitedAt) } : {}),
+    ...(round.inviteMessages ? { inviteMessages: mine(round.inviteMessages) } : {}),
+  };
 }
 
 /**
