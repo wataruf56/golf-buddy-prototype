@@ -5,15 +5,17 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
 // 管理画面：開催前リマインドの「開催の何日前に全体へ通知するか」を設定する。
-// プリセット（1ヶ月前/2週間前/1週間前/3日前/前日/当日朝）＋自由入力。
+// プリセット（1ヶ月前/2週間前/1週間前/3日前/前日）＋自由入力。
+// 送る時刻は JST 20:00 以降（夜8時・2026-10-14 お昼12時から変更）。実処理は app/api/cron/upcoming-reminders。
+// 「当日」は20時だとほぼ開催後になるため、プリセットから外した（ナイターなど開始が20時より後の募集だけ届く）。
+// 未レビュー者への一斉通知は「⏰ 未レビュー」画面（/admin/unreviewed）へ移した（2026-10-14）。
 
 const PRESETS: { days: number; label: string }[] = [
   { days: 30, label: '1ヶ月前（30日前）' },
   { days: 14, label: '2週間前（14日前）' },
   { days: 7, label: '1週間前（7日前）' },
   { days: 3, label: '3日前' },
-  { days: 1, label: '前日' },
-  { days: 0, label: '当日の朝' },
+  { days: 1, label: '前日（前の晩）' },
 ];
 
 export default function AdminRemindersPage() {
@@ -31,9 +33,6 @@ function Inner() {
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
-  // 未レビュー者への一斉通知（1回限り）。
-  const [blasting, setBlasting] = useState(false);
-  const [blastMsg, setBlastMsg] = useState('');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -66,7 +65,7 @@ function Inner() {
   }
   function addCustom() {
     const n = parseInt(custom, 10);
-    if (!Number.isFinite(n) || n < 0 || n > 120) { setMsg('0〜120 の数字を入力してください'); return; }
+    if (!Number.isFinite(n) || n < 1 || n > 120) { setMsg('1〜120 の数字を入力してください'); return; }
     setDays((prev) => Array.from(new Set([...prev, n])).sort((a, b) => b - a));
     setCustom(''); setMsg('');
   }
@@ -86,20 +85,7 @@ function Inner() {
     setSaving(false);
   }
 
-  async function reviewBlast() {
-    if (blasting) return;
-    if (!window.confirm('いまレビューが未対応の全ユーザーへ、レビュー依頼を今すぐ送ります。1回だけ実行してください。よろしいですか？')) return;
-    setBlasting(true); setBlastMsg('');
-    try {
-      const r = await fetch(`/api/admin/review-blast?token=${encodeURIComponent(token)}`, { method: 'POST', cache: 'no-store' });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j?.error || `${r.status}`);
-      setBlastMsg(`✅ 送信しました（対象 ${j.reviewers} 人 / 送信 ${j.sent} 件）`);
-    } catch (e) { setBlastMsg('送信失敗: ' + (e as Error).message); }
-    setBlasting(false);
-  }
-
-  const label = (d: number) => d === 0 ? '当日の朝' : d === 1 ? '前日' : `${d}日前`;
+  const label = (d: number) => d === 0 ? '当日（ナイターのみ）' : d === 1 ? '前日' : `${d}日前`;
 
   if (!token) return <div className="min-h-screen bg-bg p-5 max-w-md mx-auto flex items-center justify-center text-sm text-muted">⚙️ 読み込み中...</div>;
 
@@ -108,8 +94,8 @@ function Inner() {
       <Link href={`/admin?token=${token}`} className="text-muted text-sm">‹ 管理</Link>
       <div className="text-2xl font-black mb-1 mt-1">⏰ 開催前リマインド</div>
       <div className="text-[12px] text-muted mb-4 leading-relaxed">
-        参加ラウンドの開催が近づいたら、参加者全員へ自動でLINE＋アプリ内通知します。<br />
-        「開催の何日前に通知するか」を選んでください（複数可）。
+        参加ラウンドの開催が近づいたら、その募集のグループチャットに運営（管理人）が「@全員」で書き込みます（アプリ内お知らせ＋LINE）。<br />
+        送る時刻は<b>その日の夜8時（20:00）以降</b>です。「開催の何日前に通知するか」を選んでください（複数可）。
       </div>
 
       {!loaded ? (
@@ -163,29 +149,18 @@ function Inner() {
           {msg && <div className="text-[12px] text-center mt-2 font-bold">{msg}</div>}
 
           <div className="text-[10px] text-muted mt-4 leading-relaxed">
-            ※ 通知文には実際の残り日数（「あと◯日」「明日」「本日」）が入ります。<br />
+            ※ 送るのは<b>夜8時（20:00）以降</b>（15分ごとの見回りで、20:00〜20:15ごろに届きます）。<br />
+            ※ 通知文には実際の残り日数（「◯日前」「明日」）が入ります。前日は前の晩8時に届きます。<br />
+            ※ キャンセル期限・入金期日のお知らせも夜8時。期限が<b>21時より前</b>なら前日の夜8時に「明日◯時が期限です」と知らせます。<br />
             ※ 各ラウンド・各タイミングにつき1回だけ送信（重複なし）。<br />
             ※ 募集を後から作成した場合、その時点で過ぎたタイミングは送られません。
           </div>
         </div>
       )}
 
-      {/* 未レビュー者へ一斉通知（1回限りの手動オペレーション） */}
-      <div className="bg-card rounded-xl shadow-card p-4 mt-4">
-        <div className="text-[13px] font-black mb-1">📣 未レビュー者へ一斉通知（1回限り）</div>
-        <div className="text-[11px] text-muted mb-3 leading-relaxed">
-          いま<b>レビューが未対応の全ユーザー</b>へ「レビューをお願いします」を今すぐ送ります。<br />
-          3日後の自動リマインドとは別の、その場かぎりの手動送信です。<b>連打せず1回だけ</b>押してください。
-        </div>
-        <button
-          onClick={reviewBlast}
-          disabled={blasting}
-          className="w-full py-3 bg-orange text-white rounded-xl text-sm font-black disabled:opacity-50"
-        >
-          {blasting ? '送信中…' : '未レビュー者へ今すぐ一斉通知する'}
-        </button>
-        {blastMsg && <div className="text-[12px] text-center mt-2 font-bold">{blastMsg}</div>}
-      </div>
+      <Link href={`/admin/unreviewed?token=${token}`} className="block bg-card rounded-xl shadow-card p-3 mt-4 text-[12px] text-sub">
+        📝 未レビュー者への催促は <b className="text-blue">⏰ 未レビュー</b> 画面に移しました ›
+      </Link>
     </div>
   );
 }

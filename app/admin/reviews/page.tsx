@@ -125,6 +125,10 @@ function Inner() {
       {err && <div className="bg-red-50 text-red-700 p-3 rounded mb-3 text-sm">{err}</div>}
       {busy && <div className="text-center text-xs text-muted">読み込み中...</div>}
 
+      <Link href={`/admin/unreviewed?token=${token}`} className="block bg-orange-light text-orange rounded-xl px-3 py-2 mb-2 text-[12px] font-bold">
+        ⏰ まだレビューしていない人の一覧・催促はこちら ›
+      </Link>
+
       <div className="text-[11px] text-muted mb-2 px-1">
         💡 ラウンドをタップ → そのラウンドのレビューを編集/差し戻し/削除
       </div>

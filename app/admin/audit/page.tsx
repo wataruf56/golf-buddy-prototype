@@ -34,6 +34,7 @@ const ACTION_LABEL: Record<string, string> = {
   'user.push_test': '🔔 テスト通知',
   'broadcast.send': '📣 一斉配信',
   'broadcast.review_blast': '📝 レビュー依頼の一斉送信',
+  'broadcast.review_nudge': '⏰ レビューの催促',
   'round.delete': '🗑 募集の削除',
   'round.admin_invite': '💌 運営が代わりに招待',
   'official.create': '📣 運営枠を立てた',

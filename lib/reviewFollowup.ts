@@ -69,10 +69,40 @@ export async function runReviewFollowup(
   return { ok: true, scanned: rounds.length, sent, skipped };
 }
 
-// 【1回限りの一斉通知】いま未対応(pending)のレビューがある全ユーザーへ、レビュー依頼を
-// 今すぐ1回送る（管理画面のボタンから手動実行）。3日後リマインドの時間ゲートや冪等スタンプは
-// 使わない純粋な単発オペレーション。同じユーザーに複数ラウンドの未対応があっても通知は1回だけ、
-// 代表として直近の完了ラウンドのタイトル/リンクを使う。
+// 1人に「レビューをお願いします」を1通送る（アプリ内お知らせ＋LINE＋Web push）。
+// 文面は通知テンプレ「reviewReminder」（管理画面で編集可）。3日後リマインド・管理画面の催促で共通。
+// アプリ内は通知設定に関係なく記録、LINE/Web push は通知設定「レビューのお願い」がONの人だけ。
+// pushTo / addNotification / webPush はどれも lib/testIsolation を通るので、test_ 垢への送信は管理者に回る。
+export async function sendReviewReminder(
+  reviewerId: string,
+  round: { id: string; title?: string; courseName?: string } | null,
+  tag: string,
+): Promise<{ inApp: boolean; line: boolean }> {
+  const roundName = round?.title || round?.courseName || 'ラウンド';
+  const link = round ? `/round/${round.id}` : '/';
+  const { renderNotif } = await import('@/lib/notificationTemplateStore');
+  const { addNotification } = await import('@/lib/notifications');
+  const n = await renderNotif('reviewReminder', { '募集タイトル': roundName });
+  let inApp = false;
+  let line = false;
+  if (n.inApp) { await addNotification(reviewerId, 'reviewReminder', n.inApp, link).catch(() => {}); inApp = true; }
+  const u = await db.getUser(reviewerId);
+  if (isNotifyEnabled(u as any, 'reviewReminder')) {
+    try {
+      await pushTo(reviewerId, n.line, liffUrl(link), 'reviewReminder');
+      await webPushText(reviewerId, n.webTitle, n.webBody, link, tag).catch(() => {});
+      line = true;
+    } catch (e) {
+      console.warn('[review-reminder] push failed', reviewerId, (e as Error).message);
+    }
+  }
+  return { inApp, line };
+}
+
+// 【旧・1回限りの一斉通知】いま未対応(pending)のレビューがある全ユーザーへ、レビュー依頼を
+// 今すぐ1回送る。2026-10-14 から管理画面のボタンは「⏰ 未レビュー」画面（lib/reviewNudge・
+// /api/admin/review-nudges）に移した。こちらは /api/admin/review-blast の互換用に残している。
+// 同じユーザーに複数ラウンドの未対応があっても通知は1回だけ、代表として直近の完了ラウンドのタイトル/リンクを使う。
 export async function runReviewBlast(): Promise<{ ok: boolean; reviewers: number; sent: number }> {
   const pendings = await db.listAllPendingReviews();
 
@@ -92,9 +122,6 @@ export async function runReviewBlast(): Promise<{ ok: boolean; reviewers: number
     return r;
   };
 
-  const { renderNotif } = await import('@/lib/notificationTemplateStore');
-  const { addNotification } = await import('@/lib/notifications');
-
   let sent = 0;
   for (const [reviewerId, roundIds] of byReviewer) {
     // 代表ラウンド＝最も新しい完了ラウンド（通知文のタイトル/リンク用）。
@@ -104,20 +131,7 @@ export async function runReviewBlast(): Promise<{ ok: boolean; reviewers: number
       if (!r) continue;
       if (!best || (r.completedAt || 0) > (best.completedAt || 0)) best = r;
     }
-    const roundName = best?.title || best?.courseName || 'ラウンド';
-    const link = best ? `/round/${best.id}` : '/';
-    const n = await renderNotif('reviewReminder', { '募集タイトル': roundName });
-
-    if (n.inApp) addNotification(reviewerId, 'reviewReminder', n.inApp, link).catch(() => {});
-    const u = await db.getUser(reviewerId);
-    if (isNotifyEnabled(u as any, 'reviewReminder')) {
-      try {
-        await pushTo(reviewerId, n.line, liffUrl(link), 'reviewReminder');
-        await webPushText(reviewerId, n.webTitle, n.webBody, link, `review-blast-${reviewerId}`).catch(() => {});
-      } catch (e) {
-        console.warn('[review-blast] push failed', reviewerId, (e as Error).message);
-      }
-    }
+    await sendReviewReminder(reviewerId, best, `review-blast-${reviewerId}`);
     sent++;
   }
 

@@ -49,6 +49,8 @@ export const AUDIT_ACTION = {
   pushTest: 'user.push_test',
   broadcast: 'broadcast.send',
   reviewBlast: 'broadcast.review_blast',
+  // 管理画面「⏰ 未レビュー」からのレビュー催促（1人／募集の全員／全部）（2026-10-14）
+  reviewNudge: 'broadcast.review_nudge',
   roundDelete: 'round.delete',
   // 管理画面「代わりに招待する」：運営が主催者の代わりに、募集中のラウンドへ会員を招待した（2026-10-13）
   roundAdminInvite: 'round.admin_invite',

@@ -9,12 +9,13 @@ const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 // 以前は開催の◯日前（既定 30/7/1）の 0:00 すぎに、参加者へ LINE を直接送っていた。
 // いまは **その募集のグループチャットに運営（管理人）が「@全員」で書き込む**（本人指定）。
 // 通知はふつうのメンションと同じ（アプリ内お知らせ＋通知設定「メンション」がONならLINE）。
-// 送るのは JST **12:00 以降**（お昼に統一）。
+// 送るのは JST **20:00 以降**（夜8時に統一・2026-10-14 お昼12時から変更）。20:00〜23:59 の見回りで1回だけ。
+//   「当日」（d0）は20時だとほぼ開催後のため、開始が20時より後（ナイター）の募集にしか届かない（開催後は送らない）。
 //
 // 書き込むもの（どれも1回だけ。round.upcomingRemindersSent[key] に時刻を記録）
 //   d{N}         … 開催の N 日前（管理画面の設定。既定 30/7/1）「1週間前になりました！ピックアップや入金などの確認を」
-//   cancel_{ms}  … キャンセル期限の日（期限が12時より前なら前日）「本日◯時がキャンセル期限です」
-//   pay{N}_{ms}  … 入金期日の 10・5・2 日前と当日（N=0・期日が12時より前なら前日）（2026-10-13 変更）
+//   cancel_{ms}  … キャンセル期限の日（期限が21時より前なら前日の20時）「本日／明日◯時がキャンセル期限です」
+//   pay{N}_{ms}  … 入金期日の 10・5・2 日前と当日（N=0・期日が21時より前なら前日の20時）（2026-10-13 変更）
 //                  **グループチャットには書かない**。まだ入金チェックされていない人にだけ、運営（管理人）から1人ずつ
 //                  DM＋アプリ内お知らせ＋LINE。入金済みの人・主催者には送らない（誰が未入金かを他の人に見せない）。
 // 期限・期日の値をキーに含めるので、主催者が日時を変えたら新しい日時でまた1回。
@@ -34,7 +35,10 @@ function authorizeCron(req: NextRequest): boolean {
 
 const DAY = 24 * 60 * 60 * 1000;
 const JST = 9 * 60 * 60 * 1000;
-const SEND_HOUR = 12;
+const SEND_HOUR = 20;
+// 期限を「その日のうちに」知らせるには、送る時刻から少なくともこれだけ先であること。
+// 20:00〜20:15 に書くので、期限が 20:00〜20:59 だと過ぎる・直前すぎる → 前日の20時に回す。
+const SAME_DAY_MARGIN_MIN = 60;
 const MAX_PER_TICK = 60;
 // 🙏 は実行時に作る。文字列を定数のまま並べると、ビルド（SWC）がテンプレート文字列にまとめる際に
 // 絵文字を「\uD83D\uDE4F」と二重にエスケープし、チャットにそのまま文字で出た（2026-10-12）
@@ -61,10 +65,11 @@ function hm(ms: number): string {
   const d = new Date(ms + JST);
   return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
 }
-/** 期限の「お知らせする日」：期限の日。期限が12時より前なら前日（12時に書くと過ぎてしまうため） */
+/** 期限の「お知らせする日」：期限の日。期限が21時より前なら前日（20時に書くと過ぎてしまう・直前すぎるため） */
 function noticeDayOf(deadline: number): number {
   const d = new Date(deadline + JST);
-  return d.getUTCHours() < SEND_HOUR ? dayNo(deadline) - 1 : dayNo(deadline);
+  const min = d.getUTCHours() * 60 + d.getUTCMinutes();
+  return min < SEND_HOUR * 60 + SAME_DAY_MARGIN_MIN ? dayNo(deadline) - 1 : dayNo(deadline);
 }
 
 export async function GET(req: NextRequest) {
@@ -73,7 +78,7 @@ export async function GET(req: NextRequest) {
   }
   const now = Date.now();
   const jstHour = new Date(now + JST).getUTCHours();
-  if (jstHour < SEND_HOUR) return NextResponse.json({ ok: true, skipped: 'before_noon' }, { headers: noStore });
+  if (jstHour < SEND_HOUR) return NextResponse.json({ ok: true, skipped: 'before_20' }, { headers: noStore });
   const today = dayNo(now);
   const daysBefore = await getReminderDaysBefore();
   const allRounds = await db.listRounds();
@@ -108,7 +113,7 @@ export async function GET(req: NextRequest) {
       continue;   // 1回の見回りで同じ募集に書くのは1件まで（次の見回りで残りを書く）
     }
     // キャンセル期限
-    if (cancelDl && cancelDl > now - DAY && noticeDayOf(cancelDl) === today && !sent[`cancel_${cancelDl}`]) {
+    if (cancelDl && cancelDl > now && noticeDayOf(cancelDl) === today && !sent[`cancel_${cancelDl}`]) {
       const isToday = dayNo(cancelDl) === today;
       jobs.push({ round: r, key: `cancel_${cancelDl}`, text: [
         `@全員`, `⏰ ${isToday ? '本日' : '明日'} ${hm(cancelDl)} がキャンセル期限です（「${title}」）`,
