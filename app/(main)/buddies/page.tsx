@@ -143,6 +143,30 @@ function Inner() {
         QRでつながった友達／レビューで「行きたい」「💘 気になる」同士の人・一緒に回った人／メッセージした相手が集まります。<b className="text-text">ログインが新しい順</b>に表示。タップでプロフィール、💬でメッセージ。
       </div>
 
+      {/* 🛡️ 管理者にDM（運営への問い合わせ窓口）。2026-10-13：マイページに入口が無いので、
+          問い合わせはここに一本化（使い方ページの「わからないことがあったら」もここを案内）。
+          友達／同じコンペ どちらの切り替えでも見えるよう、一番上に固定。行き先は管理人（ADMIN_MANAGER_ID）とのDM。 */}
+      {(() => {
+        const cid = chatIdFor(meId, ADMIN_MANAGER_ID);
+        const chat = chats.find((c) => c.id === cid);
+        const unread = chat?.unreadCount[meId] || 0;
+        return (
+          <div className="px-5 pb-3">
+            <Link href={`/chat/${cid}?other=${ADMIN_MANAGER_ID}`} className="bg-card rounded-card p-3.5 shadow-card flex items-center gap-3 border-[2.5px] border-border">
+              <div className="w-11 h-11 rounded-full bg-green-light flex items-center justify-center text-[22px] flex-shrink-0 border-2 border-border">🛡️</div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[15px] font-black">管理者にDM<span className="ml-1.5 text-[10px] font-black text-green bg-green-light border border-green rounded-full px-1.5 py-0.5">運営（{ADMIN_MANAGER_NAME}）</span></div>
+                <div className="text-[11px] text-sub mt-0.5 leading-snug">わからないこと・困りごと・不具合・通報後のやりとりはこちら</div>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                {unread > 0 && <div className="px-1.5 py-0.5 bg-orange text-white text-[10px] font-bold rounded-full min-w-[18px] text-center">{unread}</div>}
+                <span className="text-lg">💬</span>
+              </div>
+            </Link>
+          </div>
+        );
+      })()}
+
       {/* 友達申請・QRの「同じ組？」・評価のやり残し（既存のタブ構成には触らない） */}
       <div className="px-5"><FriendTodoBanner variant="banner" /></div>
 
@@ -227,25 +251,7 @@ function Inner() {
 
       {tab === 'friends' && (
       <div className="px-5 pb-24">
-        {/* 管理人（運営サポート窓口）。常に先頭に固定表示。困りごとや通報後のやりとりに使える。 */}
-        {(() => {
-          const cid = chatIdFor(meId, ADMIN_MANAGER_ID);
-          const chat = chats.find((c) => c.id === cid);
-          const unread = chat?.unreadCount[meId] || 0;
-          return (
-            <Link href={`/chat/${cid}?other=${ADMIN_MANAGER_ID}`} className="bg-card rounded-card p-4 shadow-card mb-2.5 flex items-center gap-3 border-[1.5px] border-green-light">
-              <div className="w-12 h-12 rounded-full bg-green-light flex items-center justify-center text-2xl flex-shrink-0">🛡️</div>
-              <div className="min-w-0 flex-1">
-                <div className="text-[15px] font-bold">{ADMIN_MANAGER_NAME}<span className="ml-1.5 text-[10px] font-black text-green bg-green-light border border-green rounded-full px-1.5 py-0.5">運営</span></div>
-                <div className="text-[11px] text-sub mt-0.5">困りごと・通報後のやりとりはこちら</div>
-              </div>
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                {unread > 0 && <div className="px-1.5 py-0.5 bg-orange text-white text-[10px] font-bold rounded-full min-w-[18px] text-center">{unread}</div>}
-                <span className="text-lg">💬</span>
-              </div>
-            </Link>
-          );
-        })()}
+        {/* 管理人（運営サポート窓口）の行は、2026-10-13 にページ最上部の「🛡️ 管理者にDM」へ移した。 */}
         {order.length === 0 ? (
           <Empty
             title={loaded ? 'まだ友達がいません' : '読み込み中...'}

@@ -12,7 +12,8 @@ import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { track } from '@/lib/telemetry';
 import type { Round, RoundType, DateType } from '@/lib/types';
-import { cn } from '@/lib/utils';
+import { chatIdFor, cn } from '@/lib/utils';
+import { ADMIN_MANAGER_ID } from '@/lib/adminManagerId';
 import { Stepper } from '@/components/Stepper';
 import { goLogin } from '@/lib/loginLink';
 
@@ -389,8 +390,12 @@ export default function CreatePage() {
       <div className="px-5 py-16 text-center">
         <div className="text-4xl mb-3">🚫</div>
         <div className="text-sm font-black mb-1">ラウンド募集の利用が制限されています</div>
-        <div className="text-[12px] text-sub mb-6">ご不明な点は運営にお問い合わせください。</div>
-        <button onClick={() => router.push('/home')} className="px-5 py-2.5 bg-bg border-[1.5px] border-border rounded-xl text-sm font-bold">ホームに戻る</button>
+        {/* 問い合わせは「ゴル友」タブの一番上「管理者にDM」に一本化（2026-10-13） */}
+        <div className="text-[12px] text-sub mb-6 leading-relaxed">ご不明な点は、下の「ゴル友」タブの一番上<br />「🛡️ 管理者にDM」からお問い合わせください。</div>
+        <div className="flex flex-col items-center gap-2">
+          <button onClick={() => router.push(`/chat/${chatIdFor(meId, ADMIN_MANAGER_ID)}?other=${ADMIN_MANAGER_ID}`)} className="px-5 py-2.5 bg-green text-white border-2 border-border rounded-xl text-sm font-black">🛡️ 管理者にDM</button>
+          <button onClick={() => router.push('/home')} className="px-5 py-2.5 bg-bg border-[1.5px] border-border rounded-xl text-sm font-bold">ホームに戻る</button>
+        </div>
       </div>
     );
   }
