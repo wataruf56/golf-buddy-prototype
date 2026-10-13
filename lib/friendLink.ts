@@ -185,7 +185,8 @@ export async function addQrPending(a: string, b: string): Promise<void> {
     for (const [me, other] of [[a, b], [b, a]]) {
       const ref = adb.collection(C_QR).doc(pairId(me, other));
       // すでに答えている相手には作り直さない（merge:false だと回答が消えるため）
-      batch.set(ref, { userId: me, otherId: other, linkedAt: now }, { merge: true });
+      // scannedBy＝QRを読み取った側（管理画面の「誰が読み取ったか」用・2026-10-13〜）
+      batch.set(ref, { userId: me, otherId: other, linkedAt: now, scannedBy: a }, { merge: true });
     }
     await batch.commit();
   } catch { /* noop */ }

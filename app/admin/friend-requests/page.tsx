@@ -5,20 +5,26 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AdminTabs } from '@/components/AdminTabs';
 
-// 管理画面：友達申請の一覧（2026-10-13）。誰が誰に送ったか・どうなったか（返事待ち／承認／お断り／取り消し）。
-// 申請の中身（どこで一緒だったか・いつ・ひとこと）と、受け手が確定させた事実（訂正があればそれも）を出す。
-// 下に「QRで友達」になった組（同じ組だったかの答え）も。データは /api/admin/friend-requests。
-type Req = { id: string; fromId: string; toId: string; claim: 'same_group' | 'competition'; metAt?: string; message?: string;
-  status: 'pending' | 'accepted' | 'declined' | 'cancelled'; accepted?: 'same_group' | 'competition'; createdAt?: number; respondedAt?: number };
-type Qr = { id: string; userId: string; otherId: string; linkedAt?: number; answer?: 'same_group' | 'other'; answeredAt?: number };
-type U = { displayName: string; avatarUrl?: string; gender?: string; age?: number };
+// 管理画面：友達のつながり（2026-10-13）。1件ずつ「どうやって友達になったか／いまどういう状態か」を種類で出す：
+//   📷 QRコードで友達（何時何分・読み取った人）／📨 友達申請で友達（承認）／⏳ 友達申請を送っている（返事待ち）／
+//   🙅 お断り／↩️ 取り消し／📷 QR（記録を始める前・時刻なし）。データは /api/admin/friend-requests。
+type Kind = 'request_accepted' | 'qr' | 'qr_legacy' | 'request_pending' | 'request_declined' | 'request_cancelled';
+type Item = { kind: Kind; a: string; b: string; at: number; sentAt?: number; claim?: string; accepted?: string; metAt?: string; message?: string;
+  qrAnswers?: Record<string, string | null>; stillFriends?: boolean };
+type U = { displayName: string; gender?: string; age?: number };
 
-const STATUS: Record<Req['status'], { label: string; cls: string }> = {
-  pending: { label: '⏳ 返事待ち', cls: 'bg-yellow-light text-[#9A6B12] border-yellow' },
-  accepted: { label: '✅ 承認（友達になった）', cls: 'bg-green-light text-green border-green' },
-  declined: { label: '🙅 お断り（心当たりなし）', cls: 'bg-red-50 text-red border-red' },
-  cancelled: { label: '↩️ 申請者が取り消し', cls: 'bg-bg text-sub border-border' },
+const KIND: Record<Kind, { label: string; cls: string; group: 'qr' | 'req' | 'pending' | 'ng' }> = {
+  qr: { label: '📷 QRコードで友達', cls: 'bg-blue-light text-blue border-blue', group: 'qr' },
+  qr_legacy: { label: '📷 QRコードで友達（8/23より前・時刻の記録なし）', cls: 'bg-bg text-blue border-blue', group: 'qr' },
+  request_accepted: { label: '📨 友達申請で友達（承認）', cls: 'bg-green-light text-green border-green', group: 'req' },
+  request_pending: { label: '⏳ 友達申請を送っている（返事待ち）', cls: 'bg-yellow-light text-[#9A6B12] border-yellow', group: 'pending' },
+  request_declined: { label: '🙅 友達申請：お断り（心当たりなし）', cls: 'bg-red-50 text-red border-red', group: 'ng' },
+  request_cancelled: { label: '↩️ 友達申請：送った人が取り消し', cls: 'bg-bg text-sub border-border', group: 'ng' },
 };
+const FILTERS: Array<{ k: 'all' | 'qr' | 'req' | 'pending' | 'ng'; label: string }> = [
+  { k: 'all', label: 'すべて' }, { k: 'qr', label: '📷 QRで友達' }, { k: 'req', label: '📨 申請で友達' },
+  { k: 'pending', label: '⏳ 申請中' }, { k: 'ng', label: '🙅 お断り・取り消し' },
+];
 const CLAIM: Record<string, string> = { same_group: '同じ組で回った', competition: 'コンペで一緒だった' };
 
 const fmt = (ms?: number) => {
@@ -35,9 +41,9 @@ function Inner() {
   const search = useSearchParams();
   const tokenFromUrl = search?.get('token') || '';
   const [token, setToken] = useState('');
-  const [data, setData] = useState<{ requests: Req[]; qr: Qr[]; users: Record<string, U> } | null>(null);
+  const [data, setData] = useState<{ items: Item[]; users: Record<string, U>; friendPairCount: number } | null>(null);
   const [err, setErr] = useState('');
-  const [filter, setFilter] = useState<'all' | Req['status']>('all');
+  const [filter, setFilter] = useState<'all' | 'qr' | 'req' | 'pending' | 'ng'>('all');
   const [q, setQ] = useState('');
 
   useEffect(() => {
@@ -72,31 +78,30 @@ function Inner() {
     return `${u?.displayName || '（不明）'}${g ? ' ' + g : ''}${u?.age ? ` ${u.age}歳` : ''}`;
   };
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: 0, pending: 0, accepted: 0, declined: 0, cancelled: 0 };
-    for (const r of data?.requests || []) { c.all++; c[r.status] = (c[r.status] || 0) + 1; }
+    const c: Record<string, number> = { all: 0, qr: 0, req: 0, pending: 0, ng: 0 };
+    for (const it of data?.items || []) { c.all++; c[KIND[it.kind].group]++; }
     return c;
   }, [data]);
-  const list = useMemo(() => (data?.requests || []).filter((r) => (filter === 'all' || r.status === filter)
-    && (!q || nameOf(r.fromId).includes(q) || nameOf(r.toId).includes(q))), [data, filter, q]); // eslint-disable-line react-hooks/exhaustive-deps
+  const list = useMemo(() => (data?.items || []).filter((it) => (filter === 'all' || KIND[it.kind].group === filter)
+    && (!q || nameOf(it.a).includes(q) || nameOf(it.b).includes(q))), [data, filter, q]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // QR は1組につき両方向の2件 → 組ごとにまとめる
-  const qrPairs = useMemo(() => {
-    const m = new Map<string, Qr[]>();
-    for (const x of data?.qr || []) { const k = [x.userId, x.otherId].sort().join('|'); m.set(k, [...(m.get(k) || []), x]); }
-    return Array.from(m.values()).filter((xs) => !q || xs.some((x) => nameOf(x.userId).includes(q) || nameOf(x.otherId).includes(q)));
-  }, [data, q]); // eslint-disable-line react-hooks/exhaustive-deps
+  const Name = ({ id }: { id: string }) => (
+    <button type="button" onClick={() => setQ(nameOf(id))} className="text-text underline decoration-dotted" title="この人で絞り込む">{who(id)}</button>
+  );
+  const qrAns = (v?: string | null) => v === 'same_group' ? '同じ組で回った' : v === 'other' ? '同じ組ではない' : 'まだ答えていない';
 
   return (
     <div className="min-h-screen bg-bg p-4 max-w-[720px] mx-auto">
       <div className="flex items-center justify-between mb-3">
         <Link href={`/admin${token ? `?token=${token}` : ''}`} className="text-blue text-sm font-bold">← 管理</Link>
-        <div className="text-[17px] font-black">🤝 友達申請</div>
+        <div className="text-[17px] font-black">🤝 友達のつながり</div>
         <button onClick={() => load()} className="text-sm font-bold text-blue">🔄 更新</button>
       </div>
       <AdminTabs token={token} group="trust" current="/admin/friend-requests" />
 
       <p className="text-[11.5px] text-sub leading-relaxed mt-3 mb-3">
-        相手のプロフィールから送る「友達申請」の一覧です（新しい順）。<b className="text-text">誰が誰に</b>、<b className="text-text">どこで一緒だったと申告したか</b>、<b className="text-text">結果</b>が見られます。
+        友達になった組と、送っている友達申請の一覧です（新しい順）。<b className="text-text">QRコードか友達申請か</b>、<b className="text-text">申請中か</b>を色で分けています。
+        QRは読み取った時刻（何時何分）を出します。8/23より前のQRは時刻の記録がありません。「読み取った人」は10/13から記録しています。
         お断りされたことは申請者には伝わらず「返事待ち」のまま見えています。テスト用アカウントは含みません。
       </p>
 
@@ -105,57 +110,61 @@ function Inner() {
 
       {data && (
         <>
+          <div className="text-[12px] font-bold text-sub mb-2">いま友達になっている組：<b className="text-text">{data.friendPairCount}組</b></div>
           <div className="flex gap-1.5 flex-wrap mb-2.5">
-            {(['all', 'pending', 'accepted', 'declined', 'cancelled'] as const).map((k) => (
-              <button key={k} onClick={() => setFilter(k)}
-                className={'px-2.5 py-1 rounded-full text-[12px] font-bold border-[1.5px] ' + (filter === k ? 'bg-green text-white border-green' : 'bg-card text-sub border-border')}>
-                {k === 'all' ? 'すべて' : STATUS[k].label} {counts[k] || 0}
+            {FILTERS.map((f) => (
+              <button key={f.k} onClick={() => setFilter(f.k)}
+                className={'px-2.5 py-1 rounded-full text-[12px] font-bold border-[1.5px] ' + (filter === f.k ? 'bg-green text-white border-green' : 'bg-card text-sub border-border')}>
+                {f.label} {counts[f.k] || 0}
               </button>
             ))}
           </div>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="名前で絞り込み（名前をタップでも）"
             className="w-full mb-3 px-3 py-2 rounded-xl border-[1.5px] border-border bg-card text-sm" />
 
-          {list.length === 0 && <div className="text-sub text-sm py-6 text-center">該当する申請はありません</div>}
+          {list.length === 0 && <div className="text-sub text-sm py-6 text-center">該当するものはありません</div>}
           <div className="flex flex-col gap-2">
-            {list.map((r) => {
-              const st = STATUS[r.status] || STATUS.pending;
-              const corrected = r.status === 'accepted' && r.accepted && r.accepted !== r.claim;
+            {list.map((it, i) => {
+              const k = KIND[it.kind];
+              const isQr = it.kind === 'qr' || it.kind === 'qr_legacy';
+              const scannerKnown = it.kind === 'qr' && it.claim !== 'scanner_unknown';
+              const corrected = it.kind === 'request_accepted' && it.accepted && it.accepted !== it.claim;
               return (
-                <div key={r.id} className="bg-card rounded-card shadow-card p-3">
+                <div key={`${it.kind}-${it.a}-${it.b}-${i}`} className="bg-card rounded-card shadow-card p-3">
+                  <span className={'inline-block text-[10.5px] font-black px-2 py-0.5 rounded-full border mb-1.5 ' + k.cls}>{k.label}</span>
                   <div className="flex items-center gap-1.5 flex-wrap text-[13.5px] font-black">
-                    <button type="button" onClick={() => setQ(nameOf(r.fromId))} className="text-text underline decoration-dotted" title="この人で絞り込む">{who(r.fromId)}</button>
-                    <span className="text-muted">→</span>
-                    <button type="button" onClick={() => setQ(nameOf(r.toId))} className="text-text underline decoration-dotted" title="この人で絞り込む">{who(r.toId)}</button>
-                    <span className={'ml-auto text-[10.5px] font-black px-2 py-0.5 rounded-full border ' + st.cls}>{st.label}</span>
+                    <Name id={it.a} />
+                    <span className="text-muted">{isQr && !scannerKnown ? '⇄' : '→'}</span>
+                    <Name id={it.b} />
                   </div>
-                  <div className="text-[12px] text-sub mt-1.5 leading-relaxed">
-                    申告：<b className="text-text">{CLAIM[r.claim] || r.claim}</b>{r.metAt ? `（${r.metAt}）` : ''}
-                    {r.status === 'accepted' && r.accepted && (
-                      <> ／ 受け手の確定：<b className={corrected ? 'text-orange' : 'text-text'}>{CLAIM[r.accepted]}</b>{corrected && <span className="text-orange font-bold">（訂正あり）</span>}</>
-                    )}
-                  </div>
-                  {r.message && <div className="text-[12px] mt-1 px-2.5 py-1.5 rounded-lg bg-bg whitespace-pre-wrap">💬 {r.message}</div>}
-                  <div className="text-[10.5px] text-muted mt-1.5">送信 {fmt(r.createdAt)}{r.respondedAt ? ` ・ 返事 ${fmt(r.respondedAt)}` : ''}</div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="text-[15px] font-black mt-7 mb-1">📷 QRで友達になった組（{qrPairs.length}組）</div>
-          <p className="text-[11px] text-sub mb-2.5">QRを読み取った時点で友達になります。そのあと、それぞれが「同じ組で回ったか」を答えます。</p>
-          <div className="flex flex-col gap-2">
-            {qrPairs.map((xs) => {
-              const a = xs[0];
-              const ans = (x?: Qr) => !x ? '—' : x.answer === 'same_group' ? '同じ組で回った' : x.answer === 'other' ? '同じ組ではない' : 'まだ答えていない';
-              const b = xs.find((x) => x.userId === a.otherId);
-              return (
-                <div key={a.id} className="bg-card rounded-card shadow-card p-3">
-                  <div className="text-[13.5px] font-black">{who(a.userId)} <span className="text-muted">⇄</span> {who(a.otherId)}</div>
-                  <div className="text-[12px] text-sub mt-1 leading-relaxed">
-                    {nameOf(a.userId)}の答え：<b className="text-text">{ans(a)}</b> ／ {nameOf(a.otherId)}の答え：<b className="text-text">{ans(b)}</b>
-                  </div>
-                  <div className="text-[10.5px] text-muted mt-1">友達になった {fmt(a.linkedAt)}</div>
+                  {isQr ? (
+                    <div className="text-[12px] text-sub mt-1.5 leading-relaxed">
+                      {it.kind === 'qr'
+                        ? <>友達になった時刻：<b className="text-text">{fmt(it.at)}</b>{scannerKnown ? <>（<b className="text-text">{nameOf(it.a)}</b>が読み取り）</> : ''}</>
+                        : <>友達になった時刻：記録なし（QRの時刻を残し始めた 8/23 より前）</>}
+                      {it.qrAnswers && (
+                        <div className="mt-0.5">同じ組だったか：{Object.entries(it.qrAnswers).map(([uid, v], j) => (
+                          <span key={uid}>{j ? ' ／ ' : ''}{nameOf(uid)}「<b className="text-text">{qrAns(v)}</b>」</span>
+                        ))}</div>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-[12px] text-sub mt-1.5 leading-relaxed">
+                        申告：<b className="text-text">{CLAIM[it.claim || ''] || it.claim}</b>{it.metAt ? `（${it.metAt}）` : ''}
+                        {it.kind === 'request_accepted' && it.accepted && (
+                          <> ／ 受け手の確定：<b className={corrected ? 'text-orange' : 'text-text'}>{CLAIM[it.accepted]}</b>{corrected && <span className="text-orange font-bold">（訂正あり）</span>}</>
+                        )}
+                      </div>
+                      {it.message && <div className="text-[12px] mt-1 px-2.5 py-1.5 rounded-lg bg-bg whitespace-pre-wrap">💬 {it.message}</div>}
+                      <div className="text-[10.5px] text-muted mt-1.5">
+                        送信 {fmt(it.sentAt)}{it.kind !== 'request_pending' && it.at && it.at !== it.sentAt ? ` ・ 返事 ${fmt(it.at)}` : ''}
+                      </div>
+                    </>
+                  )}
+                  {(it.kind === 'request_accepted' || it.kind === 'qr') && it.stillFriends === false && (
+                    <div className="text-[10.5px] text-red font-bold mt-1">※ いまは友達リストに入っていません（解除・退会など）</div>
+                  )}
                 </div>
               );
             })}
