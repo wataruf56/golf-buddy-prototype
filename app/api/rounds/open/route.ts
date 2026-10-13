@@ -67,6 +67,9 @@ export async function GET(_req: NextRequest) {
         maxSpots: r.maxSpots,
         currentCount: r.currentCount,
         isOfficial: !!r.isOfficial,
+        isCompetition: !!(r as any).isCompetition,
+        price: (r as any).price || '',
+        beginnerOnly: !!(r as any).beginnerOnly,
         host: r.isOfficial ? null : (h ? {
           displayName: h.displayName || 'ゴルファー',
           avatar: h.avatar, avatarUrl: h.avatarUrl, avatarMode: (h as any).avatarMode,

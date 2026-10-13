@@ -1,14 +1,13 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { rememberLpOrigin } from '@/lib/lpOrigin';
 
 // /links（インスタのlink-in-bio）のCTA。表示（open）とクリック（line）を /api/lp/hit に
 // 計測する。beaconなのでナビゲーションを妨げない。
 // インスタのプロフィールにはLINEのURLを直接貼れない（ドメインブロック）ため、
 // 友だち追加ボタンはこのページ経由で提供する（2026-08-10）。
-// ※診断（MBTI）や募集一覧はインスタ側で別リンクとして直接貼る方針になったため、
-//   このページはLINE友だち追加の1ボタンだけにしている。
+// 2026-10-13：LINE友だち追加を一番上に。「いま募集中のラウンド」には件数と直近の2件を出す（/api/rounds/open・公開の最小情報）。
 const INK = '#1E3A30';
 const LINE_GREEN = '#06C755';
 // LINE公式アカウント「ゴルトモ」の友だち追加URL（ベーシックID @711xiyrs）。
@@ -56,7 +55,12 @@ function hit(t: 'open' | 'line' | 'rounds') {
   } catch { /* noop */ }
 }
 
+type Mini = { id: string; title: string; date?: string; isOfficial?: boolean; isCompetition?: boolean; maxSpots: number; currentCount: number; eventType?: string };
+const WD = '日月火水木金土';
+const md = (d?: string) => { if (!d) return '日程調整中'; const t = new Date(d + 'T00:00:00+09:00'); return isNaN(t.getTime()) ? d : `${t.getMonth() + 1}/${t.getDate()}（${WD[t.getDay()]}）`; };
+
 export function HubLinks() {
+  const [rounds, setRounds] = useState<Mini[] | null>(null);
   useEffect(() => {
     rememberRef();
     // LINEの友だち追加URLにはパラメータを載せられないため、「リンクハブから来た」
@@ -64,67 +68,61 @@ export function HubLinks() {
     // 「LINEアプリに移った」から先の段につなげる。
     rememberLpOrigin('links');
     hit('open');
+    fetch('/api/rounds/open', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null))
+      .then((d) => setRounds(Array.isArray(d?.rounds) ? d.rounds : [])).catch(() => setRounds([]));
   }, []);
+  const golf = (rounds || []).filter((r) => r.eventType !== 'drink');
+  const open = golf.filter((r) => (r.maxSpots || 0) - (r.currentCount || 0) > 0);
   return (
-    <div className="w-full mt-8 flex flex-col gap-4">
-      {/* 友だち追加をためらう人の受け皿。中身を見てから決めてもらう。
-          /links/rounds も個別のラウンド詳細も、ログインなしで読める。 */}
-      <a
-        href="/links/rounds"
-        onClick={() => hit('rounds')}
-        data-lp="rounds_hub"
-        className="block rounded-[26px] p-5 active:scale-[0.99] transition-transform"
-        style={{ background: '#FFFFFF', boxShadow: '7px 8px 0 ' + INK }}
-      >
-        <div className="flex items-center gap-4">
-          <div className="text-[44px] leading-none">⛳</div>
-          <div className="min-w-0 flex-1">
-            <div className="text-[22px] font-black" style={{ color: INK }}>いま募集中のラウンド</div>
-            <div className="text-[13px] font-bold mt-0.5" style={{ color: '#5A7A6D' }}>登録なしで中身を見られます</div>
-          </div>
-          <div className="text-[22px]" style={{ color: INK }}>›</div>
-        </div>
-      </a>
-
+    <div className="w-full mt-7 flex flex-col gap-4">
       <a
         href={LINE_ADD_URL}
         onClick={() => hit('line')}
         data-lp="cta_line_hub" data-lp-goal="1"
-        className="block rounded-[26px] p-5 active:scale-[0.99] transition-transform"
-        style={{ background: LINE_GREEN, boxShadow: '7px 8px 0 ' + INK }}
+        className="block rounded-[24px] p-5 active:translate-y-[2px] transition-transform"
+        style={{ background: LINE_GREEN, border: '2.5px solid ' + INK, boxShadow: '5px 6px 0 ' + INK }}
       >
         <div className="flex items-center gap-4">
-          <div className="text-[44px] leading-none">💬</div>
+          <div className="text-[40px] leading-none">💬</div>
           <div className="min-w-0 flex-1">
-            <div className="text-[22px] font-black" style={{ color: '#FFFFFF' }}>LINEで友だち追加</div>
-            <div className="text-[13px] font-bold mt-0.5" style={{ color: '#E8FBEF' }}>登録もラウンド参加もLINEで完結</div>
+            <div className="text-[21px] font-black" style={{ color: '#FFFFFF' }}>LINEで友だち追加</div>
+            <div className="text-[12.5px] font-bold mt-0.5" style={{ color: '#E8FBEF' }}>無料・登録もラウンド参加もLINEで完結</div>
           </div>
-          <div className="text-[22px]" style={{ color: '#FFFFFF' }}>›</div>
+          <div className="text-[22px] font-black" style={{ color: '#FFFFFF' }}>›</div>
         </div>
       </a>
 
-      {/* 友だち追加後の使い方ガイド：リッチメニュー右上「現在募集中」の場所を実画像＋ハイライトで示す */}
-      <div className="rounded-[26px] p-5" style={{ background: '#FFFFFF', boxShadow: '7px 8px 0 ' + INK }}>
-        <div className="text-[15px] font-black leading-relaxed" style={{ color: INK }}>
-          友だち追加後は、トーク画面下のメニュー<span style={{ color: '#E8643C' }}>右上「現在募集中」</span>から、いつでも募集中のラウンドを見られます👇
-        </div>
-        <div className="relative mt-3 rounded-2xl overflow-hidden" style={{ border: '2px solid #E7F2EC' }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/richmenu-guide.png" alt="LINEリッチメニュー：右上の「現在募集中」ボタン" className="block w-full h-auto" />
-          {/* 右上セルのハイライト枠（画像は3列2行・外周約1.4%余白） */}
-          <div
-            className="absolute pointer-events-none rounded-2xl"
-            style={{ top: '1.2%', left: '66.6%', width: '32%', height: '49%', border: '4px solid #E8643C', boxShadow: '0 0 0 3px rgba(232,100,60,0.35)' }}
-          />
-          <div
-            className="absolute pointer-events-none px-2.5 py-1 rounded-full text-[12px] font-black"
-            style={{ top: '52%', left: '66.6%', background: '#E8643C', color: '#FFFFFF' }}
-          >
-            👆 ここをタップ！
+      {/* 友だち追加をためらう人の受け皿。中身を見てから決めてもらう（一覧も詳細もログインなしで読める） */}
+      <a
+        href="/links/rounds"
+        onClick={() => hit('rounds')}
+        data-lp="rounds_hub"
+        className="block rounded-[24px] p-5 bg-white active:translate-y-[2px] transition-transform"
+        style={{ border: '2.5px solid ' + INK, boxShadow: '5px 6px 0 ' + INK }}
+      >
+        <div className="flex items-center gap-4">
+          <div className="text-[40px] leading-none">⛳</div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[19px] font-black flex items-center gap-2 flex-wrap" style={{ color: INK }}>
+              いま募集中のラウンド
+              {open.length > 0 && <span className="text-[12px] font-black px-2 py-0.5 rounded-full text-white" style={{ background: '#E8643C' }}>{open.length}件</span>}
+            </div>
+            <div className="text-[12.5px] font-bold mt-0.5" style={{ color: '#5A7A6D' }}>登録しなくても中身を見られます</div>
           </div>
+          <div className="text-[22px] font-black" style={{ color: INK }}>›</div>
         </div>
-      </div>
-
+        {open.length > 0 && (
+          <div className="mt-3 flex flex-col gap-1.5">
+            {open.slice(0, 2).map((r) => (
+              <div key={r.id} className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: '#F2F7F4' }}>
+                <span className="text-[12px] font-black flex-none" style={{ color: '#3478F6' }}>{md(r.date)}</span>
+                <span className="text-[12.5px] font-bold truncate flex-1" style={{ color: INK }}>{r.isOfficial ? '✓ ' : ''}{r.title}</span>
+                <span className="text-[11px] font-black flex-none" style={{ color: '#2A8C82' }}>残り{Math.max(0, r.maxSpots - r.currentCount)}枠</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </a>
     </div>
   );
 }
