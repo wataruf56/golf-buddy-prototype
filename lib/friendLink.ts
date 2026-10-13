@@ -179,6 +179,34 @@ export async function linkFriends(a: string, b: string): Promise<void> {
   ]);
 }
 
+/**
+ * 友達解除（2026-10-14）。お互いの friendIds から外し、まだ答えていない「同じ組？」の確認と、
+ * 解除した側がこれから書く予定だった評価の依頼も片づける（解除した相手を評価させないため）。
+ * 「思わない」と同じ扱い（マッチ解除・レビュー・DM遮断）は lib/matchFeeling の applyFeeling で別にやる。
+ */
+export async function unlinkFriends(by: string, other: string): Promise<void> {
+  const [ua, ub] = await Promise.all([appDb.getUser(by), appDb.getUser(other)]);
+  await Promise.all([
+    appDb.updateUser(by, { friendIds: (ua?.friendIds || []).filter((x) => x !== other) } as any),
+    appDb.updateUser(other, { friendIds: (ub?.friendIds || []).filter((x) => x !== by) } as any),
+  ]);
+  const adb = getAdminDb() as any;
+  if (!adb) return;
+  try {
+    const now = Date.now();
+    const batch = adb.batch();
+    for (const [me, o] of [[by, other], [other, by]]) {
+      const q = await adb.collection(C_QR).doc(pairId(me, o)).get();
+      if (q.exists && !q.data()?.answer) batch.delete(q.ref);
+    }
+    const rev = await adb.collection(C_REV).doc(pairId(by, other)).get();
+    if (rev.exists && rev.data()?.status !== 'done') batch.set(rev.ref, { status: 'done', doneAt: now, cancelledByUnfriend: true }, { merge: true });
+    // 管理画面で「いつ・どちらが解除したか」を追えるように残す
+    batch.set(adb.collection('_unfriends').doc(pairId(by, other)), { by, other, at: now }, { merge: true });
+    await batch.commit();
+  } catch (e) { console.error('[friendLink] unlink cleanup failed (non-fatal)', (e as Error).message); }
+}
+
 export async function isBlockedPair(a: string, b: string): Promise<boolean> {
   const [ua, ub] = await Promise.all([appDb.getUser(a), appDb.getUser(b)]);
   return (ua?.blockedUserIds || []).includes(b) || (ub?.blockedUserIds || []).includes(a);

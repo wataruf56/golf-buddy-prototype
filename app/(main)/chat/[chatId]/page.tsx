@@ -10,6 +10,7 @@ import { toast } from '@/components/Toast';
 import { revisitScoreText, hasRevisitStar } from '@/lib/utils';
 import { ChaseCheck } from '@/components/ChaseCheck';
 import { MatchFeelingBar } from '@/components/MatchFeelingBar';
+import { UnfriendButton } from '@/components/UnfriendButton';
 import { ADMIN_MANAGER_ID } from '@/lib/adminManagerId';
 import { resizeImage } from '@/lib/resizeImage';
 import { track } from '@/lib/telemetry';
@@ -212,6 +213,8 @@ export default function ChatPage() {
           </div>
           <span className="text-muted text-sm">›</span>
         </Link>
+        {/* 友達解除（ゴル友／相互マッチの相手だけに出る・2026-10-14） */}
+        {other.id !== ADMIN_MANAGER_ID && <UnfriendButton compact otherId={other.id} otherName={other.displayName || 'この方'} onDone={() => window.location.reload()} />}
       </div>
       {/* マッチしている相手だけ：「まだ一緒にラウンドしてみたいと思う？」（2026-10-11） */}
       {other.id !== ADMIN_MANAGER_ID && <MatchFeelingBar otherId={other.id} otherName={other.displayName || 'この方'} compact />}

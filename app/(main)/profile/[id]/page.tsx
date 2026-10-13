@@ -14,6 +14,7 @@ import type { User } from '@/lib/types';
 import { track as logEvent } from '@/lib/telemetry';
 import { ProfileDetails } from '@/components/ProfileDetails';
 import { MatchFeelingBar } from '@/components/MatchFeelingBar';
+import { UnfriendButton } from '@/components/UnfriendButton';
 import { chatIdFor, carLabel, instagramUrl, revisitStar, revisitScoreText, hasRevisitStar } from '@/lib/utils';
 
 export default function ProfilePage() {
@@ -38,7 +39,7 @@ export default function ProfilePage() {
 
   const [user, setUser] = useState<User | undefined>(cachedUser);
   const [notFound, setNotFound] = useState(false);
-  const [track, setTrack] = useState<{ roundedWith: number; againCount: number; neverCount: number; mannerPenalty?: number; hostedCount: number; joinedCount: number; officialCount?: number } | null>(null);
+  const [track, setTrack] = useState<{ roundedWith: number; againCount: number; neverCount: number; mannerPenalty?: number; hostedCount: number; joinedCount: number; officialCount?: number; recruitCount?: number; friendCount?: number } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
@@ -58,7 +59,7 @@ export default function ProfilePage() {
       .catch(() => setNotFound(true));
     fetch(`/api/users/${encodeURIComponent(params.id)}/track-record`, { cache: 'no-store' })
       .then((r) => r.json())
-      .then((d) => setTrack({ roundedWith: d.roundedWith || 0, againCount: d.againCount || 0, neverCount: d.neverCount || 0, mannerPenalty: d.mannerPenalty || 0, hostedCount: d.hostedCount || 0, joinedCount: d.joinedCount || 0 }))   // 運営ペナルティも取り込む（落としていて★が下がらなかった）
+      .then((d) => setTrack({ roundedWith: d.roundedWith || 0, againCount: d.againCount || 0, neverCount: d.neverCount || 0, mannerPenalty: d.mannerPenalty || 0, hostedCount: d.hostedCount || 0, joinedCount: d.joinedCount || 0, officialCount: d.officialCount || 0, recruitCount: d.recruitCount ?? d.hostedCount ?? 0, friendCount: d.friendCount || 0 }))   // 運営ペナルティも取り込む（落としていて★が下がらなかった）。公式コンペ数も落としていて常に0だった（2026-10-14）
       .catch(() => {});
   }, [params.id]);
 
@@ -221,9 +222,13 @@ export default function ProfilePage() {
 
         {/* ステータス行（SNS風）＝ 完了ラウンド（募集＋参加）／ 募集回数 */}
         <div className="mt-4 flex rounded-2xl bg-card shadow-card overflow-hidden">
+          {/* 一番左＝友達の数（ゴル友の友達リストに出る人数・2026-10-14）。誰が友達かは見せない（人数だけ） */}
+          <StatCell value={track ? String(track.friendCount ?? 0) : '—'} label="友達" />
+          <div className="w-px bg-border my-3" />
           <StatCell value={track ? String(track.joinedCount + track.hostedCount) : '—'} label="ラウンド" sub={track ? `内、公式コンペ ${track.officialCount ?? 0}回` : undefined} />
           <div className="w-px bg-border my-3" />
-          <StatCell value={track ? String(track.hostedCount) : '—'} label="募集" />
+          {/* 募集＝主催した募集の数（募集中も含む）。以前は完了ぶんだけで、募集中の人が0になっていた（2026-10-14） */}
+          <StatCell value={track ? String(track.recruitCount ?? track.hostedCount) : '—'} label="募集" />
         </div>
 
         {/* 自己紹介 */}
@@ -301,6 +306,8 @@ export default function ProfilePage() {
               )}
             </>
           ) : null}
+          {/* 友達解除（ゴル友／相互マッチの相手だけに出る・2026-10-14）。「思わない」と同じ扱い */}
+          {!isMe && !isBlocked && <UnfriendButton otherId={user.id} otherName={user.displayName || 'この方'} onDone={() => window.location.reload()} />}
         </div>
       </div>
 

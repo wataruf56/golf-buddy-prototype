@@ -69,14 +69,14 @@ export default function MyPage() {
     (r.pendingApplicantIds || []).map((uid) => ({ round: r, applicantId: uid }))
   );
   // 実績ベース評価：一緒に回った人のうち「また回りたい」を押した人数（相手にも見える指標）。
-  const [trackRecord, setTrackRecord] = useState<{ roundedWith: number; againCount: number; neverCount: number; mannerPenalty?: number; hostedCount: number; joinedCount: number; officialCount?: number } | null>(null);
+  const [trackRecord, setTrackRecord] = useState<{ roundedWith: number; againCount: number; neverCount: number; mannerPenalty?: number; hostedCount: number; joinedCount: number; officialCount?: number; recruitCount?: number; friendCount?: number } | null>(null);
   const users = useStore((s) => s.users);
 
   useEffect(() => {
     if (!meId) return;
     fetch(`/api/users/${encodeURIComponent(meId)}/track-record`, { cache: 'no-store' })
       .then((r) => r.json())
-      .then((d) => setTrackRecord({ roundedWith: d.roundedWith || 0, againCount: d.againCount || 0, neverCount: d.neverCount || 0, mannerPenalty: d.mannerPenalty || 0, hostedCount: d.hostedCount || 0, joinedCount: d.joinedCount || 0 }))   // 運営ペナルティも取り込む（落としていて★が下がらなかった）
+      .then((d) => setTrackRecord({ roundedWith: d.roundedWith || 0, againCount: d.againCount || 0, neverCount: d.neverCount || 0, mannerPenalty: d.mannerPenalty || 0, hostedCount: d.hostedCount || 0, joinedCount: d.joinedCount || 0, officialCount: d.officialCount || 0, recruitCount: d.recruitCount ?? d.hostedCount ?? 0, friendCount: d.friendCount || 0 }))   // 運営ペナルティも取り込む（落としていて★が下がらなかった）。公式コンペ数も落としていて常に0だった（2026-10-14）
       .catch(() => {});
     track('mypage_render', {
       meId,
@@ -169,9 +169,12 @@ export default function MyPage() {
 
             {/* ステータス行 ＝ 完了ラウンド（募集して完了＋参加して完了）／ 募集回数 */}
             <div className="mt-4 flex rounded-2xl bg-bg overflow-hidden">
+              {/* 一番左＝友達の数（ゴル友の友達リストに出る人数・2026-10-14）。タップでゴル友へ */}
+              <Link href="/buddies" className="flex-1"><StatCell value={trackRecord ? String(trackRecord.friendCount ?? 0) : '—'} label="友達" /></Link>
+              <div className="w-px bg-border my-3" />
               <StatCell value={trackRecord ? String(trackRecord.hostedCount + trackRecord.joinedCount) : `${myCompletedRoundCount}`} label="ラウンド" sub={trackRecord ? `内、公式コンペ ${trackRecord.officialCount ?? 0}回` : undefined} />
               <div className="w-px bg-border my-3" />
-              <StatCell value={`${myHostedRounds.length}`} label="募集" />
+              <StatCell value={`${trackRecord?.recruitCount ?? myHostedRounds.length}`} label="募集" />
             </div>
 
             {me.bio && (

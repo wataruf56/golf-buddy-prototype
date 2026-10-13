@@ -24,13 +24,15 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     ]);
     const seenRounds = new Set<string>();
     const partners = new Set<string>();
-    let hostedCount = 0;   // 募集回数（完了ラウンドで主催）
+    let hostedCount = 0;   // 完了ラウンドで主催した回数（「ラウンド」の数に足す）
+    let recruitCount = 0;  // 募集回数＝主催した募集の数（募集中・締切後も含む）。以前は完了ぶんだけで、募集中の人が0になっていた（2026-10-14）
     let joinedCount = 0;   // 参加回数（完了ラウンドに参加者として参加）
     let officialCount = 0; // 内、ゴルトモ公式コンペに参加して完了した回数（主催としてではなく、プレーした回）（2026-10-13）
     const consider = (doc: any) => {
       if (seenRounds.has(doc.id)) return;
       seenRounds.add(doc.id);
       const r = doc.data() || {};
+      if (r.hostId === id) recruitCount++;
       if (r.status !== 'completed') return;
       // 飲み会（eventType='drink'）はゴルフのラウンド実績に数えない。
       if (r.eventType === 'drink') return;
@@ -81,7 +83,28 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       mannerPenalty = Math.max(0, Math.floor(Number((us.data() || {}).mannerPenalty || 0)));
     } catch { /* 引けなくても星は出す */ }
 
-    return NextResponse.json({ roundedWith, againCount, neverCount, mannerPenalty, hostedCount, joinedCount, officialCount }, { headers: noStore });
+    // 友達の数＝ゴル友の友達リストに出る人数（QR・友達申請の friendIds ＋ レビューで相互に行きたい／💘）（2026-10-14）。
+    // ブロック中の相手と運営（管理人）は数えない。
+    let friendCount = 0;
+    try {
+      const { ADMIN_MANAGER_ID } = await import('@/lib/adminManagerId');
+      const us = await db.collection('users').doc(id).get();
+      const u = us.data() || {};
+      const blocked = new Set<string>(u.blockedUserIds || []);
+      const set = new Set<string>((u.friendIds || []).filter((x: string) => x && x !== id));
+      const mine = await db.collection('_matchLikes').where('from', '==', id).limit(1000).get();
+      await Promise.all(mine.docs.map(async (d: any) => {
+        const x = d.data() || {};
+        if (!x.to || set.has(x.to) || (x.kind !== 'again' && x.kind !== 'romantic')) return;
+        const rev = await db.collection('_matchLikes').doc(`${x.kind}__${x.to}__${id}`).get();
+        if (rev.exists) set.add(x.to);
+      }));
+      set.delete(ADMIN_MANAGER_ID);
+      blocked.forEach((b) => set.delete(b));
+      friendCount = set.size;
+    } catch { /* 引けなければ0 */ }
+
+    return NextResponse.json({ roundedWith, againCount, neverCount, mannerPenalty, hostedCount, joinedCount, officialCount, recruitCount, friendCount }, { headers: noStore });
   } catch (e) {
     return NextResponse.json({ roundedWith: 0, againCount: 0, neverCount: 0, hostedCount: 0, joinedCount: 0, error: (e as Error).message }, { headers: noStore });
   }
