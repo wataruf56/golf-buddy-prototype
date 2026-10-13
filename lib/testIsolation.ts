@@ -6,7 +6,8 @@ import { ADMIN_MANAGER_ID } from './adminManagerId';
 // テスト隔離（2026-10-08・重大）
 //
 // テスト垢（test_〜、または管理画面で登録したテストアカウント）が起こした操作の通知は、
-// テスト垢と管理者以外には **絶対に** 届けない。
+// テスト垢以外には **絶対に** 届けない。2026-10-13〜 管理者（運営の本人）にも届けない
+// （テスト募集の「🎯 アンケート条件に一致」が運営のLINE・お知らせに毎回入っていたため。本人の希望）。
 //
 // 背景：検証用に test_ の主催者で募集を作ったところ、「🎯 あなたのアンケート条件に一致する
 // ラウンドが投稿されました」の LINE 通知が一般ユーザーに届いてしまった。
@@ -15,7 +16,7 @@ import { ADMIN_MANAGER_ID } from './adminManagerId';
 //   1. lib/session.getMeId() が Cookie からユーザーを特定した瞬間（同期）に、そのリクエストの
 //      「操作した人」を AsyncLocalStorage に入れる。
 //   2. LINE push（lib/linePush）とアプリ内通知（lib/notifications）は送る直前に必ずここを通り、
-//      操作した人がテスト垢なら、宛先をテスト垢＋管理者だけに絞る。
+//      操作した人がテスト垢なら、宛先をテスト垢（＋システムの管理人アカウント）だけに絞る。
 //   3. 操作した人が分からないとき（cron・管理トークン経由）でも、通知のリンクが /round/<id> なら
 //      その募集の主催者を見て、テスト垢の募集なら同じく絞る。
 // ─────────────────────────────────────────────────────────────────────────────
@@ -69,17 +70,16 @@ async function isTestActorOrSubject(link?: string): Promise<{ test: boolean; why
 
 /**
  * 通知の宛先を「テスト隔離」する。テスト垢の操作（またはテスト垢の募集）なら、
- * テスト垢と管理者以外の宛先を落とす。通常の操作ではそのまま返す。
+ * テスト垢以外の宛先を落とす（管理者の本人も落とす。残すのはシステムの管理人アカウントだけ）。通常の操作ではそのまま返す。
  */
 export async function isolateRecipients(ids: string[], link: string | undefined, where: string): Promise<string[]> {
   if (!ids.length) return ids;
   const { test, why } = await isTestActorOrSubject(link);
   if (!test) return ids;
   const { isTestAccount } = await import('./testAccounts');
-  const admins = adminRecipientSet();
   const kept: string[] = [];
   for (const id of ids) {
-    if (admins.has(id) || isTestPrefixedId(id) || (await isTestAccount(id))) kept.push(id);
+    if (id === ADMIN_MANAGER_ID || isTestPrefixedId(id) || (await isTestAccount(id))) kept.push(id);
   }
   const dropped = ids.length - kept.length;
   if (dropped > 0) console.warn(`[test-isolation] ${where}: dropped ${dropped} non-test recipient(s) (${why})`);
