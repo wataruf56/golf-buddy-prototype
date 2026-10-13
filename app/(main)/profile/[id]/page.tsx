@@ -37,7 +37,7 @@ export default function ProfilePage() {
 
   const [user, setUser] = useState<User | undefined>(cachedUser);
   const [notFound, setNotFound] = useState(false);
-  const [track, setTrack] = useState<{ roundedWith: number; againCount: number; neverCount: number; mannerPenalty?: number; hostedCount: number; joinedCount: number } | null>(null);
+  const [track, setTrack] = useState<{ roundedWith: number; againCount: number; neverCount: number; mannerPenalty?: number; hostedCount: number; joinedCount: number; officialCount?: number } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
@@ -219,7 +219,7 @@ export default function ProfilePage() {
 
         {/* ステータス行（SNS風）＝ 完了ラウンド（募集＋参加）／ 募集回数 */}
         <div className="mt-4 flex rounded-2xl bg-card shadow-card overflow-hidden">
-          <StatCell value={track ? String(track.joinedCount + track.hostedCount) : '—'} label="ラウンド" />
+          <StatCell value={track ? String(track.joinedCount + track.hostedCount) : '—'} label="ラウンド" sub={track ? `内、公式コンペ ${track.officialCount ?? 0}回` : undefined} />
           <div className="w-px bg-border my-3" />
           <StatCell value={track ? String(track.hostedCount) : '—'} label="募集" />
         </div>
@@ -359,11 +359,12 @@ function MannerBadge({ penalty }: { penalty: number }) {
   );
 }
 
-function StatCell({ value, label, accent }: { value: string; label: string; accent?: boolean }) {
+function StatCell({ value, label, accent, sub }: { value: string; label: string; accent?: boolean; sub?: string }) {
   return (
     <div className="flex-1 py-3 text-center">
       <div className={`text-[22px] font-black leading-none ${accent ? 'text-green' : 'text-text'}`}>{value}</div>
       <div className="text-[10px] text-muted mt-1">{label}</div>
+      {sub && <div className="text-[9.5px] font-bold text-orange mt-0.5">🏆 {sub}</div>}
     </div>
   );
 }

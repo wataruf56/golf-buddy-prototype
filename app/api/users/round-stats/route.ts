@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getMeId } from '@/lib/session';
 import { getAdminDb } from '@/lib/firebase';
 import { countedMemberIds } from '@/lib/hostCount';
+import { isOfficialComp } from '@/lib/officialComp';
 
 // POST /api/users/round-stats { ids: string[] } … 募集ページの参加者一覧に出す「ゴルトモで◯回」「公式コンペ◯回」（2026-10-13）
 //   rounds   … ゴルトモでラウンドした回数（users.roundCount＝完了したラウンドごとに参加者へ +1）
@@ -17,8 +18,7 @@ async function officialCounts(adb: any): Promise<Map<string, number>> {
   for (const d of snap.docs) {
     const r = { id: d.id, ...(d.data() || {}) } as any;
     if (r.status !== 'completed' || r.heldCancelledAt) continue;
-    const isComp = !!r.isCompetition || (Number(r.maxSpots) || 0) >= 5;
-    if (!isComp) continue;
+    if (!isOfficialComp(r)) continue;
     for (const uid of countedMemberIds(r)) counts.set(uid, (counts.get(uid) || 0) + 1);
   }
   officialCache = { at: Date.now(), counts };

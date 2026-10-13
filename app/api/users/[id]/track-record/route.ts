@@ -1,3 +1,4 @@
+import { isOfficialComp } from '@/lib/officialComp';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase';
 import { countedMemberIds } from '@/lib/hostCount';
@@ -25,6 +26,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     const partners = new Set<string>();
     let hostedCount = 0;   // 募集回数（完了ラウンドで主催）
     let joinedCount = 0;   // 参加回数（完了ラウンドに参加者として参加）
+    let officialCount = 0; // 内、ゴルトモ公式コンペに参加して完了した回数（主催としてではなく、プレーした回）（2026-10-13）
     const consider = (doc: any) => {
       if (seenRounds.has(doc.id)) return;
       seenRounds.add(doc.id);
@@ -37,6 +39,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       const isHostHere = r.hostId === id;
       if (!members.includes(id) && !isHostHere) return;
       if (isHostHere) hostedCount++; else joinedCount++;
+      if (members.includes(id) && isOfficialComp(r)) officialCount++;
       if (members.includes(id)) for (const m of members) if (m && m !== id) partners.add(m);
     };
     asApplicant.docs.forEach(consider);
@@ -78,7 +81,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       mannerPenalty = Math.max(0, Math.floor(Number((us.data() || {}).mannerPenalty || 0)));
     } catch { /* 引けなくても星は出す */ }
 
-    return NextResponse.json({ roundedWith, againCount, neverCount, mannerPenalty, hostedCount, joinedCount }, { headers: noStore });
+    return NextResponse.json({ roundedWith, againCount, neverCount, mannerPenalty, hostedCount, joinedCount, officialCount }, { headers: noStore });
   } catch (e) {
     return NextResponse.json({ roundedWith: 0, againCount: 0, neverCount: 0, hostedCount: 0, joinedCount: 0, error: (e as Error).message }, { headers: noStore });
   }

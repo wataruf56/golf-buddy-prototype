@@ -69,7 +69,7 @@ export default function MyPage() {
     (r.pendingApplicantIds || []).map((uid) => ({ round: r, applicantId: uid }))
   );
   // 実績ベース評価：一緒に回った人のうち「また回りたい」を押した人数（相手にも見える指標）。
-  const [trackRecord, setTrackRecord] = useState<{ roundedWith: number; againCount: number; neverCount: number; mannerPenalty?: number; hostedCount: number; joinedCount: number } | null>(null);
+  const [trackRecord, setTrackRecord] = useState<{ roundedWith: number; againCount: number; neverCount: number; mannerPenalty?: number; hostedCount: number; joinedCount: number; officialCount?: number } | null>(null);
   const users = useStore((s) => s.users);
 
   useEffect(() => {
@@ -169,7 +169,7 @@ export default function MyPage() {
 
             {/* ステータス行 ＝ 完了ラウンド（募集して完了＋参加して完了）／ 募集回数 */}
             <div className="mt-4 flex rounded-2xl bg-bg overflow-hidden">
-              <StatCell value={trackRecord ? String(trackRecord.hostedCount + trackRecord.joinedCount) : `${myCompletedRoundCount}`} label="ラウンド" />
+              <StatCell value={trackRecord ? String(trackRecord.hostedCount + trackRecord.joinedCount) : `${myCompletedRoundCount}`} label="ラウンド" sub={trackRecord ? `内、公式コンペ ${trackRecord.officialCount ?? 0}回` : undefined} />
               <div className="w-px bg-border my-3" />
               <StatCell value={`${myHostedRounds.length}`} label="募集" />
             </div>
@@ -338,11 +338,12 @@ function AddBotModal({ botBasicId, onConfirmed, onLater }: { botBasicId: string;
   );
 }
 
-function StatCell({ value, label, accent }: { value: string; label: string; accent?: boolean }) {
+function StatCell({ value, label, accent, sub }: { value: string; label: string; accent?: boolean; sub?: string }) {
   return (
     <div className="flex-1 py-3 text-center">
       <div className={`text-[22px] font-black leading-none ${accent ? 'text-green' : 'text-text'}`}>{value}</div>
       <div className="text-[10px] text-muted mt-1">{label}</div>
+      {sub && <div className="text-[9.5px] font-bold text-orange mt-0.5">🏆 {sub}</div>}
     </div>
   );
 }
