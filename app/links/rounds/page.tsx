@@ -81,7 +81,7 @@ export default function PublicRoundsPage() {
               const isDrink = r.eventType === 'drink';
               const full = !isDrink && left(r) === 0;
               const dateLabel = r.dateType === 'range' ? (r.dateRange || '日程調整中') : (formatDate(r.date) || '日程未定');
-              const place = isDrink ? (r.venue || r.area || '場所未定') : [r.courseName, r.area ? `（${r.area}）` : ''].filter(Boolean).join('') || 'エリア未定';
+              const place = isDrink ? (r.venue || r.area || '場所未定') : r.courseName ? `${r.courseName}${r.area ? `（${r.area}）` : ''}` : (r.area ? `${r.area}（ゴルフ場は調整中）` : 'エリア未定');
               const rate = r.maxSpots ? Math.min(1, (r.currentCount || 0) / r.maxSpots) : 0;
               const price = priceLabel(r.price);
               return (

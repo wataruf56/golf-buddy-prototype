@@ -109,8 +109,8 @@ export default function LinksHubPage() {
             <img src="/richmenu-guide-v11.webp" alt="LINEのメニュー：右上の「現在募集中」" className="block w-full h-auto" />
             <div className="absolute pointer-events-none rounded-2xl"
               style={{ top: '1.2%', left: '66.6%', width: '32.4%', height: '48.5%', border: `4px solid ${ORANGE}`, boxShadow: '0 0 0 3px rgba(232,100,60,0.35)' }} />
-            <div className="absolute pointer-events-none px-2.5 py-1 rounded-full text-[12px] font-black text-white"
-              style={{ top: '51%', left: '64%', background: ORANGE }}>👆 ここをタップ！</div>
+            <div className="absolute pointer-events-none px-2.5 py-1 rounded-full text-[12px] font-black text-white whitespace-nowrap"
+              style={{ top: '51%', right: '2%', background: ORANGE, boxShadow: '2px 2px 0 rgba(30,58,48,0.35)' }}>👆 ここをタップ！</div>
           </div>
           <div className="text-[11.5px] font-bold mt-2.5 leading-relaxed" style={{ color: SUB }}>
             「参加予定」で自分のラウンド、「タイムライン」でみんなの動きも見られます。
