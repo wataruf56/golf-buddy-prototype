@@ -83,26 +83,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       mannerPenalty = Math.max(0, Math.floor(Number((us.data() || {}).mannerPenalty || 0)));
     } catch { /* 引けなくても星は出す */ }
 
-    // 友達の数＝ゴル友の友達リストに出る人数（QR・友達申請の friendIds ＋ レビューで相互に行きたい／💘）（2026-10-14）。
-    // ブロック中の相手と運営（管理人）は数えない。
+    // 友達の数＝ゴル友の友達リストに出る人数（lib/friendSet・2026-10-14）。ブロック中の相手と運営（管理人）は数えない。
     let friendCount = 0;
-    try {
-      const { ADMIN_MANAGER_ID } = await import('@/lib/adminManagerId');
-      const us = await db.collection('users').doc(id).get();
-      const u = us.data() || {};
-      const blocked = new Set<string>(u.blockedUserIds || []);
-      const set = new Set<string>((u.friendIds || []).filter((x: string) => x && x !== id));
-      const mine = await db.collection('_matchLikes').where('from', '==', id).limit(1000).get();
-      await Promise.all(mine.docs.map(async (d: any) => {
-        const x = d.data() || {};
-        if (!x.to || set.has(x.to) || (x.kind !== 'again' && x.kind !== 'romantic')) return;
-        const rev = await db.collection('_matchLikes').doc(`${x.kind}__${x.to}__${id}`).get();
-        if (rev.exists) set.add(x.to);
-      }));
-      set.delete(ADMIN_MANAGER_ID);
-      blocked.forEach((b) => set.delete(b));
-      friendCount = set.size;
-    } catch { /* 引けなければ0 */ }
+    try { const { friendSetOf } = await import('@/lib/friendSet'); friendCount = (await friendSetOf(id)).size; } catch { /* 引けなければ0 */ }
 
     return NextResponse.json({ roundedWith, againCount, neverCount, mannerPenalty, hostedCount, joinedCount, officialCount, recruitCount, friendCount }, { headers: noStore });
   } catch (e) {

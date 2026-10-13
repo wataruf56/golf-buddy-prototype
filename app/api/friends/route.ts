@@ -26,14 +26,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'blocked', message: 'この相手とは友達になれません' }, { status: 403, headers: noStore });
   }
 
-  // 「思わない」・友達解除で閉じているペア（lib/dmBlock）。閉じた本人がQRを読み直したときは
-  // 「もう一度つながりたい」という本人の操作なので解く。相手が閉じているときはつながらない（2026-10-14）。
+  // 「思わない」・友達解除で DM が閉じているペアでも、QRを読み合えば（どちらが読んでも）またつながる。
+  // QRは目の前で相手に見せてもらうもの＝お互いの意思なので、DMの遮断も解く（2026-10-14 本人判断）。
   try {
-    const { blockedBy, unblockDm } = await import('@/lib/dmBlock');
-    const by = await blockedBy(meId, otherId);
-    if (by && by !== meId) return NextResponse.json({ error: 'blocked', message: 'この相手とは友達になれません' }, { status: 403, headers: noStore });
-    if (by === meId) await unblockDm(meId, otherId);
-  } catch { /* 判定できなければ従来どおり */ }
+    const { unblockDm, reopenDm } = await import('@/lib/dmBlock');
+    await unblockDm(meId, otherId);
+    await reopenDm(meId, otherId);
+  } catch { /* 解けなくても友達にはする */ }
 
   const myFriends = new Set(me?.friendIds || []);
   const theirFriends = new Set(other?.friendIds || []);

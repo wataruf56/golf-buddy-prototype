@@ -182,7 +182,8 @@ export async function linkFriends(a: string, b: string): Promise<void> {
 /**
  * 友達解除（2026-10-14）。お互いの friendIds から外し、まだ答えていない「同じ組？」の確認と、
  * 解除した側がこれから書く予定だった評価の依頼も片づける（解除した相手を評価させないため）。
- * 「思わない」と同じ扱い（マッチ解除・レビュー・DM遮断）は lib/matchFeeling の applyFeeling で別にやる。
+ * 相互マッチの相手だけ、「思わない」と同じ扱い（マッチ解除・レビュー・DM遮断）を lib/matchFeeling の applyFeeling で別にやる
+ * （QR・友達申請だけの相手は一緒に回っていないので★に影響させない・/api/friends/unfriend）。
  */
 export async function unlinkFriends(by: string, other: string): Promise<void> {
   const [ua, ub] = await Promise.all([appDb.getUser(by), appDb.getUser(other)]);

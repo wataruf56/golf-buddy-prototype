@@ -7,7 +7,8 @@ import { track } from '@/lib/telemetry';
 
 // 友達解除のボタン（2026-10-14）。プロフィールの下と、DM画面の上に置く。
 // ゴル友（QR・友達申請）か、レビューで相互に「行きたい／💘」の相手のときだけ出る（GET /api/friends/unfriend）。
-// 解除は「またその人とラウンドを回りたいか」に「思わない」と答えたのと同じ扱い（サーバー側で処理）。相手には通知しない。
+// 相互マッチ（同じ組で回ってお互いに行きたい／💘）の相手は「思わない」と同じ扱いで★に反映。QR・友達申請だけの相手は
+// 一緒に回っていないので★に影響しない（サーバー側で分ける）。どちらも相手には通知しない。
 export function UnfriendButton({ otherId, otherName, compact, onDone }: {
   otherId: string;
   otherName: string;
@@ -15,6 +16,7 @@ export function UnfriendButton({ otherId, otherName, compact, onDone }: {
   onDone?: () => void;
 }) {
   const [can, setCan] = useState(false);
+  const [matched, setMatched] = useState(false);   // 相互マッチの相手（解除すると★に反映される）
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -23,7 +25,7 @@ export function UnfriendButton({ otherId, otherName, compact, onDone }: {
     if (!otherId) return;
     fetch(`/api/friends/unfriend?userId=${encodeURIComponent(otherId)}`, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (!cancelled) setCan(!!d?.canUnfriend); })
+      .then((d) => { if (!cancelled) { setCan(!!d?.canUnfriend); setMatched(!!d?.matched); } })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [otherId]);
@@ -34,12 +36,17 @@ export function UnfriendButton({ otherId, otherName, compact, onDone }: {
     if (busy) return;
     const ok = await confirmDialog({
       title: `${otherName}さんとの友達を解除しますか？`,
-      message: [
+      message: (matched ? [
         '・ゴル友の友達リストから外れます',
         '・お互いにメッセージ（DM）を送れなくなります',
         '・「またこの人とラウンドを回りたい？」に「思わない」と答えたのと同じ扱いになり、相手の評価に反映されます',
         '・相手には通知されません',
-      ].join('\n'),
+      ] : [
+        '・ゴル友の友達リストから外れます',
+        '・お互いにメッセージ（DM）を送れなくなります',
+        '・一緒にラウンドしていないので、評価には影響しません',
+        '・相手には通知されません（また QR コードを読み合えば、つながり直せます）',
+      ]).join('\n'),
       confirmText: '友達解除する',
       danger: true,
     });

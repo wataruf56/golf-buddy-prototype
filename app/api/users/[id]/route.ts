@@ -100,23 +100,22 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     reviewer: byId[r.reviewerId] || { ageBucket: '', gender: undefined },
   }));
 
-  // 共通の友達：閲覧者(A)とこのプロフィール(B)が、それぞれ「過去に同じ組で回った人」の
-  // 積集合。A自身・B自身・システムアカウント・赤バンは除外。自分のプロフィールでは出さない。
+  // 共通の友達：閲覧者(A)とこのプロフィール(B)の「友達リスト」（lib/friendSet＝QR・友達申請・相互マッチ）の積集合（2026-10-14）。
+  // 以前は「過去に同じ組で回った人」どうしの重なりだった。A自身・B自身・システムアカウント・赤バンは除外。自分のプロフィールでは出さない。
   let mutualFriends: Array<{ id: string; displayName: string; avatar: string; avatarUrl?: string }> = [];
   try {
     const viewerId = await getMeId();
     if (viewerId && viewerId !== params.id) {
-      const { sameGroupPartnerIds } = await import('@/lib/pastPartners');
-      const [aSet, bSet] = await Promise.all([sameGroupPartnerIds(viewerId), sameGroupPartnerIds(params.id)]);
-      const mutualIds = Array.from(aSet).filter((id) => bSet.has(id) && id !== viewerId && id !== params.id).slice(0, 30);
+      const { friendSetOf } = await import('@/lib/friendSet');
+      const [aSet, bSet] = await Promise.all([friendSetOf(viewerId), friendSetOf(params.id)]);
+      const mutualIds = Array.from(aSet).filter((id) => bSet.has(id) && id !== viewerId && id !== params.id).slice(0, 100);
       if (mutualIds.length) {
         let bset = new Set<string>();
         try { const { getBannedIdSet } = await import('@/lib/banAccess'); bset = await getBannedIdSet(); } catch {}
         const mUsers = await db.listUsers(mutualIds);
         mutualFriends = mUsers
           .filter((u) => !(u as any).isSystem && !bset.has(u.id))
-          .map((u) => ({ id: u.id, displayName: u.displayName || 'メンバー', avatar: u.avatar || '⛳', avatarUrl: (u as any).avatarUrl || undefined }))
-          .slice(0, 24);
+          .map((u) => ({ id: u.id, displayName: u.displayName || 'メンバー', avatar: u.avatar || '⛳', avatarUrl: (u as any).avatarUrl || undefined }));
       }
     }
   } catch { /* best-effort：共通の友達が出せなくてもプロフィールは表示する */ }

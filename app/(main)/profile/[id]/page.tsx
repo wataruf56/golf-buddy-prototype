@@ -46,11 +46,13 @@ export default function ProfilePage() {
   // 通報の種別（カテゴリ）。ドタキャン申告もここに含める。
   const [reportCat, setReportCat] = useState<'' | 'inappropriate' | 'noshow' | 'no_contact' | 'other'>('');
   const [reportBusy, setReportBusy] = useState(false);
-  // 共通の友達（自分とこの人が、両方とも同じ組で回ったことがある人）。
+  // 共通の友達（自分とこの人の友達リストの重なり・lib/friendSet・2026-10-14〜。以前は同じ組で回った人どうし）。
+  const [mutualOpen, setMutualOpen] = useState(false);   // 「友達」の数をタップで共通の友達を開く（2026-10-14）
   const [mutuals, setMutuals] = useState<Array<{ id: string; displayName: string; avatar: string; avatarUrl?: string }>>([]);
 
   useEffect(() => {
     if (!params.id) return;
+    setMutualOpen(false);
     // 相手が取得できなかった場合（404・BAN・削除・通信失敗）は無限ローディングにせず
     // notFound を立てる。これが無いと「読み込み中」のまま固まる（DMと同種の不具合）。
     fetch(`/api/users/${encodeURIComponent(params.id)}`)
@@ -222,14 +224,39 @@ export default function ProfilePage() {
 
         {/* ステータス行（SNS風）＝ 完了ラウンド（募集＋参加）／ 募集回数 */}
         <div className="mt-4 flex rounded-2xl bg-card shadow-card overflow-hidden">
-          {/* 一番左＝友達の数（ゴル友の友達リストに出る人数・2026-10-14）。誰が友達かは見せない（人数だけ） */}
-          <StatCell value={track ? String(track.friendCount ?? 0) : '—'} label="友達" />
+          {/* 一番左＝友達の数（ゴル友の友達リストに出る人数・2026-10-14）。誰が友達かは見せない（人数だけ）。
+              タップで下に「共通の友達」（自分とこの人の友達リストの重なり）を開く */}
+          <button type="button" onClick={() => { if (!isMe) setMutualOpen((v) => !v); }} aria-expanded={mutualOpen} className="flex-1 py-3 text-center">
+            <div className="text-[22px] font-black leading-none text-text">{track ? String(track.friendCount ?? 0) : '—'}</div>
+            <div className="text-[10px] text-muted mt-1">友達</div>
+            {!isMe && <div className="text-[9.5px] font-bold text-green mt-0.5">🤝 共通の友達 {mutuals.length}人</div>}
+            {!isMe && <div className="text-[9px] font-bold text-sub mt-0.5">{mutualOpen ? '▲ 閉じる' : '▼ タップで見る'}</div>}
+          </button>
           <div className="w-px bg-border my-3" />
           <StatCell value={track ? String(track.joinedCount + track.hostedCount) : '—'} label="ラウンド" sub={track ? `内、公式コンペ ${track.officialCount ?? 0}回` : undefined} />
           <div className="w-px bg-border my-3" />
           {/* 募集＝主催した募集の数（募集中も含む）。以前は完了ぶんだけで、募集中の人が0になっていた（2026-10-14） */}
           <StatCell value={track ? String(track.recruitCount ?? track.hostedCount) : '—'} label="募集" />
         </div>
+        {mutualOpen && !isMe && (
+          <div className="mt-2 bg-card rounded-card p-4 shadow-card">
+            <div className="text-[13px] font-black mb-2.5">🤝 共通の友達 <span className="text-muted font-bold">{mutuals.length}人</span></div>
+            {mutuals.length === 0 ? (
+              <div className="text-[11.5px] text-sub">{user.displayName}さんとの共通の友達はまだいません。</div>
+            ) : (
+              <div className="flex flex-col">
+                {mutuals.map((m) => (
+                  <Link key={m.id} href={`/profile/${m.id}`} className="flex items-center gap-3 py-2 border-b border-border last:border-b-0">
+                    <Avatar user={{ id: m.id, displayName: m.displayName, avatar: m.avatar, avatarUrl: m.avatarUrl, color: '#2A8C82' } as any} size={36} />
+                    <span className="flex-1 min-w-0 text-[13px] font-bold truncate">{m.displayName}</span>
+                    <span className="text-muted text-sm">›</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+            <div className="text-[10px] text-muted mt-2">※ あなたと{user.displayName}さんの、両方の友達リスト（QR・友達申請・お互いに「行きたい」）にいる人です。</div>
+          </div>
+        )}
 
         {/* 自己紹介 */}
         {user.bio && (
@@ -251,22 +278,6 @@ export default function ProfilePage() {
           >
             <span className="text-lg">📷</span> Instagram を開く
           </a>
-        )}
-
-        {/* 共通の友達（自分とこの人が、両方とも同じ組で回ったことがある人） */}
-        {!isMe && mutuals.length > 0 && (
-          <div className="mt-3 bg-card rounded-card p-4 shadow-card">
-            <div className="text-[13px] font-black mb-2.5">🤝 共通の友達 <span className="text-muted font-bold">{mutuals.length}人</span></div>
-            <div className="flex flex-wrap gap-2.5">
-              {mutuals.map((m) => (
-                <Link key={m.id} href={`/profile/${m.id}`} className="flex flex-col items-center gap-1 w-[60px]">
-                  <Avatar user={{ id: m.id, displayName: m.displayName, avatar: m.avatar, avatarUrl: m.avatarUrl, color: '#2A8C82' } as any} size={44} />
-                  <span className="text-[10px] text-sub text-center leading-tight truncate w-full">{m.displayName}</span>
-                </Link>
-              ))}
-            </div>
-            <div className="text-[10px] text-muted mt-2">※ 過去に同じ組で一緒に回ったことがある人どうしの重なりです。</div>
-          </div>
         )}
 
         {/* 下部アクション／状態 */}

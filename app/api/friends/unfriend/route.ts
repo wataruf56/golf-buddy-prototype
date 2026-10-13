@@ -6,9 +6,12 @@ import { ADMIN_MANAGER_ID } from '@/lib/adminManagerId';
 // 友達解除（2026-10-14）。プロフィール・DM画面の「友達解除」ボタンから。
 //   GET  ?userId= … { canUnfriend, friend, matched }（ゴル友＝QR・友達申請／レビューで相互に行きたい・💘 のどれか）
 //   POST { userId } … 解除する。相手には通知しない。
-// 解除は「またその人とラウンドを回りたいか」に「思わない」と答えたのと同じ扱い：
-//   お互いの friendIds から外す＋自分の「行きたい／💘」を外してマッチ解除＋直近の一緒だった
-//   ラウンドのレビューを「思わない」に（★・「行きたい」の人数に反映）＋DMを双方向で閉じる。
+// 解除のしかたは、つながり方で分ける（2026-10-14 本人判断）：
+//   ・QR・友達申請だけでつながった人 … お互いの friendIds から外すだけ。一緒にラウンドしていないので
+//     ★（評価）には影響させない。DMの遮断もしない（あとでどちらがQRを読んでも、またつながれる）。
+//   ・レビューでお互いに「行きたい／💘」（＝同じ組で回ってマッチした人）… 「またその人とラウンドを回りたいか」に
+//     「思わない」と答えたのと同じ扱い：friendIds から外す＋自分の「行きたい／💘」を外してマッチ解除＋
+//     直近の一緒だったラウンドのレビューを「思わない」に（★・「行きたい」の人数に反映）＋DMを双方向で閉じる。
 // 運営（管理人）は解除できない（いつでも連絡できる窓口のため）。
 const noStore = { 'Cache-Control': 'no-store' };
 export const dynamic = 'force-dynamic';
@@ -42,8 +45,10 @@ export async function POST(req: NextRequest) {
   if (!r.friend && !r.matched) return NextResponse.json({ error: 'not_friend', message: 'この相手とは友達になっていません' }, { status: 409, headers: noStore });
 
   const { unlinkFriends } = await import('@/lib/friendLink');
-  const { applyFeeling, lastSharedRoundId } = await import('@/lib/matchFeeling');
   await unlinkFriends(meId, other);
+  if (!r.matched) return NextResponse.json({ ok: true, rated: false }, { headers: noStore });
+
+  const { applyFeeling, lastSharedRoundId } = await import('@/lib/matchFeeling');
   const roundId = await lastSharedRoundId(meId, other);
   await applyFeeling(meId, other, 'never', roundId);
   // 再会のやり取りがあれば終了にする（/api/me/match-feeling の「思わない」と同じ）
@@ -53,5 +58,5 @@ export async function POST(req: NextRequest) {
     const s = await getSession(pairId);
     if (s) await saveSession(pairId, { optedOutBy: Array.from(new Set([...(s.optedOutBy || []), meId])), status: 'optedout' } as any);
   } catch { /* noop */ }
-  return NextResponse.json({ ok: true }, { headers: noStore });
+  return NextResponse.json({ ok: true, rated: true }, { headers: noStore });
 }
