@@ -1119,6 +1119,27 @@ export default function RoundDetailPage() {
                 <div className="text-[11px] text-sub">ゴルトモ運営による公式ラウンド</div>
               </div>
             </div>
+            {/* 運営が入れた幹事（共同管理者）。公式は主催者欄が「ゴルトモ公式」だけなので、
+                出さないと幹事が参加するのかどうか参加者から分からない（2026-10-13）。幹事はふつうの参加者として人数に入っている */}
+            {coHosts.length > 0 && (
+              <>
+                <div className="text-[12px] font-bold text-sub mt-2.5 mb-1.5">参加幹事（{coHosts.length}名）</div>
+                {coHosts.map((h) => h && (
+                  <div key={h.id} className="flex items-center gap-2.5 p-2.5 bg-bg rounded-xl mb-1.5">
+                    <Link href={`/profile/${h.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
+                      <Avatar user={h} size={38} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px] font-bold truncate flex items-center gap-1.5">{h.displayName}<span className="text-[10px] text-green font-black flex-shrink-0 px-1.5 py-px rounded-full bg-green-light border border-green">⛳ 参加幹事</span></div>
+                        <div className="text-[11px] text-sub truncate">{describeUser(h)}{h.scoreRange ? ' ・ ' + h.scoreRange : ''}</div>
+                      </div>
+                    </Link>
+                    {!!meId && h.id !== meId && canDmHost && (
+                      <Link href={`/chat/${chatIdFor(meId, h.id)}?other=${h.id}`} className="px-2.5 py-1 bg-blue text-white rounded text-[11px] font-bold flex-shrink-0">💬</Link>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         ) : (host || coHosts.length > 0) ? (
           <div className="mb-4">

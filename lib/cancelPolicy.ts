@@ -30,6 +30,24 @@ const LEGACY_POSTPAY = [
   '枠が減ってスリーサム・ツーサムの割増料金が発生した場合は、その分のみ、後日主催者にPayPayまたは銀行振込でお支払いいただきます。',
   '枠が減ってスリーサム・ツーサムの割増料金が発生した場合や、ゴルフ場からキャンセル料を請求された場合は、その分を後日主催者にPayPayまたは銀行振込でお支払いいただきます。',
 ];
+// 文例ごとの「例（実際の金額）」（2026-10-13）。選ぶときの目安として入力欄にだけ出す（条件の本文には入れない）。
+// 前提：4人1組で予約・プレー代14,000円・キャンセル1人・代わりが見つからなかった
+export function cancelConditionExample(prepaid: boolean, index: number): string[] {
+  const pay = (yen: string) => prepaid
+    ? `お預かりした14,000円から${yen}を引いて返金します。`
+    : `${yen}を後日、主催者にPayPayか銀行振込で支払います。`;
+  const surcharge = '3人で回ることになり、ゴルフ場のスリーサム割増が1人1,100円 → 3人分で3,300円';
+  if (index === 0) return [
+    '例）4人1組・プレー代14,000円の予約で、1人がキャンセル。代わりの人が見つからなかった場合',
+    `・${surcharge}。${pay('3,300円')}${prepaid ? '（返金は10,700円）' : ''}`,
+  ];
+  return [
+    '例）4人1組・プレー代14,000円の予約で、1人がキャンセル。代わりの人が見つからなかった場合（ゴルフ場のルールでどちらか一方）',
+    `・① 3人で回れるゴルフ場：${surcharge}。${pay('3,300円')}`,
+    `・② 4人そろわないと回れない（枠ごと減らす）ゴルフ場：前日のキャンセル料がプレー代の50%なら7,000円。${pay('7,000円')}`,
+  ];
+}
+
 export function cancelConditionTemplates(prepaid: boolean): string[] {
   return prepaid ? CANCEL_CONDITION_TEMPLATES_PREPAID : CANCEL_CONDITION_TEMPLATES_POSTPAY;
 }

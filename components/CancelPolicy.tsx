@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { NumberInput } from '@/components/NumberInput';
-import { cancelConditionTemplates, upgradeCondition, swapConditionForPayment, formatCancelDeadline, isPastCancelDeadline, msToJst, type CancelPolicy } from '@/lib/cancelPolicy';
+import { cancelConditionTemplates, cancelConditionExample, upgradeCondition, swapConditionForPayment, formatCancelDeadline, isPastCancelDeadline, msToJst, type CancelPolicy } from '@/lib/cancelPolicy';
 
 // キャンセル規定（2026-10-10）。lib/cancelPolicy 参照。
 
@@ -76,6 +76,11 @@ export function CancelPolicyEditor({ value, onChange, roundDate, prepaid = false
                         {String.fromCharCode(65 + i)}　{i === 0 ? '割増料金だけ' : '割増料金か、ゴルフ場のキャンセル料（どちらか一方）'}
                       </span>
                       <span className="block text-[11.5px] leading-relaxed whitespace-pre-wrap text-text">{t}</span>
+                      {/* 実際の金額での例（条件の本文には入らない・選ぶときの目安） */}
+                      <span className="block mt-1.5 px-2 py-1.5 rounded-lg bg-card border border-dashed border-border text-[10.5px] leading-relaxed text-sub">
+                        {cancelConditionExample(prepaid, i).map((l, k) => <span key={k} className={'block ' + (k === 0 ? 'font-bold text-text' : '')}>{l}</span>)}
+                        <span className="block text-muted mt-0.5">※ 金額はゴルフ場によって違います。予約したゴルフ場の規定を確かめてください。</span>
+                      </span>
                     </span>
                   </button>
                 );
