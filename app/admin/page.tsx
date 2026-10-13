@@ -106,7 +106,7 @@ function Inner() {
         { href: `/admin/availability${q}`, emoji: '📅', title: '行ける日', desc: '日付ごとに誰が行けるか（名前・車・最寄り駅つき）' },
         { href: `/admin/official${q}`, emoji: '📣', title: '運営が立てる枠', desc: '代理募集を立てる / ホームの声かけ / レポート' },
         { href: `/admin/promo${q}`, emoji: '🔥', title: '募集のイチオシ', desc: '選んだ募集をおすすめポップアップで1人1回すすめる（予約・停止・効果）' },
-        { href: `/admin/ratings${q}`, emoji: '⭐', title: '評価・通報・マナー', desc: '★の状況（全員）/ 通報 / ドタキャン・マナー / レビュー' },
+        { href: `/admin/ratings${q}`, emoji: '⭐', title: '評価・通報・マナー', desc: '★の状況（全員）/ 通報 / ドタキャン・マナー / レビュー / 友達申請' },
         { href: `/admin/dm${q}`, emoji: '💬', title: 'DMログ・未読', desc: '誰↔誰の本文 / 未読ユーザー・未読通知の設定' },
         { href: `/admin/support${q}`, emoji: '🛡️', title: '管理人としてDM', desc: '「管理人」名義でユーザーとやりとり（サポート窓口）' },
         { href: `/admin/hobby-tags${q}`, emoji: '🎯', title: '趣味タグ', desc: 'ユーザーが足した趣味タグの確認・不適切なものの削除' },

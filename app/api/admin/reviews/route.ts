@@ -36,22 +36,25 @@ export async function GET(req: NextRequest) {
   const roundId = url.searchParams.get('roundId') || '';
 
   try {
-    let q: any = db.collection('reviews');
-    if (userId) q = q.where('revieweeId', '==', userId);
-    else if (roundId) q = q.where('roundId', '==', roundId);
-    const snap = await q.limit(200).get();
+    // 以前は条件なしでも200件で打ち切っていたため、一覧の集計（💘の数など）が中身より少なく出ていた（2026-10-13）。
+    // 並べ替えて読むと createdAt の無い古いレビューが落ちるので、並べ替えずに読み（最大5000件）、あとで新しい順に並べる。
+    const q: any = userId ? db.collection('reviews').where('revieweeId', '==', userId)
+      : roundId ? db.collection('reviews').where('roundId', '==', roundId)
+      : db.collection('reviews');
+    const docs: any[] = (await q.limit(5000).get()).docs;
     // 動作確認用（test_）が書いた／書かれたレビューは実績に混ぜない。
-    const items = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }))
+    const items = docs.map((d: any) => ({ id: d.id, ...d.data() }))
       .filter((r: any) => !isTestId(r.reviewerId) && !isTestId(r.revieweeId));
     items.sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
 
     // Resolve user displayNames
     const userIds = Array.from(new Set(items.flatMap((r: any) => [r.reviewerId, r.revieweeId]).filter(Boolean)));
     const users: Record<string, any> = {};
-    await Promise.all(userIds.map(async (uid) => {
-      const us = await db.collection('users').doc(uid as string).get();
-      users[uid as string] = us.exists ? { displayName: us.data().displayName || '', avatar: us.data().avatar || '⛳' } : { displayName: '(deleted)', avatar: '?' };
-    }));
+    for (let i = 0; i < userIds.length; i += 100) {
+      const refs = userIds.slice(i, i + 100).map((uid) => db.collection('users').doc(uid as string));
+      const snaps = refs.length ? await (db as any).getAll(...refs) : [];
+      for (const us of snaps) users[us.id] = us.exists ? { displayName: us.data().displayName || '', avatar: us.data().avatar || '⛳' } : { displayName: '(deleted)', avatar: '?' };
+    }
 
     return NextResponse.json({ count: items.length, items, users }, { headers: noStore });
   } catch (e) {

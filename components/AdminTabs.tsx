@@ -44,6 +44,7 @@ const GROUPS: Record<string, { title: string; tabs: Tab[] }> = {
       { href: '/admin/reports', label: '🚨 通報' },
       { href: '/admin/manner', label: '🙅 ドタキャン' },
       { href: '/admin/reviews', label: '📝 レビュー' },
+      { href: '/admin/friend-requests', label: '🤝 友達申請' },
     ],
   },
 };
