@@ -1,5 +1,6 @@
 'use client';
 
+import { loginLabel } from '@/lib/loginLabel';
 import Link from 'next/link';
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -140,7 +141,7 @@ function Inner() {
     <div className="h-full overflow-y-auto">
       <div className="px-5 pt-2 pb-1 text-2xl font-black tracking-tight">友達</div>
       <div className="px-5 pb-3 text-[13px] text-sub">
-        QRでつながった友達／レビューで「行きたい」「💘 気になる」同士の人・一緒に回った人／メッセージした相手が集まります。<b className="text-text">ログインが新しい順</b>に表示。タップでプロフィール、💬でメッセージ。
+        QRでつながった友達／レビューで「行きたい」「💘 気になる」同士の人・一緒に回った人／メッセージした相手が集まります。<b className="text-text">ログインが新しい順</b>に表示（名前の下に最終ログイン）。タップでプロフィール、💬でメッセージ。
       </div>
 
       {/* 🛡️ 管理者にDM（運営への問い合わせ窓口）。2026-10-13：マイページに入口が無いので、
@@ -206,6 +207,7 @@ function Inner() {
                         {u.gender === 'male' ? <span className="text-[11px]">👨</span> : u.gender === 'female' ? <span className="text-[11px]">👩</span> : null}
                         {u.age ? <span className="text-[11px] text-sub font-medium">{u.age}歳</span> : null}
                       </div>
+                      <LoginAgo at={(u as any).lastActiveAt} />
                       <div className="flex items-center gap-1 mt-1 flex-wrap">
                         <Badge className="text-orange bg-orange-light border-orange">🏆 同じコンペ</Badge>
                       </div>
@@ -276,6 +278,7 @@ function Inner() {
                       {u.gender === 'male' ? <span className="text-[11px]">👨</span> : u.gender === 'female' ? <span className="text-[11px]">👩</span> : null}
                       {u.age ? <span className="text-[11px] text-sub font-medium">{u.age}歳</span> : null}
                     </div>
+                    <LoginAgo at={lastActiveOf(id) || (u as any).lastActiveAt} />
                     <div className="flex items-center gap-1 mt-1 flex-wrap">
                       {againSet.has(id) && <Badge className="text-green bg-green-light border-green">🏌️ 行きたい同士</Badge>}
                       {romanticSet.has(id) && <Badge className="text-pink-600 bg-pink-100 border-pink-600">💘 気になる</Badge>}
@@ -333,6 +336,18 @@ function Empty({ title, desc }: { title: string; desc: string }) {
       <div className="text-5xl mb-4">⛳</div>
       <div className="text-[15px] font-bold mb-2">{title}</div>
       <div className="text-[13px] text-sub">{desc}</div>
+    </div>
+  );
+}
+
+// 名前の下の最終ログイン（2026-10-13・lib/loginLabel）。5分以内は緑の点で「ログイン中」
+function LoginAgo({ at }: { at?: number }) {
+  const l = loginLabel(at);
+  if (!l) return null;
+  return (
+    <div className={'mt-0.5 flex items-center gap-1 text-[10.5px] font-bold ' + (l.live ? 'text-green' : 'text-muted')}>
+      {l.live && <span className="w-1.5 h-1.5 rounded-full bg-green inline-block" aria-hidden />}
+      {l.text}
     </div>
   );
 }

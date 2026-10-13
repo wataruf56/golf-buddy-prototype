@@ -725,81 +725,123 @@ function TabLabel({ t, className }: { t: { label: string; lines?: [string, strin
 }
 
 /* ───────────────────────── スイムレーン（全体の流れ） ───────────────────────── */
-// 縦＝流れ（上から下へ6つの段）、横＝誰がするか（4つのレーン）。
-// 390px／360px のスマホで横スクロールなしに読めるよう、レーンは4列に固定し、
-// 段の名前はレーンをまたぐ帯にして上に置く。帯を押すとその説明へ飛ぶ。
+// 横長の流れ図（2026-10-13 作り直し）。左から右へ6つの段（横にスワイプ）、上から下へ4つのレーン＝「だれがするか」。
+// 左のレーン名は固定して、段だけが横に動く。1段ずつ止まる（snap）。上の①〜⑥と◀▶で行き来できる。
+// 行の高さを固定して、左のレーン名と段のマスの高さをそろえる（マスの文は1行10文字×3行ほどまで）。
 type LaneKey = 'you' | 'others' | 'host' | 'app';
-const LANES: Array<{ k: LaneKey; icon: string; label: string; stripe: string; cell: string; head: string }> = [
-  { k: 'you', icon: '🙋', label: 'あなた', stripe: 'bg-green-light', cell: 'border-green', head: 'text-green' },
-  { k: 'others', icon: '👥', label: 'ほかの参加者', stripe: 'bg-blue-light', cell: 'border-blue', head: 'text-blue' },
-  { k: 'host', icon: '✏️', label: '主催者・運営', stripe: 'bg-orange-light', cell: 'border-orange', head: 'text-orange' },
-  { k: 'app', icon: '🤖', label: 'アプリ（自動）', stripe: 'bg-yellow-light', cell: 'border-yellow border-dashed', head: 'text-[#9A6B12]' },
+const LANES: Array<{ k: LaneKey; icon: string; label: string; band: string; cell: string; head: string }> = [
+  { k: 'you', icon: '🙋', label: 'あなた', band: 'bg-green-light', cell: 'border-green', head: 'text-green' },
+  { k: 'others', icon: '👥', label: 'ほかの\n参加者', band: 'bg-blue-light', cell: 'border-blue', head: 'text-blue' },
+  { k: 'host', icon: '✏️', label: '主催者\n・運営', band: 'bg-orange-light', cell: 'border-orange', head: 'text-orange' },
+  { k: 'app', icon: '🤖', label: 'アプリ\n（自動）', band: 'bg-yellow-light', cell: 'border-yellow border-dashed', head: 'text-[#9A6B12]' },
 ];
-// [絵文字, ことば]。\n で改行。360px幅のマスは全角6文字ほどなので、1行は6文字以内にする
-type LaneCell = [string, string] | null;
-const STAGES: Array<{ title: string; anchor?: string; cells: Record<LaneKey, LaneCell> }> = [
-  { title: '行ける日・募集を見つける', anchor: 'avail', cells: {
-    you: ['📅', '行ける日を\n押す／\n募集をさがす'], others: ['📅', '同じ日を\n押す'], host: ['✏️', '募集を\n投稿する'], app: ['💬', '3人そろうと\nチャット'] } },
-  { title: '参加申請 → 承認', anchor: 'join', cells: {
-    you: ['🙋', '参加する\nを押す'], others: ['🙋', '同じように\n申請'], host: ['✅', 'プロフィール\nを見て承認'], app: ['🔔', '参加確定を\nLINEで通知'] } },
-  { title: 'グループチャット・ピックアップ・入金', anchor: 'pay', cells: {
-    you: ['💬', '集合・送迎を\n相談・入金'], others: ['💬', 'あいさつ・\n相談'], host: ['🚗', '組み分け・\n配車・\n入金チェック'], app: ['⏰', 'リマインド\n1週間前・\n前日'] } },
-  { title: 'ラウンド当日', cells: {
-    you: ['⛳', 'いっしょに\nラウンド'], others: ['⛳', 'いっしょに\nラウンド'], host: ['🏁', '夜8時の\n通知で\n「完了」'], app: ['⭐', '完了すると\nレビュー\nが届く'] } },
-  { title: 'レビュー', anchor: 'review', cells: {
-    you: ['⭐', '1人ずつ\n「また\n行きたい？」'], others: ['⭐', 'あなたの\nことも選ぶ'], host: ['⭐', '主催者も\n同じく選ぶ'], app: ['🔒', '選んだ内容は\n相手に\n見えない'] } },
-  { title: 'ゴル友（また回る）', anchor: 'friends', cells: {
-    you: ['📣', 'メッセージ・\n行ける日で\n声かけ'], others: ['📅', '行ける日に\n名前と🤝'], host: ['✏️', '次の募集で\nまた集まる'], app: ['🤝', 'お互い\n「行きたい」\nならゴル友'] } },
+type LaneCell = [string, string] | null;   // [絵文字, ことば]
+const STAGES: Array<{ icon: string; title: string; anchor?: string; cells: Record<LaneKey, LaneCell> }> = [
+  { icon: '🔍', title: 'さがす', anchor: 'avail', cells: {
+    you: ['📅', '行ける日を押す／募集をさがす'], others: ['📅', '同じ日を押している'], host: ['✏️', '募集を投稿する'], app: ['💬', '同じ日に3人そろうとチャット開始'] } },
+  { icon: '🙋', title: '参加する', anchor: 'join', cells: {
+    you: ['🙋', '「この募集に参加する」を押す'], others: ['🙋', '同じように申請'], host: ['✅', 'プロフィールを見て承認'], app: ['🔔', '参加確定をLINEでお知らせ'] } },
+  { icon: '💬', title: '準備する', anchor: 'pay', cells: {
+    you: ['💬', 'チャットで集合・送迎を相談、入金'], others: ['💬', 'あいさつ・相談'], host: ['🚗', '組み分け・配車・入金チェック'], app: ['⏰', '1週間前・前日にリマインド'] } },
+  { icon: '⛳', title: '当日', cells: {
+    you: ['⛳', 'いっしょにラウンド'], others: ['⛳', 'いっしょにラウンド'], host: ['🏁', '夜8時のお知らせで「完了」'], app: ['⭐', '完了するとレビューが届く'] } },
+  { icon: '⭐', title: 'レビュー', anchor: 'review', cells: {
+    you: ['⭐', '1人ずつ「また行きたい？」を選ぶ'], others: ['⭐', 'あなたのことも選ぶ'], host: ['⭐', '主催者も同じく選ぶ'], app: ['🔒', '選んだ内容は相手に見えない'] } },
+  { icon: '🤝', title: 'ゴル友', anchor: 'friends', cells: {
+    you: ['📣', 'メッセージや行ける日で声をかける'], others: ['📅', '行ける日に名前と🤝が出る'], host: ['✏️', '次の募集でまた集まる'], app: ['🤝', 'お互い「行きたい」ならゴル友'] } },
 ];
+const SL_COL = 168;      // 1段の幅(px)
+const SL_HEAD = 54;      // 段の見出しの高さ
+const SL_ROW = 84;       // レーン1行の高さ
+const SL_FOOT = 42;      // 「くわしく見る」の行
 
 function Swimlane({ go }: { go: (id: string) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [idx, setIdx] = useState(0);
+  const onScroll = () => {
+    const el = ref.current; if (!el) return;
+    setIdx(Math.max(0, Math.min(STAGES.length - 1, Math.round(el.scrollLeft / SL_COL))));
+  };
+  const to = (i: number) => {
+    const el = ref.current; if (!el) return;
+    const n = Math.max(0, Math.min(STAGES.length - 1, i));
+    el.scrollTo({ left: n * SL_COL, behavior: 'smooth' });
+  };
   return (
-    <div className="-mx-2 rounded-card border-[2.5px] border-border bg-card shadow-card p-2 pb-2.5">
-      <div className="px-1 pb-2 text-[10.5px] text-sub leading-snug">
-        <b className="text-text">上から下へ</b>進みます。列は<b className="text-text">「だれがするか」</b>。<br />黒い帯を押すと、くわしい説明へ。
-      </div>
-      <div className="relative">
-        {/* レーンの色の帯（背景） */}
-        <div className="absolute inset-0 grid grid-cols-4 gap-1 pointer-events-none" aria-hidden>
-          {LANES.map((l) => <div key={l.k} className={'rounded-xl ' + l.stripe} />)}
+    <div className="-mx-2 rounded-card border-[2.5px] border-border bg-card shadow-card overflow-hidden">
+      {/* 上：いまどの段か・行き来 */}
+      <div className="px-3 pt-3 pb-2.5 border-b-2 border-border/10">
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] font-black">👉 横にスワイプして進む</span>
+          <span className="ml-auto text-[11px] font-black text-sub">{idx + 1} / {STAGES.length}</span>
         </div>
-        <div className="relative">
-          {/* レーン名 */}
-          <div className="grid grid-cols-4 gap-1 pt-1.5 pb-1">
-            {LANES.map((l) => (
-              <div key={l.k} className="flex flex-col items-center text-center px-0.5">
-                <span className="text-[17px] leading-none">{l.icon}</span>
-                <span className={'mt-0.5 text-[9.5px] font-black leading-tight ' + l.head}>{l.label}</span>
-              </div>
+        <div className="mt-2 flex items-center gap-1">
+          <button type="button" onClick={() => to(idx - 1)} disabled={idx === 0} aria-label="前の段"
+            className="w-7 h-7 rounded-full border-2 border-border bg-bg text-[11px] font-black disabled:opacity-30 flex-none">◀</button>
+          <div className="flex-1 min-w-0 flex gap-0.5">
+            {STAGES.map((st, i) => (
+              <button key={st.title} type="button" onClick={() => to(i)} aria-label={`${i + 1} ${st.title}`}
+                className={'flex-1 min-w-0 flex flex-col items-center rounded-lg py-1 ' + (i === idx ? 'bg-border text-card' : 'text-sub')}>
+                <span className="text-[14px] leading-none">{st.icon}</span>
+                <span className="text-[8.5px] font-black mt-0.5 whitespace-nowrap">{st.title}</span>
+              </button>
             ))}
           </div>
-          {STAGES.map((s, i) => (
-            <div key={s.title}>
-              {/* 段の帯（4つのレーンをまたぐ） */}
-              <button type="button" disabled={!s.anchor} onClick={() => s.anchor && go(s.anchor)}
-                className="mt-1.5 w-full flex items-center gap-1.5 px-2 py-1 rounded-lg bg-border text-card text-left">
-                <span className="w-4 h-4 rounded-full bg-card text-border text-[9.5px] font-black grid place-items-center flex-none">{i + 1}</span>
-                <span className="flex-1 min-w-0 text-[11.5px] font-black leading-tight text-pretty">{s.title}</span>
-                {s.anchor && <span className="text-[9.5px] font-bold opacity-80 whitespace-nowrap">くわしく ›</span>}
-              </button>
-              <div className="grid grid-cols-4 gap-1 pt-1">
-                {LANES.map((l) => {
-                  const c = s.cells[l.k];
-                  return c ? (
-                    <div key={l.k} className={'mx-0.5 rounded-lg bg-card border-[1.5px] px-1 py-1.5 text-center ' + l.cell}>
-                      <div className="text-[15px] leading-none">{c[0]}</div>
-                      <div className="mt-1 text-[9.5px] font-bold leading-[1.35] text-text whitespace-pre-line [overflow-wrap:anywhere]">{c[1]}</div>
-                    </div>
-                  ) : <div key={l.k} />;
-                })}
-              </div>
+          <button type="button" onClick={() => to(idx + 1)} disabled={idx === STAGES.length - 1} aria-label="次の段"
+            className="w-7 h-7 rounded-full border-2 border-border bg-bg text-[11px] font-black disabled:opacity-30 flex-none">▶</button>
+        </div>
+      </div>
+
+      <div className="flex">
+        {/* 左：レーン名（固定） */}
+        <div className="flex-none w-[58px] border-r-2 border-border/15">
+          <div style={{ height: SL_HEAD }} className="grid place-items-center text-[9.5px] font-bold text-muted leading-tight text-center px-1">だれが<br />する？</div>
+          {LANES.map((l) => (
+            <div key={l.k} style={{ height: SL_ROW }} className={'flex flex-col items-center justify-center text-center ' + l.band}>
+              <span className="text-[20px] leading-none">{l.icon}</span>
+              <span className={'mt-1 text-[10px] font-black leading-tight whitespace-pre-line ' + l.head}>{l.label}</span>
             </div>
           ))}
-          {/* また①へ */}
-          <button type="button" onClick={() => go('avail')}
-            className="mt-2 mx-auto flex items-center gap-1 px-3 py-1 rounded-full bg-card border-[1.5px] border-border text-[10.5px] font-black">
-            🔁 次の行ける日・募集へ（①にもどる）
-          </button>
+          <div style={{ height: SL_FOOT }} />
+        </div>
+
+        {/* 右：段（横スクロール・1段ずつ止まる） */}
+        <div ref={ref} onScroll={onScroll} className="flex-1 min-w-0 overflow-x-auto snap-x snap-mandatory no-scrollbar">
+          <div className="flex" style={{ width: SL_COL * STAGES.length + 44 }}>
+            {STAGES.map((st, i) => (
+              <div key={st.title} className="flex-none snap-start" style={{ width: SL_COL }}>
+                {/* 段の見出し：番号・名前・次への矢印 */}
+                <div style={{ height: SL_HEAD }} className="flex items-center pl-2 pr-1 gap-1.5">
+                  <span className="w-7 h-7 rounded-full bg-orange text-white text-[13px] font-black grid place-items-center flex-none">{i + 1}</span>
+                  <span className="min-w-0 flex-1 text-[15px] font-black leading-tight whitespace-nowrap">{st.title}</span>
+                  {i < STAGES.length - 1 && <span className="text-[20px] font-black text-orange flex-none" aria-hidden>→</span>}
+                </div>
+                {LANES.map((l) => {
+                  const c = st.cells[l.k];
+                  return (
+                    <div key={l.k} style={{ height: SL_ROW }} className={'px-1.5 py-1.5 ' + l.band}>
+                      {c && (
+                        <div className={'h-full rounded-xl bg-card border-2 px-2 py-1 flex items-center gap-1.5 ' + l.cell}>
+                          <span className="text-[19px] leading-none flex-none">{c[0]}</span>
+                          <span className="min-w-0 text-[11.5px] font-bold leading-[1.4] text-text">{c[1]}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                <div style={{ height: SL_FOOT }} className="flex items-center justify-center">
+                  {st.anchor
+                    ? <button type="button" onClick={() => go(st.anchor!)} className="px-3 py-1 rounded-full bg-border text-card text-[10.5px] font-black">くわしく見る ›</button>
+                    : <span className="text-[10px] text-muted font-bold">—</span>}
+                </div>
+              </div>
+            ))}
+            {/* 最後：また①へ */}
+            <button type="button" onClick={() => to(0)} className="flex-none w-11 flex flex-col items-center justify-center gap-1 text-muted" aria-label="最初の段にもどる">
+              <span className="text-[16px]">🔁</span>
+              <span className="text-[9.5px] font-black [writing-mode:vertical-rl]">また①へ</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
