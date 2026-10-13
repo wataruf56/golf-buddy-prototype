@@ -101,6 +101,11 @@ export async function GET() {
     for (const a of r.pendingApplicantIds || []) userIds.add(a);
     // 空き待ち（2026-10-07）の人のプロフィールは主催者だけに（名前入りで「枠を増やして承認」できるように）
     if (isRoundHost(r, meId)) for (const e of r.waitlist || []) userIds.add(e.userId);
+    // 招待した人（返事待ち・「行けない」）のプロフィールも主催者だけに。募集ページの「💌 招待した人」で名前と状況を出すため（2026-10-13）
+    if (r.status === 'open' && isRoundHost(r, meId)) {
+      for (const a of r.invitedIds || []) userIds.add(a);
+      for (const a of Object.keys(r.inviteDeclined || {})) userIds.add(a);
+    }
   }
   for (const c of chats) for (const p of c.participants) userIds.add(p);
   for (const p of pendingReviews) userIds.add(p.revieweeId);

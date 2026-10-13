@@ -11,6 +11,7 @@ import { HomeUpdateCard } from '@/components/HomeUpdateCard';
 import { OfficialHomeCard } from '@/components/OfficialHomeCard';
 import { AvailabilityHomeCard } from '@/components/AvailabilityHomeCard';
 import { FriendGate } from '@/components/FriendGate';
+import { InviteDeclineSheet } from '@/components/InviteDeclineSheet';
 import { toast } from '@/components/Toast';
 import { RESTRICTION_MSG } from '@/lib/restrictions';
 import { isRoundHost } from '@/lib/roundHost';
@@ -216,6 +217,23 @@ export default function HomePage() {
       !(r.pendingApplicantIds || []).includes(s.meId)
     )
   );
+  // 招待への「行けない」（2026-10-13）。どの招待に返事するか。
+  const meId = useStore((s) => s.meId);
+  const [declineFor, setDeclineFor] = useState<{ id: string; title: string; inviter: string } | null>(null);
+  // ホームの招待カードが表示されたら、その招待を「既読」にする（招待した側に「既読」と出る）。
+  // 自分のぶんの inviteSeenAt が今回の招待より前（または無い）ときだけ、この画面で1回だけ送る。
+  const seenSent = useRef<Set<string>>(new Set());
+  const inviteSeenKey = myInvites
+    .filter((r) => { const seen = (r.inviteSeenAt || {})[meId] || 0; return !seen || seen < ((r.invitedAt || {})[meId] || 0); })
+    .map((r) => r.id).join(',');
+  useEffect(() => {
+    if (!inviteSeenKey) return;
+    for (const id of inviteSeenKey.split(',')) {
+      if (seenSent.current.has(id)) continue;
+      seenSent.current.add(id);
+      fetch(`/api/rounds/${encodeURIComponent(id)}/invite-seen`, { method: 'POST', cache: 'no-store', keepalive: true }).catch(() => {});
+    }
+  }, [inviteSeenKey]);
   // "ラウンド回数" = COMPLETED rounds only (host or approved applicant).
   // Open/recruiting rounds are excluded. Max with the stored counter so
   // completions outside the visible set still count.
@@ -339,19 +357,48 @@ export default function HomePage() {
 
       {myInvites.length > 0 && (
         <div className="px-5 pb-3 space-y-2">
-          {myInvites.map((r) => (
-            <Link key={r.id} href={`/round/${r.id}`} className="block bg-green-light border-2 border-green rounded-card p-4">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">💌</span>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-black text-green">ラウンドに招待されています</div>
-                  <div className="text-[11px] text-sub mt-0.5 truncate">「{r.title}」・タップして参加</div>
+          {myInvites.map((r) => {
+            const byAdmin = (r.invitedBy || {})[meId] === 'admin';
+            const hostName = users.find((u) => u.id === r.hostId)?.displayName || '主催者';
+            return (
+              <div key={r.id} className="bg-green-light border-2 border-green rounded-card p-4">
+                <Link href={`/round/${r.id}`} className="flex items-center gap-3">
+                  <span className="text-2xl">💌</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-black text-green">ラウンドに招待されています</div>
+                    <div className="text-[11px] text-sub mt-0.5 truncate">「{r.title}」・{byAdmin ? 'ゴルトモ運営から' : `${hostName}さんから`}</div>
+                  </div>
+                  <span className="text-green">›</span>
+                </Link>
+                {/* お返事：参加する（募集を開いて参加）／行けない（その場で返事。招待した人にアプリ内のお知らせだけ） */}
+                <div className="flex gap-2 mt-3">
+                  <Link href={`/round/${r.id}`}
+                    className="flex-1 py-2.5 rounded-xl text-[13px] font-black text-white bg-orange border-2 border-[#C24E2C] text-center">
+                    参加する
+                  </Link>
+                  <button onClick={() => setDeclineFor({ id: r.id, title: r.title, inviter: byAdmin ? 'ゴルトモ運営' : `${hostName}さん` })}
+                    className="flex-1 py-2.5 rounded-xl text-[13px] font-black text-sub bg-card border-2 border-border">
+                    行けない
+                  </button>
                 </div>
-                <span className="text-green">›</span>
               </div>
-            </Link>
-          ))}
+            );
+          })}
         </div>
+      )}
+      {declineFor && (
+        <InviteDeclineSheet
+          title={declineFor.title}
+          inviterName={declineFor.inviter}
+          onClose={() => setDeclineFor(null)}
+          onDecline={async (reason) => {
+            try {
+              await store.declineInvite(declineFor.id, reason);
+              setDeclineFor(null);
+              toast('「行けない」とお伝えしました');
+            } catch (e) { toast((e as Error).message, 'error'); }
+          }}
+        />
       )}
 
       {myHostedPending.length > 0 && (

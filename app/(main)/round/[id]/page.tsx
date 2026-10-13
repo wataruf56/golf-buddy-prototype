@@ -38,6 +38,8 @@ import { RoundAlbum } from '@/components/RoundAlbum';
 import { goLogin, loginHrefHere } from '@/lib/loginLink';
 import type { Round, User, PickupStatus } from '@/lib/types';
 import { Linkify } from '@/components/Linkify';
+import { InviteDeclineSheet } from '@/components/InviteDeclineSheet';
+import { inviteStatusOf, inviteStatusLabel, invitedAtLabel, inviteStatusTone, type InviteStatus } from '@/lib/inviteStatus';
 import { LoginButtons } from '@/components/LoginButtons';
 import { GenderSlots } from '@/components/GenderSlots';
 import { WaitlistBox } from '@/components/WaitlistBox';
@@ -102,6 +104,8 @@ export default function RoundDetailPage() {
   // （2026-10-06・シェアURLを未ログインの Safari で開くと「Application error」。hook は必ず return より前に置く）。
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  // 招待への「行けない」の確認シート（2026-10-13）。hook なので早期 return より前に置く
+  const [declineOpen, setDeclineOpen] = useState(false);
   // 公式募集の主催者本人の「わたしも参加する／参加をやめる」の送信中（2026-10-12）。hook なので早期 return より前
   const [hostJoinBusy, setHostJoinBusy] = useState(false);
   // 詳細のセクション切り替えタブ（参加してる人／ピックアップ／組み分け／入金）。
@@ -360,12 +364,21 @@ export default function RoundDetailPage() {
     .filter(Boolean) as User[];
   // 招待中に出すのは「まだ参加していない」招待者だけ。すでに主催者／参加確定／申請中の
   // 人は除外（コース未定→確定の切替などで重複表示されるのを防ぐ）。
-  const invitedUsers = (round.invitedIds || [])
-    .filter((id) => id !== round.hostId
-      && !(round.applicantIds || []).includes(id)
-      && !(round.pendingApplicantIds || []).includes(id))
-    .map((id) => users.find((u) => u.id === id))
-    .filter(Boolean) as User[];
+  // 主催者向け「💌 招待した人」（2026-10-13）：返事待ち（未読／既読）・行けない・参加した を状況つきで並べる。
+  // 申請中の人は「参加申請」の一覧に出るのでここには出さない。並びは 返事待ち → 行けない → 参加した、それぞれ招待の新しい順。
+  const invitedRows: Array<{ user: User; st: InviteStatus }> = isHost ? (() => {
+    const ids = Array.from(new Set([
+      ...(round.invitedIds || []),
+      ...Object.keys(round.inviteDeclined || {}),
+      ...(round.applicantIds || []).filter((id) => (round.invitedBy || {})[id] || (round.invitedAt || {})[id]),
+    ])).filter((id) => id !== round.hostId && !(round.pendingApplicantIds || []).includes(id));
+    const order: Record<string, number> = { unread: 0, seen: 0, declined: 1, joined: 2, applied: 3 };
+    return ids
+      .map((id) => ({ user: users.find((u) => u.id === id) as User | undefined, st: inviteStatusOf(round, id) }))
+      .filter((x): x is { user: User; st: InviteStatus } => !!x.user && !!x.st)
+      .sort((a, b) => (order[a.st.kind] - order[b.st.kind]) || ((b.st.invitedAt || 0) - (a.st.invitedAt || 0)));
+  })() : [];
+  const invitedWaiting = invitedRows.filter((x) => x.st.kind === 'unread' || x.st.kind === 'seen');
   // Membership sets used to style invite buttons (participating → grey out).
   const participatingIds = new Set<string>([
     ...(round.applicantIds || []),
@@ -679,6 +692,17 @@ export default function RoundDetailPage() {
     } catch (e) { toast((e as Error).message, 'error'); }
   }
 
+  // 招待された本人の「行けない」（2026-10-13）。招待の表示が消え、招待した側にアプリ内のお知らせが届く。
+  async function declineInvite(reason?: string) {
+    try {
+      const updated = await store.declineInvite(round!.id, reason);
+      if (!storeRound && updated) setFetchedRound((prev) => (prev ? { ...prev, ...updated } : prev));
+      track('decline_invite', { roundId: round!.id, by: (round!.invitedBy || {})[meId] || 'host', reason: reason || '' });
+      setDeclineOpen(false);
+      toast('「行けない」とお伝えしました');
+    } catch (e) { toast((e as Error).message, 'error'); }
+  }
+
   // 運営枠は、**募集中のあいだ画面をここまで削る**。
   //
   // ふつうの募集の画面は、主催者・参加者一覧・配車・組み分け・入金・アルバムと
@@ -759,7 +783,35 @@ export default function RoundDetailPage() {
               <Linkify text={(round.inviteMessages || {})[meId] || ''} />
             </div>
           )}
+          {/* お返事：参加する／行けない（2026-10-13）。「行けない」は招待した人にアプリ内のお知らせだけが届く */}
+          {round.status === 'open' && (
+            <>
+              <div className="flex gap-2 mt-3">
+                {!isFull && (
+                  <button onClick={join}
+                    className="flex-1 py-3 rounded-xl text-[14px] font-black text-white bg-orange border-2 border-[#C24E2C] shadow-[0_2px_0_#C24E2C]">
+                    参加する
+                  </button>
+                )}
+                <button onClick={() => setDeclineOpen(true)}
+                  className="flex-1 py-3 rounded-xl text-[14px] font-black text-sub bg-card border-2 border-border">
+                  行けない
+                </button>
+              </div>
+              <div className="text-[10.5px] text-sub text-center mt-1.5">
+                {isFull ? '満員になりました。行けない場合はお返事だけでも大丈夫です' : '「参加する」でそのまま参加確定。「行けない」は招待した人にだけ伝わります'}
+              </div>
+            </>
+          )}
         </div>
+      )}
+      {declineOpen && (
+        <InviteDeclineSheet
+          title={round.title}
+          inviterName={(round.invitedBy || {})[meId] === 'admin' ? 'ゴルトモ運営' : `${host?.displayName || '主催者'}さん`}
+          onClose={() => setDeclineOpen(false)}
+          onDecline={declineInvite}
+        />
       )}
 
       {/* 未ログイン通知：共有リンクをブラウザで開いた人向け。ログインすると
@@ -1360,10 +1412,17 @@ export default function RoundDetailPage() {
             まだ参加していない人なので、他の閲覧者には「参加者」と紛らわしく、
             未ログインで募集を見に来た人にも無関係な人の名前が並んでしまう。
             主催者には招待の取り消し操作が必要なので残す。 */}
-        {invitedUsers.length > 0 && isHost && (
+        {invitedRows.length > 0 && isHost && (
           <div className="mb-4">
-            <div className="text-[13px] font-bold mb-2">💌 招待中（{invitedUsers.length}名）</div>
-            {invitedUsers.map((u) => (
+            <div className="text-[13px] font-bold mb-0.5">💌 招待した人（{invitedRows.length}名）</div>
+            <div className="text-[10.5px] text-sub mb-2">
+              {[
+                invitedWaiting.length ? `返事待ち ${invitedWaiting.length}（未読 ${invitedWaiting.filter((x) => x.st.kind === 'unread').length}）` : '',
+                invitedRows.some((x) => x.st.kind === 'declined') ? `行けない ${invitedRows.filter((x) => x.st.kind === 'declined').length}` : '',
+                invitedRows.some((x) => x.st.kind === 'joined') ? `参加 ${invitedRows.filter((x) => x.st.kind === 'joined').length}` : '',
+              ].filter(Boolean).join('・')}
+            </div>
+            {invitedRows.map(({ user: u, st }) => (
               <div key={u.id} className="flex items-center gap-2 p-2.5 bg-bg rounded-[10px] mb-1.5">
                 <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
                   <Avatar user={u} size={36} />
@@ -1372,19 +1431,24 @@ export default function RoundDetailPage() {
                       {u.displayName}
                       {(round.invitedBy || {})[u.id] === 'admin' && <span className="ml-1.5 text-[10px] font-bold text-green bg-green-light rounded-full px-1.5 py-[1px]">運営が招待</span>}
                     </div>
-                    <div className="text-[10px] text-sub">{describeUser(u)}{ratingText(u.id) ? ' ・ ' + ratingText(u.id) : ''}</div>
+                    <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                      <span className={`text-[10px] font-bold rounded-full px-1.5 py-[1px] ${inviteStatusTone(st.kind)}`}>{inviteStatusLabel(st)}</span>
+                      {st.reason && <span className="text-[10px] text-sub">「{st.reason}」</span>}
+                    </div>
+                    <div className="text-[10px] text-muted truncate">{[invitedAtLabel(st), ratingText(u.id)].filter(Boolean).join(' ・ ')}</div>
                   </div>
                 </Link>
-                {isHost ? (
+                {(st.kind === 'unread' || st.kind === 'seen') && (
                   <button
                     onClick={() => uninvite(u.id, u.displayName)}
                     className="px-3 py-1.5 bg-card text-red border border-red rounded-lg text-[11px] font-bold flex-shrink-0"
                   >招待を取り消し</button>
-                ) : (
-                  <span className="text-[10px] text-sub font-bold flex-shrink-0">招待済み</span>
                 )}
               </div>
             ))}
+            {invitedRows.some((x) => x.st.kind === 'declined') && (
+              <div className="text-[10.5px] text-sub px-1 leading-relaxed">「行けない」の人も、日程を変えたときなどにもう一度招待できます。</div>
+            )}
           </div>
         )}
 

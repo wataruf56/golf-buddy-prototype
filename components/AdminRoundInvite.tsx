@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { confirmDialog, alertDialog } from '@/components/ConfirmDialog';
 import { loginLabel } from '@/lib/loginLabel';
+import { inviteStatusLabel, inviteStatusTone, type InviteStatus } from '@/lib/inviteStatus';
 
 // 管理画面「代わりに招待する」（2026-10-13）。
 // 運営が、自分の募集ではない募集中のラウンドに、主催者の代わりに会員を招待する。
@@ -16,6 +17,7 @@ type Cand = {
   avatar: string; hasPhoto: boolean; lastActiveAt: number | null;
   ng?: string; invited?: { by: 'host' | 'admin' | 'unknown'; at: number | null };
   viewedAt?: number; viewCount?: number;
+  status?: InviteStatus;
 };
 type Info = {
   round: {
@@ -225,13 +227,28 @@ export function AdminRoundInvite({ token, roundId }: { token: string; roundId: s
             )}
 
             <div>
-              <div className="text-[11px] font-black mb-1">💌 招待済み・まだ参加していない人（{info.invited.length}）</div>
+              <div className="text-[11px] font-black mb-1">💌 招待した人と返事（{info.invited.length}）</div>
+              {info.invited.length > 0 && (
+                <div className="text-[10px] text-sub mb-1">
+                  {(['unread', 'seen', 'declined', 'joined'] as const)
+                    .map((k) => [k, info.invited.filter((c) => c.status?.kind === k).length] as const)
+                    .filter(([, n]) => n > 0)
+                    .map(([k, n]) => `${{ unread: '未読', seen: '既読', declined: '行けない', joined: '参加' }[k]} ${n}`)
+                    .join('・')}
+                </div>
+              )}
               {info.invited.length === 0 ? <div className="text-[10px] text-muted">いません</div> : (
                 <div className="flex flex-col gap-1">
                   {info.invited.map((c) => (
-                    <div key={c.id} className="flex items-center justify-between gap-2 bg-bg rounded-lg px-2 py-1.5 text-[11px]">
-                      <span className="truncate">{c.hasPhoto ? '🖼️' : c.avatar} {c.displayName}<span className="text-muted text-[10px] ml-1">{loginLabel(c.lastActiveAt)?.text || ''}</span></span>
-                      <span className="text-[10px] text-sub flex-shrink-0">{byLabel(c.invited?.by)}{c.invited?.at ? `・${fmt(c.invited.at)}` : ''}</span>
+                    <div key={c.id} className="bg-bg rounded-lg px-2 py-1.5 text-[11px]">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate">{c.hasPhoto ? '🖼️' : c.avatar} {c.displayName}<span className="text-muted text-[10px] ml-1">{loginLabel(c.lastActiveAt)?.text || ''}</span></span>
+                        {c.status && <span className={`text-[10px] font-bold rounded-full px-1.5 py-[1px] flex-shrink-0 ${inviteStatusTone(c.status.kind)}`}>{inviteStatusLabel(c.status)}</span>}
+                      </div>
+                      <div className="text-[10px] text-sub mt-0.5">
+                        {byLabel(c.invited?.by)}が招待{c.invited?.at ? `・${fmt(c.invited.at)}` : ''}
+                        {c.status?.reason ? ` ／ 「${c.status.reason}」` : ''}
+                      </div>
                     </div>
                   ))}
                 </div>

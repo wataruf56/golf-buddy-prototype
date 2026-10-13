@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { getAdminDb } from '@/lib/firebase';
 import { audit, adminActor, AUDIT_ACTION } from '@/lib/auditLog';
 import { sendRoundInvite, buildInviteContext, inviteeBlock, roundInviteBlock, roundWhenLabel, type InviteContext } from '@/lib/roundInvite';
+import { inviteStatusOf, type InviteStatus } from '@/lib/inviteStatus';
 import type { User } from '@/lib/types';
 
 // 管理画面「代わりに招待する」（2026-10-13）。
@@ -39,6 +40,8 @@ type Cand = {
   invited?: { by: 'host' | 'admin' | 'unknown'; at: number | null };
   viewedAt?: number;
   viewCount?: number;
+  /** 招待の返事の状況（未読／既読／行けない／参加した）。「招待した人」の一覧だけ */
+  status?: InviteStatus;
 };
 
 function toCand(u: User, ctx: InviteContext): Cand {
@@ -109,10 +112,22 @@ export async function GET(req: NextRequest) {
       return { ...c, viewedAt: e?.at, viewCount: e?.count };
     });
 
-    // 💌 招待済み（まだ参加していない人）。誰が・いつ招待したか
-    const pendingInvites = (round.invitedIds || []).filter((id) => !(round.applicantIds || []).includes(id) && !(round.pendingApplicantIds || []).includes(id));
-    const invitedUsers = pendingInvites.length ? await db.listUsers(pendingInvites) : [];
-    const invited = invitedUsers.map((u) => toCand(u, ctx)).sort((a, b) => (b.invited?.at || 0) - (a.invited?.at || 0));
+    // 💌 招待した人と返事の状況（2026-10-13）：返事待ち（未読／既読）・行けない・参加した。誰が・いつ招待したか
+    const invitedIdsAll = Array.from(new Set([
+      ...(round.invitedIds || []),
+      ...Object.keys(round.inviteDeclined || {}),
+      ...(round.applicantIds || []).filter((id) => (round.invitedBy || {})[id] || (round.invitedAt || {})[id]),
+    ])).filter((id) => id !== round.hostId);
+    const invitedUsers = invitedIdsAll.length ? await db.listUsers(invitedIdsAll) : [];
+    const order: Record<string, number> = { unread: 0, seen: 0, applied: 1, declined: 2, joined: 3 };
+    const invited = invitedUsers
+      .map((u): (Cand & { status: InviteStatus }) | null => {
+        const st = inviteStatusOf(round, u.id);
+        const c = toCand(u, ctx);
+        return st ? { ...c, status: st, invited: c.invited || { by: ((round.invitedBy || {})[u.id] || 'unknown') as 'host' | 'admin' | 'unknown', at: st.invitedAt } } : null;
+      })
+      .filter((x): x is Cand & { status: InviteStatus } => !!x)
+      .sort((a, b) => (order[a.status.kind] - order[b.status.kind]) || ((b.invited?.at || 0) - (a.invited?.at || 0)));
     // 運営の招待から参加した人の数（分析用の目安）
     const joinedViaAdmin = (round.applicantIds || []).filter((id) => (round.invitedBy || {})[id] === 'admin').length;
 

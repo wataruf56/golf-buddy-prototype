@@ -340,6 +340,15 @@ export const store = {
     return round;
   },
 
+  // 招待された本人の「行けない」（2026-10-13）。招待の表示が消え、招待した側にアプリ内お知らせが届く。
+  declineInvite: async (roundId: string, reason?: string) => {
+    const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/decline-invite`, {
+      method: 'POST', body: JSON.stringify({ reason: reason || undefined }),
+    });
+    setState({ rounds: state.rounds.map((r) => (r.id === roundId ? { ...r, ...round } : r)) });
+    return round;
+  },
+
   // ゲスト枠（知り合い枠 or 名前付きゲスト）を登録ユーザーに置き換える（主催者）。
   replaceGuest: async (roundId: string, opts: { userId: string; guestId?: string; gender?: string }) => {
     const { round } = await api<{ round: Round }>(`/api/rounds/${roundId}/replace-guest`, {

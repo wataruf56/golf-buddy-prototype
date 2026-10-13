@@ -31,7 +31,7 @@ export function stripViews(round: Round): Round {
 // 主催者以外へは**自分のIDだけ**を残す。
 export function stripInvitesForViewer(round: Round, viewerId: string | null): Round {
   const ids = round.invitedIds || [];
-  const hasMaps = !!(round.invitedBy || round.invitedAt || round.inviteMessages);
+  const hasMaps = !!(round.invitedBy || round.invitedAt || round.inviteMessages || round.inviteSeenAt || round.inviteDeclined);
   if (!ids.length && !hasMaps) return round;
   if (isRoundHost(round, viewerId)) return round;
   // 招待の付帯情報（誰が招待したか・時刻・一言）も userId がキーなので、自分のぶんだけ残す（2026-10-13）
@@ -45,6 +45,9 @@ export function stripInvitesForViewer(round: Round, viewerId: string | null): Ro
     ...(round.invitedBy ? { invitedBy: mine(round.invitedBy) } : {}),
     ...(round.invitedAt ? { invitedAt: mine(round.invitedAt) } : {}),
     ...(round.inviteMessages ? { inviteMessages: mine(round.inviteMessages) } : {}),
+    // 既読・「行けない」（2026-10-13）も同じ。招待した側（主催者・共同管理者）だけが全員ぶん見られる
+    ...(round.inviteSeenAt ? { inviteSeenAt: mine(round.inviteSeenAt) } : {}),
+    ...(round.inviteDeclined ? { inviteDeclined: mine(round.inviteDeclined) } : {}),
   };
 }
 

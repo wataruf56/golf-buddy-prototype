@@ -249,6 +249,14 @@ export type Round = {
   // 招待した相手と同じく主催者だけが全員ぶん見られる（それ以外には自分のぶんだけ。lib/roundView）。lib/roundInvite
   invitedBy?: Record<string, 'host' | 'admin'>;
   invitedAt?: Record<string, number>;
+  // 招待の既読（2026-10-13）。キー: 招待された userId → 招待を初めて見た時刻(ms)。
+  // 募集ページを開いた（/api/rounds/[id]/view）か、ホームの「ラウンドに招待されています」が表示された（/invite-seen）とき、
+  // 招待中のあいだに1回だけ打つ。招待し直すと消える（lib/db.inviteToRound）。主催者・運営が「未読／既読」を見るため。
+  inviteSeenAt?: Record<string, number>;
+  // 「行けない」と返事した人（2026-10-13）。キー: userId → { at: 返事した時刻(ms), reason?: 一言の理由（任意）}。
+  // 返事すると invitedIds からは外れる（ホーム・募集ページの招待表示が消える）が、ここに記録が残る。
+  // 招待し直すと消える。招待した相手と同じく主催者・運営だけが全員ぶん見られる（lib/roundView）。lib/inviteStatus
+  inviteDeclined?: Record<string, { at: number; reason?: string }>;
   // ms timestamp when the "締切間近" LINE push was sent to 気になる users.
   // Used by the interest-deadline reminder to avoid double-sending. Unset
   // = never sent.

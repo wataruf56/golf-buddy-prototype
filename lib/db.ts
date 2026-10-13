@@ -8,6 +8,15 @@ import { scrubMemberFromRound, applyScrubInPlace, type MemberScrub } from './rou
 import { hostCounts, currentCountOf, countFloor, countedMemberIds } from './hostCount';
 import { hostJoinBlock, hostLeaveBlock } from './hostJoin';
 
+/** 招待の既読を打つべきか：招待中で、参加していなくて、今回の招待（invitedAt）のあとにまだ打っていない。 */
+function needsInviteSeen(r: Partial<Round>, userId: string): boolean {
+  if (!(r.invitedIds || []).includes(userId)) return false;
+  if ((r.applicantIds || []).includes(userId)) return false;
+  const seen = (r.inviteSeenAt || {})[userId];
+  const invitedAt = (r.invitedAt || {})[userId] || 0;
+  return !seen || seen < invitedAt;
+}
+
 /** 主催者の参加切り替え（setHostJoined）で、いまできないときに投げる。code/message は lib/hostJoin。 */
 export class HostJoinError extends Error {
   constructor(public code: string, message: string) { super(message); }
@@ -59,6 +68,10 @@ export interface DB {
   acceptInvite(id: string, userId: string): Promise<Round>;
   // 主催者が送った招待を取り消す（invitedIds から外す）。
   uninviteFromRound(id: string, userId: string): Promise<Round>;
+  // 招待された本人の「行けない」（2026-10-13）。invitedIds から外し、inviteDeclined[userId] に記録を残す。
+  declineInvite(id: string, userId: string, reason?: string): Promise<Round>;
+  // 招待の既読（初めて見た時刻）を打つ。招待中で、今回の招待のあとにまだ打っていないときだけ書く。書いたら true。
+  markInviteSeen(id: string, userId: string, at: number): Promise<boolean>;
 
   // 日程調整（調整さん）ポール — 募集とは独立したコレクション。
   createPoll(poll: Omit<SchedulePoll, 'id'>): Promise<SchedulePoll>;
@@ -254,6 +267,19 @@ class MemoryDB implements DB {
     r.invitedIds = (r.invitedIds || []).filter((x) => x !== userId);
     return r;
   }
+  async declineInvite(id: string, userId: string, reason?: string) {
+    const r = this.rounds.find((x) => x.id === id);
+    if (!r) throw new Error('round not found');
+    r.invitedIds = (r.invitedIds || []).filter((x) => x !== userId);
+    r.inviteDeclined = { ...(r.inviteDeclined || {}), [userId]: { at: Date.now(), ...(reason ? { reason } : {}) } };
+    return r;
+  }
+  async markInviteSeen(id: string, userId: string, at: number) {
+    const r = this.rounds.find((x) => x.id === id);
+    if (!r || !needsInviteSeen(r, userId)) return false;
+    r.inviteSeenAt = { ...(r.inviteSeenAt || {}), [userId]: at };
+    return true;
+  }
   async kickApplicant(id: string, userId: string) {
     const r = this.rounds.find((x) => x.id === id);
     if (!r) throw new Error('round not found');
@@ -350,6 +376,8 @@ class MemoryDB implements DB {
     const had = cur.has(userId);
     cur.add(userId);
     r.invitedIds = Array.from(cur);
+    // 招待し直し：前回の「行けない」と既読を消す（新しい招待として未読から）
+    if (!had) { if (r.inviteDeclined) delete r.inviteDeclined[userId]; if (r.inviteSeenAt) delete r.inviteSeenAt[userId]; }
     return { round: r, added: !had };
   }
   async recordRoundView(id: string, viewerId: string, at: number) {
@@ -858,6 +886,30 @@ class FirestoreDB implements DB {
       return { ...data, id: snap.id, invitedIds } as Round;
     });
   }
+  async declineInvite(id: string, userId: string, reason?: string) {
+    const ref = this.fs.collection('rounds').doc(id);
+    return await this.fs.runTransaction(async (tx: any) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('round not found');
+      const data = snap.data() as Omit<Round, 'id'>;
+      const invitedIds = (data.invitedIds || []).filter((x) => x !== userId);
+      const entry = { at: Date.now(), ...(reason ? { reason } : {}) };
+      // map は merge で当該キーだけ書く（他の人の記録は保持）
+      tx.set(ref, { invitedIds, inviteDeclined: { [userId]: entry } }, { merge: true });
+      return { ...data, id: snap.id, invitedIds, inviteDeclined: { ...(data.inviteDeclined || {}), [userId]: entry } } as Round;
+    });
+  }
+  async markInviteSeen(id: string, userId: string, at: number) {
+    const ref = this.fs.collection('rounds').doc(id);
+    return await this.fs.runTransaction(async (tx: any) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) return false;
+      const data = snap.data() as Omit<Round, 'id'>;
+      if (!needsInviteSeen(data, userId)) return false;
+      tx.set(ref, { inviteSeenAt: { [userId]: at } }, { merge: true });
+      return true;
+    });
+  }
   /**
    * トランザクションの中で、通常の項目の更新と「痕跡の掃除」を1回の update にまとめる。
    * map のキーは merge では消せないので FieldValue.delete()。キーに '.' が入っても
@@ -1004,8 +1056,23 @@ class FirestoreDB implements DB {
       const had = cur.has(userId);
       cur.add(userId);
       const invitedIds = Array.from(cur);
-      tx.set(ref, { invitedIds }, { merge: true });
-      return { round: { ...data, id: snap.id, invitedIds } as Round, added: !had };
+      // 招待し直し（前に「行けない」と返事した人など）：前回の「行けない」と既読を消して、新しい招待として未読から始める。
+      // map のキーは merge では消せないので FieldValue.delete()（キーに '.' が入っても壊れないよう FieldPath）。
+      const stale = !had
+        ? (['inviteDeclined', 'inviteSeenAt'] as const).filter((k) => Object.prototype.hasOwnProperty.call((data as any)[k] || {}, userId))
+        : [];
+      if (stale.length) {
+        const admin = require('firebase-admin');
+        const { FieldPath, FieldValue } = admin.firestore;
+        const args: any[] = [new FieldPath('invitedIds'), invitedIds];
+        for (const k of stale) args.push(new FieldPath(k, userId), FieldValue.delete());
+        tx.update(ref, ...args);
+      } else {
+        tx.set(ref, { invitedIds }, { merge: true });
+      }
+      const out = { ...data, id: snap.id, invitedIds } as Round;
+      for (const k of stale) { const m = { ...((out as any)[k] || {}) }; delete m[userId]; (out as any)[k] = m; }
+      return { round: out, added: !had };
     });
   }
   async recordRoundView(id: string, viewerId: string, at: number) {

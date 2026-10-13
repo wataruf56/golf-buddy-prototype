@@ -21,6 +21,16 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   // 主催者本人は記録しない。
   if (isRoundHost(round, meId)) return NextResponse.json({ ok: true, recorded: false, self: true }, { headers: noStore });
 
+  // 招待されている本人なら、招待の既読も打つ（初めて見た時刻を1回だけ。2026-10-13）。
+  // 読んだ round で要らないと分かるときは書かない（開くたびに書かない）。
+  const inv = round.invitedIds || [];
+  if (inv.includes(meId)) {
+    const seen = (round.inviteSeenAt || {})[meId] || 0;
+    if (!seen || seen < ((round.invitedAt || {})[meId] || 0)) {
+      await db.markInviteSeen(params.id, meId, Date.now()).catch(() => false);
+    }
+  }
+
   try {
     await db.recordRoundView(params.id, meId, Date.now());
   } catch {
