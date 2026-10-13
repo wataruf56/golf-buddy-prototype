@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { ArticleShell } from '@/components/site/ArticleShell';
 import { articleJsonLd, displayDate } from '@/lib/articleMeta';
 import { StartButton } from '@/components/StartButton';
-import { getGuideStats, hasAgeData } from '@/lib/guideStats';
+import { getGuideStats } from '@/lib/guideStats';
 
 // 「ゴルフ友達 探す／作り方」で上位を狙う主力記事。
 //
@@ -288,14 +288,10 @@ export default async function Page() {
         接待で必要になったという入り方でも、同世代だけの場なら
         「仕事の延長」にならずに練習台として使えます。
       </p>
-      {hasAgeData(s) && (
-        <p>
-          実際の内訳を出しておきます。年齢を登録している会員{s.ageKnown}人のうち、
-          <strong>20代が{s.age20s}人、30代が{s.age30s}人</strong>です。
-          どちらかに大きく偏ってはいないので、20代でも30代でも
-          「自分だけ年齢が浮く」ということにはなりにくい構成です。
-        </p>
-      )}
+      <p>
+        どちらの年代も、入り口は同じです。20〜30代だけの場なので、
+        「自分だけ年齢が浮く」という心配をせずに1回目へ行けます。
+      </p>
       <p>
         年代ごとの詳しい事情は、<a href="/guide/golf-20s">20代からのゴルフ</a>と
         <a href="/guide/golf-30s">30代からのゴルフ</a>にそれぞれまとめています。
