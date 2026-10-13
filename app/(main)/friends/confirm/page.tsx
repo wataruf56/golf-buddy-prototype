@@ -7,9 +7,11 @@ import { useStore, getMe } from '@/lib/store';
 import { Avatar } from '@/components/Avatar';
 import { toast } from '@/components/Toast';
 import { DirectReviewCard } from '@/components/DirectReviewCard';
+import { FriendRequestRespondCard, FriendRequestResultCard, type RespondResult } from '@/components/FriendRequestRespondCard';
 
 // 「友達の確認」——やり残しが1か所に集まる画面。
-//   届いた … 友達申請。承認するとその場でレビューへ進む
+//   届いた … 友達申請。「合っていますか？」→（同じ組ならその場で評価）→ 友達になる／ならない。
+//            どれを選んでも申請者には通知しない（components/FriendRequestRespondCard）
 //   QR    … QRでつながったが「同じ組？」にまだ答えていない人
 //   送った … 自分が出した申請（返事待ち・取り消せる）
 //
@@ -45,8 +47,8 @@ function Inner() {
   const me = useStore(getMe);
   const [data, setData] = useState<Data | null>(null);
   const [busy, setBusy] = useState(false);
-  // 承認画面で選んだ結果（申請IDごと）
-  const [pick, setPick] = useState<Record<string, string>>({});
+  // 届いた申請に答えた結果（申請IDごと）。サーバーの一覧からは消えるので、結果カードはここから出す
+  const [answered, setAnswered] = useState<Record<string, { user: U; result: RespondResult }>>({});
   // QRの回答（相手IDごと）
   const [qrPick, setQrPick] = useState<Record<string, 'same_group' | 'other'>>({});
 
@@ -65,24 +67,10 @@ function Inner() {
     if (!search?.get('tab') && data.counts.reviews > 0 && data.counts.incoming === 0) setTab('review');
   }, [data, search]);
 
-  async function respond(req: Req) {
-    const result = pick[req.id];
-    if (!result) { toast('どれか選んでください', 'error'); return; }
-    setBusy(true);
-    try {
-      const r = await fetch(`/api/friends/requests/${req.id}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ result }), credentials: 'include',
-      });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j?.message || '失敗しました');
-      if (result === 'none') toast('この申請を閉じました');
-      else if (result === 'same_group') toast('🤝 友達になりました。評価をお願いします');
-      else toast('🤝 友達になりました');
-      await load();
-      if (result === 'same_group') setTab('review');
-    } catch (e) { toast((e as Error).message, 'error'); }
-    finally { setBusy(false); }
+  async function onAnswered(req: Req, user: U, result: RespondResult) {
+    // 答えた相手は次の一覧に来ないので、名前・アイコンはここで持っておく
+    setAnswered((s) => ({ ...s, [req.id]: { user, result } }));
+    await load();
   }
 
   async function cancel(req: Req) {
@@ -153,53 +141,19 @@ function Inner() {
       {/* ── 届いた申請 ── */}
       {tab === 'incoming' && (
         <div className="px-5 space-y-3">
-          {data.incoming.length === 0 && <Empty text="届いている申請はありません" />}
-          {data.incoming.map((r) => {
-            const p = u(r.fromId);
-            const sel = pick[r.id];
-            return (
-              <div key={r.id} className="bg-card border-2 border-border rounded-card shadow-card p-4">
-                <Link href={`/profile/${r.fromId}`} className="flex items-center gap-3">
-                  <Avatar user={p as any} size={44} emojiSize={22} />
-                  <div>
-                    <div className="text-[15px] font-black">{p.displayName}</div>
-                    <div className="text-[11.5px] text-sub">{[p.age ? `${p.age}歳` : '', p.area].filter(Boolean).join('・')}</div>
-                  </div>
-                </Link>
-                {r.message && (
-                  <div className="mt-2.5 border-2 border-dashed border-border rounded-xl p-2.5 text-[12.5px] font-bold">
-                    「{r.message}」
-                  </div>
-                )}
-                <div className="mt-3 text-[13px] font-black leading-relaxed">
-                  {p.displayName}さんは<br />
-                  <span className="text-orange">「{fmt(r.metAt)} に{r.claim === 'same_group' ? '同じ組で回った' : '同じコンペにいた'}」</span>と言っています。
-                </div>
-                <div className="text-[11px] font-black text-sub mt-3 mb-1.5">合っていますか？</div>
-                <div className="space-y-2">
-                  {[
-                    ['same_group', '⛳ はい、同じ組でした', '友達に追加し、評価へ進みます'],
-                    ['competition', '🏆 コンペで一緒だっただけ', '友達に追加のみ（評価はしません）'],
-                    ['none', '🤔 心当たりがない', '追加しません'],
-                  ].map(([k, label, note]) => (
-                    <button
-                      key={k} onClick={() => setPick((s) => ({ ...s, [r.id]: k }))}
-                      className={'w-full text-left border-2 rounded-xl px-3 py-2.5 ' +
-                        (sel === k ? 'bg-green-light border-green' : 'bg-white border-border')}
-                    >
-                      <div className="text-[13px] font-black">{label}</div>
-                      <div className="text-[11px] font-bold text-sub mt-0.5">{note}</div>
-                    </button>
-                  ))}
-                </div>
-                <button
-                  disabled={busy || !sel} onClick={() => respond(r)}
-                  className={'w-full mt-3 py-3 rounded-xl text-[15px] font-black border-2 ' +
-                    (sel ? 'bg-green text-white border-green' : 'bg-[#EDEDED] text-[#A9A9A9] border-muted')}
-                >{sel === 'none' ? '閉じる' : '許可する'}</button>
-              </div>
-            );
-          })}
+          {Object.entries(answered).map(([id, a]) => (
+            <FriendRequestResultCard
+              key={`done-${id}`} user={a.user as any} meId={me?.id} result={a.result}
+              onClose={() => setAnswered((s) => { const n = { ...s }; delete n[id]; return n; })}
+            />
+          ))}
+          {data.incoming.length === 0 && Object.keys(answered).length === 0 && <Empty text="届いている申請はありません" />}
+          {data.incoming.filter((r) => !answered[r.id]).map((r) => (
+            <FriendRequestRespondCard
+              key={r.id} req={r} user={u(r.fromId) as any} meGender={me?.gender}
+              onDone={(result) => onAnswered(r, u(r.fromId), result)}
+            />
+          ))}
         </div>
       )}
 

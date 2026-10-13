@@ -15,6 +15,55 @@ const OPTIONS: Array<{ key: ReviewVerdict; label: string; on: string }> = [
   { key: 'again', label: '行きたい', on: 'bg-green text-white border-green' },
 ];
 
+/** 画面側の異性判定。自分の性別が分からないときは出す（サーバー側で弾かれるので実害はない）。 */
+export function oppositeForUi(meGender?: string, otherGender?: string): boolean {
+  const g1 = meGender, g2 = otherGender;
+  if (!g1 || !g2) return true;
+  return (g1 === 'male' || g1 === 'female') && (g2 === 'male' || g2 === 'female') && g1 !== g2;
+}
+
+/**
+ * 評価の答え方だけを切り出した部品（2026-10-13〜 友達申請の受け手がその場で評価する画面で使う）。
+ * 聞き方・verdict の意味は DirectReviewCard / ReviewOverlay と同じ：
+ *   思わない=never／どっちでも=either／行きたい=again ＋ 💘 異性として気になる=romantic（異性のときだけ）
+ */
+export function VerdictPicker({
+  value, onChange, opposite,
+}: {
+  value: ReviewVerdict | null;
+  onChange: (v: ReviewVerdict | null) => void;
+  opposite: boolean;
+}) {
+  // 💘 を外したときに戻す先（直前に選んでいた3択）
+  const [base, setBase] = useState<ReviewVerdict | null>(null);
+  const romantic = value === 'romantic';
+  return (
+    <div>
+      <div className="text-[12.5px] font-black text-center mb-1.5">この人からまた次のラウンドに誘われたら、行きたいと思う？</div>
+      <div className={'grid grid-cols-3 gap-1.5 ' + (romantic ? 'opacity-40 grayscale pointer-events-none' : '')}>
+        {OPTIONS.map((o) => {
+          const on = (romantic ? base : value) === o.key;
+          return (
+            <button
+              key={o.key} type="button" disabled={romantic} onClick={() => { onChange(o.key); setBase(o.key); }}
+              className={'py-2.5 rounded-[12px] text-[12.5px] font-black border-[1.5px] ' + (on ? o.on : 'bg-white border-border text-sub')}
+            >{on ? '✓ ' : ''}{o.label}</button>
+          );
+        })}
+      </div>
+      {opposite && (
+        <div className="flex justify-center mt-2">
+          <button type="button"
+            onClick={() => (romantic ? onChange(base) : (setBase(value || base), onChange('romantic')))}
+            className={'px-3 py-1.5 rounded-full text-[11.5px] font-black border-[1.5px] ' + (romantic ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-pink-600 border-pink-600')}
+          >💘 異性として気になる</button>
+        </div>
+      )}
+      {romantic && <div className="text-[10px] text-pink-600 font-bold mt-1 text-center">💘 を選んだので、上の質問は答えなくてOK（もう一度押すと外れます）</div>}
+    </div>
+  );
+}
+
 export function DirectReviewCard({
   user, meGender, onDone,
 }: {

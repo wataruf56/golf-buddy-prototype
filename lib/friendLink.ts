@@ -18,13 +18,18 @@ import { db as appDb } from './db';
 // - 断られたことは申請者に伝えない（「返事待ち」のまま見せる）。気まずさを避ける。
 // - 「どちらでもない」で送信、または受け手が「心当たりがない」で却下した場合は
 //   その相手への申請を24時間ロックする。
+// - 2026-10-13〜 受け手の流れ：事実の確認（同じ組／コンペだけ／心当たりなし）→
+//   同じ組ならその場で評価 → 「友達になる／ならない」。どれを選んでも申請者には通知しない
+//   （承認の通知もやめた）。「ならない」は confirmed_no_friend にして24時間ロック。
 
 export const LOCK_MS = 24 * 3600 * 1000;
 /** 確認画面に一度に出す人数。**データは消さない**——出す数を絞るだけ。 */
 export const QR_VISIBLE = 10;
 
 export type Claim = 'same_group' | 'competition';
-export type ReqStatus = 'pending' | 'accepted' | 'declined' | 'cancelled';
+// confirmed_no_friend（2026-10-13〜）… 受け手が「会った」とは認めたが「友達にならない」を選んだ。
+//   declined（心当たりがない）とは事実が違うので分ける。申請者には declined と同じく「返事待ち」に見せる。
+export type ReqStatus = 'pending' | 'accepted' | 'declined' | 'cancelled' | 'confirmed_no_friend';
 export type QrAnswer = 'same_group' | 'other';
 
 export type FriendRequest = {
@@ -36,6 +41,7 @@ export type FriendRequest = {
   message?: string;
   status: ReqStatus;
   accepted?: Claim;      // 受け手が確定させた事実
+  reviewed?: boolean;    // 受け手がその場で評価したか（同じ組のときだけ。中身はここに持たない）
   createdAt: number;
   respondedAt?: number;
 };
@@ -135,8 +141,9 @@ export async function listIncoming(meId: string): Promise<FriendRequest[]> {
 
 /**
  * 自分が送った申請。
- * **却下されたものも「返事待ち」として返す**（断られたことは申請者に伝えない方針）。
- * 取り消しはできるので、行き先を失うことはない。
+ * **却下されたもの・「友達にならない」を選ばれたものも「返事待ち」として返す**
+ * （断られたことは申請者に伝えない方針）。取り消しはできるので、行き先を失うことはない。
+ * 受け手の返事の痕跡（accepted / reviewed / respondedAt）は申請者に返さない。
  */
 export async function listOutgoing(meId: string): Promise<FriendRequest[]> {
   const adb = getAdminDb() as any;
@@ -145,8 +152,11 @@ export async function listOutgoing(meId: string): Promise<FriendRequest[]> {
     const s = await adb.collection(C_REQ).where('fromId', '==', meId).limit(200).get();
     return s.docs
       .map((d: any) => ({ ...(d.data() || {}), id: d.id } as FriendRequest))
-      .filter((r: FriendRequest) => r.status === 'pending' || r.status === 'declined')
-      .map((r: FriendRequest) => ({ ...r, status: 'pending' as ReqStatus, accepted: undefined }))
+      .filter((r: FriendRequest) => r.status === 'pending' || r.status === 'declined' || r.status === 'confirmed_no_friend')
+      .map((r: FriendRequest) => {
+        const { accepted: _a, reviewed: _r, respondedAt: _t, ...rest } = r;
+        return { ...rest, status: 'pending' as ReqStatus };
+      })
       .sort((a: FriendRequest, b: FriendRequest) => b.createdAt - a.createdAt);
   } catch { return []; }
 }
@@ -273,12 +283,22 @@ export async function listDueDirectReviews(meId: string): Promise<DirectReview[]
   } catch { return []; }
 }
 
-export async function markDirectReviewDone(reviewerId: string, revieweeId: string) {
+/**
+ * 書き終えた印をつける。依頼（pending）が無くても done の記録を作る
+ * （友達申請の受け手がその場で評価した場合など）。done があると createDirectReview は作り直さない。
+ */
+export async function markDirectReviewDone(reviewerId: string, revieweeId: string, source?: DirectReview['source']) {
   const adb = getAdminDb() as any;
   if (!adb) return;
   try {
-    await adb.collection(C_REV).doc(pairId(reviewerId, revieweeId))
-      .set({ status: 'done', doneAt: Date.now() }, { merge: true });
+    const ref = adb.collection(C_REV).doc(pairId(reviewerId, revieweeId));
+    const cur = await ref.get();
+    const now = Date.now();
+    await ref.set({
+      reviewerId, revieweeId, status: 'done', doneAt: now,
+      // 新しく作るときだけ、ほかの項目も埋めておく（既存の依頼の source/dueAt は残す）
+      ...(cur.exists ? {} : { source: source || 'friend_request', dueAt: now, createdAt: now, notifiedAt: now }),
+    }, { merge: true });
   } catch { /* noop */ }
 }
 

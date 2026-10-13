@@ -7,9 +7,9 @@ import { AdminTabs } from '@/components/AdminTabs';
 
 // 管理画面：友達のつながり（2026-10-13）。1件ずつ「どうやって友達になったか／いまどういう状態か」を種類で出す：
 //   📷 QRコードで友達（何時何分・読み取った人）／📨 友達申請で友達（承認）／⏳ 友達申請を送っている（返事待ち）／
-//   🙅 お断り／↩️ 取り消し／📷 QR（記録を始める前・時刻なし）。データは /api/admin/friend-requests。
-type Kind = 'request_accepted' | 'qr' | 'qr_legacy' | 'request_pending' | 'request_declined' | 'request_cancelled';
-type Item = { kind: Kind; a: string; b: string; at: number; sentAt?: number; claim?: string; accepted?: string; metAt?: string; message?: string;
+//   🙅 お断り／🙂 会ったが友達にならない（10/13〜）／↩️ 取り消し／📷 QR（記録を始める前・時刻なし）。データは /api/admin/friend-requests。
+type Kind = 'request_accepted' | 'qr' | 'qr_legacy' | 'request_pending' | 'request_declined' | 'request_cancelled' | 'request_no_friend';
+type Item = { kind: Kind; a: string; b: string; at: number; sentAt?: number; claim?: string; accepted?: string; reviewed?: boolean; metAt?: string; message?: string;
   qrAnswers?: Record<string, string | null>; stillFriends?: boolean };
 type U = { displayName: string; gender?: string; age?: number };
 
@@ -20,12 +20,19 @@ const KIND: Record<Kind, { label: string; cls: string; group: 'qr' | 'req' | 'pe
   request_pending: { label: '⏳ 友達申請を送っている（返事待ち）', cls: 'bg-yellow-light text-[#9A6B12] border-yellow', group: 'pending' },
   request_declined: { label: '🙅 友達申請：お断り（心当たりなし）', cls: 'bg-red-50 text-red border-red', group: 'ng' },
   request_cancelled: { label: '↩️ 友達申請：送った人が取り消し', cls: 'bg-bg text-sub border-border', group: 'ng' },
+  // 実際のラベルは kindLabel() で「同じ組・評価済み」などを足して出す
+  request_no_friend: { label: '🙂 友達申請：友達にならない', cls: 'bg-orange-light text-orange border-orange', group: 'ng' },
 };
 const FILTERS: Array<{ k: 'all' | 'qr' | 'req' | 'pending' | 'ng'; label: string }> = [
   { k: 'all', label: 'すべて' }, { k: 'qr', label: '📷 QRで友達' }, { k: 'req', label: '📨 申請で友達' },
-  { k: 'pending', label: '⏳ 申請中' }, { k: 'ng', label: '🙅 お断り・取り消し' },
+  { k: 'pending', label: '⏳ 申請中' }, { k: 'ng', label: '🙅 お断り・友達にならない・取り消し' },
 ];
 const CLAIM: Record<string, string> = { same_group: '同じ組で回った', competition: 'コンペで一緒だった' };
+const kindLabel = (it: Item) => {
+  if (it.kind !== 'request_no_friend') return KIND[it.kind].label;
+  const fact = it.accepted === 'same_group' ? '同じ組' : it.accepted === 'competition' ? 'コンペで一緒' : '';
+  return ['🙂 友達申請：' + (fact || '会った'), it.reviewed ? '評価済み' : '', '友達にならない'].filter(Boolean).join('・');
+};
 
 const fmt = (ms?: number) => {
   if (!ms) return '';
@@ -102,7 +109,7 @@ function Inner() {
       <p className="text-[11.5px] text-sub leading-relaxed mt-3 mb-3">
         友達になった組と、送っている友達申請の一覧です（新しい順）。<b className="text-text">QRコードか友達申請か</b>、<b className="text-text">申請中か</b>を色で分けています。
         QRは読み取った時刻（何時何分）を出します。8/23より前のQRは時刻の記録がありません。「読み取った人」は10/13から記録しています。
-        お断りされたことは申請者には伝わらず「返事待ち」のまま見えています。テスト用アカウントは含みません。
+        お断り・「友達にならない」は申請者には伝わらず「返事待ち」のまま見えています（10/13から、承認されたことも通知していません）。テスト用アカウントは含みません。
       </p>
 
       {err && <div className="text-red text-sm font-bold mb-3">{err}</div>}
@@ -128,10 +135,11 @@ function Inner() {
               const k = KIND[it.kind];
               const isQr = it.kind === 'qr' || it.kind === 'qr_legacy';
               const scannerKnown = it.kind === 'qr' && it.claim !== 'scanner_unknown';
-              const corrected = it.kind === 'request_accepted' && it.accepted && it.accepted !== it.claim;
+              const responded = it.kind === 'request_accepted' || it.kind === 'request_no_friend';
+              const corrected = responded && it.accepted && it.accepted !== it.claim;
               return (
                 <div key={`${it.kind}-${it.a}-${it.b}-${i}`} className="bg-card rounded-card shadow-card p-3">
-                  <span className={'inline-block text-[10.5px] font-black px-2 py-0.5 rounded-full border mb-1.5 ' + k.cls}>{k.label}</span>
+                  <span className={'inline-block text-[10.5px] font-black px-2 py-0.5 rounded-full border mb-1.5 ' + k.cls}>{kindLabel(it)}</span>
                   <div className="flex items-center gap-1.5 flex-wrap text-[13.5px] font-black">
                     <Name id={it.a} />
                     <span className="text-muted">{isQr && !scannerKnown ? '⇄' : '→'}</span>
@@ -152,9 +160,10 @@ function Inner() {
                     <>
                       <div className="text-[12px] text-sub mt-1.5 leading-relaxed">
                         申告：<b className="text-text">{CLAIM[it.claim || ''] || it.claim}</b>{it.metAt ? `（${it.metAt}）` : ''}
-                        {it.kind === 'request_accepted' && it.accepted && (
+                        {responded && it.accepted && (
                           <> ／ 受け手の確定：<b className={corrected ? 'text-orange' : 'text-text'}>{CLAIM[it.accepted]}</b>{corrected && <span className="text-orange font-bold">（訂正あり）</span>}</>
                         )}
+                        {responded && it.reviewed && <> ／ 受け手は<b className="text-text">評価済み</b></>}
                       </div>
                       {it.message && <div className="text-[12px] mt-1 px-2.5 py-1.5 rounded-lg bg-bg whitespace-pre-wrap">💬 {it.message}</div>}
                       <div className="text-[10.5px] text-muted mt-1.5">

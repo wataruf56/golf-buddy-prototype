@@ -8,7 +8,8 @@ import { warmTestIds, isTestId } from '@/lib/testAccounts';
 //   qr               … QRコードで友達（qrPending・時刻＝読み取った時刻、scannedBy＝読み取った人 ※10/13〜）
 //   qr_legacy        … 友達だが、申請の記録もQRの記録も無い組。QRの時刻を残し始めた 2026-08-23 より前のQR（時刻不明）
 //   request_pending  … 友達申請を送っている（返事待ち）
-//   request_declined / request_cancelled … お断り／申請者が取り消し
+//   request_declined / request_cancelled … お断り（心当たりなし）／申請者が取り消し
+//   request_no_friend … 受け手が会ったことは認めたが「友達にならない」を選んだ（2026-10-13〜・confirmed_no_friend）
 // User.friendIds に入る経路は QR（/api/friends）と 友達申請の承認（lib/friendLink.linkFriends）の2つだけ。
 // テスト垢がからむものは出さない。
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
@@ -20,11 +21,12 @@ function checkToken(req: NextRequest): boolean {
 }
 
 type Item = {
-  kind: 'request_accepted' | 'qr' | 'qr_legacy' | 'request_pending' | 'request_declined' | 'request_cancelled';
+  kind: 'request_accepted' | 'qr' | 'qr_legacy' | 'request_pending' | 'request_declined' | 'request_cancelled' | 'request_no_friend';
   a: string; b: string;          // 申請：a＝送った人・b＝受け取った人／QR：a＝読み取った人（分かれば）
   at: number;                    // その出来事の時刻（qr_legacy は 0）
   sentAt?: number;               // 申請を送った時刻
   claim?: string; accepted?: string; metAt?: string; message?: string;
+  reviewed?: boolean;            // 受け手がその場で評価したか（2026-10-13〜）
   qrAnswers?: Record<string, string | null>;   // QR：それぞれの「同じ組だったか」
   stillFriends?: boolean;
 };
@@ -58,10 +60,10 @@ export async function GET(req: NextRequest) {
       const r = doc.data() || {};
       if (!r.fromId || !r.toId || isTestId(r.fromId) || isTestId(r.toId)) continue;
       const k = key(r.fromId, r.toId);
-      const kind = r.status === 'accepted' ? 'request_accepted' : r.status === 'declined' ? 'request_declined' : r.status === 'cancelled' ? 'request_cancelled' : 'request_pending';
+      const kind = r.status === 'accepted' ? 'request_accepted' : r.status === 'declined' ? 'request_declined' : r.status === 'cancelled' ? 'request_cancelled' : r.status === 'confirmed_no_friend' ? 'request_no_friend' : 'request_pending';
       if (kind === 'request_accepted') covered.add(k);
       items.push({ kind, a: r.fromId, b: r.toId, at: (kind === 'request_pending' ? r.createdAt : r.respondedAt || r.createdAt) || 0, sentAt: r.createdAt || 0,
-        claim: r.claim, accepted: r.accepted, metAt: r.metAt, message: r.message, stillFriends: friendPairs.has(k) });
+        claim: r.claim, accepted: r.accepted, reviewed: !!r.reviewed, metAt: r.metAt, message: r.message, stillFriends: friendPairs.has(k) });
     }
     // QR（1組につき両方向の2件 → 1件にまとめる）
     const qrByPair = new Map<string, any[]>();
