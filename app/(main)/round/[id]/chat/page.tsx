@@ -16,7 +16,7 @@ import type { Message, Round, RoundThread } from '@/lib/types';
 import { ADMIN_MANAGER_AVATAR, ADMIN_MANAGER_ID, ADMIN_MANAGER_NAME, SYSTEM_SENDER_ID } from '@/lib/adminManagerId';
 import { linkifyNodes } from '@/components/Linkify';
 import { RoomIntroSheet } from '@/components/RoomIntroSheet';
-import { REACTIONS } from '@/lib/chatReactions';
+import { MessageReactions } from '@/components/MessageReactions';
 
 // Branded launch URL (handled in middleware → LIFF). Lets us share a friendly
 // goltomo.com/app link that deep-links to this group chat after login.
@@ -468,43 +468,7 @@ export default function RoundChatPage() {
                     {new Date(m.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
-                {/* リアクション：付いている数（自分が押したものは色つき）＋選ぶ欄（吹き出しをタップで開く） */}
-                {(() => {
-                  const rx = m.reactions || {};
-                  const used = REACTIONS.filter((r) => (rx[r.key] || []).length > 0);
-                  if (!used.length && pickerFor !== m.id) return null;
-                  return (
-                    <div className={`flex flex-wrap gap-1 mt-1 ${mine ? 'justify-end' : 'justify-start'}`}>
-                      {used.map((r) => {
-                        const ids = rx[r.key] || [];
-                        const on = !!meId && ids.includes(meId);
-                        return (
-                          <button key={r.key} type="button" onClick={() => react(m.id, r.key)} aria-label={`${r.label} ${ids.length}`}
-                            className={'inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[12px] font-bold border-[1.5px] ' + (on ? 'bg-green-light border-green text-green' : 'bg-card border-border text-sub')}>
-                            <span>{r.emoji}</span><span className="text-[11px]">{ids.length}</span>
-                          </button>
-                        );
-                      })}
-                      {pickerFor !== m.id && (
-                        <button type="button" onClick={() => setPickerFor(m.id)} aria-label="リアクションを付ける"
-                          className="px-2 py-0.5 rounded-full text-[11px] font-bold border-[1.5px] border-dashed border-border text-muted bg-card">＋</button>
-                      )}
-                    </div>
-                  );
-                })()}
-                {pickerFor === m.id && (
-                  <div className={`flex ${mine ? 'justify-end' : 'justify-start'} mt-1`}>
-                    <div className="inline-flex gap-0.5 bg-card border-[1.5px] border-border rounded-full px-1.5 py-1 shadow-card">
-                      {REACTIONS.map((r) => {
-                        const on = !!meId && (m.reactions?.[r.key] || []).includes(meId);
-                        return (
-                          <button key={r.key} type="button" onClick={() => react(m.id, r.key)} aria-label={r.label}
-                            className={'w-8 h-8 rounded-full text-[18px] leading-none grid place-items-center active:scale-90 ' + (on ? 'bg-green-light' : '')}>{r.emoji}</button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+                <MessageReactions reactions={m.reactions} meId={meId} mine={mine} open={pickerFor === m.id} onOpen={() => setPickerFor(m.id)} onReact={(k) => react(m.id, k)} />
               </div>
             </div>
           );

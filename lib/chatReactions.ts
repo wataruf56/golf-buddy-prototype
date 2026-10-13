@@ -11,3 +11,9 @@ export const REACTIONS: Array<{ key: string; emoji: string; label: string }> = [
   { key: 'party', emoji: String.fromCodePoint(0x1F389), label: 'やったー' },
 ];
 export const REACTION_KEYS = REACTIONS.map((r) => r.key);
+
+/** 管理画面などで読むだけの要約：「👍2 ❤️1」（無ければ空） */
+export function reactionSummary(reactions?: Record<string, string[]> | null): string {
+  if (!reactions) return '';
+  return REACTIONS.filter((r) => (reactions[r.key] || []).length > 0).map((r) => `${r.emoji}${reactions[r.key].length}`).join(' ');
+}

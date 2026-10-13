@@ -167,6 +167,7 @@ const EVENT_LABEL: Record<string, string> = {
   dm_send: '💬 DMを送信',
   round_chat_send: '💬 ラウンドチャット送信',
   round_chat_react: '😊 チャットにリアクション',
+  dm_react: '😊 DMにリアクション',
   interest_toggle: '❤️ 気になるを操作',
   match_select: '🤝 マッチ選択（行きたい/回ってみたい/気になる）',
   invite_send: '💌 招待した',

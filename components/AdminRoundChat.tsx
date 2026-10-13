@@ -1,5 +1,6 @@
 'use client';
 
+import { reactionSummary } from '@/lib/chatReactions';
 import { useEffect, useState } from 'react';
 import { confirmDialog, alertDialog } from '@/components/ConfirmDialog';
 import { Linkify } from '@/components/Linkify';
@@ -139,6 +140,7 @@ export function AdminRoundChat({ token, roundId, defaultOpen = false, label = '�
                 <button onClick={() => del(m.id)} className="text-[10px] font-bold text-red-600 px-2 py-0.5 bg-red-50 rounded flex-shrink-0">削除</button>
               </div>
               <div className="text-[12px] mt-0.5 whitespace-pre-wrap break-words"><Linkify text={m.text} /></div>
+              {reactionSummary((m as any).reactions) && <div className="text-[11px] text-sub mt-0.5">{reactionSummary((m as any).reactions)}</div>}
               <div className="text-[9px] text-muted mt-0.5">{m.createdAt ? new Date(m.createdAt).toLocaleString('ja-JP') : ''}</div>
             </div>
           );

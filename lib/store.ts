@@ -491,6 +491,10 @@ export const store = {
     }
   },
 
+  // DMのリアクション（押すたびに切り替え・先に画面を変えてから送る）（2026-10-13・POST /api/messages/react）
+  setDmReactions: (chatId: string, messageId: string, reactions: Record<string, string[]>) => {
+    setState({ chats: state.chats.map((c) => (c.id === chatId ? { ...c, messages: (c.messages || []).map((m) => (m.id === messageId ? { ...m, reactions } : m)) } : c)) });
+  },
   loadChat: async (chatId: string) => {
     const { chat } = await api<{ chat: Chat | null }>(`/api/messages?chatId=${encodeURIComponent(chatId)}`);
     if (chat) {

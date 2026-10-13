@@ -14,6 +14,7 @@ import { ADMIN_MANAGER_ID } from '@/lib/adminManagerId';
 import { resizeImage } from '@/lib/resizeImage';
 import { track } from '@/lib/telemetry';
 import { Linkify } from '@/components/Linkify';
+import { MessageReactions } from '@/components/MessageReactions';
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 // メッセージの日付区切り用。年月日＋曜日を必ず出す（何年のメッセージか一目で分かるように）。
@@ -35,6 +36,23 @@ export default function ChatPage() {
   const chat = useStore((s) => s.chats.find((c) => c.id === params.chatId));
   const users = useStore((s) => s.users);
   const noDM = useStore((s) => !!s.restrictions.noDM);
+  // リアクションを選ぶ欄を開いている発言（吹き出しをタップで開く）（2026-10-13）
+  const [pickerFor, setPickerFor] = useState<string | null>(null);
+  async function react(messageId: string, key: string) {
+    setPickerFor(null);
+    if (!meId || !chat) return;
+    const m = (chat.messages || []).find((x) => x.id === messageId);
+    const cur: Record<string, string[]> = { ...((m as any)?.reactions || {}) };
+    const list = cur[key] || [];
+    const next = list.includes(meId) ? list.filter((x) => x !== meId) : [...list, meId];
+    if (next.length) cur[key] = next; else delete cur[key];
+    store.setDmReactions(chat.id, messageId, cur);
+    try {
+      const res = await fetch('/api/messages/react', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chatId: chat.id, messageId, key }), cache: 'no-store', credentials: 'include' });
+      if (!res.ok) throw new Error(String(res.status));
+      track('dm_react');
+    } catch { toast('リアクションを送れませんでした', 'error'); store.loadChat(chat.id); }
+  }
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -214,8 +232,10 @@ export default function ChatPage() {
                 </div>
               )}
               <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                <div className="flex flex-col max-w-[75%]">
                 <div
-                  className={`max-w-[75%] px-3.5 py-2.5 text-sm leading-relaxed ${mine ? 'bg-green text-white' : 'bg-card text-text shadow-card'}`}
+                  onClick={(e) => { if ((e.target as HTMLElement).closest('a')) return; setPickerFor(pickerFor === m.id ? null : m.id); }}
+                  className={`px-3.5 py-2.5 text-sm leading-relaxed cursor-pointer ${mine ? 'bg-green text-white' : 'bg-card text-text shadow-card'}`}
                   style={{ borderRadius: mine ? '14px 14px 4px 14px' : '14px 14px 14px 4px' }}
                 >
                   {(m as any).imageUrl && (
@@ -227,6 +247,8 @@ export default function ChatPage() {
                   <div className={`text-[10px] mt-1 text-right ${mine ? 'text-white/60' : 'text-muted'}`}>
                     {new Date(m.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
                   </div>
+                </div>
+                <MessageReactions reactions={(m as any).reactions} meId={meId} mine={mine} open={pickerFor === m.id} onOpen={() => setPickerFor(m.id)} onReact={(k) => react(m.id, k)} />
                 </div>
               </div>
             </Fragment>

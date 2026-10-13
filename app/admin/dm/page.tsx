@@ -1,5 +1,6 @@
 'use client';
 
+import { reactionSummary } from '@/lib/chatReactions';
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AdminTabs } from '@/components/AdminTabs';
@@ -123,6 +124,7 @@ function Inner() {
                     <span className="text-[10px] text-muted">{jst(m.createdAt)}</span>
                   </div>
                   {m.text && <div className="text-[13px] whitespace-pre-wrap break-words"><Linkify text={m.text} /></div>}
+                  {reactionSummary((m as any).reactions) && <div className="text-[11px] text-sub mt-0.5">{reactionSummary((m as any).reactions)}</div>}
                   {m.imageUrl && <div className="text-[12px] text-sub mt-0.5">📷 画像</div>}
                 </div>
               ))}
