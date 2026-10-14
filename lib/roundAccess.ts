@@ -6,7 +6,7 @@
 // 画面側で隠すだけでは、募集の一覧がブラウザに届いてしまうため。
 import type { Round } from './types';
 
-type R = Pick<Round, 'hostId' | 'coHostIds' | 'applicantIds' | 'pendingApplicantIds' | 'invitedIds' | 'invitedAt' | 'inviteDeclined' | 'visibility' | 'revokedIds'>;
+type R = Pick<Round, 'hostId' | 'coHostIds' | 'applicantIds' | 'pendingApplicantIds' | 'invitedIds' | 'invitedAt' | 'inviteDeclined' | 'visibility' | 'revokedIds' | 'eventAnswers'>;
 
 export const isPrivateRound = (r: Partial<R> | null | undefined): boolean => r?.visibility === 'invite';
 
@@ -23,6 +23,8 @@ export function privateAccessIds(r: Partial<R>): Set<string> {
   const revoked = new Set(r.revokedIds || []);
   Object.keys(r.invitedAt || {}).forEach((x) => { if (!revoked.has(x)) add(x); });
   Object.keys(r.inviteDeclined || {}).forEach((x) => { if (!revoked.has(x)) add(x); });
+  // イベントの出欠に答えた人（参加する→行けない／未定に変えると参加者から外れ、招待の記録も消えるため）
+  Object.keys(r.eventAnswers || {}).forEach((x) => { if (!revoked.has(x)) add(x); });
   return out;
 }
 
