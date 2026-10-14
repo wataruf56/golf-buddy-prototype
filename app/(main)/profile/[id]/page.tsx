@@ -246,12 +246,12 @@ export default function ProfilePage() {
             {mutuals.length === 0 ? (
               <div className="text-[11.5px] text-sub">{user.displayName}さんとの共通の友達はまだいません。</div>
             ) : (
-              <div className="flex flex-col">
+              // 見た目は下の「⛳ 同じ組で回った共通の人」とそろえる（アイコン＋名前を横に並べる・2026-10-14）
+              <div className="flex flex-wrap gap-2.5">
                 {mutuals.map((m) => (
-                  <Link key={m.id} href={`/profile/${m.id}`} className="flex items-center gap-3 py-2 border-b border-border last:border-b-0">
-                    <Avatar user={{ id: m.id, displayName: m.displayName, avatar: m.avatar, avatarUrl: m.avatarUrl, color: '#2A8C82' } as any} size={36} />
-                    <span className="flex-1 min-w-0 text-[13px] font-bold truncate">{m.displayName}</span>
-                    <span className="text-muted text-sm">›</span>
+                  <Link key={m.id} href={`/profile/${m.id}`} className="flex flex-col items-center gap-1 w-[60px]">
+                    <Avatar user={{ id: m.id, displayName: m.displayName, avatar: m.avatar, avatarUrl: m.avatarUrl, color: '#2A8C82' } as any} size={44} />
+                    <span className="text-[10px] text-sub text-center leading-tight truncate w-full">{m.displayName}</span>
                   </Link>
                 ))}
               </div>
