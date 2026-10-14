@@ -38,7 +38,39 @@ export async function refreshRoundUnread(force = false) {
   } catch { /* noop */ } finally { inflight = false; }
 }
 
+// DM（1対1）の未読件数を取り直す（下のタブ「ゴル友」のバッジ・2026-10-15）。
+// これまでは画面を移ったとき・アプリを開き直したときの bootstrap だけで、同じ画面を開いたままだと
+// 届いたDMや「行ける日」の声かけがバッジに出なかった。画面が見えている間だけ45秒ごとに軽いAPIで読む。
+let dmFetchAt = 0;
+let dmInflight = false;
+let dmTimer: ReturnType<typeof setInterval> | null = null;
+let dmUsers = 0;
+export async function refreshDmUnread(force = false) {
+  if (typeof window === 'undefined' || dmInflight) return;
+  if (!force && Date.now() - dmFetchAt < 20_000) return;
+  if (document.visibilityState !== 'visible') return;
+  const s = store.get();
+  if (!s.meId || s.meId === 'me') return;
+  dmInflight = true; dmFetchAt = Date.now();
+  try {
+    const res = await fetch('/api/me/dm-unread', { cache: 'no-store', credentials: 'include' });
+    if (res.ok) { const j = await res.json(); store.setDmUnread(Array.isArray(j.chats) ? j.chats : []); }
+  } catch { /* noop */ } finally { dmInflight = false; }
+}
+
 export function useUnreadCounts() {
+  // DMの未読は45秒ごと＋画面に戻ったときに読み直す（使う部品が何個あってもタイマーは1つ）
+  useEffect(() => {
+    dmUsers += 1;
+    if (!dmTimer) dmTimer = setInterval(() => { refreshDmUnread(false); }, 45_000);
+    const onVis = () => { if (document.visibilityState === 'visible') refreshDmUnread(false); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      dmUsers -= 1;
+      if (dmUsers <= 0 && dmTimer) { clearInterval(dmTimer); dmTimer = null; dmUsers = 0; }
+    };
+  }, []);
   const meId = useStore((s) => s.meId);
   const chats = useStore((s) => s.chats);
   const rounds = useStore((s) => s.rounds);

@@ -114,6 +114,27 @@ export const store = {
     if (at > cur) setState({ roundChatSeen: { ...(state.roundChatSeen || {}), [key]: at } });
   },
   setRoundUnread: (u: Record<string, import('./roundUnread').RoundUnread>) => setState({ roundUnread: u }),
+  // DM（1対1）の未読件数だけを最新にする（下のタブ「ゴル友」のバッジ・/api/me/dm-unread・2026-10-15）。
+  // 同じ画面を開いたままでも、届いたDM・「行ける日」の声かけがバッジに出るように。まだ持っていないチャットは足す。
+  setDmUnread: (list: Array<{ id: string; participants: [string, string]; unread: number; lastMessage?: string; lastMessageAt?: number }>) => {
+    const me = state.meId;
+    if (!me) return;
+    const byId = new Map(list.map((x) => [x.id, x]));
+    let changed = false;
+    const chats = state.chats.map((c) => {
+      const x = byId.get(c.id);
+      if (!x || (c.unreadCount?.[me] || 0) === x.unread) return c;
+      changed = true;
+      return { ...c, unreadCount: { ...(c.unreadCount || {}), [me]: x.unread }, ...(x.lastMessageAt && x.lastMessageAt > (c.lastMessageAt || 0) ? { lastMessage: x.lastMessage || c.lastMessage, lastMessageAt: x.lastMessageAt } : {}) };
+    });
+    const have = new Set(state.chats.map((c) => c.id));
+    for (const x of list) {
+      if (have.has(x.id) || !x.unread) continue;
+      changed = true;
+      chats.push({ id: x.id, participants: x.participants, lastMessage: x.lastMessage || '', lastMessageAt: x.lastMessageAt || 0, unreadCount: { [me]: x.unread }, messages: [] });
+    }
+    if (changed) setState({ chats });
+  },
   // 「行ける日」タブを開いた（バッジをすぐ消す。サーバーへは /api/me/avail-seen）
   clearAvailNew: () => setState({ availNew: { count: 0, ats: [] } }),
   subscribe: (fn: () => void) => { listeners.add(fn); return () => { listeners.delete(fn); }; },
@@ -201,6 +222,14 @@ export const store = {
   refreshRounds: async () => {
     const { rounds } = await api<{ rounds: Round[] }>('/api/rounds');
     setState({ rounds });
+  },
+
+  // API が返した募集でストアの1件を差し替える（イベントの出欠・日程決定・公開範囲の切り替えなど）（2026-10-14）。
+  // ストアに無い募集（共有リンクから開いた等）は何もしない（画面側で持つ）。
+  putRound: (round: Round | null | undefined) => {
+    if (!round?.id) return;
+    if (!state.rounds.some((r) => r.id === round.id)) return;
+    setState({ rounds: state.rounds.map((r) => (r.id === round.id ? { ...r, ...round } : r)) });
   },
 
   refreshMe: async () => {
