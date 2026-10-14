@@ -17,6 +17,8 @@ import { isRoundHost } from '@/lib/roundHost';
 import { activeHoldOf } from '@/lib/roundHold';
 import { isOfficialThread } from '@/lib/officialShared';
 import { isAvailRoom } from '@/lib/availabilityShared';
+import { isPrivateRound } from '@/lib/roundAccess';
+import { isEventRound, eventKindMeta } from '@/lib/eventRound';
 import { viewerSlotFull } from '@/lib/genderSlots';
 import { usePopupSlot, POPUP_PRIORITY, popupEvent } from '@/lib/popupSlot';
 
@@ -158,7 +160,8 @@ export default function HomePage() {
   //     同じ枠が2か所に並んで「別の募集が2つある」ように見える）
   //   ・満員も外す（「募集してるやつ」だけを並べる）
   const rounds = useStore((s) => s.rounds.filter(
-    (r) => r.status === 'open' && !isOfficialThread(r) && !isAvailRoom(r) && (r.currentCount || 0) < r.maxSpots,
+    (r) => r.status === 'open' && !isOfficialThread(r) && !isAvailRoom(r) && (r.currentCount || 0) < r.maxSpots
+      && !isPrivateRound(r),   // 非公開の招待はホームの募集一覧に出さない（招待された人のストアには届くため・2026-10-14）
   ));
   const allRounds = useStore((s) => s.rounds);
   const users = useStore((s) => s.users);
@@ -365,7 +368,10 @@ export default function HomePage() {
                 <Link href={`/round/${r.id}`} className="flex items-center gap-3">
                   <span className="text-2xl">💌</span>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-black text-green">ラウンドに招待されています</div>
+                    <div className="text-sm font-black text-green flex items-center gap-1.5 flex-wrap">
+                      {isEventRound(r) ? `${eventKindMeta(r.eventKind).label}に招待されています` : 'ラウンドに招待されています'}
+                      {isPrivateRound(r) && <PrivateBadge />}
+                    </div>
                     <div className="text-[11px] text-sub mt-0.5 truncate">「{r.title}」・{byAdmin ? 'ゴルトモ運営から' : `${hostName}さんから`}</div>
                   </div>
                   <span className="text-green">›</span>
@@ -438,10 +444,15 @@ export default function HomePage() {
                 return (
                   <Link href={`/round/${r.id}`} key={r.id} className="flex items-center gap-2.5 bg-bg rounded-xl px-3 py-2.5">
                     <div className="w-9 text-center flex-shrink-0">
-                      <div className="text-[13px] font-black text-blue leading-none">{md}</div>
+                      {isEventRound(r) && r.eventDatePending
+                        ? <div className="text-[9.5px] font-black leading-tight" style={{ color: '#7B5CD6' }}>日程<br />調整中</div>
+                        : <div className="text-[13px] font-black text-blue leading-none">{md}</div>}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-[13px] font-bold truncate">{r.title}</div>
+                      <div className="text-[13px] font-bold truncate flex items-center gap-1.5">
+                        <span className="truncate">{r.title}</span>
+                        {isPrivateRound(r) && <PrivateBadge />}
+                      </div>
                       <div className="text-[10px] text-muted truncate">{[r.eventType === 'drink' ? (r.venue || '🍻 飲み会') : (r.courseName || r.area), r.status === 'closed' ? '締切' : null].filter(Boolean).join(' ・ ') || (r.eventType === 'drink' ? '🍻 飲み会' : 'コース未定')}</div>
                     </div>
                     <RoundChatNewBadge roundId={r.id} />
@@ -598,6 +609,13 @@ export default function HomePage() {
         </div>
       )}
     </>
+  );
+}
+
+// 「✉️ 非公開の招待」の札（2026-10-14）。ふつうの募集と見た目で区別する
+function PrivateBadge() {
+  return (
+    <span className="inline-flex flex-shrink-0 items-center px-1.5 py-[1px] rounded-full text-[9.5px] font-black" style={{ background: '#1F3D2B', color: '#F0CF63' }}>✉️ 非公開の招待</span>
   );
 }
 

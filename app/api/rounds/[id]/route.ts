@@ -20,6 +20,15 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   // 組み分け希望は主催者のみ集計閲覧可。閲覧者に応じて groupPrefs を絞る。
   // 「見に来た人」(viewedBy) は誰にも返さない（主催者は /viewers 経由で取得）。
   const viewerId = await getMeId();
+  // 非公開の招待：招待された人・参加者・主催者（＋運営）以外には中身を一切返さない（2026-10-14・lib/roundAccess）。
+  // 画面は error:'private' を見て「🔒 この募集は、招待された人だけが見られます」を出す。
+  {
+    const { canViewRound, PRIVATE_ROUND_MESSAGE } = await import('@/lib/roundAccess');
+    const { isAdminUserId } = await import('@/lib/adminAccess');
+    if (!canViewRound(stored, viewerId, isAdminUserId(viewerId))) {
+      return NextResponse.json({ error: 'private', message: PRIVATE_ROUND_MESSAGE }, { status: 403, headers: noStore });
+    }
+  }
   const { stripRoundForViewer } = await import('@/lib/roundView');
   const round = stripRoundForViewer(stored, viewerId);
   // isOfficial is an explicit stored flag now (admin-toggled), passed as-is.
@@ -34,6 +43,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   for (const a of Object.keys(round.inviteDeclined || {})) userIds.add(a);
   // 空き待ちの人も（round は閲覧者向けに絞ってあるので、主催者以外には自分の分しか入らない）
   for (const e of round.waitlist || []) userIds.add(e.userId);
+  // イベントの出欠に答えた人（2026-10-14）。eventAnswers は主催者以外には自分のぶんだけに絞ってある（lib/roundView）
+  for (const a of Object.keys(round.eventAnswers || {})) userIds.add(a);
   const users = await db.listUsers(Array.from(userIds));
   // Strip private real names — the round host gets participant names via the
   // dedicated /api/rounds/[id]/participant-names endpoint instead.

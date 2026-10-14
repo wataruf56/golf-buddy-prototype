@@ -137,7 +137,16 @@ export function stripPaymentForViewer(round: Round, viewerId: string | null): Ro
   return { ...round, paymentInfo: { ...rest, accountHidden: true } } as Round;
 }
 
+// イベントの出欠・回答は、主催者・共同管理者だけが全員分を見られる。ほかの人には本人の分だけ（2026-10-14）
+export function stripEventAnswersForViewer(round: Round, viewerId: string | null): Round {
+  const ans = (round as any).eventAnswers;
+  if (!ans || isRoundHost(round, viewerId)) return round;
+  const mine = viewerId && ans[viewerId] ? { [viewerId]: ans[viewerId] } : {};
+  return { ...round, eventAnswers: mine } as Round;
+}
+
 export function stripRoundForViewer(round: Round, viewerId: string | null): Round {
+  round = stripEventAnswersForViewer(round, viewerId);
   return _strip(stripCancellationsForViewer(stripHoldsForViewer(stripPaymentForViewer(stripRejectedForViewer(round, viewerId), viewerId), viewerId), viewerId), viewerId);
 }
 function _strip(round: Round, viewerId: string | null): Round {

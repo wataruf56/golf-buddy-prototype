@@ -11,7 +11,10 @@ import { PriceField } from '@/components/PriceField';
 import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
 import { track } from '@/lib/telemetry';
-import type { Round, RoundType, DateType } from '@/lib/types';
+import type { Round, RoundType, DateType, EventKind, EventQuestion, PayMethod, RoundVisibility } from '@/lib/types';
+import { EVENT_KINDS, eventKindMeta, PAY_METHODS, EVENT_TITLE_PRESETS, presetQuestions } from '@/lib/eventRound';
+import { VisibilityCard } from '@/components/InvitePicker';
+import { EventQuestionEditor } from '@/components/EventQuestionEditor';
 import { chatIdFor, cn } from '@/lib/utils';
 import { ADMIN_MANAGER_ID } from '@/lib/adminManagerId';
 import { Stepper } from '@/components/Stepper';
@@ -65,6 +68,22 @@ export default function CreatePage() {
   const [eventType, setEventType] = useState<'golf' | 'drink'>('golf');
   // 飲み会の会場（店名やエリアの自由記述・任意）。
   const [venue, setVenue] = useState('');
+  // ===== イベント（ラウンド以外・2026-10-14・lib/eventRound） =====
+  // eventKind が入っていれば新しいイベント（出欠＋質問の集計つき）。null は従来の飲み会フロー（今は入口なし）。
+  const [eventKind, setEventKind] = useState<EventKind | null>(null);
+  const [eventDateMode, setEventDateMode] = useState<'fixed' | 'candidates'>('fixed');
+  const [dateOptions, setDateOptions] = useState<{ id: string; date: string; startTime: string }[]>([]);
+  const [venueUrl, setVenueUrl] = useState('');
+  const [payMethods, setPayMethods] = useState<PayMethod[]>([]);
+  const [payNote, setPayNote] = useState('');
+  const [eventCap, setEventCap] = useState<number | null>(null);      // 定員（自分を含む・空欄＝定員なし）
+  const [eventDeadline, setEventDeadline] = useState('');             // 申込の締切（YYYY-MM-DD）
+  const [questions, setQuestions] = useState<EventQuestion[]>([]);
+  // 種類を切り替えたとき、質問がおすすめのまま（手を入れていない）なら新しい種類のおすすめに入れ替えるための控え
+  const [presetQs, setPresetQs] = useState<EventQuestion[]>([]);
+  // ===== 公開範囲（ラウンド・イベント共通・2026-10-14） =====
+  const [visibility, setVisibility] = useState<RoundVisibility>('public');
+  const [inviteIds, setInviteIds] = useState<string[]>([]);
   // Admin-only (福田渉): post as ゴルトモ公式 or as personal account.
   const [postAsOfficial, setPostAsOfficial] = useState<boolean>(false);
 
@@ -262,22 +281,103 @@ export default function CreatePage() {
 
   function chooseType(t: RoundType) {
     setEventType('golf');
+    setEventKind(null);
     setType(t);
     setTab('basic');
     setStep('form');
   }
-  // 飲み会を企画：コース・送迎・レビュー無しのシンプル募集。
-  function chooseDrink() {
+  // イベントを企画（2026-10-14）：飲み会・シミュゴル・練習会・観戦など。コース・組分け・送迎・レビュー無し。
+  // 内部は従来の飲み会と同じ eventType='drink'（日付固定扱い）に eventKind を載せる。
+  const defaultEventTime = (k: EventKind) => (k === 'drink' || k === 'simgolf' ? '19:00' : '10:00');
+  function chooseEvent(k: EventKind = 'drink') {
     setEventType('drink');
     setType('confirmed');   // 内部的には日付固定イベント扱い
     setDateType('fixed');
     setPickupMode('no');    // 送迎の概念なし（必須チェックを通すため）
-    setStartTime('19:00');  // 飲み会の既定開始時刻
+    setStartTime(defaultEventTime(k));
+    // 前に別の種類で入れていたら、タイトル（おすすめのまま）と質問（おすすめのまま）は新しい種類に合わせる
+    switchKind(k);
     setTab('basic');
     setStep('form');
   }
+  // 種類を切り替え：タイトルがおすすめのままなら消す／質問がおすすめのまま（手を入れていない）なら入れ替える
+  function switchKind(k: EventKind) {
+    const prev = eventKind;
+    if (prev && prev !== k && EVENT_TITLE_PRESETS[prev].includes(title)) setTitle('');
+    const untouched = prev == null || JSON.stringify(questions) === JSON.stringify(presetQs);
+    if (untouched && prev !== k) {
+      const next = presetQuestions(k);
+      setQuestions(next); setPresetQs(next);
+    }
+    if (prev && prev !== k && startTime === defaultEventTime(prev)) setStartTime(defaultEventTime(k));
+    setEventKind(k);
+  }
+  function addDateOption() {
+    setDateOptions((xs) => (xs.length >= 10 ? xs : [...xs, { id: `d${Date.now().toString(36)}${xs.length}`, date: '', startTime: xs[xs.length - 1]?.startTime || startTime }]));
+  }
+  function togglePayMethod(m: PayMethod) {
+    setPayMethods((xs) => (xs.includes(m) ? xs.filter((x) => x !== m) : [...xs, m]));
+  }
+
+  // イベントの公開（2026-10-14）。必須は日程だけ（決まっている日 or 候補日2つ以上）。
+  async function publishEvent() {
+    if (!eventKind) return;
+    const opts = dateOptions.filter((o) => o.date);
+    if (eventDateMode === 'fixed' && !date) { toast('開催日を入れてください', 'error'); return; }
+    if (eventDateMode === 'candidates' && opts.length < 2) { toast('候補日を2つ以上入れてください', 'error'); return; }
+    const firstDate = eventDateMode === 'fixed' ? date : [...opts].sort((a, b) => a.date.localeCompare(b.date))[0].date;
+    if (eventDeadline && eventDateMode === 'fixed' && eventDeadline > date) { toast('申込の締切は開催日までの日にしてください', 'error'); return; }
+    if (eventCap != null && eventCap > 0 && eventCap < 2) { toast('定員は2人以上にしてください（空欄なら定員なし）', 'error'); return; }
+    const url = venueUrl.trim();
+    if (url && !/^https?:\/\/\S+$/.test(url)) { toast('URLは http:// か https:// から入れてください', 'error'); return; }
+    if (visibility === 'invite' && inviteIds.length === 0) { toast('招待する人を1人以上選んでください', 'error'); return; }
+    const payApp = payMethods.includes('app');
+    if (payApp && payDate && !payDeadline) { toast('入金期日の日付・時刻を確認してください', 'error'); return; }
+    const meta = eventKindMeta(eventKind);
+    const payload = {
+      eventType: 'drink' as const,
+      eventKind,
+      title: title.trim() || meta.label,
+      type: 'confirmed' as const,
+      dateType: 'fixed' as const,
+      date: firstDate,
+      startTime: eventDateMode === 'fixed' ? (startTime || undefined) : undefined,
+      eventDateOptions: eventDateMode === 'candidates' ? opts.map((o) => ({ id: o.id, date: o.date, ...(o.startTime ? { startTime: o.startTime } : {}) })) : undefined,
+      venue: venue.trim() || undefined,
+      venueUrl: url || undefined,
+      price: price.trim() || undefined,
+      payMethods: payMethods.length ? payMethods : undefined,
+      payNote: payNote.trim() || undefined,
+      // 定員（自分を含めた人数）。空欄なら送らない＝定員なし
+      maxSpots: eventCap && eventCap >= 2 ? eventCap : undefined,
+      eventDeadline: eventDeadline || undefined,
+      eventQuestions: questions.length ? questions : undefined,
+      hostNote: description.trim() || undefined,
+      pickupOffered: false,
+      cancelPolicy: null,
+      // 「アプリで事前集金」はラウンドと同じ入金管理（振込先・期日・催促）
+      paymentEnabled: payApp,
+      paymentInfo: payApp ? { amount: payAmount || 0, account: payAccount.trim(), deadline: payDeadline } : undefined,
+      visibility: visibility === 'invite' ? 'invite' as const : undefined,
+      inviteIds: visibility === 'invite' ? inviteIds : undefined,
+      asOfficial: isAdmin ? postAsOfficial : undefined,
+    };
+    track('round_create_click', { ...payload, isEvent: true });
+    try {
+      const created = await store.addRound(payload as Partial<Round>);
+      track('round_create_success', { title: payload.title, eventKind });
+      toast(visibility === 'invite' ? `🔒 ${inviteIds.length}人に招待状を送りました` : `${meta.emoji} イベントを公開しました`);
+      router.push(created?.id ? `/round/${created.id}` : '/home');
+    } catch (e) {
+      const msg = (e as Error).message;
+      track('round_create_error', { message: msg, payload });
+      toast('失敗: ' + msg, 'error');
+    }
+  }
 
   async function publish() {
+    // 新しいイベント（eventKind あり）は別の入力・送信（2026-10-14）
+    if (eventType === 'drink' && eventKind) { await publishEvent(); return; }
     // 必須チェック（タブで抜け漏れが起きないよう、足りないタブへ切り替えて知らせる）。
     const isDrink = eventType === 'drink';
     const basicMissing = isDrink
@@ -305,6 +405,11 @@ export default function CreatePage() {
     if (!isDrink && pickupMode === '') {
       toast('ピックアップ（送迎）の可否を選んでください', 'error');
       setTab('pickup'); return;
+    }
+    // 招待した人だけ（非公開）は1人以上選ぶ（2026-10-14）
+    if (visibility === 'invite' && inviteIds.length === 0) {
+      toast('招待する人を1人以上選んでください', 'error');
+      setTab('basic'); return;
     }
     // 内訳(自分含む全体) → 実募集枠へ変換して送信（保存データの意味は従来どおり）。
     const rSlots = recruitmentSlots();
@@ -349,6 +454,9 @@ export default function CreatePage() {
       // Admin-only: request publishing under the ゴルトモ公式 identity. Server
       // re-validates the caller is actually an admin before honoring this.
       asOfficial: isAdmin ? postAsOfficial : undefined,
+      // 公開範囲（2026-10-14）。'invite' のときは選んだ人へサーバーが「非公開の招待状」を送る
+      visibility: visibility === 'invite' ? 'invite' as const : undefined,
+      inviteIds: visibility === 'invite' ? inviteIds : undefined,
     };
     track('round_create_click', { ...payload, isComp });
     try {
@@ -374,7 +482,7 @@ export default function CreatePage() {
           await store.refreshRounds().catch(() => {});
         } catch { /* 紐付け失敗は投稿を妨げない */ }
       }
-      toast(isComp ? 'コンペ募集を公開しました' : '募集を公開しました');
+      toast(visibility === 'invite' ? `🔒 ${inviteIds.length}人に招待状を送りました` : isComp ? 'コンペ募集を公開しました' : '募集を公開しました');
       // 公開直後は作った募集の詳細ページへ。id が取れなければホームへ。
       router.push(created?.id ? `/round/${created.id}` : '/home');
     } catch (e) {
@@ -403,7 +511,7 @@ export default function CreatePage() {
   if (step === 'select') {
     return (
       <>
-        <div className="px-5 pt-2 pb-4 text-2xl font-black tracking-tight">ラウンドを募集する</div>
+        <div className="px-5 pt-2 pb-4 text-2xl font-black tracking-tight">募集・企画する</div>
         <div className="px-5">
           {/* まず日程調整（任意）。募集の前に候補日を出し合って日程を決められる。 */}
           <button
@@ -445,7 +553,7 @@ export default function CreatePage() {
               </div>
             </div>
           )}
-          <div className="text-[13px] text-sub mb-4">募集タイプを選んでください</div>
+          <div className="text-[13px] font-bold text-sub mb-3">⛳ ラウンド</div>
 
           <button
             onClick={() => chooseType('confirmed')}
@@ -481,23 +589,31 @@ export default function CreatePage() {
             </div>
           </button>
 
-          {/* ゴルフ以外：飲み会などの集まり（コース・送迎・レビュー無し） */}
-          <div className="text-[13px] text-sub mt-5 mb-3">ゴルフ以外の集まり</div>
+          {/* ラウンド以外のイベント（2026-10-14）：旧「飲み会・親睦会を企画」をここに統合。紫でラウンド（緑）と区別 */}
+          <div className="text-[13px] font-bold text-sub mt-5 mb-3">🎉 ラウンド以外のイベント</div>
           <button
-            onClick={chooseDrink}
-            className="w-full text-left bg-card rounded-card p-5 shadow-card mb-3 border-2 border-orange-light"
+            onClick={() => chooseEvent('drink')}
+            className="w-full text-left bg-[#EFEAFF] rounded-card p-5 shadow-card mb-2.5 border-2 border-[#7B5CD6]"
           >
             <div className="flex items-center gap-3.5">
-              <div className="w-14 h-14 rounded-2xl bg-orange-light flex items-center justify-center text-3xl">
-                🍻
+              <div className="w-14 h-14 rounded-2xl bg-[#7B5CD6] text-white flex items-center justify-center text-3xl flex-shrink-0">
+                🎉
               </div>
-              <div className="flex-1">
-                <div className="text-base font-black">飲み会・親睦会を企画</div>
-                <div className="text-xs text-sub mt-1">ゴルフ場なしでOK。場所・日時・会費で募集</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-base font-black text-[#7B5CD6]">イベントを企画する</div>
+                <div className="text-xs text-sub mt-1 leading-relaxed">飲み会・シミュレーションゴルフ・練習会・観戦など。出欠と質問を集計できる</div>
               </div>
-              <div className="text-xl text-muted">›</div>
+              <div className="text-xl text-[#7B5CD6]">›</div>
             </div>
           </button>
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {EVENT_KINDS.map((k) => (
+              <button key={k.key} type="button" onClick={() => chooseEvent(k.key)}
+                className="px-3 py-1.5 rounded-full border-[1.5px] border-border bg-card text-[12px] font-black text-text">
+                {k.emoji} {k.label}
+              </button>
+            ))}
+          </div>
 
           <div className="bg-yellow-light rounded-xl p-3.5 mt-2">
             <div className="text-xs font-bold text-orange mb-1">💡 5人以上の募集について</div>
@@ -511,7 +627,226 @@ export default function CreatePage() {
 
   const isConfirmed = type === 'confirmed';
   const isDrink = eventType === 'drink';
-  const activeTitlePresets = isDrink ? DRINK_TITLE_PRESETS : titlePresets;
+  const isEvent = isDrink && !!eventKind;
+  const activeTitlePresets = isEvent ? EVENT_TITLE_PRESETS[eventKind!] : isDrink ? DRINK_TITLE_PRESETS : titlePresets;
+
+  // タイトル（定型文から選ぶ＋自由入力）。ラウンド・イベント共通
+  const titleField = (
+    <Field label="タイトル">
+      <select
+        value={titleFree ? '__free__' : (activeTitlePresets.includes(title) ? title : (title ? '__free__' : ''))}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v === '__free__') { setTitleFree(true); setTitle(''); }
+          else { setTitleFree(false); setTitle(v); }
+        }}
+        className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
+      >
+        <option value="">選択してください</option>
+        {activeTitlePresets.map((t) => <option key={t} value={t}>{t}</option>)}
+        <option value="__free__">✏️ 自由入力</option>
+      </select>
+      {(titleFree || (title && !activeTitlePresets.includes(title))) && (
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value.slice(0, 60))}
+          placeholder={isEvent ? 'タイトルを自由に入力（例: 年内ラストの忘年会）' : 'タイトルを自由に入力（例: 朝イチ集合・早上がり）'}
+          maxLength={60}
+          className="w-full mt-2 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
+        />
+      )}
+    </Field>
+  );
+  // 事前集金の金額・振込先・入金期日。ラウンドの「事前集金」とイベントの「アプリで事前集金」で共通（2026-10-14）
+  const paymentDetails = (
+    <div className="mt-2 p-3 rounded-xl border-[1.5px] border-border bg-card flex flex-col gap-3">
+      <div>
+        <label className="block text-[11px] font-bold text-sub mb-1">金額（1人あたり・任意）</label>
+        <div className="flex items-center gap-2">
+          <NumberInput value={payAmount} onChange={setPayAmount} min={0} max={1000000} placeholder="例: 12000" ariaLabel="金額（1人あたり）"
+            className="flex-1 min-w-0 p-3 border-[1.5px] border-border rounded-xl text-sm bg-bg outline-none" />
+          <span className="text-sm font-bold text-sub flex-shrink-0">円</span>
+        </div>
+      </div>
+      <div>
+        <label className="block text-[11px] font-bold text-sub mb-1">振込先の口座（任意）</label>
+        <textarea value={payAccount} onChange={(e) => setPayAccount(e.target.value)} rows={2} maxLength={300}
+          placeholder="例）◯◯銀行 △△支店 普通 1234567 ゴルトモ タロウ ／ PayPay ID: xxxx"
+          className="w-full p-3 border-[1.5px] border-border rounded-xl text-sm bg-bg outline-none leading-relaxed resize-y" />
+        <div className="text-[10px] text-muted mt-1">振込先は、参加している人にだけ表示されます。</div>
+      </div>
+      <div>
+        <label className="block text-[11px] font-bold text-sub mb-1">入金期日（日付と時刻・任意）</label>
+        <div className="flex gap-2">
+          <input type="date" value={payDate} max={isEvent && eventDateMode === 'candidates' ? undefined : (date || undefined)} onChange={(e) => setPayDate(e.target.value)}
+            className="flex-[3] min-w-0 p-3 border-[1.5px] border-border rounded-xl text-sm bg-bg outline-none" />
+          <input type="time" value={payTime} onChange={(e) => setPayTime(e.target.value)}
+            className="flex-[2] min-w-0 p-3 border-[1.5px] border-border rounded-xl text-sm bg-bg outline-none" />
+        </div>
+        {payDate && <button type="button" onClick={() => { setPayDate(''); setPayTime('23:59'); }} className="mt-1 text-[11px] text-sub font-bold">期日をなしにする</button>}
+      </div>
+      <div className="text-[10px] text-muted">あとから募集の詳細の「💰 入金」タブでも変更できます。</div>
+    </div>
+  );
+
+  // ===== イベントの作成フォーム（2026-10-14）。ラウンドのタブ・コース・組分け・送迎・キャンセル規定は出さない =====
+  if (isEvent && eventKind) {
+    const inputCls = 'w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none';
+    const dateCls = 'w-full min-w-0 max-w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none appearance-none';
+    const payApp = payMethods.includes('app');
+    const validOpts = dateOptions.filter((o) => o.date).length;
+    return (
+      <>
+        <div className="px-5 pt-3">
+          <button onClick={() => setStep('select')} className="text-sm text-blue font-semibold">← タイプ選択へ</button>
+        </div>
+        <div className="px-5 pt-2 pb-4 text-2xl font-black">🎉 イベントを企画</div>
+
+        <div className="px-5">
+          <div className="bg-card rounded-card p-5 shadow-card mb-4">
+            <Field label="種類">
+              <div className="flex flex-wrap gap-1.5">
+                {EVENT_KINDS.map((k) => (
+                  <button key={k.key} type="button" onClick={() => switchKind(k.key)}
+                    className={cn('px-3 py-1.5 rounded-full border-[1.5px] text-[12px] font-black',
+                      eventKind === k.key ? 'bg-[#7B5CD6] border-[#7B5CD6] text-white' : 'border-border bg-bg text-text')}>
+                    {k.emoji} {k.label}
+                  </button>
+                ))}
+              </div>
+            </Field>
+
+            {titleField}
+
+            <Field label="📅 日程" required>
+              <div className="flex gap-1 mb-2.5 bg-bg rounded-[10px] p-1">
+                {([['fixed', 'この日に決まっている'], ['candidates', '候補日から決める']] as const).map(([k, label]) => (
+                  <button key={k} type="button"
+                    onClick={() => {
+                      setEventDateMode(k);
+                      // 候補日に切り替えたとき空なら2行用意（決まっている日があれば1つ目に入れる）
+                      if (k === 'candidates' && dateOptions.length === 0) {
+                        const t = Date.now().toString(36);
+                        setDateOptions([{ id: `d${t}0`, date, startTime }, { id: `d${t}1`, date: '', startTime }]);
+                      }
+                    }}
+                    className={cn('flex-1 py-2 rounded-lg text-[12px] font-black', eventDateMode === k ? 'bg-[#7B5CD6] text-white' : 'text-sub')}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {eventDateMode === 'fixed' ? (
+                <div className="flex gap-2">
+                  <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={cn(dateCls, 'flex-[3]')} style={{ boxSizing: 'border-box' }} />
+                  <select value={startTime} onChange={(e) => setStartTime(e.target.value)} className="flex-[2] min-w-0 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none">
+                    {timeSlots.map((t) => <option key={t} value={t}>{t}〜</option>)}
+                  </select>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {dateOptions.map((o, i) => (
+                    <div key={o.id} className="flex items-center gap-1.5">
+                      <span className="w-5 text-[11px] font-black text-[#7B5CD6] text-center flex-shrink-0">{i + 1}</span>
+                      <input type="date" value={o.date}
+                        onChange={(e) => setDateOptions((xs) => xs.map((x) => (x.id === o.id ? { ...x, date: e.target.value } : x)))}
+                        className="flex-[3] min-w-0 p-2.5 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none appearance-none" style={{ boxSizing: 'border-box' }} />
+                      <select value={o.startTime}
+                        onChange={(e) => setDateOptions((xs) => xs.map((x) => (x.id === o.id ? { ...x, startTime: e.target.value } : x)))}
+                        className="flex-[2] min-w-0 p-2.5 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none">
+                        <option value="">時間未定</option>
+                        {timeSlots.map((t) => <option key={t} value={t}>{t}〜</option>)}
+                      </select>
+                      <button type="button" aria-label="この候補日を消す"
+                        onClick={() => setDateOptions((xs) => xs.filter((x) => x.id !== o.id))}
+                        className="w-7 h-7 flex items-center justify-center text-muted font-black flex-shrink-0">✕</button>
+                    </div>
+                  ))}
+                  {dateOptions.length < 10 && (
+                    <button type="button" onClick={addDateOption}
+                      className="w-full py-2 rounded-[10px] border-[1.5px] border-dashed border-[#7B5CD6] text-[12px] font-black text-[#7B5CD6] bg-card">
+                      ＋ 候補日を足す
+                    </button>
+                  )}
+                  <div className={cn('text-[11px] font-bold', validOpts >= 2 ? 'text-[#7B5CD6]' : 'text-orange')}>
+                    候補日 {validOpts}つ{validOpts < 2 ? '（2つ以上入れてください）' : ''}・10個まで
+                  </div>
+                </div>
+              )}
+              <div className="mt-1.5 text-[10px] text-muted font-medium leading-relaxed">
+                「候補日から決める」なら、みんなに◯△✕で答えてもらって、あとで主催者がどの日でも選んで決められる
+              </div>
+            </Field>
+
+            <Field label="📍 場所（自由に書ける）" hint="（任意）">
+              <input value={venue} onChange={(e) => setVenue(e.target.value.slice(0, 80))} maxLength={80}
+                placeholder="例：新宿駅付近（お店は決まりしだい連絡）" className={inputCls} />
+              <input value={venueUrl} onChange={(e) => setVenueUrl(e.target.value.slice(0, 400))} inputMode="url"
+                placeholder="お店・地図のURL（任意・あとからでもOK）" className={cn(inputCls, 'mt-2')} />
+            </Field>
+
+            <Field label="💴 会費と払い方" hint="（任意）">
+              <input value={price} onChange={(e) => setPrice(e.target.value.slice(0, 40))} maxLength={40}
+                placeholder="例：5,000円くらい（飲み放題つき）" className={inputCls} />
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {PAY_METHODS.map((m) => {
+                  const on = payMethods.includes(m.key);
+                  return (
+                    <button key={m.key} type="button" onClick={() => togglePayMethod(m.key)}
+                      className={cn('px-3 py-1.5 rounded-full border-[1.5px] text-[12px] font-black',
+                        on ? 'bg-[#7B5CD6] border-[#7B5CD6] text-white' : 'border-border bg-bg text-sub')}>
+                      {on ? '✓ ' : ''}{m.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-1.5 text-[10px] text-muted font-medium leading-relaxed">
+                いくつでも選べる。「アプリで事前集金」はラウンドと同じ入金管理（振込先・期日・催促）が使えます。
+              </div>
+              <input value={payNote} onChange={(e) => setPayNote(e.target.value.slice(0, 200))} maxLength={200}
+                placeholder="補足（任意・例：PayPayは当日までに）" className={cn(inputCls, 'mt-2')} />
+              {payApp && paymentDetails}
+            </Field>
+
+            <div className="flex gap-2 mb-1.5">
+              <div className="flex-1 min-w-0">
+                <label className="block text-xs font-bold text-sub mb-1.5">定員 <span className="text-muted font-medium">（任意）</span></label>
+                <div className="flex items-center gap-1.5">
+                  <NumberInput value={eventCap} onChange={setEventCap} min={2} max={200} placeholder="なし" ariaLabel="定員（自分を含む）"
+                    className="flex-1 min-w-0 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none" />
+                  <span className="text-sm font-bold text-sub flex-shrink-0">人</span>
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <label className="block text-xs font-bold text-sub mb-1.5">申込の締切 <span className="text-muted font-medium">（任意）</span></label>
+                <input type="date" value={eventDeadline} max={eventDateMode === 'fixed' ? (date || undefined) : undefined}
+                  onChange={(e) => setEventDeadline(e.target.value)} className={dateCls} style={{ boxSizing: 'border-box' }} />
+              </div>
+            </div>
+            <div className="mb-4 text-[10px] text-muted font-medium">定員は自分を含めた人数。空欄なら定員なし。締切はその日まで申し込めます。</div>
+
+            <VisibilityCard visibility={visibility} onVisibility={setVisibility} inviteIds={inviteIds} onInviteIds={setInviteIds} accent="purple" />
+          </div>
+
+          <div className="bg-card rounded-card p-5 shadow-card mb-4">
+            <div className="text-[13px] font-black mb-2.5">❓ 参加者に聞くこと <span className="text-[11px] text-muted font-bold">（集計される）</span></div>
+            <EventQuestionEditor value={questions} onChange={setQuestions} />
+          </div>
+
+          <div className="bg-card rounded-card p-5 shadow-card mb-4">
+            <Field label="説明・ひとこと" hint="（任意・参加者に表示されます）">
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={4000}
+                placeholder="どんな集まりか・持ち物・集合のしかたなどを自由に。改行OK"
+                className="w-full h-28 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none resize-y" />
+            </Field>
+            <button onClick={publish} className="w-full py-4 rounded-xl text-[15px] font-black text-white bg-[#7B5CD6] border-2 border-border">
+              {visibility === 'invite' ? `🔒 ${inviteIds.length}人に招待状を送って企画する` : '🎉 この内容で企画する'}
+            </button>
+          </div>
+        </div>
+        <div className="h-5" />
+      </>
+    );
+  }
 
   return (
     <>
@@ -551,30 +886,7 @@ export default function CreatePage() {
           {/* ── 募集内容 タブ（前半） ── */}
           {tab === 'basic' && (
           <>
-          <Field label="タイトル">
-            <select
-              value={titleFree ? '__free__' : (activeTitlePresets.includes(title) ? title : (title ? '__free__' : ''))}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === '__free__') { setTitleFree(true); setTitle(''); }
-                else { setTitleFree(false); setTitle(v); }
-              }}
-              className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
-            >
-              <option value="">選択してください</option>
-              {activeTitlePresets.map((t) => <option key={t} value={t}>{t}</option>)}
-              <option value="__free__">✏️ 自由入力</option>
-            </select>
-            {(titleFree || (title && !activeTitlePresets.includes(title))) && (
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value.slice(0, 60))}
-                placeholder="タイトルを自由に入力（例: 朝イチ集合・早上がり）"
-                maxLength={60}
-                className="w-full mt-2 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
-              />
-            )}
-          </Field>
+          {titleField}
 
           {isDrink ? (
             <>
@@ -861,36 +1173,7 @@ export default function CreatePage() {
               <div className="mt-1.5 text-[10px] text-muted font-medium">
                 ONにすると募集の詳細に「💰 入金」タブが出ます。主催者・共同管理者が参加者一覧をポチポチして入金確認でき、その状況は参加メンバー全員が見られます。使わない場合はこのままでOK（あとから編集画面でONにもできます）。
               </div>
-              {paymentEnabled && (
-                <div className="mt-2 p-3 rounded-xl border-[1.5px] border-border bg-card flex flex-col gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-sub mb-1">金額（1人あたり・任意）</label>
-                    <div className="flex items-center gap-2">
-                      <NumberInput value={payAmount} onChange={setPayAmount} min={0} max={1000000} placeholder="例: 12000" ariaLabel="金額（1人あたり）"
-                        className="flex-1 min-w-0 p-3 border-[1.5px] border-border rounded-xl text-sm bg-bg outline-none" />
-                      <span className="text-sm font-bold text-sub flex-shrink-0">円</span>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-sub mb-1">振込先の口座（任意）</label>
-                    <textarea value={payAccount} onChange={(e) => setPayAccount(e.target.value)} rows={2} maxLength={300}
-                      placeholder="例）◯◯銀行 △△支店 普通 1234567 ゴルトモ タロウ ／ PayPay ID: xxxx"
-                      className="w-full p-3 border-[1.5px] border-border rounded-xl text-sm bg-bg outline-none leading-relaxed resize-y" />
-                    <div className="text-[10px] text-muted mt-1">振込先は、参加している人にだけ表示されます。</div>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-sub mb-1">入金期日（日付と時刻・任意）</label>
-                    <div className="flex gap-2">
-                      <input type="date" value={payDate} max={date || undefined} onChange={(e) => setPayDate(e.target.value)}
-                        className="flex-[3] min-w-0 p-3 border-[1.5px] border-border rounded-xl text-sm bg-bg outline-none" />
-                      <input type="time" value={payTime} onChange={(e) => setPayTime(e.target.value)}
-                        className="flex-[2] min-w-0 p-3 border-[1.5px] border-border rounded-xl text-sm bg-bg outline-none" />
-                    </div>
-                    {payDate && <button type="button" onClick={() => { setPayDate(''); setPayTime('23:59'); }} className="mt-1 text-[11px] text-sub font-bold">期日をなしにする</button>}
-                  </div>
-                  <div className="text-[10px] text-muted">あとから募集の詳細の「💰 入金」タブでも変更できます。</div>
-                </div>
-              )}
+              {paymentEnabled && paymentDetails}
             </Field>
           )}
           {!isDrink && (
@@ -899,6 +1182,8 @@ export default function CreatePage() {
                 prepaid={paymentEnabled} paymentDeadline={paymentEnabled ? payDeadline : 0} />
             </Field>
           )}
+          {/* 公開範囲（2026-10-14）：みんなに公開／招待した人だけ（選んだ人にだけ非公開の招待状） */}
+          <VisibilityCard visibility={visibility} onVisibility={setVisibility} inviteIds={inviteIds} onInviteIds={setInviteIds} />
           </>
           )}
 
@@ -906,7 +1191,8 @@ export default function CreatePage() {
             onClick={publish}
             className={cn('w-full py-4 rounded-xl text-[15px] font-bold text-white', isComp ? 'bg-orange' : 'bg-green')}
           >
-            {isDrink ? (isComp ? '🍻 飲み会を公開する（5人以上）' : '🍻 飲み会を公開する') : isComp ? '🏆 コンペ募集を公開する' : '募集を公開する'}
+            {visibility === 'invite' ? `🔒 ${inviteIds.length}人に招待を送って募集する`
+              : isDrink ? (isComp ? '🍻 飲み会を公開する（5人以上）' : '🍻 飲み会を公開する') : isComp ? '🏆 コンペ募集を公開する' : '募集を公開する'}
           </button>
         </div>
       </div>

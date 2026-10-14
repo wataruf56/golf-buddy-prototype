@@ -49,6 +49,10 @@ import { hostJoinBlock } from '@/lib/hostJoin';
 import { HoldSheet } from '@/components/HoldSheet';
 import { HoldNoticeCard } from '@/components/HoldNoticeCard';
 import { activeHoldOf, holdAlreadyUsed, fmtHoldDeadline } from '@/lib/roundHold';
+import { isPrivateRound } from '@/lib/roundAccess';
+import { isEventRound, eventKindMeta, payMethodsLabel } from '@/lib/eventRound';
+import { EventPanel } from '@/components/EventPanel';
+import { PrivateInviteCard } from '@/components/PrivateInviteCard';
 
 // Brand launch URL — handled by middleware, redirects to liff.line.me/{id}
 // while preserving the ?to= query so the recipient lands directly on the
@@ -113,6 +117,8 @@ export default function RoundDetailPage() {
   const [hostJoinBusy, setHostJoinBusy] = useState(false);
   // 参加申請の「⏸ 保留する」シートの相手（2026-10-13・lib/roundHold）。hook なので早期 return より前に置く
   const [holdTarget, setHoldTarget] = useState<{ id: string; name: string } | null>(null);
+  // 非公開の招待 →「🌐 みんなに公開する」の送信中（2026-10-14）。hook なので早期 return より前に置く
+  const [visBusy, setVisBusy] = useState(false);
   // 詳細のセクション切り替えタブ（参加してる人／ピックアップ／組み分け／入金）。
   const [tab, setTab] = useState<'people' | 'pickup' | 'groups' | 'hostnote' | 'album' | 'payment'>(
     () => {
@@ -128,7 +134,10 @@ export default function RoundDetailPage() {
   // cohort filter strips it). Pull it directly so the page can still render.
   const [fetchedRound, setFetchedRound] = useState<Round | null>(null);
   const [fetchedUsers, setFetchedUsers] = useState<User[]>([]);
-  const [fetchState, setFetchState] = useState<'idle' | 'loading' | 'notfound' | 'error'>('idle');
+  // 'private' … 非公開の招待で、この人には見せられない（GET が 403 error:'private'）（2026-10-14・lib/roundAccess）
+  const [fetchState, setFetchState] = useState<'idle' | 'loading' | 'notfound' | 'error' | 'private'>('idle');
+  // 鍵の画面（非公開の募集を開けなかったとき）に出す「いま参加できる公開の募集」用。hook なので早期 return より前に置く
+  const allStoreRounds = useStore((s) => s.rounds);
 
   useEffect(() => {
     if (storeRound || !params.id) { setFetchState('idle'); return; }
@@ -139,6 +148,10 @@ export default function RoundDetailPage() {
         const r = await fetch(`/api/rounds/${encodeURIComponent(params.id)}`, { cache: 'no-store' });
         if (cancelled) return;
         if (r.status === 404) { setFetchState('notfound'); return; }
+        if (r.status === 403) {
+          const e = await r.json().catch(() => ({}));
+          if (e?.error === 'private') { setFetchState('private'); return; }
+        }
         if (!r.ok) { setFetchState('error'); return; }
         const j = await r.json();
         setFetchedRound(j.round || null);
@@ -268,7 +281,14 @@ export default function RoundDetailPage() {
     const r = storeRound || fetchedRound;
     if (!r || !isRoundHost(r, meId)) return;
     const have = new Set([...storeUsers, ...fetchedUsers].map((u) => u.id));
-    const key = (r.waitlist || []).map((e) => e.userId).filter((id) => !have.has(id)).sort().join(',');
+    // 招待した人・イベントに答えた人の名前も、手元に無ければ取り直す（📮 招待した人／回答の一覧で使う・2026-10-14）
+    const want = [
+      ...(r.waitlist || []).map((e) => e.userId),
+      ...(r.invitedIds || []),
+      ...Object.keys(r.inviteDeclined || {}),
+      ...Object.keys(r.eventAnswers || {}),
+    ];
+    const key = Array.from(new Set(want.filter((id) => id && !have.has(id)))).sort().join(',');
     if (!key || waitlistFetched.current === key) return;
     waitlistFetched.current = key;
     fetch(`/api/rounds/${r.id}`, { cache: 'no-store' }).then((res) => (res.ok ? res.json() : null)).then((j) => {
@@ -310,6 +330,55 @@ export default function RoundDetailPage() {
   if (!round) {
     if (fetchState === 'loading') {
       return <div className="p-5 text-center text-sub">読み込み中...</div>;
+    }
+    // 非公開の招待で、招待されていない人が開いたとき（URLが転送されてきた等）。中身は一切出さない（2026-10-14・モック①-3）
+    if (fetchState === 'private') {
+      const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+      const openPublic = allStoreRounds
+        .filter((r) => r.status === 'open' && !isPrivateRound(r) && !isAvailRoom(r) && !(r as any).official?.stage
+          && (r.eventType === 'drink' || (r.currentCount || 0) < (r.maxSpots || 0))
+          && (!r.date || r.date >= today))
+        .sort((a, b) => (a.date || '9999') < (b.date || '9999') ? -1 : 1)
+        .slice(0, 3);
+      return (
+        <div className="px-5 py-3">
+          <button onClick={() => router.back()} className="text-sm text-blue font-semibold">← 戻る</button>
+          <div className="text-center pt-8 pb-5">
+            <div className="text-[64px] leading-none mb-4">🔒</div>
+            <div className="text-[19px] font-black leading-snug mb-3">この募集は、招待された人だけが見られます</div>
+            <div className="text-[13px] text-sub leading-relaxed">
+              主催者から招待が届くと、ここで内容を見て参加できます。知り合いの主催者なら、ゴル友からDMで聞いてみてください。
+            </div>
+          </div>
+          {hydrated && !meId && (
+            <div className="mb-4 bg-card rounded-card p-4 shadow-card">
+              <div className="text-[12px] text-sub leading-relaxed mb-3">招待された方は、ログインすると内容が見られます。</div>
+              <LoginButtons to={`/round/${params.id}`} note="どちらもLINEアプリで開き、このページに戻ります（無料）" />
+            </div>
+          )}
+          {openPublic.length > 0 && (
+            <div className="bg-card rounded-card p-4 shadow-card mb-4">
+              <div className="text-[13px] font-black text-sub mb-2">いま参加できる公開の募集</div>
+              {openPublic.map((r) => {
+                const left = r.eventType === 'drink' ? '' : `あと${Math.max(0, r.maxSpots - r.currentCount)}枠`;
+                const place = r.eventType === 'drink' ? (r.venue || r.area || '') : (r.area || r.courseName || '');
+                return (
+                  <Link key={r.id} href={`/round/${r.id}`} className="flex items-center gap-2.5 py-2.5 border-t border-border first:border-t-0">
+                    <span className="w-9 h-9 rounded-full bg-green-light flex items-center justify-center text-base flex-shrink-0">{r.eventType === 'drink' ? (isEventRound(r) ? eventKindMeta(r.eventKind).emoji : '🍻') : '⛳'}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13.5px] font-black truncate">{r.dateType === 'range' ? r.dateRange : formatDate(r.date)} {r.title}</div>
+                      <div className="text-[11px] text-sub truncate">{[place, left].filter(Boolean).join(' ・ ')}</div>
+                    </div>
+                    <span className="text-muted">›</span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+          <Link href="/search" className="block w-full py-3 bg-green text-white rounded-xl text-[14px] font-black text-center mb-2">🔍 ほかの募集をさがす</Link>
+          <button onClick={() => router.push('/home')} className="w-full py-3 bg-card text-sub border-[1.5px] border-border rounded-xl text-[14px] font-bold">ホームへ戻る</button>
+        </div>
+      );
     }
     return <div className="p-5 text-center text-sub">募集が見つかりません</div>;
   }
@@ -359,6 +428,14 @@ export default function RoundDetailPage() {
   const contactHref = (uid: string) => `/round/${round.id}/chat?ask=${encodeURIComponent(uid)}`; // 主催者 → その人に個別に連絡
   // 飲み会（eventType='drink'）: 定員なし・ゴルフ場/組み分け/送迎/レビュー無し。
   const isDrink = round.eventType === 'drink';
+  // 非公開の招待（visibility='invite'）と、イベント（eventKind あり・出欠＋質問の集計）（2026-10-14）。
+  // 従来の飲み会（eventKind なし）は isEvent=false で、今までどおりの画面のまま。
+  const isPrivate = isPrivateRound(round);
+  const isEvent = isEventRound(round);
+  const eventMeta = isEvent ? eventKindMeta(round.eventKind) : null;
+  const myEventAnswer = isEvent && meId ? (round.eventAnswers || {})[meId] : undefined;
+  const eventDatesPending = isEvent && !!round.eventDatePending && (round.eventDateOptions || []).length > 0;
+  const eventHasCap = isEvent && (round.maxSpots || 99) < 99;
   // 画面下に貼りつく参加ボタンを出すか。
   // 募集を読んでいるうちにボタンが画面外へ消えてしまい、戻ってこない人がいた
   // （実測：ボタンが出ている状態で開いた14人のうち押したのは4人）。
@@ -371,6 +448,10 @@ export default function RoundDetailPage() {
   const isComp = !isDrink && round.maxSpots >= 5;
   // 招待された本人（まだ参加していない）。招待者は承認待ちを経由せず即参加できる。
   const isInvited = !!meId && (round.invitedIds || []).includes(meId) && !isHost && !isApproved && !isPending;
+  // 招待の表示（ふつうのバナー／非公開の招待状）。イベントで出欠をもう答えた人（未定など）には出さない（出欠フォームで答え直す）
+  const showInviteBanner = !!meId && (round.invitedIds || []).includes(meId) && round.hostId !== meId
+    && !(round.applicantIds || []).includes(meId) && !(round.pendingApplicantIds || []).includes(meId)
+    && !(isEvent && !!myEventAnswer);
   // 参加申請の保留（2026-10-13・lib/roundHold）：申請中の自分に主催者からの「⏸ 保留中」があるか
   const myHold = isPending ? activeHoldOf(round, meId) : undefined;
   // 見送られた申請（2026-10-13）：本人にだけ「📨 今回は見送りとなりました」を出し、参加ボタンは出さない。
@@ -392,7 +473,11 @@ export default function RoundDetailPage() {
     && !completionDismissed
     && !(((round as any).completionSnoozedUntil || 0) > Date.now());   // 「まだ」から3日間は出さない
   const isFlexible = round.type === 'flexible';
-  const dateLabel = round.dateType === 'range' ? round.dateRange : formatDate(round.date);
+  const dateLabel = eventDatesPending
+    ? `日程調整中（候補${(round.eventDateOptions || []).length}日）`
+    : round.dateType === 'range' ? round.dateRange : formatDate(round.date);
+  // 日程調整中のイベントは、仮の開始時刻を出さない
+  const shownTime = eventDatesPending ? '' : (round.startTime || '');
   // 運営枠のグループチャットは**人がそろってから**始まる。
   // 募集中に開けてしまうと、誰が入っているかを伏せている意味がなくなる。
   const canChatGroup = (isHost || isApproved)
@@ -522,7 +607,7 @@ export default function RoundDetailPage() {
     // Direct public URL — opens & is viewable instantly, no LINE login required.
     // Login is only requested when the visitor takes an action (apply, etc.).
     const url = `https://app.goltomo.com/round/${round!.id}`;
-    const text = `${round!.eventType === 'drink' ? '🍻' : '⛳'} ${round!.title}\n${dateLabel}${round!.startTime ? ' ' + round!.startTime : ''}`;
+    const text = `${round!.eventType === 'drink' ? '🍻' : '⛳'} ${round!.title}\n${dateLabel}${shownTime ? ' ' + shownTime : ''}`;
     // 何を押して、どうなったかを管理画面の操作ログに日本語で出す（2026-10-12）
     track('share_round_click', { roundId: round!.id, method: 'url' });
     const w = window as any;
@@ -569,7 +654,7 @@ export default function RoundDetailPage() {
     }
     const lines = [
       `${isDrink ? '🍻' : '⛳'} ${r.title}`,
-      `📅 ${dateLabel}${r.startTime ? ` ${r.startTime}` : ''}`,
+      `📅 ${dateLabel}${shownTime ? ` ${shownTime}` : ''}`,
       `📍 ${place}`,
       priceStr ? `💰 参加費 ${priceStr}` : '',
       `👥 参加 ${r.currentCount}/${r.maxSpots}人（👨 男性${male}・👩 女性${female}）`,
@@ -759,6 +844,42 @@ export default function RoundDetailPage() {
     } catch (e) { toast((e as Error).message, 'error'); }
   }
 
+  // API から返った募集で画面を更新する（イベントの出欠・日程決定・公開範囲など）（2026-10-14）。
+  // ストアにある募集はストアを差し替え、無い（共有リンクから開いた等）なら手元のコピーを更新。ホームの一覧のため取り直しもする。
+  function applyRoundUpdate(r: Round) {
+    if (storeRound) store.putRound(r);
+    else setFetchedRound((prev) => (prev ? { ...prev, ...r } : r));
+    store.refreshRounds().catch(() => {});
+  }
+  // イベントの「参加する」は出欠フォーム（EventPanel）で答える
+  function goEventPanel() {
+    if (requireLogin()) return;
+    document.getElementById('event-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  // 非公開の招待 → みんなに公開（主催者・一方通行）（2026-10-14）
+  async function makePublic() {
+    if (visBusy) return;
+    const ok = await confirmDialog({
+      title: '🌐 みんなに公開しますか？',
+      message: 'さがす・ホームなどに出るようになり、だれでも見て参加できます。\nあとから「招待した人だけ」に戻すことはできません。',
+      confirmText: 'みんなに公開する', cancelText: 'やめる',
+    });
+    if (!ok) return;
+    setVisBusy(true);
+    try {
+      const res = await fetch(`/api/rounds/${encodeURIComponent(round!.id)}/visibility`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store', credentials: 'include',
+        body: JSON.stringify({ visibility: 'public' }),
+      });
+      if (!res.ok) { toast(await readApiError(res, '切り替えられませんでした'), 'error'); return; }
+      const j = await res.json().catch(() => ({}));
+      applyRoundUpdate((j?.round as Round) || ({ ...round!, visibility: 'public' } as Round));
+      track('round_make_public', { roundId: round!.id });
+      toast('🌐 みんなに公開しました');
+    } catch { toast('切り替えられませんでした', 'error'); }
+    finally { setVisBusy(false); }
+  }
+
   // 運営枠は、**募集中のあいだ画面をここまで削る**。
   //
   // ふつうの募集の画面は、主催者・参加者一覧・配車・組み分け・入金・アルバムと
@@ -790,12 +911,76 @@ export default function RoundDetailPage() {
     );
   }
 
+  // 主催者向け「招待した人」（2026-10-13）。非公開の招待（priv=true・2026-10-14）は「📮 招待した人」として
+  // 参加／既読／行けない／返事待ち の札＋「＋ 招待を追加する」を付け、タブの外（主催者の操作の下）に出す。
+  const fmtInvite = (ms: number) => new Date(ms).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const privInviteTag = (uid: string, st: InviteStatus): { label: string; tone: string } => {
+    if (isEvent && st.kind !== 'joined' && (round.eventAnswers || {})[uid]?.status === 'maybe') return { label: '🤔 未定', tone: 'text-orange bg-yellow-light border border-orange' };
+    switch (st.kind) {
+      case 'joined': return { label: '✅ 参加', tone: inviteStatusTone('joined') };
+      case 'seen': return { label: `👀 既読${st.seenAt ? ` ${fmtInvite(st.seenAt)}` : ''}`, tone: inviteStatusTone('seen') };
+      case 'declined': return { label: '🙇 行けない', tone: inviteStatusTone('declined') };
+      case 'applied': return { label: '参加申請中', tone: inviteStatusTone('applied') };
+      default: return { label: '返事待ち', tone: inviteStatusTone('unread') };
+    }
+  };
+  const renderInvitedList = (priv: boolean) => (
+    <div className={priv ? 'bg-card border-[1.5px] border-hair rounded-card p-3.5 mb-3' : 'mb-4'}>
+      <div className={priv ? 'text-[13px] font-black mb-0.5' : 'text-[13px] font-bold mb-0.5'}>
+        {priv ? `📮 招待した人（${invitedRows.length}人）` : `💌 招待した人（${invitedRows.length}名）`}
+      </div>
+      <div className="text-[10.5px] text-sub mb-2">
+        {[
+          invitedWaiting.length ? `返事待ち ${invitedWaiting.length}（未読 ${invitedWaiting.filter((x) => x.st.kind === 'unread').length}）` : '',
+          invitedRows.some((x) => x.st.kind === 'declined') ? `行けない ${invitedRows.filter((x) => x.st.kind === 'declined').length}` : '',
+          invitedRows.some((x) => x.st.kind === 'joined') ? `参加 ${invitedRows.filter((x) => x.st.kind === 'joined').length}` : '',
+        ].filter(Boolean).join('・') || (priv ? 'まだ招待した人はいません' : '')}
+      </div>
+      {invitedRows.map(({ user: u, st }) => {
+        const tag = priv ? privInviteTag(u.id, st) : { label: inviteStatusLabel(st), tone: inviteStatusTone(st.kind) };
+        return (
+          <div key={u.id} className="flex items-center gap-2 p-2.5 bg-bg rounded-[10px] mb-1.5">
+            <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
+              <Avatar user={u} size={36} />
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-semibold truncate">
+                  {u.displayName}
+                  {(round.invitedBy || {})[u.id] === 'admin' && <span className="ml-1.5 text-[10px] font-bold text-green bg-green-light rounded-full px-1.5 py-[1px]">運営が招待</span>}
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                  <span className={`text-[10px] font-bold rounded-full px-1.5 py-[1px] ${tag.tone}`}>{tag.label}</span>
+                  {st.reason && <span className="text-[10px] text-sub">「{st.reason}」</span>}
+                </div>
+                <div className="text-[10px] text-muted truncate">{[invitedAtLabel(st), ratingText(u.id)].filter(Boolean).join(' ・ ')}</div>
+              </div>
+            </Link>
+            {(st.kind === 'unread' || st.kind === 'seen') && (
+              <button
+                onClick={() => uninvite(u.id, u.displayName)}
+                className="px-3 py-1.5 bg-card text-red border border-red rounded-lg text-[11px] font-bold flex-shrink-0"
+              >招待を取り消し</button>
+            )}
+          </div>
+        );
+      })}
+      {invitedRows.some((x) => x.st.kind === 'declined') && (
+        <div className="text-[10.5px] text-sub px-1 leading-relaxed">「行けない」の人も、日程を変えたときなどにもう一度招待できます。</div>
+      )}
+      {priv && round.status === 'open' && (
+        <button onClick={() => setInviteOpen(true)}
+          className="w-full mt-2 py-3 bg-card text-text border-2 border-text rounded-xl text-sm font-black">
+          ＋ 招待を追加する
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <div className="px-5 py-3">
       <div className="flex items-center justify-between mb-4">
         <button onClick={() => router.back()} className="text-sm text-blue font-semibold">← 戻る</button>
         <div className="flex items-center gap-2">
-          {!isHost && (
+          {!isHost && !isPrivate && (
             <button
               onClick={onToggleInterest}
               className={'px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 border-[1.5px] ' + (iAmInterested ? 'bg-pink-100 border-pink-500 text-pink-600' : 'bg-bg border-border')}
@@ -805,6 +990,8 @@ export default function RoundDetailPage() {
               <span>気になる</span>
             </button>
           )}
+          {/* 非公開の招待は、シェアの導線を出さない（URLが転送されても中身は見えないが、広める操作は置かない）（2026-10-14） */}
+          {!isPrivate && (
           <button
             onClick={() => { setShareOpen(true); track('share', { target: 'round', method: 'menu_open', roundId: round.id }); }}
             className="px-3 py-1.5 bg-bg border-[1.5px] border-border rounded-full text-xs font-bold flex items-center gap-1"
@@ -813,6 +1000,7 @@ export default function RoundDetailPage() {
             <span>🔗</span>
             <span>シェア</span>
           </button>
+          )}
           {isHost && round.status !== 'completed' && (
             <button
               onClick={() => router.push(`/round/${round.id}/edit`)}
@@ -826,8 +1014,35 @@ export default function RoundDetailPage() {
       </div>
 
       {/* 招待された本人向け：主催者からの招待＋一言メッセージを画面内に表示（URLから開いた人にも見える）。 */}
-      {!!meId && (round.invitedIds || []).includes(meId) && round.hostId !== meId
-        && !(round.applicantIds || []).includes(meId) && !(round.pendingApplicantIds || []).includes(meId) && (
+      {/* 非公開の招待（2026-10-14）：ふつうのバナーの代わりに「非公開の招待状」。参加する／行けない は今の招待の流れのまま
+          （イベントの「参加する」は下の出欠フォームへ）。既読は /view で今までどおり付く */}
+      {showInviteBanner && isPrivate && (
+        <PrivateInviteCard
+          hostName={round.isOfficial ? 'ゴルトモ公式' : `${host?.displayName || '主催者'}さん`}
+          title={round.title}
+          rows={[
+            { label: '日時', value: `${dateLabel || '未定'}${shownTime ? ` ${shownTime}` : ''}` },
+            isDrink
+              ? { label: '場所', value: round.venue || round.area || '未定' }
+              : round.type === 'confirmed'
+                ? { label: 'コース', value: round.courseName || 'コース調整中' }
+                : { label: 'エリア', value: round.area || '未定' },
+            { label: isEvent ? '会費' : '費用目安', value: priceLabelForGender(round, me?.gender) || '—' },
+          ]}
+          knownCount={null}
+          message={(round.inviteMessages || {})[meId] || undefined}
+          joinLabel={isEvent ? '出欠を答える' : `参加する${isDrink ? '' : `（残り${remaining}枠）`}`}
+          onJoin={isEvent ? goEventPanel : join}
+          onDecline={() => setDeclineOpen(true)}
+          canJoin={isEvent || !isFull}
+          closed={round.status !== 'open'}
+          note={!isEvent && isFull
+            ? '満員になりました。行けない場合はお返事だけでも大丈夫です'
+            : isEvent ? '下の出欠フォームで「参加する」と答えると、そのまま参加確定です。「行けない」は主催者にだけ伝わります'
+              : '「参加する」でそのまま参加確定。「行けない」は主催者にだけ伝わります'}
+        />
+      )}
+      {showInviteBanner && !isPrivate && (
         <div className="bg-green-light border-[1.5px] border-green rounded-card p-4 mb-4">
           <div className="text-[13px] font-black text-green mb-1.5">
             {(round.invitedBy || {})[meId] === 'admin'
@@ -844,7 +1059,7 @@ export default function RoundDetailPage() {
             <>
               <div className="flex gap-2 mt-3">
                 {!isFull && (
-                  <button onClick={join}
+                  <button onClick={isEvent ? goEventPanel : join}
                     className="flex-1 py-3 rounded-xl text-[14px] font-black text-white bg-orange border-2 border-[#C24E2C] shadow-[0_2px_0_#C24E2C]">
                     参加する
                   </button>
@@ -884,7 +1099,12 @@ export default function RoundDetailPage() {
       )}
 
       <div className="bg-card rounded-card p-5 shadow-card">
-        {isDrink && (
+        {isPrivate && (
+          <span className="inline-block px-2.5 py-[3px] rounded-full text-[11px] font-black mb-3 mr-1.5" style={{ background: '#1F3D2B', color: '#F0CF63' }}>✉️ 非公開の招待</span>
+        )}
+        {isEvent ? (
+          <span className="inline-block px-2.5 py-[3px] rounded-full text-[11px] font-black mb-3" style={{ background: '#EFEAFF', color: '#7B5CD6', border: '1.5px solid #7B5CD6' }}>{eventMeta?.emoji} {eventMeta?.label}</span>
+        ) : isDrink && (
           <span className="inline-block px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-orange text-white mb-3">🍻 飲み会・親睦会</span>
         )}
         {isComp && !isDrink && (
@@ -893,7 +1113,10 @@ export default function RoundDetailPage() {
         {isFlexible && !isDrink && (
           <span className="inline-block px-2.5 py-[3px] rounded-full text-[11px] font-bold bg-[#EFEFEC] text-sub mb-3 ml-2">📍 コース未定</span>
         )}
-        <div className="text-xl font-black mb-4">{round.title}</div>
+        <div className={'text-xl font-black ' + (isPrivate ? 'mb-1.5' : 'mb-4')}>{round.title}</div>
+        {isPrivate && (
+          <div className="text-[11.5px] font-bold text-sub mb-4">🤫 この募集は、招待された人と主催者だけが知っています</div>
+        )}
 
         {/* 自由記入のコメント（投稿の一番上に表示） */}
         {/* 古い「ひとこと」（description）。2026-10-12 から「主催者からのメッセージ」（hostNote）に一本化。メッセージがあるときは出さない */}
@@ -903,6 +1126,32 @@ export default function RoundDetailPage() {
 
         {officialActive && <OfficialThreadPanel roundId={round.id} />}
 
+        {isEvent ? (
+          <div className="mb-4 bg-bg rounded-xl px-3 py-1">
+            <EventInfoRow label="日時">
+              {eventDatesPending
+                ? <span style={{ color: '#7B5CD6' }}>📅 日程調整中（候補{(round.eventDateOptions || []).length}日）</span>
+                : <>📅 {dateLabel || '未定'}{shownTime ? ` ${shownTime}` : ''}</>}
+            </EventInfoRow>
+            <EventInfoRow label="場所">
+              📍 {round.venue || round.area || '未定'}
+              {/^https?:\/\//i.test(round.venueUrl || '') && (
+                <a href={round.venueUrl} target="_blank" rel="noopener noreferrer" className="block text-[12px] text-blue font-bold mt-0.5">地図・お店を開く ↗</a>
+              )}
+            </EventInfoRow>
+            <EventInfoRow label="会費">
+              💴 {priceLabelForGender(round, me?.gender) || '—'}
+              {payMethodsLabel(round.payMethods) && <div className="text-[11.5px] text-sub font-bold mt-0.5">{payMethodsLabel(round.payMethods)}</div>}
+              {round.payNote && <div className="text-[11.5px] text-sub font-normal mt-0.5 whitespace-pre-wrap"><Linkify text={round.payNote} /></div>}
+            </EventInfoRow>
+            {round.eventDeadline && (
+              <EventInfoRow label="締切">
+                ⏰ {formatDate(round.eventDeadline)}まで
+                {new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10) > round.eventDeadline && <span className="ml-1 text-[11px] text-orange">（締切を過ぎました）</span>}
+              </EventInfoRow>
+            )}
+          </div>
+        ) : (
         <div className="grid grid-cols-2 gap-2.5 mb-4">
           <Cell label="日時">{dateLabel} {round.startTime || ''}</Cell>
           {isDrink ? (
@@ -913,6 +1162,7 @@ export default function RoundDetailPage() {
           {!isDrink && <Cell label="レベル">{levelConditionLabel(round)}</Cell>}
           <Cell label="費用目安">{priceLabelForGender(round, me?.gender) || '—'}{!isDrink && isSplitPrice(round) && me?.gender ? <span className="ml-1 text-[9px] text-muted font-bold">（{me.gender === 'female' ? '女性' : '男性'}）</span> : null}</Cell>
         </div>
+        )}
 
         {/* 集合場所・集合時間（日時のすぐ下）。主催者が記入していれば表示。 */}
         {round.meetingInfo && (
@@ -920,6 +1170,11 @@ export default function RoundDetailPage() {
             <div className="text-[11px] text-green font-black mb-1">📍 集合場所・集合時間</div>
             <div className="text-sm font-bold text-text whitespace-pre-wrap"><Linkify text={round.meetingInfo || ''} /></div>
           </div>
+        )}
+
+        {/* イベントの出欠・回答（参加する人）／集計（主催者）（2026-10-14） */}
+        {isEvent && (
+          <EventPanel round={round} meId={meId} isHost={isHost} users={users as User[]} onRoundChange={applyRoundUpdate} />
         )}
 
         {/* 主催者からのメッセージ（2026-10-08）。1行のカードだけ置き、押すと別ページ（/round/[id]/message）で読む／書く */}
@@ -976,7 +1231,9 @@ export default function RoundDetailPage() {
               <div className="flex justify-between items-baseline mb-1.5">
                 <span className="text-xs font-semibold text-sub">参加状況</span>
                 <span className={'text-sm font-black ' + (urgent ? 'text-orange' : 'text-sub')}>
-                  {isDrink ? `🍻 ${round.currentCount}人 参加中` : `${round.currentCount}/${round.maxSpots}人 参加中`}
+                  {isEvent
+                    ? (eventHasCap ? `参加${round.currentCount}人／定員${round.maxSpots}人` : `${eventMeta?.emoji || '🍻'} 参加${round.currentCount}人`)
+                    : isDrink ? `🍻 ${round.currentCount}人 参加中` : `${round.currentCount}/${round.maxSpots}人 参加中`}
                 </span>
               </div>
               {!isDrink && (
@@ -1066,7 +1323,7 @@ export default function RoundDetailPage() {
                 </button>
               </div>
             ))}
-            {round.status === 'open' && (
+            {round.status === 'open' && !isPrivate && (
               <button onClick={() => setInviteOpen(true)} className="w-full py-3 bg-green text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2">
                 <span>💌</span> ゴルトモを招待する
               </button>
@@ -1084,7 +1341,7 @@ export default function RoundDetailPage() {
             )}
             <button onClick={deletePost} className="w-full py-3 bg-red-50 text-red-600 border-[1.5px] border-red-300 rounded-xl text-sm font-bold">🗑 投稿を削除</button>
           </div>
-        ) : isApproved ? (
+        ) : isEvent ? null /* イベントの参加・取りやめは出欠フォーム（EventPanel）で（2026-10-14） */ : isApproved ? (
           <div className="space-y-2 mb-4">
             <div className="text-center py-3 bg-green-light text-green rounded-xl text-sm font-bold">✅ 参加確定</div>
             {isPastCancelDeadline(round as any) ? (
@@ -1170,6 +1427,23 @@ export default function RoundDetailPage() {
                     : 'ゴルフ場に出す名簿に使うお名前を、押したあとにうかがいます'}
             </div>
           </div>
+        )}
+
+        {/* 非公開の招待：主催者向け「📮 招待した人」と「👀 公開範囲」（2026-10-14・モック①-4） */}
+        {isHost && isPrivate && (
+          <>
+            {renderInvitedList(true)}
+            <div className="bg-card border-[1.5px] border-hair rounded-card p-3.5 mb-4">
+              <div className="text-[13px] font-black mb-1">👀 公開範囲</div>
+              <div className="text-[12px] text-sub leading-relaxed mb-2.5">
+                いまは <b className="text-text">🔒 招待した人だけ</b>。人が集まらなければ、あとから「🌐 みんなに公開」へ切り替えできます（逆はできません）。
+              </div>
+              <button onClick={makePublic} disabled={visBusy}
+                className="w-full py-3 bg-card text-text border-2 border-text rounded-xl text-sm font-black disabled:opacity-50">
+                {visBusy ? '切り替え中…' : '🌐 みんなに公開する'}
+              </button>
+            </div>
+          </>
         )}
 
         {/* セクション切り替えタブ（参加してる人／ピックアップ／組み分け／主催者から） */}
@@ -1562,49 +1836,11 @@ export default function RoundDetailPage() {
             まだ参加していない人なので、他の閲覧者には「参加者」と紛らわしく、
             未ログインで募集を見に来た人にも無関係な人の名前が並んでしまう。
             主催者には招待の取り消し操作が必要なので残す。 */}
-        {invitedRows.length > 0 && isHost && (
-          <div className="mb-4">
-            <div className="text-[13px] font-bold mb-0.5">💌 招待した人（{invitedRows.length}名）</div>
-            <div className="text-[10.5px] text-sub mb-2">
-              {[
-                invitedWaiting.length ? `返事待ち ${invitedWaiting.length}（未読 ${invitedWaiting.filter((x) => x.st.kind === 'unread').length}）` : '',
-                invitedRows.some((x) => x.st.kind === 'declined') ? `行けない ${invitedRows.filter((x) => x.st.kind === 'declined').length}` : '',
-                invitedRows.some((x) => x.st.kind === 'joined') ? `参加 ${invitedRows.filter((x) => x.st.kind === 'joined').length}` : '',
-              ].filter(Boolean).join('・')}
-            </div>
-            {invitedRows.map(({ user: u, st }) => (
-              <div key={u.id} className="flex items-center gap-2 p-2.5 bg-bg rounded-[10px] mb-1.5">
-                <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
-                  <Avatar user={u} size={36} />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-semibold truncate">
-                      {u.displayName}
-                      {(round.invitedBy || {})[u.id] === 'admin' && <span className="ml-1.5 text-[10px] font-bold text-green bg-green-light rounded-full px-1.5 py-[1px]">運営が招待</span>}
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                      <span className={`text-[10px] font-bold rounded-full px-1.5 py-[1px] ${inviteStatusTone(st.kind)}`}>{inviteStatusLabel(st)}</span>
-                      {st.reason && <span className="text-[10px] text-sub">「{st.reason}」</span>}
-                    </div>
-                    <div className="text-[10px] text-muted truncate">{[invitedAtLabel(st), ratingText(u.id)].filter(Boolean).join(' ・ ')}</div>
-                  </div>
-                </Link>
-                {(st.kind === 'unread' || st.kind === 'seen') && (
-                  <button
-                    onClick={() => uninvite(u.id, u.displayName)}
-                    className="px-3 py-1.5 bg-card text-red border border-red rounded-lg text-[11px] font-bold flex-shrink-0"
-                  >招待を取り消し</button>
-                )}
-              </div>
-            ))}
-            {invitedRows.some((x) => x.st.kind === 'declined') && (
-              <div className="text-[10.5px] text-sub px-1 leading-relaxed">「行けない」の人も、日程を変えたときなどにもう一度招待できます。</div>
-            )}
-          </div>
-        )}
+        {invitedRows.length > 0 && isHost && !isPrivate && renderInvitedList(false)}
 
 
         {/* Anyone: open the 気になる list */}
-        {interestedUsers.length > 0 && (
+        {interestedUsers.length > 0 && !isPrivate && (
           <button
             onClick={() => setInterestedOpen(true)}
             className="w-full py-2.5 bg-bg rounded-xl mb-4 text-sm font-bold flex items-center justify-center gap-2 text-sub"
@@ -1686,7 +1922,7 @@ export default function RoundDetailPage() {
       {/* 画面下に貼りつく参加ボタン。スクロールしても押せる状態を保つ。
           .screen が唯一のスクロール領域で、タブバーはその外にあるため
           sticky bottom-0 でタブバーのすぐ上に止まる。 */}
-      {round.status === 'open' && !officialActive && !isHost && !isApproved && !isPending && !isFull && !isDeclined && (
+      {round.status === 'open' && !officialActive && !isHost && !isApproved && !isPending && !isFull && !isDeclined && !isEvent && (
         <div className="sticky bottom-0 -mx-5 mt-4 px-4 pt-2.5 pb-3 bg-card border-t-2 border-border">
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
@@ -2186,6 +2422,16 @@ function describeUser(u: import('@/lib/types').User): string {
   const car = carLabel(u.car);
   if (car) parts.push(car);
   return parts.join(' ・ ') || '未設定';
+}
+
+// イベントの基本情報の1行（日時・場所・会費・締切）（2026-10-14）
+function EventInfoRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex gap-3 py-2 border-b border-dashed border-border last:border-b-0">
+      <div className="w-10 flex-shrink-0 text-[11px] text-muted font-bold pt-0.5">{label}</div>
+      <div className="flex-1 min-w-0 text-[13.5px] font-bold break-words">{children}</div>
+    </div>
+  );
 }
 
 function Cell({ label, children }: { label: string; children: React.ReactNode }) {

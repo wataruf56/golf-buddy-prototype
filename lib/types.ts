@@ -360,6 +360,51 @@ export type Round = {
   official?: import('./officialShared').OfficialInfo;
   // この募集の元になった日程調整（調整さん）ポールのID。ポール→募集の順で作った場合に入る。
   schedulePollId?: string;
+
+  // ===== 公開範囲（2026-10-14・lib/roundAccess） =====
+  // 'invite' ＝招待した人だけ（非公開の招待）。さがす・ホーム・タイムライン・希望条件の通知に出さず、
+  // 主催者・共同管理者・参加者・招待された人（＋運営）だけが開ける。未設定＝'public'（今までどおり）。
+  // 'invite' → 'public' への切り替えだけできる（逆はできない）。
+  visibility?: RoundVisibility;
+  // 非公開の募集で、主催者が招待を取り消した人（invitedAt に記録が残っても開けなくする）。招待し直すと外れる。
+  revokedIds?: string[];
+
+  // ===== イベント（ラウンド以外・2026-10-14・lib/eventRound） =====
+  // eventType='drink' の募集を「イベント」として扱う。eventKind が入っているものが新しいイベント
+  // （出欠＋質問の集計つき）。未設定の 'drink' は従来の飲み会募集。
+  eventKind?: EventKind;
+  venueUrl?: string;                // お店・地図のURL（任意）。venue は「新宿駅付近」などの自由記述
+  payMethods?: PayMethod[];         // 会費の払い方（複数可）。'app' のときは入金管理（paymentEnabled）も使う
+  payNote?: string;                 // 会費・払い方の補足（自由記述）
+  eventDeadline?: string;           // 申込の締切（YYYY-MM-DD・JST・この日まで）。過ぎると「参加する」は押せない
+  // 候補日から決めるとき。eventDatePending=true のあいだ date/startTime は仮（いちばん早い候補）。
+  eventDateOptions?: EventDateOption[];
+  eventDatePending?: boolean;
+  eventDecidedAt?: number;
+  eventQuestions?: EventQuestion[]; // 参加者に聞くこと（主催者が自由に作る）
+  // 出欠と回答。userId → 回答。主催者・共同管理者以外には本人の分だけ返す（lib/roundView）。
+  eventAnswers?: Record<string, EventAnswer>;
+  eventRemindAt?: number;           // 未回答の人へのリマインドを最後に送った時刻（12時間に1回まで）
+};
+
+export type RoundVisibility = 'public' | 'invite';
+export type EventKind = 'drink' | 'simgolf' | 'practice' | 'watch' | 'other';
+export type PayMethod = 'cash' | 'paypay' | 'transfer' | 'app' | 'other';
+export type EventDateOption = { id: string; date: string; startTime?: string };
+export type EventQuestion = {
+  id: string;
+  text: string;
+  kind: 'choice' | 'text';
+  options?: string[];    // kind='choice' の選択肢（主催者が自由に決める）
+  multi?: boolean;       // いくつでも選べる
+  required?: boolean;
+};
+export type EventRsvp = 'yes' | 'maybe' | 'no';
+export type EventAnswer = {
+  status: EventRsvp;
+  dates?: Record<string, 'ok' | 'maybe' | 'no'>;   // 候補日ごとの ◯△✕（EventDateOption.id → 答え）
+  answers?: Record<string, string[] | string>;     // 質問ID → 選んだ選択肢（配列）か自由記述
+  at: number;
 };
 
 // ===== 「調整さん」風の日程調整（募集とは独立したポール） =====

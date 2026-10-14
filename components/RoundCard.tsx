@@ -8,6 +8,8 @@ import { useUnreadCounts } from '@/lib/useUnread';
 import { formatDate, priceLabelForGender } from '@/lib/utils';
 import { viewerSlotFull } from '@/lib/genderSlots';
 import { countedMemberIds } from '@/lib/hostCount';
+import { isPrivateRound } from '@/lib/roundAccess';
+import { isEventRound, eventKindMeta } from '@/lib/eventRound';
 
 // コンパクトな募集カード。投稿者名は表示しない。参加状況バーの上に男女比を出す。
 export function RoundCard({ round }: { round: Round; host?: User }) {
@@ -16,15 +18,23 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
   const me = useStore(getMe);
   const hasUnread = unreadRoundIds.has(round.id);
   const isDrink = round.eventType === 'drink';
+  // 非公開の招待・イベント（eventKind あり）（2026-10-14）。従来の飲み会（eventKind なし）は今までどおり
+  const isPrivate = isPrivateRound(round);
+  const isEvent = isEventRound(round);
+  const eventMeta = isEvent ? eventKindMeta(round.eventKind) : null;
+  const datePending = isEvent && !!round.eventDatePending && (round.eventDateOptions || []).length > 0;
+  const eventCap = isEvent && (round.maxSpots || 99) < 99;
   // 飲み会は定員なしで maxSpots が大きくなるが、コンペ扱い（色/バッジ）にはしない。
   const isComp = !isDrink && round.maxSpots >= 5;
-  const dateLabel = round.dateType === 'range' ? round.dateRange : formatDate(round.date);
+  const dateLabel = datePending
+    ? `日程調整中（候補${(round.eventDateOptions || []).length}日）`
+    : round.dateType === 'range' ? round.dateRange : formatDate(round.date);
   const placeLabel = isDrink
     ? `${round.venue || ''}${round.venue && round.area ? '（' + round.area + '）' : round.area || ''}`
     : round.type === 'confirmed'
       ? `${round.courseName || ''}${round.area ? `（${round.area}）` : ''}`
       : round.area;
-  const placeIcon = isDrink ? '🍻' : round.type === 'confirmed' ? '⛳' : '📍';
+  const placeIcon = isEvent ? '📍' : isDrink ? '🍻' : round.type === 'confirmed' ? '⛳' : '📍';
   const placeFallback = isDrink ? '場所未定' : round.type === 'confirmed' ? 'コース調整中' : 'コース未定';
   const pickup = round.pickupStations || [];
   // 費用は閲覧者の性別に応じて表示（男女別料金が設定されている場合）。
@@ -59,12 +69,17 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
         </span>
       )}
       <div className={isFull ? 'grayscale opacity-40' : mineFull ? 'opacity-75' : ''}>
-      {(round.isOfficial || isComp || isDrink || (round.pendingApplicantIds || []).length > 0 || hasUnread) && (
+      {(round.isOfficial || isComp || isDrink || isPrivate || (round.pendingApplicantIds || []).length > 0 || hasUnread) && (
         <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
           {round.isOfficial && (
             <span className="inline-flex items-center gap-1 px-2 py-[2px] rounded-full text-[10px] font-black bg-green text-white">✓ ゴルトモ公式</span>
           )}
-          {isDrink && (
+          {isPrivate && (
+            <span className="inline-flex items-center gap-1 px-2 py-[2px] rounded-full text-[10px] font-black" style={{ background: '#1F3D2B', color: '#F0CF63' }}>✉️ 非公開の招待</span>
+          )}
+          {isEvent ? (
+            <span className="inline-flex items-center gap-1 px-2 py-[2px] rounded-full text-[10px] font-black" style={{ background: '#EFEAFF', color: '#7B5CD6', border: '1px solid #7B5CD6' }}>{eventMeta?.emoji} {eventMeta?.label}</span>
+          ) : isDrink && (
             <span className="inline-flex items-center gap-1 px-2 py-[2px] rounded-full text-[10px] font-bold bg-orange text-white">🍻 飲み会</span>
           )}
           {isComp && !isDrink && (
@@ -78,7 +93,7 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
       )}
 
       {/* 日付 → コース名（県）→ タイトル（金額は男女比の行の左に表示） */}
-      <div className="text-[14px] font-black">📅 {dateLabel}</div>
+      <div className="text-[14px] font-black" style={datePending ? { color: '#7B5CD6' } : undefined}>📅 {dateLabel}</div>
       <div className="text-[12px] font-bold text-sub mt-0.5">{placeIcon} {placeLabel || placeFallback}</div>
       <div className="text-[14px] font-black leading-snug mt-0.5">{round.title}</div>
 
@@ -94,7 +109,9 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
       </div>
       {isDrink ? (
         <div className="flex items-center justify-end mt-1">
-          <span className="text-[12px] font-black text-orange whitespace-nowrap">🍻 {round.currentCount}人 参加</span>
+          <span className="text-[12px] font-black whitespace-nowrap" style={{ color: isEvent ? '#7B5CD6' : '#E8643C' }}>
+            {isEvent ? (eventCap ? `参加${round.currentCount}人／定員${round.maxSpots}人` : `${eventMeta?.emoji} 参加${round.currentCount}人`) : `🍻 ${round.currentCount}人 参加`}
+          </span>
         </div>
       ) : (
         <div className="flex items-center gap-2 mt-1">

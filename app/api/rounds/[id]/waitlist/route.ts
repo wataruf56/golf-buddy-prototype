@@ -17,6 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: noStore });
   const round = await db.getRound(params.id);
   if (!round) return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStore });
+  { const { privateRoundGuard } = await import('@/lib/roundAccessServer'); const g = privateRoundGuard(round, meId); if (g) return g; }   // 非公開の招待（2026-10-14）
   let body: any = {};
   try { body = (await req.json()) || {}; } catch {}
   const on = body?.on !== false;

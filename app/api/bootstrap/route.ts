@@ -174,6 +174,12 @@ export async function GET() {
 
   // 組み分け希望（groupPrefs）は主催者のみ集計閲覧可。閲覧者以外の希望は落とす。
   // 「見に来た人」(viewedBy) は誰にも配らない（主催者は /viewers 経由で取得）。
+  // 非公開の招待（visibility='invite'）は、主催者・参加者・招待された人にだけ配る（2026-10-14・lib/roundAccess）。
+  // 運営でも一覧には出さない（ホーム・さがすに他人の非公開募集が並ばないように）。開くのは URL から（/api/rounds/[id]）。
+  {
+    const { canViewRound } = await import('@/lib/roundAccess');
+    rounds = rounds.filter((r) => canViewRound(r, meId));
+  }
   try {
     const { stripRoundForViewer } = await import('@/lib/roundView');
     rounds = rounds.map((r) => stripRoundForViewer(r, meId));

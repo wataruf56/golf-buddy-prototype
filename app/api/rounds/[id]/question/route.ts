@@ -21,6 +21,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   if (!meId) return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: noStore });
   const round = await db.getRound(params.id);
   if (!round) return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStore });
+  { const { privateRoundGuard } = await import('@/lib/roundAccessServer'); const g = privateRoundGuard(round, meId); if (g) return g; }   // 非公開の招待（2026-10-14）
   const threads = await db.listRoundThreads(params.id);
   const mine = findQuestionThread(threads, meId);
   const canAsk = !!mine || canAskHost(round, meId);
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const rstChat = await blockedByRestriction(meId, 'noChat', 'チャットの利用が制限されています。'); if (rstChat) return rstChat;
   const round = await db.getRound(params.id);
   if (!round) return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStore });
+  { const { privateRoundGuard } = await import('@/lib/roundAccessServer'); const g = privateRoundGuard(round, meId); if (g) return g; }   // 非公開の招待（2026-10-14）
   let body: any = {};
   try { body = (await req.json()) || {}; } catch { /* noop */ }
   const target = typeof body.userId === 'string' && body.userId && body.userId !== meId ? String(body.userId) : '';

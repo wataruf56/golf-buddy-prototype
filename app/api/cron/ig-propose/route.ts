@@ -78,6 +78,7 @@ export async function GET(req: NextRequest) {
       // 部屋は maxSpots を常に参加人数と同じにするので、人が入った瞬間に「満員」と
       // 判定され、コースも時間も無い満員告知の下書きが毎晩作られていた。
       if (r.availDate || String(r.id).startsWith('avail_')) return false;
+      if (r.visibility === 'invite') return false;   // 非公開の招待はインスタに出さない（2026-10-14）
       seen.add(r.id);
       return true;
     });

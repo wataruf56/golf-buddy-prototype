@@ -87,6 +87,7 @@ export async function buildTimeline(viewer: User, limit = 80): Promise<TimelineI
   for (const d of roundsSnap.docs) {
     const r = d.data() || {};
     if (!r.createdAt || r.availDate) continue;               // 行ける日の部屋は除く
+    if ((r as any).visibility === 'invite') continue;        // 非公開の招待は出さない（2026-10-14）
     const host = userMap.get(r.hostId);
     if (hidden(r.hostId)) continue;
     const rc = r.hostCohort || getCohort(host?.age);
@@ -111,6 +112,7 @@ export async function buildTimeline(viewer: User, limit = 80): Promise<TimelineI
     const u = userMap.get(j.userId);
     if (!r || !u || hidden(j.userId) || hidden(r.hostId) || u.banned) continue;
     if (r.availDate || r.hostId === ADMIN_MANAGER_ID) continue;              // 行ける日の部屋・運営の代理募集は出さない
+    if ((r as any).visibility === 'invite') continue;                        // 非公開の招待は参加も出さない（2026-10-14）
     if (!(r.applicantIds || []).includes(j.userId)) continue;                // 取りやめた・外された
     const rc = r.hostCohort || getCohort(userMap.get(r.hostId)?.age);
     if (rc && rc !== cohort) continue;                                       // 同じ年代の募集だけ

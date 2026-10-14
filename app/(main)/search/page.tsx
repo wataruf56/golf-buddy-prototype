@@ -6,6 +6,7 @@ import { allAreas } from '@/lib/mockData';
 import { useStore, getMe } from '@/lib/store';
 import { isOfficialThread } from '@/lib/officialShared';
 import { isAvailRoom } from '@/lib/availabilityShared';
+import { isPrivateRound } from '@/lib/roundAccess';
 import type { Round } from '@/lib/types';
 import { cn, priceValueForGender } from '@/lib/utils';
 import { viewerSlotFull } from '@/lib/genderSlots';
@@ -51,7 +52,8 @@ function isFullRound(r: Round): boolean {
 
 export default function SearchPage() {
   // 運営が代理で立てた枠はここに出さない（入口はホーム上部のカードだけ）。
-  const rounds = useStore((s) => s.rounds.filter((r) => !isOfficialThread(r) && !isAvailRoom(r)));
+  // 非公開の招待は「さがす」に出さない（招待された人のストアには届くため・2026-10-14）
+  const rounds = useStore((s) => s.rounds.filter((r) => !isOfficialThread(r) && !isAvailRoom(r) && !isPrivateRound(r)));
   const users = useStore((s) => s.users);
   const me = useStore(getMe);
   // 並びの段：0=募集中 / 1=自分の性別の枠だけ満員 / 2=満員（2026-10-07）

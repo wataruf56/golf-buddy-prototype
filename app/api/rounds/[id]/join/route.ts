@@ -36,6 +36,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
   const existing = await db.getRound(params.id);
   if (!existing) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  { const { privateRoundGuard } = await import('@/lib/roundAccessServer'); const g = privateRoundGuard(existing, meId); if (g) return g; }   // 非公開の招待（2026-10-14）
 
   // 運営が立てた枠は、性別と車の条件を枠ごとに見る必要がある。
   // 通常の参加申込では枠を選べないので、専用の入口だけに通す。

@@ -23,6 +23,7 @@ export async function notifyMatchingSignals(round: Round): Promise<void> {
   try {
     const rawArea = (round.area || '').trim();
     if (!rawArea || !round.id) return;
+    if ((round as any).visibility === 'invite') return;   // 非公開の招待は知らせない（2026-10-14）
     const adb = getAdminDb() as any;
     if (!adb) return;
 

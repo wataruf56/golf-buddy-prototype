@@ -16,7 +16,9 @@ export async function GET() {
   // 置き換えるので、ホームの「招待されています」が出なくなる）。本人を渡す。
   const meId = await getMeId();
   const { stripRoundForViewer } = await import('@/lib/roundView');
-  const rounds = raw.map((r) => stripRoundForViewer(r, meId));
+  // 非公開の招待は、主催者・参加者・招待された人にだけ（2026-10-14・lib/roundAccess）
+  const { canViewRound } = await import('@/lib/roundAccess');
+  const rounds = raw.filter((r) => canViewRound(r, meId)).map((r) => stripRoundForViewer(r, meId));
   return NextResponse.json({ rounds });
 }
 
@@ -61,10 +63,15 @@ export async function POST(req: NextRequest) {
   let spotsMale = isDrink ? 0 : clampN(body.spotsMale);
   let spotsFemale = isDrink ? 0 : clampN(body.spotsFemale);
   let spotsAny = isDrink ? 0 : clampN(body.spotsAny);
+  // イベント（ラウンド以外・2026-10-14・lib/eventRound）。eventKind があれば新しいイベント（出欠＋質問の集計つき）。
+  const { isEventKind, sanitizeQuestions } = await import('@/lib/eventRound');
+  const eventKind = isDrink && isEventKind(body.eventKind) ? body.eventKind : undefined;
+  // イベントは定員を決められる（自分を含めた人数・空欄なら定員なし＝DRINK_CAP）
+  const eventCap = eventKind && Number(body.maxSpots) >= 2 ? Math.min(200, Math.floor(Number(body.maxSpots))) : 0;
   let maxSpots: number;
   if (isDrink) {
-    maxSpots = DRINK_CAP;               // 定員なし相当
-    spotsAny = DRINK_CAP - 1;           // 残り全枠を「どちらでもOK」に（表示では出さない）
+    maxSpots = eventCap || DRINK_CAP;   // 定員なし相当
+    spotsAny = maxSpots - 1;            // 残り全枠を「どちらでもOK」に（表示では出さない）
   } else if (hasBreakdown) {
     let slots = spotsMale + spotsFemale + spotsAny;
     if (slots < 1) { spotsAny = 1; slots = 1; } // 最低1枠
@@ -100,7 +107,7 @@ export async function POST(req: NextRequest) {
 
   // 共同管理者は承認済み参加者として1枠を占有する。定員に収まらない場合のみ総定員を広げる。
   const baseFixedCount = hostSeatN + externalTotal + coHostIds.length; // 主催者 + 知り合い + 共同管理者
-  if (baseFixedCount > maxSpots) maxSpots = Math.min(isDrink ? DRINK_CAP : 50, baseFixedCount);
+  if (baseFixedCount > maxSpots) maxSpots = Math.min(isDrink ? Math.max(DRINK_CAP, maxSpots) : 50, baseFixedCount);
   // 後方互換の性別条件をサーバー側で内訳から導出（単一性別のみ厳格ゲート）。飲み会は常に 'any'。
   const genderCondition: 'any' | 'male' | 'female' = isDrink ? 'any'
     : spotsAny === 0 && spotsFemale === 0 && spotsMale > 0 ? 'male'
@@ -115,7 +122,7 @@ export async function POST(req: NextRequest) {
     // 飲み会はコース確定/未定の概念がないので、内部的には 'confirmed'（日付固定）として扱う。
     type: isDrink ? 'confirmed' : body.type,
     courseName: isDrink ? undefined : body.courseName,
-    venue: isDrink && body.venue ? String(body.venue).slice(0, 60) : undefined,
+    venue: isDrink && body.venue ? String(body.venue).slice(0, eventKind ? 80 : 60) : undefined,
     // 飲み会はエリアを入力しない。
     area: isDrink ? undefined : body.area,
     dateType: body.dateType,
@@ -171,9 +178,31 @@ export async function POST(req: NextRequest) {
     // 公式募集は主催者を人数に数えない（2026-10-12）。既存の募集には付けない（数え方を変えない）。
     ...(isOfficialNew ? { hostNotCounted: true } : {}),
     createdAt: Date.now(),
+    // 公開範囲（2026-10-14・lib/roundAccess）。'invite'＝招待した人だけ
+    ...(body.visibility === 'invite' ? { visibility: 'invite' as const } : {}),
+    ...(eventKind ? eventFields(body, sanitizeQuestions) : {}),
+    ...(eventKind ? { eventKind } : {}),
   };
+  // イベントで「アプリで事前集金」を選んだら入金管理をON（ラウンドと同じ入金タブ・振込先・期日・催促）
+  if (eventKind && (round.payMethods || []).includes('app')) {
+    round.paymentEnabled = true;
+    const pi = sanitizePaymentInfo(body.paymentInfo);
+    if (pi) round.paymentInfo = pi;
+  }
+  // 候補日から決めるイベントは、いちばん早い候補を仮の日付にする（一覧の並び・表示用）
+  if (round.eventDatePending && round.eventDateOptions?.length) {
+    round.dateType = 'fixed';
+    round.date = round.eventDateOptions[0].date;
+    round.startTime = round.eventDateOptions[0].startTime || round.startTime;
+  }
   try {
     const created = await db.createRound(round);
+    if (created.visibility === 'invite') {
+      // 非公開の招待：作るときに選んだ人へ招待状を送る（ゴル友・同じ組で回った人だけ・同じ年代だけ）。希望条件の通知はしない。
+      const invited = await sendInitialInvites(created, meId, body.inviteIds);
+      const fresh = (await db.getRound(created.id)) || created;
+      return NextResponse.json({ round: fresh, invited });
+    }
     // アンケート（LP診断シグナル）で希望エリアにこの県を登録した人へ、
     // 「条件に一致する募集が投稿されました」と通知（best-effort・投稿は止めない）。
     import('@/lib/surveyMatch').then((m) => m.notifyMatchingSignals(created)).catch(() => {});
@@ -197,4 +226,61 @@ function sanitizePaymentInfo(raw: any): { amount?: number; account?: string; dea
     ...(deadline > 1_600_000_000_000 ? { deadline } : {}),
   };
   return Object.keys(out).length ? out : null;
+}
+
+// イベントの項目を整える（2026-10-14・lib/eventRound）
+function eventFields(body: any, sanitizeQuestions: (x: any) => any[]): Partial<Round> {
+  const PAY = ['cash', 'paypay', 'transfer', 'app', 'other'];
+  const payMethods = Array.isArray(body.payMethods) ? Array.from(new Set(body.payMethods.map(String).filter((x: string) => PAY.includes(x)))) as any[] : [];
+  const url = String(body.venueUrl || '').trim();
+  const venueUrl = /^https?:\/\/\S+$/.test(url) ? url.slice(0, 400) : '';
+  const ymd = (v: any) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : '');
+  const hm = (v: any) => (/^\d{1,2}:\d{2}$/.test(String(v || '')) ? String(v) : '');
+  const opts = (Array.isArray(body.eventDateOptions) ? body.eventDateOptions : [])
+    .map((o: any, i: number) => ({ id: String(o?.id || `d${i + 1}`).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 16) || `d${i + 1}`, date: ymd(o?.date), startTime: hm(o?.startTime) }))
+    .filter((o: any) => o.date)
+    .slice(0, 10)
+    .map((o: any) => (o.startTime ? o : { id: o.id, date: o.date }))
+    .sort((a: any, b: any) => (a.date + (a.startTime || '')).localeCompare(b.date + (b.startTime || '')));
+  const questions = sanitizeQuestions(body.eventQuestions);
+  const deadline = ymd(body.eventDeadline);
+  const payNote = String(body.payNote || '').trim().slice(0, 200);
+  return {
+    ...(venueUrl ? { venueUrl } : {}),
+    ...(payMethods.length ? { payMethods } : {}),
+    ...(payNote ? { payNote } : {}),
+    ...(deadline ? { eventDeadline: deadline } : {}),
+    // 候補が2つ以上のときだけ「候補日から決める」。1つなら、その日に決まっている扱い。
+    ...(opts.length >= 2 ? { eventDateOptions: opts, eventDatePending: true } : {}),
+    ...(questions.length ? { eventQuestions: questions } : {}),
+  };
+}
+
+// 非公開の招待の最初の招待状（2026-10-14）。招待できるのは ゴル友（友達リスト）か、同じ組で回ったことがある人。
+// 運営（管理者）は誰でも招待できる。年代（20〜30代／40〜50代）が違う人には送らない。最大50人。
+async function sendInitialInvites(round: Round, meId: string, raw: any): Promise<number> {
+  const ids: string[] = Array.from(new Set<string>((Array.isArray(raw) ? raw : []).map(String).filter((x: string) => x && x !== meId))).slice(0, 50);
+  if (!ids.length) return 0;
+  let allowed: Set<string> | null = null;
+  if (!isAdminUserId(meId)) {
+    const { friendSetOf } = await import('@/lib/friendSet');
+    const { sameGroupPartnerIds } = await import('@/lib/pastPartners');
+    const [f, p] = await Promise.all([friendSetOf(meId), sameGroupPartnerIds(meId).catch(() => new Set<string>())]);
+    allowed = new Set<string>([...Array.from(f), ...Array.from(p as Set<string>)]);
+  }
+  const { sendRoundInvite } = await import('@/lib/roundInvite');
+  let n = 0;
+  let cur: Round = round;
+  for (const id of ids) {
+    if (allowed && !allowed.has(id)) continue;
+    if ((round.applicantIds || []).includes(id)) continue;   // 共同管理者などすでに参加している人
+    const u = await db.getUser(id);
+    if (!u || getCohort(u.age) !== round.hostCohort) continue;
+    try {
+      const r = await sendRoundInvite({ round: cur, inviteeId: id, by: 'host' });
+      cur = r.round;
+      if (r.added) n++;
+    } catch (e) { console.error('[rounds POST] invite failed', id, (e as Error).message); }
+  }
+  return n;
 }

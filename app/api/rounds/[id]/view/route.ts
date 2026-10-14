@@ -17,6 +17,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
 
   const round = await db.getRound(params.id);
   if (!round) return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStore });
+  { const { privateRoundGuard } = await import('@/lib/roundAccessServer'); const g = privateRoundGuard(round, meId); if (g) return g; }   // 非公開の招待（2026-10-14）
 
   // 主催者本人は記録しない。
   if (isRoundHost(round, meId)) return NextResponse.json({ ok: true, recorded: false, self: true }, { headers: noStore });

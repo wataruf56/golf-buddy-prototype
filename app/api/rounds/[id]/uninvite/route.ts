@@ -23,5 +23,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400, headers: noStore });
 
   const round = await db.uninviteFromRound(params.id, userId);
+  // 非公開の招待では、取り消した人はもう開けないようにする（invitedAt の記録は残るので revokedIds に入れる・2026-10-14）
+  if ((existing as any).visibility === 'invite' && !(existing.applicantIds || []).includes(userId) && !(existing.pendingApplicantIds || []).includes(userId)) {
+    const revokedIds = Array.from(new Set([...((existing as any).revokedIds || []), userId]));
+    await db.updateRound(params.id, { revokedIds } as any);
+    (round as any).revokedIds = revokedIds;
+  }
   return NextResponse.json({ round }, { headers: noStore });
 }

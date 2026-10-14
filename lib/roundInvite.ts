@@ -43,6 +43,7 @@ export async function sendRoundInvite(opts: {
 
   const patch: Partial<Round> = {};
   if (message) patch.inviteMessages = { ...(round.inviteMessages || {}), [inviteeId]: message };
+  if ((round.revokedIds || []).includes(inviteeId)) patch.revokedIds = (round.revokedIds || []).filter((x) => x !== inviteeId);   // 取り消した人を招待し直した
   if (added) {
     patch.invitedBy = { ...(round.invitedBy || {}), [inviteeId]: by };
     patch.invitedAt = { ...(round.invitedAt || {}), [inviteeId]: Date.now() };
@@ -59,7 +60,14 @@ export async function sendRoundInvite(opts: {
     const link = `/round/${existing.id}`;
     const hitokoto = message ? `\n「${message}」` : '';
     const { renderNotif } = await import('./notificationTemplateStore');
-    const n = by === 'admin'
+    // 非公開の招待（visibility='invite'）は「招待状」の文面に（2026-10-14・テンプレート invitedPrivate）
+    const { isPrivateRound } = await import('./roundAccess');
+    const { isEventRound, eventKindMeta } = await import('./eventRound');
+    const kindLabel = existing.eventType === 'drink' ? (isEventRound(existing) ? eventKindMeta(existing.eventKind).label : '飲み会') : 'ラウンド';
+    const when = existing.eventDatePending ? '日程調整中' : roundWhenLabel(existing);
+    const n = isPrivateRound(existing)
+      ? await renderNotif('invitedPrivate', { '主催者名': hostName, '募集タイトル': existing.title, '日時': when, '種類': kindLabel, 'ひとこと': hitokoto })
+      : by === 'admin'
       ? await renderNotif('invitedByAdmin', { '募集タイトル': existing.title, '日時': roundWhenLabel(existing), '主催者名': hostName, 'ひとこと': hitokoto })
       : await renderNotif('invited', { '主催者名': hostName, '募集タイトル': existing.title, 'ひとこと': hitokoto });
     const { addNotification } = await import('./notifications');

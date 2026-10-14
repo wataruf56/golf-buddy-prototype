@@ -19,6 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const existing = await db.getRound(params.id);
   if (!existing) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  { const { privateRoundGuard } = await import('@/lib/roundAccessServer'); const g = privateRoundGuard(existing, meId); if (g) return g; }   // 非公開の招待（2026-10-14）
   // The host marking their own round as interested makes no sense.
   if (isRoundHost(existing, meId)) {
     return NextResponse.json({ error: 'own_round' }, { status: 400 });

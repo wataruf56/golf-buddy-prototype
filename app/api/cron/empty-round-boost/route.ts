@@ -69,6 +69,7 @@ export async function GET(req: NextRequest) {
 
     const targets = rounds.filter((r) => {
       if ((r as any).emptyBoostSentAt) return false;            // 1募集1回だけ
+      if ((r as any).visibility === 'invite') return false;     // 非公開の招待は呼びかけない（2026-10-14）
       const joined = (r.applicantIds || []).length + (r.coHostIds || []).length;
       if (joined > 0) return false;                              // 誰か入っていれば対象外
       const d = daysUntil(r.date);
