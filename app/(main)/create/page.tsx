@@ -18,6 +18,7 @@ import { EventQuestionEditor } from '@/components/EventQuestionEditor';
 import { chatIdFor, cn } from '@/lib/utils';
 import { ADMIN_MANAGER_ID } from '@/lib/adminManagerId';
 import { Stepper } from '@/components/Stepper';
+import { MultiDatePicker } from '@/components/MultiDatePicker';
 import { goLogin } from '@/lib/loginLink';
 
 // 毎回タイトルを考えなくて済むよう、よく使う募集タイトルの定型文。
@@ -727,7 +728,8 @@ export default function CreatePage() {
                       // 候補日に切り替えたとき空なら2行用意（決まっている日があれば1つ目に入れる）
                       if (k === 'candidates' && dateOptions.length === 0) {
                         const t = Date.now().toString(36);
-                        setDateOptions([{ id: `d${t}0`, date, startTime }, { id: `d${t}1`, date: '', startTime }]);
+                        // カレンダーで選ぶので空の行は作らない（決めていた日があれば、それを1つ目の候補に）（2026-10-15）
+                        setDateOptions(date ? [{ id: `d${t}0`, date, startTime }] : []);
                       }
                     }}
                     className={cn('flex-1 py-2 rounded-lg text-[12px] font-black', eventDateMode === k ? 'bg-[#7B5CD6] text-white' : 'text-sub')}>
@@ -744,11 +746,35 @@ export default function CreatePage() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-1.5">
+                  {/* カレンダーで複数の日をまとめて選ぶ（2026-10-15）。タップで足す／外す。時間は下の行で1日ずつ、または「まとめて」 */}
+                  <MultiDatePicker
+                    selected={dateOptions.map((o) => o.date)}
+                    max={10}
+                    onToggle={(d) => setDateOptions((xs) => {
+                      if (xs.some((x) => x.date === d)) return xs.filter((x) => x.date !== d);
+                      const filled = xs.filter((x) => x.date);   // 日付が空の行は、カレンダーで選んだ日で置き換える
+                      if (filled.length >= 10) return xs;
+                      const t = filled[filled.length - 1]?.startTime ?? startTime;
+                      return [...filled, { id: `d${Date.now().toString(36)}${filled.length}`, date: d, startTime: t }]
+                        .sort((a, b) => a.date.localeCompare(b.date));
+                    })}
+                  />
+                  {dateOptions.filter((o) => o.date).length >= 2 && (
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-sub">
+                      <span className="flex-shrink-0">時間をまとめて</span>
+                      <select value="__ph" onChange={(e) => { const v = e.target.value; if (v === '__ph') return; setDateOptions((xs) => xs.map((x) => ({ ...x, startTime: v }))); }}
+                        className="flex-1 min-w-0 p-2 border-[1.5px] border-border rounded-[10px] text-[12px] bg-bg outline-none">
+                        <option value="__ph" disabled hidden>選ぶ（全部の候補日に入る）</option>
+                        <option value="">時間未定</option>
+                        {timeSlots.map((t) => <option key={t} value={t}>{t}〜</option>)}
+                      </select>
+                    </div>
+                  )}
                   {dateOptions.map((o, i) => (
                     <div key={o.id} className="flex items-center gap-1.5">
                       <span className="w-5 text-[11px] font-black text-[#7B5CD6] text-center flex-shrink-0">{i + 1}</span>
                       <input type="date" value={o.date}
-                        onChange={(e) => setDateOptions((xs) => xs.map((x) => (x.id === o.id ? { ...x, date: e.target.value } : x)))}
+                        onChange={(e) => setDateOptions((xs) => xs.map((x) => (x.id === o.id ? { ...x, date: e.target.value } : x)).sort((a, b) => (a.date || '9').localeCompare(b.date || '9')))}
                         className="flex-[3] min-w-0 p-2.5 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none appearance-none" style={{ boxSizing: 'border-box' }} />
                       <select value={o.startTime}
                         onChange={(e) => setDateOptions((xs) => xs.map((x) => (x.id === o.id ? { ...x, startTime: e.target.value } : x)))}
