@@ -363,6 +363,38 @@ export default function HomePage() {
           {myInvites.map((r) => {
             const byAdmin = (r.invitedBy || {})[meId] === 'admin';
             const hostName = users.find((u) => u.id === r.hostId)?.displayName || '主催者';
+            // 非公開の招待は、募集ページの招待状（components/PrivateInviteCard）と同じ深緑×金で特別感を出す（2026-10-15）
+            if (isPrivateRound(r)) {
+              const kind = isEventRound(r) ? eventKindMeta(r.eventKind).label : 'ラウンド';
+              return (
+                <div key={r.id} className="relative rounded-card p-4 border-[2.5px] border-[#C9A227] shadow-card text-[#FFF8EC]"
+                  style={{ background: 'linear-gradient(160deg,#1F3D2B 0%,#24513A 100%)' }}>
+                  <div className="pointer-events-none absolute inset-[4px] rounded-[12px] border border-dashed border-[#C9A227]/60" />
+                  <Link href={`/round/${r.id}`} className="relative flex items-center gap-3">
+                    <span className="w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0"
+                      style={{ background: 'radial-gradient(circle at 35% 30%,#F0CF63,#B8891A)' }}>✉️</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[9px] font-black tracking-[0.18em] text-[#E9CF6B]">PRIVATE INVITATION</div>
+                      <div className="text-sm font-black">非公開の{kind}の招待状が届いています</div>
+                      <div className="text-[11px] text-[#E6EFE9] mt-0.5 truncate">「{r.title}」・{hostName}さんが<span className="text-[#F0CF63] font-black">あなたを選んで</span>招待しました</div>
+                    </div>
+                    <span className="text-[#F0CF63]">›</span>
+                  </Link>
+                  <div className="relative mt-2 text-[10.5px] text-[#E6EFE9] leading-relaxed">🤫 この募集は、招待された人と{hostName}さんしか知りません</div>
+                  <div className="relative flex gap-2 mt-2.5">
+                    <Link href={`/round/${r.id}`}
+                      className="flex-1 py-2.5 rounded-xl text-[13px] font-black text-[#1F3D2B] border-2 border-[#1F3D2B] text-center"
+                      style={{ background: 'linear-gradient(180deg,#F0CF63,#C9A227)' }}>
+                      招待状をひらく
+                    </Link>
+                    <button onClick={() => setDeclineFor({ id: r.id, title: r.title, inviter: byAdmin ? 'ゴルトモ運営' : `${hostName}さん` })}
+                      className="flex-1 py-2.5 rounded-xl text-[13px] font-black text-[#FFF8EC] border-[1.5px] border-[#FFF8EC]/50">
+                      行けない
+                    </button>
+                  </div>
+                </div>
+              );
+            }
             return (
               <div key={r.id} className="bg-green-light border-2 border-green rounded-card p-4">
                 <Link href={`/round/${r.id}`} className="flex items-center gap-3">
