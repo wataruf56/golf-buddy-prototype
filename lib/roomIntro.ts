@@ -9,7 +9,8 @@ const GOLF = String.fromCodePoint(0x26F3);
 const SMILE = String.fromCodePoint(0x1F60A);
 const WAVE = String.fromCodePoint(0x1F44B);
 
-export const INTRO_AREAS = ['千葉', '茨城', '埼玉', '神奈川', '東京', '栃木', '群馬', '静岡', 'どこでも'] as const;
+// 2026-10-15：千葉を北部・南部に分け、山梨を追加（本人指定）
+export const INTRO_AREAS = ['千葉北部', '千葉南部', '茨城', '埼玉', '神奈川', '東京', '栃木', '群馬', '山梨', '静岡', 'どこでも'] as const;
 export const INTRO_BUDGETS = [
   { key: '10k', label: '〜1万円', amount: '1万円' },
   { key: '15k', label: '〜1.5万円', amount: '1.5万円' },
