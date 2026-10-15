@@ -94,3 +94,32 @@ export function tallyEvent(r: Pick<Round, 'eventAnswers' | 'eventDateOptions' | 
   }
   return t;
 }
+
+/** 作成・編集で受け取るイベントの項目を整える（POST /api/rounds・PATCH /api/rounds/[id] で共通・2026-10-15）。 */
+export function sanitizeEventFields(body: any): Partial<Round> {
+  const PAY = ['cash', 'paypay', 'transfer', 'app', 'other'];
+  const payMethods = Array.isArray(body.payMethods) ? Array.from(new Set(body.payMethods.map(String).filter((x: string) => PAY.includes(x)))) as any[] : [];
+  const url = String(body.venueUrl || '').trim();
+  const venueUrl = /^https?:\/\/\S+$/.test(url) ? url.slice(0, 400) : '';
+  const ymd = (v: any) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : '');
+  const hm = (v: any) => (/^\d{1,2}:\d{2}$/.test(String(v || '')) ? String(v) : '');
+  const opts = (Array.isArray(body.eventDateOptions) ? body.eventDateOptions : [])
+    .map((o: any, i: number) => ({ id: String(o?.id || `d${i + 1}`).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 16) || `d${i + 1}`, date: ymd(o?.date), startTime: hm(o?.startTime) }))
+    .filter((o: any) => o.date)
+    .slice(0, 20)   // 候補日は20日まで（2026-10-15）
+    .map((o: any) => (o.startTime ? o : { id: o.id, date: o.date }))
+    .sort((a: any, b: any) => (a.date + (a.startTime || '')).localeCompare(b.date + (b.startTime || '')));
+  const questions = sanitizeQuestions(body.eventQuestions);
+  const deadline = ymd(body.eventDeadline);
+  const payNote = String(body.payNote || '').trim().slice(0, 200);
+  return {
+    ...(venueUrl ? { venueUrl } : {}),
+    ...(payMethods.length ? { payMethods } : {}),
+    ...(payNote ? { payNote } : {}),
+    ...(deadline ? { eventDeadline: deadline } : {}),
+    // 候補が2つ以上のときだけ「候補日から決める」。1つなら、その日に決まっている扱い。
+    ...(opts.length >= 2 ? { eventDateOptions: opts, eventDatePending: true } : {}),
+    ...(questions.length ? { eventQuestions: questions } : {}),
+  };
+}
+

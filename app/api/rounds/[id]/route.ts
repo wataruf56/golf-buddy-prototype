@@ -106,6 +106,56 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (has('pickupOffered')) patch.pickupOffered = !!body.pickupOffered;
   if (has('openChatUrl')) patch.openChatUrl = body.openChatUrl ? String(body.openChatUrl).trim().slice(0, 300) : '';
 
+  // イベント（lib/eventRound・eventKind あり）の編集（2026-10-15）。作成と同じ整え方（sanitizeEventFields）。
+  // 送られてきた項目だけ書き換える。質問は id を保つので、すでにもらった回答はそのまま残る。
+  const { isEventRound, isEventKind, sanitizeEventFields } = await import('@/lib/eventRound');
+  const isEv = isEventRound(round);
+  if (isEv) {
+    if (has('eventKind') && isEventKind(body.eventKind)) (patch as any).eventKind = body.eventKind;
+    if (has('venue')) (patch as any).venue = body.venue ? String(body.venue).slice(0, 80) : '';
+    const ev = sanitizeEventFields(body);
+    if (has('venueUrl')) (patch as any).venueUrl = ev.venueUrl || '';
+    if (has('payMethods')) {
+      (patch as any).payMethods = ev.payMethods || [];
+      // 「アプリで事前集金」を選んだら入金管理をON（外しても、入金の記録は残すため OFF にはしない）
+      if ((ev.payMethods || []).includes('app')) (patch as any).paymentEnabled = true;
+    }
+    if (has('payNote')) (patch as any).payNote = ev.payNote || '';
+    if (has('eventDeadline')) (patch as any).eventDeadline = ev.eventDeadline || '';
+    if (has('eventQuestions')) (patch as any).eventQuestions = ev.eventQuestions || [];
+    // 日程：'candidates'＝候補日から決める（2つ以上）／'fixed'＝この日に決まっている
+    if (body.eventDateMode === 'candidates') {
+      if (!ev.eventDateOptions || ev.eventDateOptions.length < 2) {
+        return NextResponse.json({ error: 'bad_request', message: '候補日を2つ以上入れてください' }, { status: 400, headers: noStore });
+      }
+      (patch as any).eventDateOptions = ev.eventDateOptions;
+      (patch as any).eventDatePending = true;
+      patch.dateType = 'fixed';
+      patch.date = ev.eventDateOptions[0].date;
+      if (ev.eventDateOptions[0].startTime) patch.startTime = ev.eventDateOptions[0].startTime;
+    } else if (body.eventDateMode === 'fixed') {
+      if (!patch.date && !round.date) return NextResponse.json({ error: 'bad_request', message: '日にちを入れてください' }, { status: 400, headers: noStore });
+      (patch as any).eventDatePending = false;
+    }
+    // 定員（自分を含めた人数・空欄なら定員なし＝99）。いまの参加人数より少なくはできない
+    if (has('maxSpots')) {
+      const n = Number(body.maxSpots);
+      const next = n >= 2 ? Math.min(200, Math.floor(n)) : 99;
+      if (next < currentCountOf(round)) {
+        return NextResponse.json({ error: 'too_small', message: `すでに${currentCountOf(round)}人が参加しているため、定員をそれ未満にはできません` }, { status: 400, headers: noStore });
+      }
+      patch.maxSpots = next;
+      patch.spotsAny = next - 1;
+    }
+    if (has('paymentInfo') && body.paymentInfo && typeof body.paymentInfo === 'object') {
+      const amount = Math.max(0, Math.min(1_000_000, Math.floor(Number(body.paymentInfo.amount) || 0)));
+      const account = String(body.paymentInfo.account || '').trim().slice(0, 300);
+      const deadline = Math.floor(Number(body.paymentInfo.deadline) || 0);
+      (patch as any).paymentInfo = { ...(amount ? { amount } : {}), ...(account ? { account } : {}), ...(deadline > 1_600_000_000_000 ? { deadline } : {}) };
+    }
+    delete body.maxSpots; delete body.spotsMale; delete body.spotsFemale; delete body.spotsAny; delete body.genderCondition;   // ゴルフ用の人数の処理は通さない
+  }
+
   let beginnerOnly = round.beginnerOnly;
   let genderCondition = round.genderCondition || 'any';
   if (has('beginnerOnly')) { beginnerOnly = !!body.beginnerOnly; patch.beginnerOnly = beginnerOnly; }

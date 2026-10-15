@@ -856,26 +856,31 @@ export default function RoundDetailPage() {
     if (requireLogin()) return;
     document.getElementById('event-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
-  // 非公開の招待 → みんなに公開（主催者・一方通行）（2026-10-14）
-  async function makePublic() {
+  // 公開範囲の切り替え（主催者）。2026-10-14 は「招待した人だけ → みんなに公開」の一方通行だったが、
+  // 2026-10-15 から両方向（みんなに公開 → 招待した人だけ も）。POST /api/rounds/[id]/visibility
+  async function changeVisibility(next: 'public' | 'invite') {
     if (visBusy) return;
-    const ok = await confirmDialog({
+    const ok = await confirmDialog(next === 'public' ? {
       title: '🌐 みんなに公開しますか？',
-      message: 'さがす・ホームなどに出るようになり、だれでも見て参加できます。\nあとから「招待した人だけ」に戻すことはできません。',
+      message: 'さがす・ホーム・タイムラインに出るようになり、だれでも見て参加できます。\nあとから「招待した人だけ」に戻すこともできます。',
       confirmText: 'みんなに公開する', cancelText: 'やめる',
+    } : {
+      title: '🔒 招待した人だけにしますか？',
+      message: 'さがす・ホーム・タイムラインに出なくなります。\n見られるのは、参加している人・申請中の人・招待した人だけになります（「気になる」を押しただけの人・見に来ただけの人からは見えなくなります）。\nこのあと「＋ 招待を追加する」から招待状を送れます。',
+      confirmText: '招待した人だけにする', cancelText: 'やめる',
     });
     if (!ok) return;
     setVisBusy(true);
     try {
       const res = await fetch(`/api/rounds/${encodeURIComponent(round!.id)}/visibility`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store', credentials: 'include',
-        body: JSON.stringify({ visibility: 'public' }),
+        body: JSON.stringify({ visibility: next }),
       });
       if (!res.ok) { toast(await readApiError(res, '切り替えられませんでした'), 'error'); return; }
       const j = await res.json().catch(() => ({}));
-      applyRoundUpdate((j?.round as Round) || ({ ...round!, visibility: 'public' } as Round));
-      track('round_make_public', { roundId: round!.id });
-      toast('🌐 みんなに公開しました');
+      applyRoundUpdate((j?.round as Round) || ({ ...round!, visibility: next } as Round));
+      track(next === 'public' ? 'round_make_public' : 'round_make_private', { roundId: round!.id });
+      toast(next === 'public' ? '🌐 みんなに公開しました' : '🔒 招待した人だけにしました');
     } catch { toast('切り替えられませんでした', 'error'); }
     finally { setVisBusy(false); }
   }
@@ -1429,21 +1434,22 @@ export default function RoundDetailPage() {
           </div>
         )}
 
-        {/* 非公開の招待：主催者向け「📮 招待した人」と「👀 公開範囲」（2026-10-14・モック①-4） */}
-        {isHost && isPrivate && (
-          <>
-            {renderInvitedList(true)}
-            <div className="bg-card border-[1.5px] border-hair rounded-card p-3.5 mb-4">
-              <div className="text-[13px] font-black mb-1">👀 公開範囲</div>
-              <div className="text-[12px] text-sub leading-relaxed mb-2.5">
-                いまは <b className="text-text">🔒 招待した人だけ</b>。人が集まらなければ、あとから「🌐 みんなに公開」へ切り替えできます（逆はできません）。
-              </div>
-              <button onClick={makePublic} disabled={visBusy}
-                className="w-full py-3 bg-card text-text border-2 border-text rounded-xl text-sm font-black disabled:opacity-50">
-                {visBusy ? '切り替え中…' : '🌐 みんなに公開する'}
-              </button>
+        {/* 非公開の招待：主催者向け「📮 招待した人」（2026-10-14・モック①-4） */}
+        {isHost && isPrivate && renderInvitedList(true)}
+        {/* 👀 公開範囲（主催者）。2026-10-15 から両方向に切り替えられる。完了した募集・運営枠・行ける日の部屋は出さない */}
+        {isHost && round.status !== 'completed' && !(round as any).official && !(round as any).availDate && (
+          <div className="bg-card border-[1.5px] border-hair rounded-card p-3.5 mb-4">
+            <div className="text-[13px] font-black mb-1">👀 公開範囲</div>
+            <div className="text-[12px] text-sub leading-relaxed mb-2.5">
+              {isPrivate
+                ? <>いまは <b className="text-text">🔒 招待した人だけ</b>。人が集まらなければ「🌐 みんなに公開」に切り替えられます（あとで戻すこともできます）。</>
+                : <>いまは <b className="text-text">🌐 みんなに公開</b>。「🔒 招待した人だけ」にすると、さがす・タイムラインに出なくなり、参加している人・申請中の人・招待した人だけが見られます。</>}
             </div>
-          </>
+            <button onClick={() => changeVisibility(isPrivate ? 'public' : 'invite')} disabled={visBusy}
+              className="w-full py-3 bg-card text-text border-2 border-text rounded-xl text-sm font-black disabled:opacity-50">
+              {visBusy ? '切り替え中…' : isPrivate ? '🌐 みんなに公開する' : '🔒 招待した人だけにする'}
+            </button>
+          </div>
         )}
 
         {/* セクション切り替えタブ（参加してる人／ピックアップ／組み分け／主催者から） */}

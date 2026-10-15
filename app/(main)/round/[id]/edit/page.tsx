@@ -16,6 +16,8 @@ import { guestNamesFrom } from '@/lib/roundGuests';
 import { CancelPolicyEditor, emptyCancelDraft, draftToPayload, type CancelPolicyDraft } from '@/components/CancelPolicy';
 import { jstToMs, msToJst, swapConditionForPayment, upgradeCondition } from '@/lib/cancelPolicy';
 import { reservedHostSeat, hostInRecruitSlots, currentCountOf } from '@/lib/hostCount';
+import { isEventRound } from '@/lib/eventRound';
+import { EventEditForm } from '@/components/EventEditForm';
 
 // 募集タイトルのプルダウン既定値。管理画面で編集されると /api/round-titles で上書き。
 const DEFAULT_TITLE_PRESETS = [
@@ -334,6 +336,11 @@ export default function EditRoundPage() {
         <button onClick={() => router.push(`/round/${params.id}`)} className="mt-4 px-5 py-2.5 bg-green text-white rounded-xl text-sm font-bold">募集の詳細へ戻る</button>
       </div>
     );
+  }
+  // イベント（eventKind あり）はイベント用の編集フォーム（2026-10-15）。フックはすべてこれより上なので順番は変わらない。
+  // 従来の飲み会（eventKind なし）とラウンドは下のフォームのまま。
+  if (isEventRound(round)) {
+    return <EventEditForm key={round.id} round={round} />;
   }
 
   async function save() {

@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
   let spotsFemale = isDrink ? 0 : clampN(body.spotsFemale);
   let spotsAny = isDrink ? 0 : clampN(body.spotsAny);
   // イベント（ラウンド以外・2026-10-14・lib/eventRound）。eventKind があれば新しいイベント（出欠＋質問の集計つき）。
-  const { isEventKind, sanitizeQuestions } = await import('@/lib/eventRound');
+  const { isEventKind, sanitizeEventFields } = await import('@/lib/eventRound');
   const eventKind = isDrink && isEventKind(body.eventKind) ? body.eventKind : undefined;
   // イベントは定員を決められる（自分を含めた人数・空欄なら定員なし＝DRINK_CAP）
   const eventCap = eventKind && Number(body.maxSpots) >= 2 ? Math.min(200, Math.floor(Number(body.maxSpots))) : 0;
@@ -180,7 +180,7 @@ export async function POST(req: NextRequest) {
     createdAt: Date.now(),
     // 公開範囲（2026-10-14・lib/roundAccess）。'invite'＝招待した人だけ
     ...(body.visibility === 'invite' ? { visibility: 'invite' as const } : {}),
-    ...(eventKind ? eventFields(body, sanitizeQuestions) : {}),
+    ...(eventKind ? sanitizeEventFields(body) : {}),
     ...(eventKind ? { eventKind } : {}),
   };
   // イベントで「アプリで事前集金」を選んだら入金管理をON（ラウンドと同じ入金タブ・振込先・期日・催促）
@@ -226,34 +226,6 @@ function sanitizePaymentInfo(raw: any): { amount?: number; account?: string; dea
     ...(deadline > 1_600_000_000_000 ? { deadline } : {}),
   };
   return Object.keys(out).length ? out : null;
-}
-
-// イベントの項目を整える（2026-10-14・lib/eventRound）
-function eventFields(body: any, sanitizeQuestions: (x: any) => any[]): Partial<Round> {
-  const PAY = ['cash', 'paypay', 'transfer', 'app', 'other'];
-  const payMethods = Array.isArray(body.payMethods) ? Array.from(new Set(body.payMethods.map(String).filter((x: string) => PAY.includes(x)))) as any[] : [];
-  const url = String(body.venueUrl || '').trim();
-  const venueUrl = /^https?:\/\/\S+$/.test(url) ? url.slice(0, 400) : '';
-  const ymd = (v: any) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : '');
-  const hm = (v: any) => (/^\d{1,2}:\d{2}$/.test(String(v || '')) ? String(v) : '');
-  const opts = (Array.isArray(body.eventDateOptions) ? body.eventDateOptions : [])
-    .map((o: any, i: number) => ({ id: String(o?.id || `d${i + 1}`).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 16) || `d${i + 1}`, date: ymd(o?.date), startTime: hm(o?.startTime) }))
-    .filter((o: any) => o.date)
-    .slice(0, 10)
-    .map((o: any) => (o.startTime ? o : { id: o.id, date: o.date }))
-    .sort((a: any, b: any) => (a.date + (a.startTime || '')).localeCompare(b.date + (b.startTime || '')));
-  const questions = sanitizeQuestions(body.eventQuestions);
-  const deadline = ymd(body.eventDeadline);
-  const payNote = String(body.payNote || '').trim().slice(0, 200);
-  return {
-    ...(venueUrl ? { venueUrl } : {}),
-    ...(payMethods.length ? { payMethods } : {}),
-    ...(payNote ? { payNote } : {}),
-    ...(deadline ? { eventDeadline: deadline } : {}),
-    // 候補が2つ以上のときだけ「候補日から決める」。1つなら、その日に決まっている扱い。
-    ...(opts.length >= 2 ? { eventDateOptions: opts, eventDatePending: true } : {}),
-    ...(questions.length ? { eventQuestions: questions } : {}),
-  };
 }
 
 // 非公開の招待の最初の招待状（2026-10-14）。招待できるのは ゴル友（友達リスト）か、同じ組で回ったことがある人。

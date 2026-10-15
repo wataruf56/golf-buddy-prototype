@@ -314,7 +314,7 @@ export default function CreatePage() {
     setEventKind(k);
   }
   function addDateOption() {
-    setDateOptions((xs) => (xs.length >= 10 ? xs : [...xs, { id: `d${Date.now().toString(36)}${xs.length}`, date: '', startTime: xs[xs.length - 1]?.startTime || startTime }]));
+    setDateOptions((xs) => (xs.length >= 20 ? xs : [...xs, { id: `d${Date.now().toString(36)}${xs.length}`, date: '', startTime: xs[xs.length - 1]?.startTime || startTime }]));
   }
   function togglePayMethod(m: PayMethod) {
     setPayMethods((xs) => (xs.includes(m) ? xs.filter((x) => x !== m) : [...xs, m]));
@@ -749,11 +749,11 @@ export default function CreatePage() {
                   {/* カレンダーで複数の日をまとめて選ぶ（2026-10-15）。タップで足す／外す。時間は下の行で1日ずつ、または「まとめて」 */}
                   <MultiDatePicker
                     selected={dateOptions.map((o) => o.date)}
-                    max={10}
+                    max={20}
                     onToggle={(d) => setDateOptions((xs) => {
                       if (xs.some((x) => x.date === d)) return xs.filter((x) => x.date !== d);
                       const filled = xs.filter((x) => x.date);   // 日付が空の行は、カレンダーで選んだ日で置き換える
-                      if (filled.length >= 10) return xs;
+                      if (filled.length >= 20) return xs;   // 候補日は20日まで（2026-10-15）
                       const t = filled[filled.length - 1]?.startTime ?? startTime;
                       return [...filled, { id: `d${Date.now().toString(36)}${filled.length}`, date: d, startTime: t }]
                         .sort((a, b) => a.date.localeCompare(b.date));
@@ -787,14 +787,14 @@ export default function CreatePage() {
                         className="w-7 h-7 flex items-center justify-center text-muted font-black flex-shrink-0">✕</button>
                     </div>
                   ))}
-                  {dateOptions.length < 10 && (
+                  {dateOptions.length < 20 && (
                     <button type="button" onClick={addDateOption}
                       className="w-full py-2 rounded-[10px] border-[1.5px] border-dashed border-[#7B5CD6] text-[12px] font-black text-[#7B5CD6] bg-card">
                       ＋ 候補日を足す
                     </button>
                   )}
                   <div className={cn('text-[11px] font-bold', validOpts >= 2 ? 'text-[#7B5CD6]' : 'text-orange')}>
-                    候補日 {validOpts}つ{validOpts < 2 ? '（2つ以上入れてください）' : ''}・10個まで
+                    候補日 {validOpts}つ{validOpts < 2 ? '（2つ以上入れてください）' : ''}・20日まで
                   </div>
                 </div>
               )}

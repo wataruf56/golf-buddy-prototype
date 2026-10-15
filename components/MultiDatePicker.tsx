@@ -9,7 +9,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
 const ymd = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
 
-export function MultiDatePicker({ selected, onToggle, max = 10, accent = '#7B5CD6' }: {
+export function MultiDatePicker({ selected, onToggle, max = 20, accent = '#7B5CD6' }: {
   selected: string[];                 // 'YYYY-MM-DD'
   onToggle: (date: string) => void;
   max?: number;
