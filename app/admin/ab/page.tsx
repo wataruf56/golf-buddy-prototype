@@ -58,7 +58,7 @@ function todayJst(): string {
 }
 function phase(t: Test): { label: string; color: string } {
   const d = todayJst();
-  if (t.startDate && d < t.startDate) return { label: '準備中', color: '#6b7280' };
+  if (!t.startDate || d < t.startDate) return { label: '準備中', color: '#6b7280' };
   if (t.endDate && d > t.endDate) return { label: '終了', color: '#15803d' };
   return { label: '配信中', color: '#2563eb' };
 }
@@ -217,7 +217,8 @@ function TestCard({ t, onSave, onDelete }: {
             {rows.map((r) => {
               const vals = vs.map(({ v, f }) => r.get(v, f));
               const nums = vals.filter((x): x is number => x != null);
-              const bestVal = r.best && nums.length > 1
+              // 同点（0対0 など）のときは太字にしない。差がある行だけ目立たせる
+              const bestVal = r.best && nums.length > 1 && new Set(nums).size > 1
                 ? (r.best === 'high' ? Math.max(...nums) : Math.min(...nums)) : null;
               return [
                 r.group ? <tr key={r.group}><td colSpan={vs.length + 1} style={S.group}>{r.group}</td></tr> : null,
