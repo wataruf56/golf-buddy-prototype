@@ -8,6 +8,12 @@
 // 実画面のキャプチャ（public/guide-shots/*.png）は一度載せたが、縦長すぎて
 // 横スワイプの並びが間延びするため取りやめた。載せ直すなら縦横比の扱いから設計し直すこと。
 //
+// 2026-10-15：AI生成の人物写真（bg-hero/bg-nums/bg-cta）をやめ、ブランドの白クマと
+// 実際のアプリ画面（見本データの切り抜き public/lp/sc-*.webp）に置き換えた。
+// 作り物の「会員っぽい人」を見せると、実際に会った人との差で信頼を落とすため。
+// 人物写真を戻すなら、実際のコンペで本人の了承を取った写真だけにすること。
+// 見出し・ボタンの絵文字も同じ理由（AIが作ったっぽさ）で外している。
+//
 // CTAは StartButton（/app?ref=◯◯ → LIFF）。生のLINE友だち追加URLに変えると
 // 流入経路タグ(?ref=)が運べなくなり、管理画面の「📥 流入経路」に出なくなるので注意。
 
@@ -78,14 +84,12 @@ html body{background:#F4E8CE}
   display:grid;place-items:center;font-size:17px;border:2.5px solid var(--ink)}
 .sv .free{background:var(--mustard);font-weight:900;font-size:12px;padding:7px 13px;border-radius:999px;border:2.5px solid var(--ink)}
 
-.sv .hero{padding:0 0 30px;text-align:center;position:relative}
-/* 写真を見せるための帯。ここには何も置かず、背景写真だけを見せる。 */
-.sv .phsp{height:186px}
-/* 見出しは半透明のカードに載せる。写真の上でも読めて、写真も透けて見える。 */
-.sv .hcard{position:relative;z-index:1;margin:0 15px;padding:17px 17px 19px;
-  background:rgba(247,240,224,.84);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
-  border:3px solid var(--ink);border-radius:22px;box-shadow:5px 5px 0 var(--ink)}
-.sv .hero .lb{position:relative;z-index:1;display:inline-block;background:var(--teal);color:var(--cream);
+.sv .hero{padding:58px 0 30px;text-align:center;position:relative}
+.sv .hcard{position:relative;z-index:1;margin:0 15px;padding:26px 17px 19px;
+  background:var(--cream);border:3px solid var(--ink);border-radius:22px;box-shadow:5px 5px 0 var(--ink)}
+/* カードの上辺に前足をかけて覗く白クマ（ブランドのキャラ） */
+.sv .peek{position:absolute;left:50%;top:-74px;width:118px;height:auto;transform:translateX(-50%);z-index:2;pointer-events:none}
+.sv .hero .lb{position:relative;z-index:1;display:inline-block;margin-top:8px;background:var(--teal);color:var(--cream);
   font-weight:900;font-size:12.5px;padding:7px 16px;border-radius:999px;border:2.5px solid var(--ink)}
 .sv h1{position:relative;z-index:1;font-size:33px;font-weight:900;line-height:1.3;margin:14px 0 0;letter-spacing:-.01em}
 .sv h1 .hl{background:linear-gradient(transparent 62%,var(--mustard) 62%)}
@@ -98,13 +102,16 @@ html body{background:#F4E8CE}
 .sv .bd b{font-size:13.5px;font-weight:900;color:var(--ink);white-space:nowrap}
 /* 3大メリット（ヒーロー直下・大きく・一目で） */
 .sv .big3{display:flex;flex-direction:column;gap:11px;padding:16px 18px 0}
-.sv .big3 .b{display:flex;gap:13px;align-items:flex-start;background:var(--cream);border:2px solid #d8c3a0;border-radius:16px;padding:15px}
-.sv .big3 .b .ic{font-size:30px;line-height:1;flex:none}
+.sv .big3 .b{background:var(--cream);border:2.5px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--ink);padding:15px}
+.sv .big3 .b .no{font-family:'Baloo 2',cursive;font-size:13px;font-weight:800;color:var(--orange);letter-spacing:.06em;line-height:1.2}
 .sv .big3 .b .tt{font-size:16px;font-weight:900;line-height:1.35;margin:0}
 .sv .big3 .b .ds{font-size:12.5px;font-weight:700;color:#6b5a44;margin-top:4px;line-height:1.65}
 .sv .big3 .b .rev{display:inline-flex;align-items:center;gap:8px;margin-top:8px;background:var(--paper);border:2px solid var(--ink);border-radius:10px;padding:5px 9px}
-.sv .big3 .b .rev .st{color:var(--mustard);font-size:14px;letter-spacing:1px;-webkit-text-stroke:.5px var(--ink)}
 .sv .big3 .b .rev .lbl{font-size:11px;font-weight:900;color:var(--ink)}
+/* 実際のアプリ画面（見本データ）の切り抜き */
+.sv .shot{margin-top:12px;border:2.5px solid var(--ink);border-radius:14px;overflow:hidden;background:#fff;box-shadow:3px 3px 0 var(--ink)}
+.sv .shot img{display:block;width:100%;height:auto}
+.sv .shot .cap{font-size:10.5px;font-weight:800;color:#8a7256;background:var(--paper);border-top:2px solid var(--ink);padding:5px 10px}
 /* 公式コンペ 男女比の配慮（女性も安心） */
 .sv .comp{background:var(--cream);border:2px solid #d8c3a0;border-radius:20px;margin:16px 18px 0;padding:20px 18px}
 .sv .comp .pill{display:inline-block;background:var(--pink);color:#fff;border:2.5px solid var(--ink);border-radius:999px;font-weight:900;font-size:12px;padding:5px 13px;box-shadow:2px 2px 0 var(--ink)}
@@ -120,35 +127,13 @@ html body{background:#F4E8CE}
 .sv .comp .rbar .rf{background:var(--pink)}
 .sv .comp .note{display:flex;gap:9px;align-items:flex-start;background:var(--paper);border:2.5px dashed var(--ink);border-radius:14px;padding:12px 13px;font-size:12.5px;font-weight:700;margin-top:6px}
 
-/* ── 写真を「背景」として敷く ───────────────────────────────
-   画像を帯で挟むのではなく、セクションの下に敷いてその上に文字を置く。
-   ブランドの紙色・太枠は保ったまま、情景だけを足すのが狙い。
-   画像は自前のAI生成素材（他所から拾った写真は権利の問題があるので使わない）。 */
-
-/* ヒーロー：写真をそのまま見せる。
-   前の版は上端まで写真を伸ばしてヘッダーに顔が切られ、さらに紙色を濃くかけすぎて
-   「うっすら模様の入った紙」にしか見えなかった。ヘッダーの下から写真を始めて顔を
-   切らないようにし、上半分は写真をほぼ素のまま見せる。文字は半透明カード(.hcard)が守る。 */
-.sv .hero{position:relative;isolation:isolate}
-.sv .hero::before{content:"";position:absolute;left:0;right:0;top:0;height:452px;z-index:-2;
-  background:url('/lp/bg-hero.jpg') center 4% / cover no-repeat}
-.sv .hero::after{content:"";position:absolute;left:0;right:0;top:0;height:452px;z-index:-1;
-  background:linear-gradient(180deg,
-    rgba(244,232,206,.40) 0%,rgba(244,232,206,.06) 9%,rgba(244,232,206,0) 30%,
-    rgba(244,232,206,.18) 52%,rgba(244,232,206,.70) 76%,rgba(244,232,206,.95) 90%,var(--paper) 100%)}
-
-/* 写真の上に白抜きで載せるセクション（数字・最終CTA）。
-   暗いオーバーレイを重ねてコントラストを確保する。 */
-.sv .onphoto{position:relative;isolation:isolate;overflow:hidden}
-.sv .onphoto::before{content:"";position:absolute;inset:0;z-index:-2;background-size:cover;background-position:center}
-.sv .onphoto::after{content:"";position:absolute;inset:0;z-index:-1}
-.sv .bgnums::before{background-image:url('/lp/bg-nums.jpg')}
-.sv .bgnums::after{background:linear-gradient(180deg,rgba(30,45,38,.86),rgba(30,45,38,.74))}
-.sv .bgcta::before{background-image:url('/lp/bg-cta.jpg');background-position:center 20%}
-.sv .bgcta::before{filter:saturate(.9) contrast(1.06)}
-.sv .bgcta::after{background:linear-gradient(180deg,rgba(232,100,60,.94) 0%,rgba(232,100,60,.88) 38%,rgba(190,66,32,.62) 100%)}
-/* 公式コンペ：うっすら敷いて、白カードの背景に奥行きを出す */
-/* 公式コンペは写真を敷くと文字が読みづらく、薄めると汚れに見えたので敷かない */
+/* 数字・最終CTA：以前はAI生成の写真を敷いていたが、ほぼオーバーレイで埋もれて
+   見えていなかったうえ「作り物っぽさ」の元だったので単色にし、クマを添える。 */
+.sv .bgnums{position:relative;background:#24453A}
+.sv .nums .nbear{position:absolute;right:10px;top:8px;width:64px;height:auto;pointer-events:none}
+.sv .cta .bcw{width:150px;height:150px;margin:-4px auto 12px;border-radius:50%;background:#FCF6E0;
+  border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);display:grid;place-items:center;overflow:hidden}
+.sv .cta .bcw img{display:block;width:128px;height:auto;margin-top:8px}
 
 .sv .chap{display:flex;align-items:center;gap:12px;padding:0 22px;margin:52px 0 14px}
 .sv .chap .no{width:44px;height:44px;flex:none;background:var(--cream);border:2.5px solid var(--ink);border-radius:50%;
@@ -229,8 +214,8 @@ html body{background:#F4E8CE}
 /* 追従バー（fixedで中央480px幅・.sv::before と同じ方式。コンテンツは wrap の下余白で逃がす） */
 /* 数字で見るゴルトモ（実データ） */
 .sv .nums{margin:22px 0 0;padding:22px 16px 20px}
-.sv .nums.onphoto .nh{color:var(--cream)}
-.sv .nums.onphoto .nf{color:rgba(251,243,224,.75)}
+.sv .nums.bgnums .nh{color:var(--cream)}
+.sv .nums.bgnums .nf{color:rgba(251,243,224,.75)}
 .sv .nums .nh{font-size:15px;font-weight:900;text-align:center;margin-bottom:10px}
 .sv .nums .ng{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .sv .nums .nc:last-child:nth-child(odd){grid-column:1 / -1}
@@ -384,7 +369,6 @@ export default async function LandingPage() {
   const showProof = showOpen || showActive;
 
   // 「数字で見るゴルトモ」。母数が足りない項目は黙って落とす。
-  // 「数字で見るゴルトモ」。母数が足りない項目は黙って落とす。
   // まだ規模が小さいので、件数や人数より「質」（また回りたい率・満員率）を先に見せる。
   const numbers: Array<{ value: string; label: string; sub: string }> = [];
   if (stats.againRate != null && stats.againN >= 20) {
@@ -421,10 +405,10 @@ export default async function LandingPage() {
 
         {/* ヒーロー */}
         <header className="hero">
-          {/* 写真を見せるための帯（背景写真だけが見える） */}
-          <div className="phsp" aria-hidden="true" />
           <div className="hcard">
-            <span className="lb">⛳ 20〜30代限定・ゴルフ友達さがし</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="peek" src="/lp/bear-hook.webp" alt="" width={420} height={346} />
+            <span className="lb">20〜30代限定・ゴルフ友達さがし</span>
             <h1>一緒に回る<br /><span className="hl">ゴルフ友達</span>が<br />見つかる。</h1>
             <p>
               誘える人がいなくても大丈夫。<br />
@@ -433,33 +417,41 @@ export default async function LandingPage() {
           </div>
         </header>
 
-        {/* 3大メリット（一目で伝える） */}
+        {/* 3大メリット（一目で伝える）。絵文字アイコンの代わりに実際の画面（見本データ）を見せる */}
         <div className="big3">
           <div className="b">
-            <div className="ic">🛡️</div>
-            <div>
-              <h2 className="tt">初めましてでも、安心。</h2>
-              <div className="ds">ラウンド後の相互レビューで、その人が“変な人”じゃないかが★で見えます。マナーの良い人が可視化されるので、知らない人と回るのが不安でも大丈夫。</div>
-              {stats.againRate != null && stats.againN >= 20 && (
-                <div className="rev">
-                  <span className="st">★★★★★</span>
-                  <span className="lbl">また回りたい {stats.againRate}%（実際の評価{stats.againN}件）</span>
-                </div>
-              )}
+            <div className="no">01</div>
+            <h2 className="tt">初めましてでも、安心。</h2>
+            <div className="ds">ラウンド後に、同じ組の人を「また回りたいか」で評価し合います。選んだ内容は相手に伝わりません。</div>
+            {stats.againRate != null && stats.againN >= 20 && (
+              <div className="rev">
+                <span className="lbl">また回りたい {stats.againRate}%（実際の評価{stats.againN}件）</span>
+              </div>
+            )}
+            <div className="shot">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/lp/sc-review.webp" alt="ラウンド後のレビュー画面" width={520} height={270} loading="lazy" />
+              <div className="cap">ラウンド後のレビュー画面（見本データ）</div>
             </div>
           </div>
           <div className="b">
-            <div className="ic">⛳</div>
-            <div>
-              <h2 className="tt">募集も参加も、気軽に。</h2>
-              <div className="ds">コースが決まっていなくてもOK。一人参加でも1タップで申し込めます。「行きたいけど誘う人がいない」を無くします。</div>
+            <div className="no">02</div>
+            <h2 className="tt">募集も参加も、気軽に。</h2>
+            <div className="ds">日時・コース・費用の目安・男女の内訳が先に見えるので、知らない人の募集にも入りやすい。一人参加でもOK。</div>
+            <div className="shot">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/lp/sc-round.webp" alt="募集の詳細画面" width={520} height={390} loading="lazy" />
+              <div className="cap">募集の詳細画面（見本データ）</div>
             </div>
           </div>
           <div className="b">
-            <div className="ic">🚗</div>
-            <div>
-              <h2 className="tt">車がなくても、行ける。</h2>
-              <div className="ds">送迎（ピックアップ）の調整がアプリの中で完結。拾える駅を登録、参加者は申込時に希望を答えるだけ。LINEで何往復もしません。</div>
+            <div className="no">03</div>
+            <h2 className="tt">車がなくても、行ける。</h2>
+            <div className="ds">参加ボタンを押したあとに、送迎（ピックアップ）の希望を聞かれます。LINEで何往復もしません。</div>
+            <div className="shot">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/lp/sc-join.webp" alt="募集への参加ボタン" width={520} height={230} loading="lazy" />
+              <div className="cap">参加ボタンまわり（見本データ）</div>
             </div>
           </div>
         </div>
@@ -467,14 +459,14 @@ export default async function LandingPage() {
         {/* 上部CTA（ファーストビューで登録に進めるように） */}
         <div className="cta2">
           {/* A：現行（LINE登録が主役） */}
-          <StartButton className="p v-a" lp="cta_top">⛳ 一緒に回る人を探す（無料）</StartButton>
-          <a className="s v-a" href={`${APP}/links/rounds`} data-lp="rounds_top">👀 まず募集を見てみる（登録不要）</a>
+          <StartButton className="p v-a" lp="cta_top">一緒に回る人を探す（無料）</StartButton>
+          <a className="s v-a" href={`${APP}/links/rounds`} data-lp="rounds_top">まず募集を見てみる（登録不要）</a>
           {/* B：まず中身を見せる（登録不要の募集一覧が主役） */}
           <a className="p v-b" href={`${APP}/links/rounds`} data-lp="rounds_top_b">
-            ⛳ 募集を見てみる{totalRounds > 0 ? `（これまで${totalRounds}件）` : ''}
+            募集を見てみる{totalRounds > 0 ? `（これまで${totalRounds}件）` : ''}
           </a>
           <div className="mc v-b">登録なしで見られます</div>
-          <StartButton className="s v-b" lp="cta_top_b">💬 LINEで参加する（無料）</StartButton>
+          <StartButton className="s v-b" lp="cta_top_b">LINEで参加する（無料）</StartButton>
           <div className="mc v-a">押すとLINEのログイン画面が開きます ・ 約30秒 ・ アプリDL不要</div>
         </div>
 
@@ -488,7 +480,9 @@ export default async function LandingPage() {
 
         {/* 数字（すべて実データ。母数が少ない項目は出さない） */}
         {numbers.length > 0 && (
-          <section className="nums onphoto bgnums">
+          <section className="nums bgnums">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="nbear" src="/lp/bear-hook.webp" alt="" width={420} height={346} loading="lazy" />
             <h2 className="nh">数字で見るゴルトモ</h2>
             <div className="ng">
               {numbers.map((n) => (
@@ -529,13 +523,19 @@ export default async function LandingPage() {
         </div>
 
         {/* CTA */}
-        <div className="cta onphoto bgcta">
+        <div className="cta">
+          <div className="bcw">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/lp/bear-chick.webp" alt="" width={360} height={353} loading="lazy" />
+          </div>
           <h2>ゴルフ友達を<br />見つけにいく</h2>
           <p className="v-a">ここまで読んでくれたあなたへ。<br />合わなければ、使うのをやめるだけで大丈夫です。</p>
           <p className="v-b">気になる募集があれば、その場で参加できます。<br />登録は無料・30秒。</p>
           <StartButton className="btn v-a" lp="cta_final">まずは登録してみる →</StartButton>
           <a className="btn v-b" href={`${APP}/links/rounds`} data-lp="rounds_final_b">募集を見てみる →</a>
-          <span className="sub">押すとLINEのログイン画面へ ・ 無料 ・ 退会はいつでも</span>
+          {/* B はボタンが「募集を見てみる」なので、LINEログインの案内を出すと食い違う */}
+          <div className="sub v-a">押すとLINEのログイン画面へ ・ 無料 ・ 退会はいつでも</div>
+          <div className="sub v-b">登録なしで見られます ・ 参加するときだけLINEで登録（無料）</div>
         </div>
 
         <div className="quiz">
@@ -567,9 +567,7 @@ export default async function LandingPage() {
         </footer>
 
         {/* 追従CTAバー（スクロール中も常に登録に進める） */}
-        <div className="bar">
-        <div className="bar"><StartButton className="b2" lp="cta_bar">⛳ 無料ではじめる</StartButton></div>
-        </div>
+        <div className="bar"><StartButton className="b2" lp="cta_bar">無料ではじめる</StartButton></div>
       </div>
     </div>
   );
