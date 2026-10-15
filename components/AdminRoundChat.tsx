@@ -28,7 +28,10 @@ const TEMPLATES: Array<{ key: string; label: string; body: string }> = [
   { key: 'meet', label: '🚗 集合・乗り合い', body: '集合場所・時間のご案内です。\n〇〇駅 〇:〇〇集合 → 乗り合いでコースへ向かいます。\n車を出せる方は教えてください🙏' },
   { key: 'deadline', label: '⏰ 返信のお願い', body: 'コース予約の都合で、〇/〇（〇）までに参加できるかどうかを返信してください🙏' },
   { key: 'confirm', label: '✅ 決定のお知らせ', body: '{日付}のラウンドが決まりました🎉\n詳細は募集ページに載せています。当日よろしくお願いします！' },
+  { key: 'typing', label: '💬 〇〇さんがチャット中', body: '{メンション}さんがチャットを打っています💬\n行ける方は返信をお願いします🙏' },
 ];
+// {メンション} は、上の「メンション」で押した人の @名前 がそこに入る（押すまでは〇〇のまま・2026-10-15）
+const MENTION_SLOT = '{メンション}';
 
 export function AdminRoundChat({ token, roundId, defaultOpen = false, label = '💬 ラウンドメッセージを見る' }: { token: string; roundId: string; defaultOpen?: boolean; label?: string }) {
   const [msgs, setMsgs] = useState<any[] | null>(null);
@@ -66,13 +69,19 @@ export function AdminRoundChat({ token, roundId, defaultOpen = false, label = '�
     } catch { alertDialog('削除に失敗しました'); }
   }
 
+  // 本文に {メンション} があるとき（「〇〇さんがチャット中」など）は、押した人の @名前 をその場所に入れる。
+  // そのときは @全員 と人の名前を一緒に選べる（@全員 は先頭の行に付く）。
+  const slotMode = body.includes(MENTION_SLOT);
+  const pickedNames = members.filter((m) => mentions.includes(m.id) && m.displayName).map((m) => `@${m.displayName}`);
   const mentionLine = mentions.includes('all')
     ? '@全員'
-    : members.filter((m) => mentions.includes(m.id) && m.displayName).map((m) => `@${m.displayName}`).join(' ');
-  const finalText = [mentionLine, body.trim()].filter(Boolean).join('\n');
+    : slotMode ? '' : pickedNames.join(' ');
+  const bodyText = slotMode ? body.split(MENTION_SLOT).join(pickedNames.length ? pickedNames.join('さん・') : '〇〇') : body;
+  const finalText = [mentionLine, bodyText.trim()].filter(Boolean).join('\n');
 
   function toggleMention(id: string) {
     setMentions((prev) => {
+      if (slotMode) return prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
       if (id === 'all') return prev.includes('all') ? [] : ['all'];
       const base = prev.filter((x) => x !== 'all');
       return base.includes(id) ? base.filter((x) => x !== id) : [...base, id];
@@ -90,6 +99,7 @@ export function AdminRoundChat({ token, roundId, defaultOpen = false, label = '�
 
   async function send() {
     if (!finalText || sending) return;
+    if (slotMode && !pickedNames.length) { alertDialog('「〇〇さん」に入れる人を、上のメンションから選んでください'); return; }
     if (!(await confirmDialog(`管理人としてこのグループチャットに送りますか？（参加者に通知が届きます）\n\n${finalText}`))) return;
     setSending(true);
     try {
@@ -176,7 +186,7 @@ export function AdminRoundChat({ token, roundId, defaultOpen = false, label = '�
           <div className="mt-1 bg-card border border-border rounded-lg p-2">
             <div className="text-[11px] font-black mb-1">🛡️ 管理人として送る</div>
 
-            <div className="text-[10px] font-bold text-sub mb-1">メンション（この部屋の人だけ）</div>
+            <div className="text-[10px] font-bold text-sub mb-1">メンション（この部屋の人だけ）{slotMode && <span className="text-blue">　← 押した人の名前が本文の「〇〇さん」に入ります（@全員 も一緒に選べます）</span>}</div>
             <div className="flex flex-wrap gap-1 mb-2">
               <button type="button" onClick={() => toggleMention('all')} className={chip(mentions.includes('all'))}>@全員</button>
               {members.map((m) => (

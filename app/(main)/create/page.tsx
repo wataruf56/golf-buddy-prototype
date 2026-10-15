@@ -853,12 +853,13 @@ export default function CreatePage() {
             <div className="mb-4 text-[10px] text-muted font-medium">定員は自分を含めた人数。空欄なら定員なし。締切はその日まで申し込めます。</div>
 
             <VisibilityCard visibility={visibility} onVisibility={setVisibility} inviteIds={inviteIds} onInviteIds={setInviteIds} accent="purple" />
+          </div>
 
-            {/* 共同主催者（任意・2026-10-15）。主催者と同じ権限（編集・日程の決定・集計）＋自分の都合も答えられる */}
-            <div className="mt-4">
-              <label className="block text-xs font-bold text-sub mb-1.5">🤝 共同主催者 <span className="text-muted font-medium">（任意・何人でも）</span></label>
-              <CoHostPicker selected={coHostIds} onToggle={(id, on) => setCoHostIds((prev) => on ? Array.from(new Set([...prev, id])) : prev.filter((x) => x !== id))} />
-            </div>
+          {/* 共同主催者（任意・2026-10-15）。見落とされないよう公開範囲の下から独立したカードに。
+              主催者と同じ権限（編集・日程の決定・集計）＋自分の都合も答えられる */}
+          <div className="bg-card rounded-card p-5 shadow-card mb-4">
+            <div className="text-[13px] font-black mb-2.5">🤝 共同主催者 <span className="text-[11px] text-muted font-bold">（任意・何人でも）</span></div>
+            <CoHostPicker selected={coHostIds} onToggle={(id, on) => setCoHostIds((prev) => on ? Array.from(new Set([...prev, id])) : prev.filter((x) => x !== id))} />
           </div>
 
           <div className="bg-card rounded-card p-5 shadow-card mb-4">
