@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { allAreas } from '@/lib/mockData';
 import { PickupStationPicker } from '@/components/PickupStationPicker';
@@ -193,8 +193,16 @@ export default function EditRoundPage() {
   }, [params.id, storeRound, round]);
 
   // Initialise the form once the round is known.
+  // 入力欄に入れるのは**最初の1回だけ**（2026-10-15）。以前は round が変わるたびに入れ直していて、裏でデータを
+  // 読み直したとき（アプリに戻った・画面を移った・共同管理者を足した等）に、保存前の入力（知り合いの名前など）が消えていた。
+  // 主催者の性別（人数の内訳に使う）があとから読めたときだけ、もう一度入れる。
+  const formInitKey = useRef('');
   useEffect(() => {
     if (!round) return;
+    const key = `${round.id}|${me?.gender || ''}`;
+    if (formInitKey.current === key) return;
+    if (formInitKey.current.startsWith(`${round.id}|`) && formInitKey.current !== `${round.id}|`) return;   // 一度性別つきで入れたら、もう入れ直さない
+    formInitKey.current = key;
     setTitle(round.title || '');
     setCourseName(round.courseName || '');
     setDate(round.date || '');
