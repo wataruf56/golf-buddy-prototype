@@ -10,7 +10,8 @@ import type { EventAnswer, EventRsvp } from '@/lib/types';
 //   yes   … 参加確定（承認なし・applicantIds に入る＝グループチャットにも入れる）。定員・締切を見る
 //   maybe … 未定（参加者には入れない。参加していたら外す）
 //   no    … 行けない（参加していたら外す。招待されていたら「行けない」として主催者に伝わる）
-// 主催者・共同管理者は答えなくてよい（いつも参加）。非公開の招待は、招待された人だけ。
+// 主催者・共同主催者（共同管理者）は出欠を選ばない（いつも参加）が、候補日の◯△✕と質問には答えられる（集計に入る・2026-10-15）。
+// 非公開の招待は、招待された人だけ。
 const noStore = { 'Cache-Control': 'no-store' };
 const todayJst = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 
@@ -24,16 +25,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   { const { privateRoundGuard } = await import('@/lib/roundAccessServer'); const g = privateRoundGuard(round, meId); if (g) return g; }
   const { isEventRound } = await import('@/lib/eventRound');
   if (!isEventRound(round)) return NextResponse.json({ error: 'not_event' }, { status: 400, headers: noStore });
-  if (isRoundHost(round, meId)) return NextResponse.json({ error: 'host', message: '主催者はいつも参加です' }, { status: 400, headers: noStore });
+  const asHost = isRoundHost(round, meId);
   if (round.status !== 'open') return NextResponse.json({ error: 'closed', message: 'このイベントは受付を終えています' }, { status: 409, headers: noStore });
 
   let body: any = {};
   try { body = (await req.json()) || {}; } catch { /* noop */ }
-  const status = (['yes', 'maybe', 'no'].includes(body.status) ? body.status : '') as EventRsvp;
+  const status = (asHost ? 'yes' : ['yes', 'maybe', 'no'].includes(body.status) ? body.status : '') as EventRsvp;
   if (!status) return NextResponse.json({ error: 'bad_request', message: '出欠を選んでください' }, { status: 400, headers: noStore });
 
   const me = await db.getUser(meId);
-  const wasIn = (round.applicantIds || []).includes(meId);
+  const wasIn = asHost || (round.applicantIds || []).includes(meId);
   if (status === 'yes' && !wasIn) {
     if (!isMatchingAllowedByAge(me?.age)) return NextResponse.json({ error: 'age_restricted', message: '20〜30代の方のみご利用いただけます' }, { status: 403, headers: noStore });
     if (!round.hostCohort || getCohort(me?.age) !== round.hostCohort) return NextResponse.json({ error: 'cohort_mismatch', message: '別の年齢帯のイベントには参加できません' }, { status: 403, headers: noStore });
@@ -57,17 +58,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       const arr = (Array.isArray(v) ? v : v != null ? [v] : []).map(String).filter((x: string) => (q.options || []).includes(x));
       const pick = q.multi ? Array.from(new Set(arr)) : arr.slice(0, 1);
       if (pick.length) answers[q.id] = pick;
-      else if (q.required && status !== 'no') return NextResponse.json({ error: 'required', message: `「${q.text}」に答えてください` }, { status: 400, headers: noStore });
+      else if (q.required && status !== 'no' && !asHost) return NextResponse.json({ error: 'required', message: `「${q.text}」に答えてください` }, { status: 400, headers: noStore });
     } else {
       const t = String(v ?? '').trim().slice(0, 300);
       if (t) answers[q.id] = t;
-      else if (q.required && status !== 'no') return NextResponse.json({ error: 'required', message: `「${q.text}」に答えてください` }, { status: 400, headers: noStore });
+      else if (q.required && status !== 'no' && !asHost) return NextResponse.json({ error: 'required', message: `「${q.text}」に答えてください` }, { status: 400, headers: noStore });
     }
   }
   const entry: EventAnswer = { status, at: Date.now(), ...(Object.keys(dates).length ? { dates } : {}), ...(Object.keys(answers).length ? { answers } : {}) };
 
   // 出欠の反映
-  if (status === 'yes' && !wasIn) await db.acceptInvite(params.id, meId);          // 承認なしで参加確定（招待中なら招待は消える）
+  if (status === 'yes' && !wasIn) await db.acceptInvite(params.id, meId);   // 主催者は wasIn=true なので触らない          // 承認なしで参加確定（招待中なら招待は消える）
   if (status !== 'yes' && wasIn) await db.leaveRound(params.id, meId);
   if (status === 'no' && (round.invitedIds || []).includes(meId)) await db.declineInvite(params.id, meId);
   // 回答は丸ごと置き換える（merge だと前の回答の質問・候補が残るため、本人のキーごと書き直す）
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   // 主催者へ：参加する／行けなくなった（未定・答え直しでは知らせない）
   const prev = (round.eventAnswers || {})[meId]?.status;
-  if ((status === 'yes' && !wasIn) || (status === 'no' && prev !== 'no' && (wasIn || prev))) {
+  if (!asHost && ((status === 'yes' && !wasIn) || (status === 'no' && prev !== 'no' && (wasIn || prev)))) {
     try {
       const name = me?.displayName || 'メンバー';
       const link = `/round/${params.id}`;

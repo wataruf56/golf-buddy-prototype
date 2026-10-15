@@ -10,6 +10,7 @@ import type { Round, EventKind, EventQuestion, PayMethod } from '@/lib/types';
 import { EVENT_KINDS, PAY_METHODS, EVENT_TITLE_PRESETS, eventKindMeta } from '@/lib/eventRound';
 import { EventQuestionEditor } from '@/components/EventQuestionEditor';
 import { MultiDatePicker } from '@/components/MultiDatePicker';
+import { CoHostPicker } from '@/components/CoHostPicker';
 import { NumberInput } from '@/components/NumberInput';
 import { store } from '@/lib/store';
 import { toast } from '@/components/Toast';
@@ -38,6 +39,25 @@ export function EventEditForm({ round }: { round: Round }) {
   const pending = !!round.eventDatePending && initOpts.length >= 2;
 
   const [eventKind, setEventKind] = useState<EventKind>(initKind);
+  // 共同主催者（押すとすぐ反映・2026-10-15）
+  const [coHostIds, setCoHostIds] = useState<string[]>(round.coHostIds || []);
+  const [coBusy, setCoBusy] = useState(false);
+  async function toggleCoHost(userId: string, on: boolean) {
+    if (coBusy) return;
+    setCoBusy(true);
+    try {
+      const res = await fetch(`/api/rounds/${encodeURIComponent(round.id)}/cohosts`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, on }), cache: 'no-store', credentials: 'include',
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { toast(d?.message || '操作に失敗しました', 'error'); return; }
+      setCoHostIds((d?.round?.coHostIds as string[]) || (on ? Array.from(new Set([...coHostIds, userId])) : coHostIds.filter((x) => x !== userId)));
+      store.refreshRounds().catch(() => {});
+      toast(on ? '共同主催者を追加しました' : '共同主催者を外しました');
+    } catch { toast('操作に失敗しました', 'error'); }
+    finally { setCoBusy(false); }
+  }
   const [title, setTitle] = useState(round.title || '');
   const [titleFree, setTitleFree] = useState(false);
   const [eventDateMode, setEventDateMode] = useState<'fixed' | 'candidates'>(pending ? 'candidates' : 'fixed');
@@ -348,6 +368,12 @@ export function EventEditForm({ round }: { round: Round }) {
           <div className="text-[10px] text-muted font-medium">
             定員は自分を含めた人数。空欄なら定員なし。締切はその日まで申し込めます。{joined > 1 ? `いま${joined}人が参加中なので、定員はそれ以上にしてください。` : ''}
           </div>
+        </div>
+
+        {/* 共同主催者（2026-10-15）。ここで押すとすぐ追加／解除（POST /api/rounds/[id]/cohosts・主催者と共同主催者が操作できる） */}
+        <div className="bg-card rounded-card p-5 shadow-card mb-4">
+          <div className="text-[13px] font-black mb-1">🤝 共同主催者</div>
+          <CoHostPicker selected={coHostIds.filter((x) => x !== round.hostId)} busy={coBusy} onToggle={toggleCoHost} nameOf={(id) => store.get().users.find((u) => u.id === id)?.displayName} />
         </div>
 
         <div className="bg-card rounded-card p-5 shadow-card mb-4">

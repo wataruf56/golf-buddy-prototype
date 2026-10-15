@@ -65,7 +65,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     try {
       const host = await db.getUser(round.hostId);
       const hostName = host?.displayName || '主催者';
-      await addNotification(userId, 'invited', `「${round.title}」の共同管理者になりました（${hostName}さんと同じ管理権限で編集・承認などができます）`, `/round/${params.id}`);
+      const isEv = round.eventType === 'drink' && !!(round as any).eventKind;   // イベントは「共同主催者」と呼ぶ（2026-10-15）
+      await addNotification(userId, 'invited', isEv
+        ? `「${round.title}」の共同主催者になりました（${hostName}さんと同じく、中身の編集・日程の決定・集計ができます）`
+        : `「${round.title}」の共同管理者になりました（${hostName}さんと同じ管理権限で編集・承認などができます）`, `/round/${params.id}`);
     } catch { /* 通知失敗は本処理を妨げない */ }
   } else {
     patch.coHostIds = coHostIds.filter((x) => x !== userId);

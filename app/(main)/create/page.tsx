@@ -14,6 +14,7 @@ import { track } from '@/lib/telemetry';
 import type { Round, RoundType, DateType, EventKind, EventQuestion, PayMethod, RoundVisibility } from '@/lib/types';
 import { EVENT_KINDS, eventKindMeta, PAY_METHODS, EVENT_TITLE_PRESETS, presetQuestions } from '@/lib/eventRound';
 import { VisibilityCard } from '@/components/InvitePicker';
+import { CoHostPicker } from '@/components/CoHostPicker';
 import { EventQuestionEditor } from '@/components/EventQuestionEditor';
 import { chatIdFor, cn } from '@/lib/utils';
 import { ADMIN_MANAGER_ID } from '@/lib/adminManagerId';
@@ -362,6 +363,7 @@ export default function CreatePage() {
       visibility: visibility === 'invite' ? 'invite' as const : undefined,
       inviteIds: visibility === 'invite' ? inviteIds : undefined,
       asOfficial: isAdmin ? postAsOfficial : undefined,
+      coHostIds: coHostIds.length ? coHostIds : undefined,   // 共同主催者（2026-10-15）
     };
     track('round_create_click', { ...payload, isEvent: true });
     try {
@@ -851,6 +853,12 @@ export default function CreatePage() {
             <div className="mb-4 text-[10px] text-muted font-medium">定員は自分を含めた人数。空欄なら定員なし。締切はその日まで申し込めます。</div>
 
             <VisibilityCard visibility={visibility} onVisibility={setVisibility} inviteIds={inviteIds} onInviteIds={setInviteIds} accent="purple" />
+
+            {/* 共同主催者（任意・2026-10-15）。主催者と同じ権限（編集・日程の決定・集計）＋自分の都合も答えられる */}
+            <div className="mt-4">
+              <label className="block text-xs font-bold text-sub mb-1.5">🤝 共同主催者 <span className="text-muted font-medium">（任意・何人でも）</span></label>
+              <CoHostPicker selected={coHostIds} onToggle={(id, on) => setCoHostIds((prev) => on ? Array.from(new Set([...prev, id])) : prev.filter((x) => x !== id))} />
+            </div>
           </div>
 
           <div className="bg-card rounded-card p-5 shadow-card mb-4">

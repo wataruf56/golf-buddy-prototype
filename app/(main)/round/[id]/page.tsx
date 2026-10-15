@@ -1567,7 +1567,7 @@ export default function RoundDetailPage() {
                 <Link href={`/profile/${h.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
                   <Avatar user={h} size={44} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-bold truncate flex items-center gap-1.5">{h.displayName}{idx > 0 && <span className="text-[10px] text-green font-bold flex-shrink-0">🤝 共同管理者</span>}</div>
+                    <div className="text-sm font-bold truncate flex items-center gap-1.5">{h.displayName}{idx > 0 && <span className="text-[10px] text-green font-bold flex-shrink-0">🤝 {isEventRound(round) ? '共同主催者' : '共同管理者'}</span>}</div>
                     <div className="text-[11px] text-sub truncate">{describeUser(h)}{ratingText(h.id, true) ? ' ・ ' + ratingText(h.id, true) : ''}{h.scoreRange ? ' ・ ' + h.scoreRange : ''}</div>
                     <MemberCounts s={roundStats[h.id]} />
                   </div>

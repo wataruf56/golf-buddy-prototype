@@ -33,6 +33,12 @@ export function EventPanel({ round, meId, isHost, users, onRoundChange }: {
 }) {
   return (
     <div id="event-panel" className="mb-4 rounded-card p-3.5" style={{ background: '#FBFAFF', border: `2px solid ${P}` }}>
+      {/* 主催者・共同主催者も、候補日の◯△✕と質問に自分で答えられる（集計に入る・2026-10-15）。出欠は「参加」のまま */}
+      {isHost && ((round.eventDatePending && (round.eventDateOptions || []).length > 0) || (round.eventQuestions || []).length > 0) && (
+        <div className="mb-3.5 pb-3.5" style={{ borderBottom: '1.5px dashed #DDD5F5' }}>
+          <AnswerForm round={round} meId={meId} onRoundChange={onRoundChange} asHost />
+        </div>
+      )}
       {isHost
         ? <HostBoard round={round} users={users} onRoundChange={onRoundChange} />
         : <AnswerForm round={round} meId={meId} onRoundChange={onRoundChange} />}
@@ -41,17 +47,18 @@ export function EventPanel({ round, meId, isHost, users, onRoundChange }: {
 }
 
 // ───────────── 参加する人：出欠＋回答 ─────────────
-function AnswerForm({ round, meId, onRoundChange }: { round: Round; meId: string; onRoundChange: (r: Round) => void }) {
+// asHost＝主催者・共同主催者が自分の都合を答える（出欠は選ばない＝いつも「参加」）（2026-10-15）
+function AnswerForm({ round, meId, onRoundChange, asHost = false }: { round: Round; meId: string; onRoundChange: (r: Round) => void; asHost?: boolean }) {
   const mine: EventAnswer | undefined = meId ? (round.eventAnswers || {})[meId] : undefined;
   const [editing, setEditing] = useState(!mine);
-  const [status, setStatus] = useState<EventRsvp | ''>(mine?.status || '');
+  const [status, setStatus] = useState<EventRsvp | ''>(asHost ? 'yes' : (mine?.status || ''));
   const [dates, setDates] = useState<Record<string, 'ok' | 'maybe' | 'no'>>(mine?.dates || {});
   const [answers, setAnswers] = useState<Record<string, string[] | string>>(mine?.answers || {});
   const [busy, setBusy] = useState(false);
   // 回答が届き直したら（別の端末で答えた・送った直後など）入れ直す
   useEffect(() => {
     if (!mine) return;
-    setStatus(mine.status); setDates(mine.dates || {}); setAnswers(mine.answers || {});
+    setStatus(asHost ? 'yes' : mine.status); setDates(mine.dates || {}); setAnswers(mine.answers || {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [round.id, mine?.at]);
 
@@ -70,7 +77,7 @@ function AnswerForm({ round, meId, onRoundChange }: { round: Round; meId: string
   const deadlinePassed = !!round.eventDeadline && todayJst() > round.eventDeadline;
   const hasCap = (round.maxSpots || 99) < 99;
   const full = hasCap && round.currentCount >= round.maxSpots;
-  const yesBlocked = !isIn && (deadlinePassed || full);
+  const yesBlocked = !asHost && !isIn && (deadlinePassed || full);
   const pending = !!round.eventDatePending && (round.eventDateOptions || []).length > 0;
   const questions = round.eventQuestions || [];
 
@@ -78,10 +85,10 @@ function AnswerForm({ round, meId, onRoundChange }: { round: Round; meId: string
   if (mine && !editing) {
     return (
       <div>
-        <div className="text-[14px] font-black mb-2" style={{ color: P }}>✋ 出欠と回答</div>
+        <div className="text-[14px] font-black mb-2" style={{ color: P }}>{asHost ? '🙋 あなた（主催者）の都合' : '✋ 出欠と回答'}</div>
         <div className="rounded-xl p-3" style={{ background: PL }}>
           <div className="text-[14px] font-black">
-            あなたの回答：<span style={{ color: P }}>{RSVP_LABEL[mine.status]}</span>
+            {asHost ? <>あなたの回答</> : <>あなたの回答：<span style={{ color: P }}>{RSVP_LABEL[mine.status]}</span></>}
             <span className="text-[11px] text-sub font-bold ml-1">（{fmtAt(mine.at)}）</span>
           </div>
           {pending && Object.keys(mine.dates || {}).length > 0 && (
@@ -92,7 +99,7 @@ function AnswerForm({ round, meId, onRoundChange }: { round: Round; meId: string
           {mine.status !== 'no' && questions.filter((q) => ansText(mine.answers?.[q.id])).map((q) => (
             <div key={q.id} className="text-[12px] text-sub mt-1 leading-relaxed">{q.text}：<b className="text-text">{ansText(mine.answers?.[q.id])}</b></div>
           ))}
-          {mine.status === 'yes' && <div className="text-[11.5px] font-bold text-green mt-1.5">✅ 参加が確定しています（グループチャットも使えます）</div>}
+          {mine.status === 'yes' && !asHost && <div className="text-[11.5px] font-bold text-green mt-1.5">✅ 参加が確定しています（グループチャットも使えます）</div>}
         </div>
         {!closed ? (
           <button onClick={() => setEditing(true)} className="w-full mt-2.5 py-2.5 rounded-xl text-[13px] font-black bg-card" style={{ color: P, border: `1.5px solid ${P}` }}>
@@ -133,9 +140,9 @@ function AnswerForm({ round, meId, onRoundChange }: { round: Round; meId: string
       if (!res.ok) { toast(await readApiError(res, '回答を送れませんでした'), 'error'); return; }
       const j = await res.json().catch(() => ({}));
       if (j?.round) onRoundChange(j.round as Round);
-      track('event_rsvp', { roundId: round.id, status, kind: round.eventKind || '' });
+      track('event_rsvp', { roundId: round.id, status, kind: round.eventKind || '', host: asHost });
       setEditing(false);
-      toast(status === 'yes' ? '「参加する」で回答しました🎉' : status === 'maybe' ? '「未定」で回答しました' : '「行けない」で回答しました');
+      toast(asHost ? 'あなたの都合を集計に入れました' : status === 'yes' ? '「参加する」で回答しました🎉' : status === 'maybe' ? '「未定」で回答しました' : '「行けない」で回答しました');
     } catch { toast('回答を送れませんでした', 'error'); }
     finally { setBusy(false); }
   }
@@ -153,13 +160,22 @@ function AnswerForm({ round, meId, onRoundChange }: { round: Round; meId: string
 
   return (
     <div>
-      <div className="text-[14px] font-black mb-0.5" style={{ color: P }}>✋ 出欠を教えてください</div>
-      <div className="text-[11px] text-sub mb-2.5 leading-relaxed">「参加する」で、そのまま参加確定です（主催者の承認はいりません）。回答はあとから直せます。</div>
-      <div className="flex gap-1.5">
-        {segBtn('yes', '参加する', yesBlocked)}
-        {segBtn('maybe', '未定')}
-        {segBtn('no', '行けない')}
-      </div>
+      {asHost ? (
+        <>
+          <div className="text-[14px] font-black mb-0.5" style={{ color: P }}>🙋 あなた（主催者）の都合</div>
+          <div className="text-[11px] text-sub mb-1 leading-relaxed">主催者・共同主催者も、みんなと同じように候補日と質問に答えられます（下の集計に入ります）。</div>
+        </>
+      ) : (
+        <>
+          <div className="text-[14px] font-black mb-0.5" style={{ color: P }}>✋ 出欠を教えてください</div>
+          <div className="text-[11px] text-sub mb-2.5 leading-relaxed">「参加する」で、そのまま参加確定です（主催者の承認はいりません）。回答はあとから直せます。</div>
+          <div className="flex gap-1.5">
+            {segBtn('yes', '参加する', yesBlocked)}
+            {segBtn('maybe', '未定')}
+            {segBtn('no', '行けない')}
+          </div>
+        </>
+      )}
       {yesBlocked && (
         <div className="text-[11px] font-bold text-orange mt-1.5">⚠️ {deadlinePassed ? '申込の締切を過ぎたため、「参加する」は選べません' : '定員に達したため、「参加する」は選べません'}</div>
       )}
@@ -227,7 +243,7 @@ function AnswerForm({ round, meId, onRoundChange }: { round: Round; meId: string
         {busy ? '送信中…' : 'この内容で回答する'}
       </button>
       {mine && (
-        <button onClick={() => { setEditing(false); setStatus(mine.status); setDates(mine.dates || {}); setAnswers(mine.answers || {}); }}
+        <button onClick={() => { setEditing(false); setStatus(asHost ? 'yes' : mine.status); setDates(mine.dates || {}); setAnswers(mine.answers || {}); }}
           className="w-full mt-2 py-2 text-[12px] font-bold text-muted">直すのをやめる</button>
       )}
     </div>
@@ -278,7 +294,7 @@ function HostBoard({ round, users, onRoundChange }: { round: Round; users: User[
   const rows = useMemo(() => {
     const out: { id: string; status: RowStatus; a?: EventAnswer }[] = [];
     const seen = new Set<string>();
-    for (const id of hostIds) { if (!seen.has(id)) { seen.add(id); out.push({ id, status: 'host' }); } }
+    for (const id of hostIds) { if (!seen.has(id)) { seen.add(id); out.push({ id, status: 'host', a: answers[id] }); } }   // 主催者も答えていれば一覧に出す（2026-10-15）
     for (const [id, a] of Object.entries(answers)) { if (a && !seen.has(id)) { seen.add(id); out.push({ id, status: a.status, a }); } }
     for (const id of round.applicantIds || []) { if (!seen.has(id)) { seen.add(id); out.push({ id, status: 'yes' }); } }
     for (const id of unansweredIds) { if (!seen.has(id)) { seen.add(id); out.push({ id, status: 'none' }); } }
