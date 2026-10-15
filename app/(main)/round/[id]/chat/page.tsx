@@ -577,6 +577,15 @@ export default function RoundChatPage() {
           <div className="text-[12px] font-bold text-sub">🚫 チャットの利用が制限されています</div>
           <div className="text-[11px] text-muted mt-0.5">メッセージの閲覧のみ可能です。</div>
         </div>
+      ) : (loaded && !activeThread && !!meId && !!((fetchedRound || round) as any)?.availDate
+          && !(((fetchedRound || round) as any)?.roomIntroDone || {})[meId] && !messages.some((m) => m.senderId === meId)) ? (
+        /* 行ける日の部屋：あいさつ（方面・予算・車）をしてから話す（2026-10-15）。「あとで」で閉じた人にはここから開き直してもらう */
+        <div className="px-4 py-4 pb-7 bg-card border-t border-border flex-shrink-0 text-center">
+          <div className="text-[12.5px] font-black">👋 まず、あいさつしてから話せます</div>
+          <div className="text-[11px] text-sub mt-0.5">行きたい方面・予算・車を選ぶと、いまいる人みんなに届きます</div>
+          <button type="button" onClick={() => setIntroClosed(false)}
+            className="mt-2.5 w-full py-3 bg-orange text-white rounded-xl font-black text-[14px] border-2 border-border">あいさつする</button>
+        </div>
       ) : (
       /* Composer */
       <div className="flex gap-2 px-4 py-3 pb-7 bg-card border-t border-border flex-shrink-0">

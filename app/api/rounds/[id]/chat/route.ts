@@ -70,6 +70,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     ? reqBody.imageUrl.slice(0, 1500000) : undefined;
   const trimmed = text ? String(text).trim() : '';
   if (!trimmed && !imageUrl) return NextResponse.json({ error: 'empty' }, { status: 400, headers: noStore });
+  // 行ける日の部屋は、あいさつ（方面・予算・車・/api/rounds/[id]/room-intro）をしてから話す（2026-10-15 本人判断）。
+  // この仕組みより前から話していた人（自分の発言がすでにある人）はそのまま話せる。
+  if ((round as any).availDate && !((round as any).roomIntroDone || {})[meId]) {
+    let spoke = false;
+    try {
+      const { getAdminDb } = await import('@/lib/firebase');
+      const adb = getAdminDb() as any;
+      if (adb) spoke = !(await adb.collection('rounds').doc(params.id).collection('chat').where('senderId', '==', meId).limit(1).get()).empty;
+      else spoke = true;
+    } catch { spoke = true; }   // 判定できなければ止めない
+    if (!spoke) return NextResponse.json({ error: 'intro_required', message: 'まず、行きたい方面・予算・車を選んであいさつしてください' }, { status: 403, headers: noStore });
+  }
   const message = await db.addRoundMessage(params.id, meId, trimmed, threadId, imageUrl);
   // 参加者への通知（メンション／ふつうのチャット）。管理画面からの発言と共通（lib/roundChatNotify）
   // 非公開の質問スレッドなら、そのスレッドの人（主催者⇄質問した人）だけに届く

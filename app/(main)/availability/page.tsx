@@ -318,7 +318,8 @@ export default function AvailabilityPage() {
         <RoomIntroSheet roomId={introFor.roomId} dateLabel={`${dateLabel(introFor.date).md}（${dateLabel(introFor.date).w}）`}
           onDone={(sent) => {
             const rid = introFor.roomId; setIntroFor(null);
-            setData((cur) => (cur && cur.rooms ? { ...cur, rooms: Object.fromEntries(Object.entries(cur.rooms).map(([k, v]: [string, any]) => [k, v.id === rid ? { ...v, introDone: true } : v])) } : cur));
+            // あいさつを送ったときだけ「済み」にする（「あとで」なら、また聞く・2026-10-15）
+            if (sent) setData((cur) => (cur && cur.rooms ? { ...cur, rooms: Object.fromEntries(Object.entries(cur.rooms).map(([k, v]: [string, any]) => [k, v.id === rid ? { ...v, introDone: true } : v])) } : cur));
             if (sent) router.push(`/round/${rid}/chat`);
           }} />
       )}
