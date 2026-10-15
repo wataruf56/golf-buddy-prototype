@@ -17,6 +17,12 @@ const APP_HOSTS = new Set([
 ]);
 const LP_HOSTS = new Set(['goltomo.com', 'www.goltomo.com']);
 const ADMIN_HOSTS = new Set(['admin.goltomo.com']);
+// LPホスト（goltomo.com）に来たら app.goltomo.com へ転送するアプリの画面。
+// /guide は goltomo.com 側にSEO記事があるので入れない（/round・/rounds は別の分岐で処理済み）。
+const LP_HOST_APP_PATHS = [
+  '/home', '/search', '/timeline', '/availability', '/buddies', '/friends', '/chat',
+  '/mypage', '/create', '/swing', '/requests', '/invite', '/rematch', '/login',
+];
 
 // Routes on the app host that require LINE login.
 // Routes that REQUIRE login. Note: round detail (/round/[id]) and profiles
@@ -173,7 +179,11 @@ export default async function middleware(req: NextRequest) {
       path.startsWith('/add-friend') || path.startsWith('/qr') ||
       // /links はインスタのリンク集。貼っているのは app. 付きだが、裸のURLで
       // 来た人を404にしたくないので、正しいホストへ逃がす。
-      path.startsWith('/links')
+      path.startsWith('/links') ||
+      // アプリの画面（下のタブなど）。エラー画面の「ホームへ」（/home）などから裸のURLで
+      // 来ることがあり、404にすると Search Console に「見つかりませんでした」が積もる
+      // （2026-10-15 に goltomo.com/home が404として通知された）。
+      LP_HOST_APP_PATHS.some((p) => path === p || path.startsWith(p + '/'))
     ) {
       return NextResponse.redirect(new URL(`https://app.goltomo.com${path}${url.search}`));
     }
