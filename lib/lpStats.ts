@@ -11,11 +11,14 @@ export type LpStats = {
   againRate: number | null; againN: number;       // また回りたい率
   femaleRate: number | null; genderN: number;     // 女性比率
   avgAge: number | null; ageN: number;            // 平均年齢
+  // 開催済みの公式コンペ（isOfficial かつ isCompetition）。回数・参加した人数（重複なし）・2回以上来た人数
+  compeN: number; compePlayers: number; compeRepeat: number;
 };
 
 export const EMPTY_LP_STATS: LpStats = {
   fillRate: null, fillN: 0, totalPlayers: 0, againRate: null, againN: 0,
   femaleRate: null, genderN: 0, avgAge: null, ageN: 0,
+  compeN: 0, compePlayers: 0, compeRepeat: 0,
 };
 
 export async function computeLpStats(db: any): Promise<LpStats> {
@@ -50,6 +53,20 @@ export async function computeLpStats(db: any): Promise<LpStats> {
     const noShow = new Set<string>(r.noShowIds || []);
     return a + membersOf(r).filter((m: string) => !noShow.has(m)).length;
   }, 0);
+
+  // 公式コンペの実績（LP「公式コンペ」の枠に出す）。当日来られなかった人は数えない。
+  const compeTimes: Record<string, number> = {};
+  const compes = done.filter((r: any) => r.isOfficial && r.isCompetition);
+  compes.forEach((r: any) => {
+    const noShow = new Set<string>(r.noShowIds || []);
+    new Set<string>(membersOf(r)).forEach((m) => {
+      if (noShow.has(m) || m === 'admin_manager' || m.startsWith('test_')) return;
+      compeTimes[m] = (compeTimes[m] || 0) + 1;
+    });
+  });
+  stats.compeN = compes.length;
+  stats.compePlayers = Object.keys(compeTimes).length;
+  stats.compeRepeat = Object.values(compeTimes).filter((n) => n >= 2).length;
 
   // また回りたい率＝「レビューをくれた人」のうち「また回りたい」を押した人の割合
   const reviewersOf: Record<string, Set<string>> = {};

@@ -111,7 +111,35 @@ html body{background:#F4E8CE}
 /* 実際のアプリ画面（見本データ）の切り抜き */
 .sv .shot{margin-top:12px;border:2.5px solid var(--ink);border-radius:14px;overflow:hidden;background:#fff;box-shadow:3px 3px 0 var(--ink)}
 .sv .shot img{display:block;width:100%;height:auto}
-.sv .shot .cap{font-size:10.5px;font-weight:800;color:#8a7256;background:var(--paper);border-top:2px solid var(--ink);padding:5px 10px}
+.sv .shot .cap{font-size:10.5px;font-weight:800;color:#8a7256;background:var(--paper);border-top:2px solid var(--ink);padding:5px 10px;text-align:left}
+.sv .hcard .shot{margin-top:16px}
+/* セクション見出し（行ける日の使い方・比較・ほかにも・FAQ） */
+.sv .sh{font-size:21px;font-weight:900;line-height:1.4;text-align:center;margin:44px 20px 16px}
+/* 行ける日の使い方（3ステップ） */
+.sv .steps .step{position:relative;background:var(--cream);border:2.5px solid var(--ink);border-radius:18px;box-shadow:5px 5px 0 var(--ink);
+  margin:0 18px 22px;padding:18px 16px 16px}
+.sv .steps .sn{position:absolute;top:-14px;left:14px;width:34px;height:34px;border-radius:50%;background:var(--orange);color:var(--cream);
+  border:2.5px solid var(--ink);display:grid;place-items:center;font-family:'Baloo 2',cursive;font-size:18px;font-weight:800;line-height:1}
+.sv .steps h3{font-size:17px;font-weight:900;line-height:1.4;margin:6px 0 6px}
+.sv .steps p{font-size:13px;font-weight:700;color:#6b5a44;margin:0;line-height:1.7}
+.sv .steps .later{margin:0 18px;background:var(--paper);border:2.5px dashed var(--ink);border-radius:14px;padding:12px 14px;
+  font-size:13px;font-weight:900;text-align:center}
+/* ふつうのやり方との比較 */
+.sv .cmp .cols{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 18px}
+.sv .cmp .col{border:2.5px solid var(--ink);border-radius:16px;padding:14px 12px}
+.sv .cmp .col.old{background:#ECE3D0;color:#7a6a55}
+.sv .cmp .col.new{background:var(--teal);color:var(--cream);box-shadow:4px 4px 0 var(--ink)}
+.sv .cmp .ch{font-size:14px;font-weight:900;margin-bottom:8px}
+.sv .cmp ol{margin:0;padding-left:1.2em;font-size:12.5px;font-weight:800;line-height:1.6}
+.sv .cmp li + li{margin-top:6px}
+.sv .cmp .col.old li{text-decoration:line-through;text-decoration-color:rgba(122,106,85,.55)}
+/* よくある質問 */
+.sv .faq details{background:var(--cream);border:2.5px solid var(--ink);border-radius:14px;margin:0 18px 10px;padding:0 14px}
+.sv .faq summary{cursor:pointer;list-style:none;font-size:14px;font-weight:900;padding:13px 22px 13px 0;position:relative;line-height:1.5}
+.sv .faq summary::-webkit-details-marker{display:none}
+.sv .faq summary::after{content:"+";position:absolute;right:0;top:10px;font-size:20px;font-weight:900;color:var(--orange)}
+.sv .faq details[open] summary::after{content:"−"}
+.sv .faq details p{font-size:13px;font-weight:700;color:#5c4c38;margin:0 0 14px;line-height:1.75}
 /* 公式コンペ 男女比の配慮（女性も安心） */
 .sv .comp{background:var(--cream);border:2px solid #d8c3a0;border-radius:20px;margin:16px 18px 0;padding:20px 18px}
 .sv .comp .pill{display:inline-block;background:var(--pink);color:#fff;border:2.5px solid var(--ink);border-radius:999px;font-weight:900;font-size:12px;padding:5px 13px;box-shadow:2px 2px 0 var(--ink)}
@@ -257,12 +285,13 @@ html[data-lpv="b"] .sv div.v-b,html[data-lpv="b"] .sv p.v-b{display:block !impor
 
 // トップLPの「社会的証明」（募集中件数・直近1hログイン数）を実データから作る。
 // 失敗しても LP 本体は必ず描画する（各表示は呼び出し側で少数時に非表示）。
-async function getLpData(): Promise<{ openCount: number; activeNow: number; totalRounds: number; stats: LpStats }> {
+async function getLpData(): Promise<{ openCount: number; activeNow: number; price: { min: number; max: number } | null; stats: LpStats }> {
   const now = Date.now();
   let openCount = 0;
   let activeNow = 0;
-  // これまでに投稿された募集の累計（満員・終了済みも含む）。CTAの件数表示に使う。
-  let totalRounds = 0;
+  // いま募集中のゴルフの費用（1人あたり）の幅。FAQ「お金はかかりますか？」に使う。
+  // 「1万円前後」など数字だけでない書き方は除く。3件以上そろったときだけ出す。
+  let price: { min: number; max: number } | null = null;
   const stats: LpStats = { ...EMPTY_LP_STATS };
   try {
     const { db } = await import('@/lib/db');
@@ -277,6 +306,13 @@ async function getLpData(): Promise<{ openCount: number; activeNow: number; tota
       return r.status === 'open' && !String(r.hostId || '').startsWith('test_');
     });
     openCount = rounds.length;
+    const yen = rounds
+      .filter((r) => r.eventType !== 'drink')
+      .map((r) => String(r.price || '').replace(/[,，円\s]/g, ''))
+      .filter((v) => /^\d{4,6}$/.test(v))
+      .map(Number)
+      .filter((n) => n >= 3000 && n <= 60000);
+    if (yen.length >= 3) price = { min: Math.min(...yen), max: Math.max(...yen) };
   } catch { /* DBが不調でもLPは出す */ }
   try {
     const { getAdminDb } = await import('@/lib/firebase');
@@ -294,21 +330,45 @@ async function getLpData(): Promise<{ openCount: number; activeNow: number; tota
     const adb = getAdminDb() as any;
     if (adb) {
       Object.assign(stats, await computeLpStats(adb));
-      // 累計の募集数（status を問わない＝満員・終了済みも含む）。
-      // 検証用アカウントの投稿と飲み会は除く。
-      const rs = await adb.collection('rounds').limit(3000).get();
-      rs.docs.forEach((d: any) => {
-        const r = d.data() || {};
-        if (String(r.hostId || '').startsWith('test_')) return;
-        if (r.eventType === 'drink') return;
-        totalRounds++;
-      });
     }
   } catch (e) {
     console.error('[lp] stats failed', e);
   }
 
-  return { openCount, activeNow, totalRounds, stats };
+  return { openCount, activeNow, price, stats };
+}
+
+// 実際の画面（見本データ）の切り抜き。キャプションで「見本」と明示する
+function Shot({ src, w, h, alt, cap, eager }: { src: string; w: number; h: number; alt: string; cap: string; eager?: boolean }) {
+  return (
+    <div className="shot">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={alt} width={w} height={h} loading={eager ? 'eager' : 'lazy'} />
+      <div className="cap">{cap}</div>
+    </div>
+  );
+}
+
+const yenMan = (n: number) => (n % 10000 === 0 ? `${n / 10000}万円` : `${n.toLocaleString('ja-JP')}円`);
+
+// よくある質問。/about の FAQ と答えをそろえる（片方だけ直さない）
+function lpFaq(price: { min: number; max: number } | null): Array<{ q: string; a: string }> {
+  const fee = price
+    ? `（いま募集中のラウンドは1人${yenMan(price.min)}〜${yenMan(price.max)}くらい）`
+    : '（金額は募集ごとに書いてあります）';
+  return [
+    { q: '行ける日を押したら、必ず行かないといけませんか？', a: 'いいえ。行けなくなったら、その日を外すだけです。その日のチャットからも抜けます。' },
+    { q: '押した日は、誰に見えますか？', a: '同じ20〜30代の会員にだけ、名前・年齢・車の有無が出ます。' },
+    { q: 'お金はかかりますか？', a: `アプリは無料です。かかるのはゴルフ場のプレー代だけです${fee}。募集に申し込んだ時点では払いません。` },
+    { q: 'ひとりで参加していいですか？', a: 'はい。ほとんどの人がひとりで参加しています。' },
+    { q: '初心者・ラウンド未経験でも参加できますか？', a: 'スコアの目安は「ラウンド未経験」から選べます。「初心者歓迎」「初心者のみ」の募集もあります。' },
+    { q: '女性ひとりでも参加できますか？', a: '行ける日でも募集でも、申し込む前に男女の内訳が見えます。公式コンペでは、女性が1組に1人きりにならないように組みます。' },
+    { q: '知らない人と回るのが不安です。', a: '一緒に回った人の評価（また回りたい率）がプロフィールに出ます。マナー違反は運営に通報できます。' },
+    { q: '募集をキャンセルしたらどうなりますか？', a: '締切までならアプリから取り消せます。締切後のキャンセル料は募集ごとに主催者が決めて、募集ページに書いてあります。' },
+    { q: '車を持っていなくても行けますか？', a: 'はい。行ける日では車を出せる人と乗れる人数が見えます。募集では、申し込むときに「乗せてほしい」と答えられます。' },
+    { q: 'どこで回っていますか？', a: 'いまは千葉・埼玉の募集が中心です。' },
+    { q: '年齢の制限はありますか？', a: '20〜30代限定です。アプリのダウンロードは要らず、LINEの中で使えます。' },
+  ];
 }
 
 const INSTAGRAM_URL = 'https://www.instagram.com/goltomo.golf/';
@@ -362,7 +422,7 @@ const JSON_LD = [
 ];
 
 export default async function LandingPage() {
-  const { openCount, activeNow, totalRounds, stats } = await getLpData();
+  const { openCount, activeNow, price, stats } = await getLpData();
   // 数字は少ないと逆効果なので、十分あるときだけ出す（実データ・虚偽なし）。
   const showOpen = openCount >= 3;
   const showActive = activeNow >= 3;
@@ -383,6 +443,9 @@ export default async function LandingPage() {
   if (stats.femaleRate != null && stats.genderN >= 20) {
     numbers.push({ value: `${100 - stats.femaleRate}:${stats.femaleRate}`, label: '男女比', sub: `男性${100 - stats.femaleRate}% ／ 女性${stats.femaleRate}%` });
   }
+  // 公式コンペの実績。回数・人数が少ないうちは出さない
+  const showCompe = stats.compeN >= 2 && stats.compePlayers >= 10;
+  const faq = lpFaq(price);
   const statsAsOf = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '/');
   const APP = 'https://app.goltomo.com';
   return (
@@ -403,68 +466,28 @@ export default async function LandingPage() {
           </div>
         </div>
 
-        {/* ヒーロー */}
+        {/* ヒーロー。2026-10-15〜 いちばん推す「行ける日」を主役に。画面は見本データ */}
         <header className="hero">
           <div className="hcard">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className="peek" src="/lp/bear-hook.webp" alt="" width={420} height={346} />
             <span className="lb">20〜30代限定・ゴルフ友達さがし</span>
-            <h1>一緒に回る<br /><span className="hl">ゴルフ友達</span>が<br />見つかる。</h1>
+            <h1>行ける日を押すだけ。<br /><span className="hl">ゴルフ友達</span>が<br />見つかる。</h1>
             <p>
-              誘える人がいなくても大丈夫。<br />
-              一人で参加して、また回りたい人（＝<b>ゴル友</b>）を見つける。
+              日程もコースも決めなくてOK。<br />
+              同じ日に行ける人が3人そろうと、チャットが始まります。
             </p>
+            <Shot src="/lp/av-day.webp" w={656} h={376} alt="ある日に行ける人の一覧" cap="「行ける日」の画面（見本データ）" eager />
           </div>
         </header>
-
-        {/* 3大メリット（一目で伝える）。絵文字アイコンの代わりに実際の画面（見本データ）を見せる */}
-        <div className="big3">
-          <div className="b">
-            <div className="no">01</div>
-            <h2 className="tt">初めましてでも、安心。</h2>
-            <div className="ds">ラウンド後に、同じ組の人を「また回りたいか」で評価し合います。選んだ内容は相手に伝わりません。</div>
-            {stats.againRate != null && stats.againN >= 20 && (
-              <div className="rev">
-                <span className="lbl">また回りたい {stats.againRate}%（実際の評価{stats.againN}件）</span>
-              </div>
-            )}
-            <div className="shot">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/lp/sc-review.webp" alt="ラウンド後のレビュー画面" width={520} height={270} loading="lazy" />
-              <div className="cap">ラウンド後のレビュー画面（見本データ）</div>
-            </div>
-          </div>
-          <div className="b">
-            <div className="no">02</div>
-            <h2 className="tt">募集も参加も、気軽に。</h2>
-            <div className="ds">日時・コース・費用の目安・男女の内訳が先に見えるので、知らない人の募集にも入りやすい。一人参加でもOK。</div>
-            <div className="shot">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/lp/sc-round.webp" alt="募集の詳細画面" width={520} height={390} loading="lazy" />
-              <div className="cap">募集の詳細画面（見本データ）</div>
-            </div>
-          </div>
-          <div className="b">
-            <div className="no">03</div>
-            <h2 className="tt">車がなくても、行ける。</h2>
-            <div className="ds">参加ボタンを押したあとに、送迎（ピックアップ）の希望を聞かれます。LINEで何往復もしません。</div>
-            <div className="shot">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/lp/sc-join.webp" alt="募集への参加ボタン" width={520} height={230} loading="lazy" />
-              <div className="cap">参加ボタンまわり（見本データ）</div>
-            </div>
-          </div>
-        </div>
 
         {/* 上部CTA（ファーストビューで登録に進めるように） */}
         <div className="cta2">
           {/* A：現行（LINE登録が主役） */}
-          <StartButton className="p v-a" lp="cta_top">一緒に回る人を探す（無料）</StartButton>
+          <StartButton className="p v-a" lp="cta_top">行ける日を入れてみる（無料）</StartButton>
           <a className="s v-a" href={`${APP}/links/rounds`} data-lp="rounds_top">まず募集を見てみる（登録不要）</a>
-          {/* B：まず中身を見せる（登録不要の募集一覧が主役） */}
-          <a className="p v-b" href={`${APP}/links/rounds`} data-lp="rounds_top_b">
-            募集を見てみる{totalRounds > 0 ? `（これまで${totalRounds}件）` : ''}
-          </a>
+          {/* B：まず中身を見せる（登録不要の募集一覧が主役）。小さい累計件数は逆効果なので出さない */}
+          <a className="p v-b" href={`${APP}/links/rounds`} data-lp="rounds_top_b">募集を見てみる</a>
           <div className="mc v-b">登録なしで見られます</div>
           <StartButton className="s v-b" lp="cta_top_b">LINEで参加する（無料）</StartButton>
           <div className="mc v-a">押すとLINEのログイン画面が開きます ・ 約30秒 ・ アプリDL不要</div>
@@ -473,10 +496,85 @@ export default async function LandingPage() {
         {/* 社会的証明（実データ・十分あるときだけ表示） */}
         {showProof && (
           <div className="proof">
-            {showOpen && <span className="pchip t">⛳ いま募集中 <b>{openCount}</b>件</span>}
+            {showOpen && <span className="pchip t">いま募集中 <b>{openCount}</b>件</span>}
             {showActive && <span className="pchip o"><span className="live" /> 直近1時間 <b>{activeNow}</b>人</span>}
           </div>
         )}
+
+        {/* 行ける日の使い方（3ステップ）。実際の画面（見本データ）で見せる */}
+        <section className="steps">
+          <h2 className="sh">使い方は、<span className="hl">3ステップ</span></h2>
+          <div className="step">
+            <div className="sn">1</div>
+            <h3>カレンダーで、行ける日を押す</h3>
+            <p>何日でもOK。車を出せる人は、乗れる人数も選べます。押した日は、同じ20〜30代の会員に名前・年齢・車の有無が出ます。</p>
+            <Shot src="/lp/av-cal.webp" w={656} h={590} alt="行ける日のカレンダー" cap="点の色＝その日に行ける人（青＝男性・ピンク＝女性）" />
+          </div>
+          <div className="step">
+            <div className="sn">2</div>
+            <h3>同じ日に3人そろうと、チャットが始まる</h3>
+            <p>運営がメンバーを紹介してくれます。4人目からも合流できます。</p>
+            <Shot src="/lp/av-room-top.webp" w={552} h={590} alt="同じ日に行ける人のグループチャット" cap="その日に行ける人のグループチャット（見本データ）" />
+          </div>
+          <div className="step">
+            <div className="sn">3</div>
+            <h3>コースと集合場所を決めて、回る</h3>
+            <p>どのあたりで回るか、車を出せるかをチャットで相談。コースが決まらなくても、運営が一緒に探します。</p>
+            <Shot src="/lp/av-room-talk.webp" w={552} h={323} alt="チャットでのやり取り" cap="チャットでのやり取り（見本データ）" />
+          </div>
+          <div className="later">行けなくなったら、その日を外すだけ。チャットからも抜けます。</div>
+        </section>
+
+        {/* ふつうのやり方との違い（行ける日のメリット） */}
+        <section className="cmp">
+          <h2 className="sh">誘う人さがしも、日程合わせも、<br />幹事もいらない。</h2>
+          <div className="cols">
+            <div className="col old">
+              <div className="ch">ふつうは</div>
+              <ol>
+                <li>誘える人を探す</li>
+                <li>LINEで日程を合わせる</li>
+                <li>誰かが幹事になって予約</li>
+              </ol>
+            </div>
+            <div className="col new">
+              <div className="ch">行ける日なら</div>
+              <ol>
+                <li>空いている日を押しておく</li>
+                <li>同じ日の人が自然に集まる</li>
+                <li>コース探しは運営も手伝う</li>
+              </ol>
+            </div>
+          </div>
+        </section>
+
+        {/* 行ける日のほかにできること。絵文字アイコンの代わりに実際の画面（見本データ）を見せる */}
+        <h2 className="sh" style={{ marginTop: 40 }}>ほかにも、こんなこと</h2>
+        <div className="big3">
+          <div className="b">
+            <div className="no">01</div>
+            <h3 className="tt">回ったあと、お互いに「また回りたいか」を付けます</h3>
+            <div className="ds">付けた内容は相手に知られません。お互いに「行きたい」を選んだときだけ、2人にマッチが届きます。</div>
+            {stats.againRate != null && stats.againN >= 20 && (
+              <div className="rev">
+                <span className="lbl">また回りたい {stats.againRate}%（実際の評価{stats.againN}件）</span>
+              </div>
+            )}
+            <Shot src="/lp/sc-review.webp" w={520} h={270} alt="ラウンド後のレビュー画面" cap="ラウンド後のレビュー画面（見本データ）" />
+          </div>
+          <div className="b">
+            <div className="no">02</div>
+            <h3 className="tt">募集から参加することもできます</h3>
+            <div className="ds">日時・コース・費用・男女の内訳が、申し込む前にわかります。申し込みは主催者の承認制で、あとから取り消せます。申し込んだ時点ではお金はかかりません。</div>
+            <Shot src="/lp/sc-round.webp" w={520} h={390} alt="募集の詳細画面" cap="募集の詳細画面（見本データ）" />
+          </div>
+          <div className="b">
+            <div className="no">03</div>
+            <h3 className="tt">車がなくても、駅で拾ってもらえる</h3>
+            <div className="ds">主催者が拾える駅を登録しておき、参加するときに「乗せてほしい」と答えるだけ。待ち合わせの相談はアプリの中で済みます。</div>
+            <Shot src="/lp/sc-join.webp" w={520} h={230} alt="募集への参加ボタン" cap="参加ボタンまわり（見本データ）" />
+          </div>
+        </div>
 
         {/* 数字（すべて実データ。母数が少ない項目は出さない） */}
         {numbers.length > 0 && (
@@ -497,30 +595,28 @@ export default async function LandingPage() {
           </section>
         )}
 
-
-        {/* 公式コンペの男女比配慮（女性が孤立しないよう組み分け） */}
+        {/* 公式コンペ。男女比のグラフは女性にとって不安材料になるので出さない（2026-10-15） */}
         <div className="comp">
-          <span className="pill">👩 女性も安心</span>
-          <h2>ゴルトモ公式コンペは、<br />男女比とグループを配慮。</h2>
-          <p>主催コンペは、どちらかに偏らないよう男女比を調整して募集します。</p>
-          {stats.femaleRate != null && stats.genderN >= 20 && (
-            <>
-              <p style={{ marginTop: 6, fontSize: 12, color: '#8a7256' }}>いまの会員の男女比はこのくらいです。</p>
-              <div className="ratio">
-                <div className="rp m"><span className="n">{100 - stats.femaleRate}%</span>👨 男性</div>
-                <div className="rp f"><span className="n">{stats.femaleRate}%</span>👩 女性</div>
-              </div>
-              <div className="rbar">
-                <span className="rm" style={{ flex: 100 - stats.femaleRate }} />
-                <span className="rf" style={{ flex: stats.femaleRate }} />
-              </div>
-            </>
+          <span className="pill">公式コンペ</span>
+          <h2>公式コンペは、女性が1組に<br />1人きりにならないように組みます。</h2>
+          <p>運営が主催するコンペです。ひとりで申し込んでも、組み分けは運営が考えます。</p>
+          {showCompe && (
+            <div className="note">
+              <span>これまで<b>{stats.compeN}回・{stats.compePlayers}人</b>が参加。そのうち<b>{stats.compeRepeat}人</b>は2回以上来ています。</span>
+            </div>
           )}
-          <div className="note">
-            <span>🤝</span>
-            <span><b>女性が1組に1人きりにならないよう組み分けを配慮。</b>同性の友達もできるので、はじめてでも安心して参加できます。</span>
-          </div>
         </div>
+
+        {/* よくある質問（/about の FAQ と答えをそろえる） */}
+        <section className="faq">
+          <h2 className="sh">よくある質問</h2>
+          {faq.map((f) => (
+            <details key={f.q}>
+              <summary>{f.q}</summary>
+              <p>{f.a}</p>
+            </details>
+          ))}
+        </section>
 
         {/* CTA */}
         <div className="cta">
@@ -528,9 +624,10 @@ export default async function LandingPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/lp/bear-chick.webp" alt="" width={360} height={353} loading="lazy" />
           </div>
-          <h2>ゴルフ友達を<br />見つけにいく</h2>
-          <p className="v-a">ここまで読んでくれたあなたへ。<br />合わなければ、使うのをやめるだけで大丈夫です。</p>
-          <p className="v-b">気になる募集があれば、その場で参加できます。<br />登録は無料・30秒。</p>
+          <h2 className="v-a">まずは、行ける日を<br />押してみる</h2>
+          <h2 className="v-b">ゴルフ友達を<br />見つけにいく</h2>
+          <p className="v-a">登録はLINEで30秒。<br />アプリのダウンロードは要りません。</p>
+          <p className="v-b">まずは、いま出ている募集を見てみてください。<br />気になるものがあれば、そのまま申し込めます。</p>
           <StartButton className="btn v-a" lp="cta_final">まずは登録してみる →</StartButton>
           <a className="btn v-b" href={`${APP}/links/rounds`} data-lp="rounds_final_b">募集を見てみる →</a>
           {/* B はボタンが「募集を見てみる」なので、LINEログインの案内を出すと食い違う */}
@@ -539,13 +636,13 @@ export default async function LandingPage() {
         </div>
 
         <div className="quiz">
-          <div className="t">⛳ 自分がどんなゴルファーか知りたい人へ</div>
+          <div className="t">自分がどんなゴルファーか知りたい人へ</div>
           <a href={DIAGNOSIS_URL} data-lp="mbti_link">ゴルフ版MBTI・16タイプ診断をしてみる →</a>
         </div>
 
         {/* QRで共有：この画面を見せて、他の人に読み取ってもらうと同じLPが開く */}
         <div className="qrshare">
-          <div className="qh">📱 このページを共有</div>
+          <div className="qh">このページを共有</div>
           <div className="qs">読み取るとこのページが開きます。<br />お友達に見せてシェアしてください。</div>
           <div className="qbox">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -555,12 +652,12 @@ export default async function LandingPage() {
         </div>
 
         <footer>
-          <div className="fl">⛳ ゴルトモ</div>
+          <div className="fl">ゴルトモ</div>
           <div style={{ fontSize: 11, color: '#8a7256', marginBottom: 6 }}>※ 20〜30代限定のサービスです</div>
           <div style={{ marginBottom: 8 }}>
             <a href={INSTAGRAM_URL} target="_blank" rel="me noopener" data-lp="instagram_footer"
                style={{ fontSize: 12, fontWeight: 800, color: '#8a7256', textDecoration: 'underline' }}>
-              📷 公式Instagram（@goltomo.golf）
+              公式Instagram（@goltomo.golf）
             </a>
           </div>
           © 2026 Goltomo（合同会社シクミヤ）
