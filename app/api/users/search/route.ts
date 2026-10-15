@@ -53,6 +53,10 @@ export async function GET(req: NextRequest) {
     const realNameOf = (u: any) => [u.realNameLast, u.realNameFirst].filter(Boolean).join(' ').trim();
     const qc = q.replace(/\s+/g, '');
 
+    // 招待候補（roundId なし）は、すでに友達（ゴル友の友達リスト）の人を上に、その下は最終ログインが新しい順（2026-10-15）
+    let friends = new Set<string>();
+    if (!withRealName) { try { const { friendSetOf } = await import('@/lib/friendSet'); friends = await friendSetOf(meId); } catch { /* 並びが変わるだけ */ } }
+
     const snap = await db.collection('users').limit(2000).get();
     const items = snap.docs
       .map((d: any) => ({ id: d.id, ...d.data() }))
@@ -75,10 +79,15 @@ export async function GET(req: NextRequest) {
         reviewAvg: u.reviewAvg || 0,
         reviewCount: u.reviewCount || 0,
         createdAt: u.createdAt || 0,
+        lastActiveAt: u.lastActiveAt || 0,
+        isFriend: friends.has(u.id),
         ...(withRealName && realNameOf(u) ? { realName: realNameOf(u) } : {}),
       }))
-      // 置き換え（主催者・roundId 付き）は「当日登録した本人」を探す用途なので登録が新しい順。招待候補は従来どおりレビュー数順。
-      .sort((a: any, b: any) => withRealName ? ((b.createdAt || 0) - (a.createdAt || 0)) : ((b.reviewCount || 0) - (a.reviewCount || 0)))
+      // 置き換え（主催者・roundId 付き）は「当日登録した本人」を探す用途なので登録が新しい順。
+      // 招待候補は「友達が上 → 最終ログインが新しい順」（2026-10-15。以前はレビュー数順）
+      .sort((a: any, b: any) => withRealName
+        ? ((b.createdAt || 0) - (a.createdAt || 0))
+        : ((Number(b.isFriend) - Number(a.isFriend)) || ((b.lastActiveAt || 0) - (a.lastActiveAt || 0))))
       .slice(0, 80);
 
     return NextResponse.json({ count: items.length, items }, { headers: noStore });

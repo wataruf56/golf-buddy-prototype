@@ -160,8 +160,9 @@ export default function HomePage() {
   //     同じ枠が2か所に並んで「別の募集が2つある」ように見える）
   //   ・満員も外す（「募集してるやつ」だけを並べる）
   const rounds = useStore((s) => s.rounds.filter(
-    (r) => r.status === 'open' && !isOfficialThread(r) && !isAvailRoom(r) && (r.currentCount || 0) < r.maxSpots
-      && !isPrivateRound(r),   // 非公開の招待はホームの募集一覧に出さない（招待された人のストアには届くため・2026-10-14）
+    (r) => r.status === 'open' && !isOfficialThread(r) && !isAvailRoom(r) && (r.currentCount || 0) < r.maxSpots,
+    // 非公開の招待も出す（2026-10-15 本人判断）。ストアに届く非公開の募集は、招待された人・参加している人のぶんだけ
+    // （サーバーの lib/roundAccess で絞っている）なので、ほかの人に知られることはない。カードに「✉️ 非公開の招待」の札。
   ));
   const allRounds = useStore((s) => s.rounds);
   const users = useStore((s) => s.users);

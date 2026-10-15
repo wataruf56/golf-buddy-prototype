@@ -51,6 +51,7 @@ import { HoldNoticeCard } from '@/components/HoldNoticeCard';
 import { activeHoldOf, holdAlreadyUsed, fmtHoldDeadline } from '@/lib/roundHold';
 import { isPrivateRound } from '@/lib/roundAccess';
 import { isEventRound, eventKindMeta, payMethodsLabel } from '@/lib/eventRound';
+import { loginLabel } from '@/lib/loginLabel';
 import { EventPanel } from '@/components/EventPanel';
 import { PrivateInviteCard } from '@/components/PrivateInviteCard';
 
@@ -2262,7 +2263,7 @@ function ScoreEntryCard({ round, host, applicants }: {
 
 // 招待候補の検索。登録している全ユーザー（同年代）から性別・年齢・名前で絞り込み、
 // 招待ボタンを出す。検索は /api/users/search。
-type SearchUser = { id: string; displayName: string; avatar: string; avatarUrl?: string; age?: number; gender?: string; area?: string; scoreRange?: string; car?: string; reviewAvg?: number; reviewCount?: number; realName?: string };
+type SearchUser = { id: string; displayName: string; avatar: string; avatarUrl?: string; age?: number; gender?: string; area?: string; scoreRange?: string; car?: string; reviewAvg?: number; reviewCount?: number; realName?: string; lastActiveAt?: number; isFriend?: boolean };
 function InviteSearch({ inviteState, onInvite, onUninvite }: { inviteState: (id: string) => 'joined' | 'invited' | 'open'; onInvite: (id: string, name: string) => void; onUninvite: (id: string, name: string) => void }) {
   const [gender, setGender] = useState<'' | 'male' | 'female'>('');
   const [q, setQ] = useState('');
@@ -2299,7 +2300,7 @@ function InviteSearch({ inviteState, onInvite, onUninvite }: { inviteState: (id:
 
   return (
     <div>
-      <div className="text-[11px] text-sub mb-2">登録ユーザーから条件で探して招待できます（同年代のみ）。招待された人にはLINEで通知が届きます。</div>
+      <div className="text-[11px] text-sub mb-2">登録ユーザーから条件で探して招待できます（同年代のみ）。🤝 友達が上、その下は最終ログインが新しい順です。招待された人にはLINEで通知が届きます。</div>
       <div className="flex gap-1.5 mb-2">
         {chip('全員', gender === '', () => setGender(''))}
         {chip('👨 男性', gender === 'male', () => setGender('male'))}
@@ -2324,10 +2325,19 @@ function InviteSearch({ inviteState, onInvite, onUninvite }: { inviteState: (id:
             <Link href={`/profile/${u.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
               <Avatar user={{ id: u.id, displayName: u.displayName, avatar: u.avatar, avatarUrl: u.avatarUrl, color: '#2A8C82' } as any} size={36} />
               <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-semibold truncate">{u.displayName}</div>
+                <div className="text-[13px] font-semibold truncate flex items-center gap-1">
+                  <span className="truncate">{u.displayName}</span>
+                  {u.isFriend && <span className="text-[9.5px] font-black px-1.5 py-px rounded-full bg-green-light text-green flex-shrink-0">🤝 友達</span>}
+                </div>
                 <div className="text-[10px] text-sub truncate">
                   {[u.gender === 'male' ? '👨男性' : u.gender === 'female' ? '👩女性' : '', u.age ? `${u.age}歳` : '', u.area, u.car === 'have' ? '🚗' : ''].filter(Boolean).join(' ・ ')}
                 </div>
+                {/* 最終ログイン（2026-10-15・lib/loginLabel）。並びは「友達が上 → 最終ログインが新しい順」 */}
+                {(() => { const l = loginLabel(u.lastActiveAt); return l ? (
+                  <div className={'text-[10px] font-bold truncate flex items-center gap-1 ' + (l.live ? 'text-green' : 'text-muted')}>
+                    {l.live && <span className="w-1.5 h-1.5 rounded-full bg-green inline-block" />}{l.text}
+                  </div>
+                ) : null; })()}
               </div>
             </Link>
             {st === 'joined' ? (
