@@ -43,6 +43,7 @@ type Verdict = { tone: 'win' | 'lean' | 'tie' | 'wait'; text: string };
 /** 割合がいちばん高い案と2番目を比べて、ひとことで言う。 */
 function judge(items: { label: string; x: number | null | undefined; n: number | null | undefined }[], what: string): Verdict {
   const ready = items.filter((i) => i.n && i.x != null) as { label: string; x: number; n: number }[];
+  if (items.length < 2) return { tone: 'wait', text: `${what}：案が1つなので、比べずに数字だけ記録します` };
   if (ready.length < 2) return { tone: 'wait', text: `${what}：数字が入ると判定します` };
   const sorted = ready.slice().sort((a, b) => b.x / b.n - a.x / a.n);
   const [a, b] = sorted;
@@ -63,6 +64,8 @@ function phase(t: Test): { label: string; color: string } {
   return { label: '配信中', color: '#2563eb' };
 }
 const linkOf = (t: Test, v: Variant) => `${t.landing}?ref=${v.ref}`;
+/** 案の名前 → ?ref= のタグ。サーバー側の normalizeRef と同じ規則。 */
+const tagOf = (label: string) => 'ad_' + label.toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 30);
 
 // ---------------------------------------------------------------- 画面
 export default function AdminAbPage() {
@@ -139,8 +142,17 @@ function TestCard({ t, onSave, onDelete }: {
   const [end, setEnd] = useState(t.endDate);
   const [open, setOpen] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
+  const [removed, setRemoved] = useState<Set<string>>(new Set());
+  const [adds, setAdds] = useState<{ label: string; imageUrl: string }[]>([]);
   const [copied, setCopied] = useState('');
-  useEffect(() => { setEdit(Object.fromEntries(t.variants.map((v) => [v.key, v]))); setStart(t.startDate); setEnd(t.endDate); }, [t]);
+  useEffect(() => {
+    setEdit(Object.fromEntries(t.variants.map((v) => [v.key, v]))); setStart(t.startDate); setEnd(t.endDate);
+    setRemoved(new Set()); setAdds([]);
+  }, [t]);
+  const usedRefs = new Set(t.variants.map((v) => v.ref));
+  const addsOk = adds.every((a) => { const r = tagOf(a.label); return r !== 'ad_' && !usedRefs.has(r); })
+    && new Set(adds.map((a) => tagOf(a.label))).size === adds.length;
+  const leftCount = t.variants.length - removed.size + adds.length;
 
   const vs = t.variants.map((v) => ({ v, f: t.funnels?.[v.ref] || { visitors: 0, starts: 0, completes: 0, ctas: 0, registered: 0 } }));
   const ph = phase(t);
@@ -247,9 +259,11 @@ function TestCard({ t, onSave, onDelete }: {
             <label style={S.lbl}>開始日<input type="date" value={start} onChange={(e) => setStart(e.target.value)} style={S.input} /></label>
             <label style={S.lbl}>終了日<input type="date" value={end} onChange={(e) => setEnd(e.target.value)} style={S.input} /></label>
           </div>
-          {t.variants.map((v) => (
+          {t.variants.filter((v) => !removed.has(v.key)).map((v) => (
             <fieldset key={v.key} style={S.fs}>
               <legend style={S.legend}>{v.label}</legend>
+              <button style={{ ...S.copy, justifySelf: 'end' }}
+                onClick={() => setRemoved((r) => new Set(r).add(v.key))}>この案を外す</button>
               <div className="ab-fields">
                 <label style={S.lbl}>表示回数<NumberInput id={`${t.id}-${v.key}-imp`} className="ab-num" value={edit[v.key]?.impressions} onChange={(n) => setNum(v.key, 'impressions', n)} min={0} /></label>
                 <label style={S.lbl}>リンクのクリック<NumberInput id={`${t.id}-${v.key}-clk`} className="ab-num" value={edit[v.key]?.clicks} onChange={(n) => setNum(v.key, 'clicks', n)} min={0} /></label>
@@ -258,12 +272,39 @@ function TestCard({ t, onSave, onDelete }: {
               </div>
             </fieldset>
           ))}
+          {removed.size > 0 && (
+            <p style={S.small}>
+              外す案：{t.variants.filter((v) => removed.has(v.key)).map((v) => v.label).join('、')}（保存で確定）
+              <button style={{ ...S.link2 }} onClick={() => setRemoved(new Set())}>元に戻す</button>
+            </p>
+          )}
+          {adds.map((a, i) => (
+            <fieldset key={'add' + i} style={{ ...S.fs, borderColor: '#86efac' }}>
+              <legend style={S.legend}>新しい案</legend>
+              <label style={S.lbl}>名前（英数字。リンクのタグになります）
+                <input value={a.label} onChange={(e) => setAdds((x) => x.map((y, j) => (j === i ? { ...y, label: e.target.value } : y)))} placeholder="例：X3" style={S.input} /></label>
+              <label style={S.lbl}>画像のURL（任意）
+                <input value={a.imageUrl} onChange={(e) => setAdds((x) => x.map((y, j) => (j === i ? { ...y, imageUrl: e.target.value } : y)))} style={S.input} /></label>
+              {tagOf(a.label) !== 'ad_' && (usedRefs.has(tagOf(a.label))
+                ? <p style={S.err}>この名前はもう使われています</p>
+                : <p style={S.small}>リンク先：…?ref=<b>{tagOf(a.label)}</b></p>)}
+              <button style={{ ...S.copy, justifySelf: 'end' }} onClick={() => setAdds((x) => x.filter((_, j) => j !== i))}>取り消す</button>
+            </fieldset>
+          ))}
+          <button style={S.btn} onClick={() => setAdds((x) => [...x, { label: '', imageUrl: '' }])}>＋ 案を足す</button>
           <p style={S.small}>
             Ads Manager の「列」で「インプレッション」「リンクのクリック」「消化金額」「Instagramプロフィールへのアクセス」を表示すると、そのまま写せます。
           </p>
           <div style={S.actions}>
             <button style={{ ...S.btn, ...S.primary }}
-              onClick={() => onSave({ startDate: start, endDate: end, variants: Object.values(edit) })}>保存</button>
+              disabled={!addsOk || leftCount < 1}
+              onClick={() => onSave({
+                startDate: start, endDate: end,
+                variants: [
+                  ...Object.values(edit).filter((v) => !removed.has(v.key)),
+                  ...adds.map((a) => ({ label: a.label, ref: tagOf(a.label), imageUrl: a.imageUrl })),
+                ],
+              })}>保存</button>
             {!confirmDel
               ? <button style={{ ...S.btn, ...S.ghost }} onClick={() => setConfirmDel(true)}>このテストを削除</button>
               : <>
@@ -283,8 +324,8 @@ function NewTest({ onCreate }: { onCreate: (b: any) => void }) {
   const [name, setName] = useState('');
   const [start, setStart] = useState(todayJst());
   const [end, setEnd] = useState('');
-  const [vs, setVs] = useState([{ label: '', imageUrl: '' }, { label: '', imageUrl: '' }]);
-  const tag = (label: string) => 'ad_' + label.toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 30);
+  const [vs, setVs] = useState([{ label: '', imageUrl: '' }]);
+  const tag = tagOf;
   const set = (i: number, k: 'label' | 'imageUrl', val: string) =>
     setVs((a) => a.map((v, j) => (j === i ? { ...v, [k]: val } : v)));
   const ready = name.trim() && vs.every((v) => tag(v.label) !== 'ad_') && new Set(vs.map((v) => tag(v.label))).size === vs.length;
@@ -298,6 +339,7 @@ function NewTest({ onCreate }: { onCreate: (b: any) => void }) {
       {vs.map((v, i) => (
         <fieldset key={i} style={S.fs}>
           <legend style={S.legend}>案 {i + 1}</legend>
+          {vs.length > 1 && <button style={{ ...S.copy, justifySelf: 'end' }} onClick={() => setVs((a) => a.filter((_, j) => j !== i))}>この案を消す</button>}
           <label style={S.lbl}>名前（英数字。リンクのタグになります）<input value={v.label} onChange={(e) => set(i, 'label', e.target.value)} placeholder="例：X2" style={S.input} /></label>
           <label style={S.lbl}>画像のURL（任意）<input value={v.imageUrl} onChange={(e) => set(i, 'imageUrl', e.target.value)} placeholder="https://storage.googleapis.com/…" style={S.input} /></label>
           {tag(v.label) !== 'ad_' && <p style={S.small}>リンク先：…golmoti.html?ref=<b>{tag(v.label)}</b></p>}
@@ -310,7 +352,7 @@ function NewTest({ onCreate }: { onCreate: (b: any) => void }) {
           作る
         </button>
       </div>
-      {!ready && <p style={S.small}>名前と、案ごとに別々の名前（英数字）を入れてください。</p>}
+      {!ready && <p style={S.small}>名前と、案ごとに別々の名前（英数字）を入れてください。案は1つからでも作れます（あとから足せます）。</p>}
     </section>
   );
 }
@@ -367,5 +409,6 @@ const S: Record<string, React.CSSProperties> = {
   btn: { padding: '9px 14px', borderRadius: 8, border: '1px solid #d1d5db', background: '#f9fafb', fontSize: 14, cursor: 'pointer' },
   primary: { background: '#15803d', color: '#fff', borderColor: '#15803d', fontWeight: 700 },
   ghost: { background: '#fff', color: '#6b7280' },
+  link2: { background: 'none', border: 'none', color: '#2563eb', fontSize: 12, cursor: 'pointer', padding: '0 6px' },
   danger: { background: '#dc2626', color: '#fff', borderColor: '#dc2626', fontWeight: 700 },
 };

@@ -99,7 +99,8 @@ export async function listAdTests(): Promise<AdTest[]> {
 
 export async function createAdTest(input: Partial<AdTest>): Promise<AdTest> {
   const variants = cleanVariants(input.variants || []);
-  if (variants.length < 2) throw new Error('案を2つ以上、別々のタグで入れてください');
+  // 案が1つでも作れる（まず1案だけ出して数字を貯め、あとから候補を足して比べる使い方）。
+  if (variants.length < 1) throw new Error('案を1つ以上入れてください');
   const now = Date.now();
   const doc = {
     name: String(input.name || '').slice(0, 60) || '名前なしのテスト',
@@ -124,9 +125,19 @@ export async function updateAdTest(id: string, patch: Partial<AdTest>): Promise<
   }
   if (Array.isArray(patch.variants)) {
     // タグ（ref）は途中で変えると計測が切れるので、保存済みの案のタグは変えさせない。
+    // ・送られてきた中に無い保存済みの案は消す（「この案を外す」）
+    // ・key の無い新しい案は末尾に足す（「案を足す」）。タグが既存と重なるものは捨てる
     const old = toTest(id, cur.data()).variants;
-    const byKey = new Map(patch.variants.map((v: any) => [String(v?.key), v]));
-    out.variants = cleanVariants(old.map((o) => ({ ...o, ...(byKey.get(o.key) || {}), ref: o.ref, key: o.key })));
+    const byKey = new Map(patch.variants.filter((v: any) => v?.key).map((v: any) => [String(v.key), v]));
+    const kept = old.filter((o) => byKey.has(o.key))
+      .map((o) => ({ ...o, ...(byKey.get(o.key) || {}), ref: o.ref, key: o.key }));
+    const used = new Set(kept.map((v) => v.key));
+    let n = 0;
+    const nextKey = () => { while (used.has('v' + n)) n++; used.add('v' + n); return 'v' + n; };
+    const added = patch.variants.filter((v: any) => !v?.key).map((v: any) => ({ ...v, key: nextKey() }));
+    const merged = cleanVariants([...kept, ...added]);
+    if (!merged.length) throw new Error('案が1つも残りません。テストごと削除してください');
+    out.variants = merged;
   }
   await db().collection(COL).doc(id).update(out);
 }
