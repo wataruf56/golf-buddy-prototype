@@ -5,7 +5,7 @@ import { Portal } from '@/components/Portal';
 import { toast } from '@/components/Toast';
 import { useStore, getMe } from '@/lib/store';
 import { usePopupSlot, popupEvent } from '@/lib/popupSlot';
-import { INTRO_AREAS, INTRO_BUDGETS, INTRO_CARS, composeIntro, randomIntroVariant } from '@/lib/roomIntro';
+import { INTRO_AREAS, INTRO_AREA_HINTS, INTRO_BUDGETS, INTRO_CARS, composeIntro, randomIntroVariant } from '@/lib/roomIntro';
 
 // 行ける日の部屋に入るときの「ひとこと」（2026-10-12・lib/roomIntro）。
 // 選ぶだけの3問 → 本人の発言として最初のあいさつを部屋のチャットに入れる。「最初に話す人」をなくすため。
@@ -63,6 +63,9 @@ export function RoomIntroSheet({ roomId, dateLabel, onDone }: { roomId: string; 
           <Q n={1} title="行きたい方面（3つまで）">
             <div className="flex flex-wrap gap-1.5">
               {INTRO_AREAS.map((a) => <button key={a} type="button" onClick={() => toggleArea(a)} className={chip(areas.includes(a))}>{a}</button>)}
+            </div>
+            <div className="mt-1.5 text-[10.5px] text-muted leading-relaxed">
+              {INTRO_AREA_HINTS.map(([k, v]) => <span key={k} className="inline-block mr-2">{k}＝{v}</span>)}
             </div>
           </Q>
           <Q n={2} title="予算（プレー代）">

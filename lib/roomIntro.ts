@@ -9,8 +9,16 @@ const GOLF = String.fromCodePoint(0x26F3);
 const SMILE = String.fromCodePoint(0x1F60A);
 const WAVE = String.fromCodePoint(0x1F44B);
 
-// 2026-10-15：千葉を北部・南部に分け、山梨を追加（本人指定）
-export const INTRO_AREAS = ['千葉北部', '千葉南部', '茨城', '埼玉', '神奈川', '東京', '栃木', '群馬', '山梨', '静岡', 'どこでも'] as const;
+// 2026-10-15：千葉を北部・南部に、埼玉を西部・北部に分け、山梨を追加（本人指定）。
+// 埼玉はゴルフ場の多い2地域で分ける（南東部＝さいたま市・川口などはゴルフ場がほとんど無いため）。
+export const INTRO_AREAS = ['千葉北部', '千葉南部', '茨城', '埼玉西部', '埼玉北部', '神奈川', '東京', '栃木', '群馬', '山梨', '静岡', 'どこでも'] as const;
+// 分けた地域の目安（あいさつ画面の選択肢の下に出す）
+export const INTRO_AREA_HINTS: Array<[string, string]> = [
+  ['千葉北部', '成田・印西・佐倉・八街など'],
+  ['千葉南部', '市原・木更津・袖ケ浦・房総など'],
+  ['埼玉西部', '飯能・日高・入間・秩父など'],
+  ['埼玉北部', '東松山・嵐山・熊谷・寄居など'],
+];
 export const INTRO_BUDGETS = [
   { key: '10k', label: '〜1万円', amount: '1万円' },
   { key: '15k', label: '〜1.5万円', amount: '1.5万円' },
