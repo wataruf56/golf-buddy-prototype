@@ -94,6 +94,7 @@ function Inner() {
         { href: `/admin/insights${q}`, emoji: '📊', title: '計測ハブ', desc: '全体の数字 / ポップアップごとの反応（何を押したか・成果率） / イチオシの効果 / ほかの計測への入口' },
         { href: `/admin/activity${q}`, emoji: '📈', title: '利用状況', desc: 'よく開かれる画面 / アクティブ会員 / 登録の推移・カレンダー / スイング' },
         { href: `/admin/lp-funnel${q}`, emoji: '🧭', title: 'LP・診断の流入', desc: '入口別のファネル・離脱ポイント・LINE到達 / 診断の中身・需要プール' },
+        { href: `/admin/ab${q}`, emoji: '🆚', title: '広告A/Bテスト', desc: '画像違いの広告を比べる / Ads Managerの数字を入れる / LP来訪〜登録は自動' },
         { href: `/admin/line-stats${q}`, emoji: '📨', title: 'LINE配信の通数', desc: '種別ごとの送信数・月別の推移（有料枠の把握）' },
         { href: `/admin/audit${q}`, emoji: '📒', title: '操作ログ', desc: '誰が・誰に・何をしたか（自動の再会通知も含む）' },
       ],
