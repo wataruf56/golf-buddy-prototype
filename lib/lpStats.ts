@@ -15,6 +15,13 @@ export type LpStats = {
   compeN: number; compePlayers: number; compeRepeat: number;
 };
 
+// 運営が主催した公式コンペなのに isOfficial が付いていない過去の募集（本人確認 2026-10-15）。
+//   9xN38TLiDpyksZnLvM6i … 9/13「同世代でゆるっとゴルフ」
+//   WduL3gVEnHQ0VwTrPo3n … 9/26「ギネス記録のホールにチャレンジ」
+// データに isOfficial を付けると公式募集として扱いが変わる（主催者の数え方・一覧など）ため、
+// LPの実績の集計だけに加える。これで インスタの「4本・27人・2回以上8人」と同じ数え方になる。
+const OFFICIAL_COMPE_EXTRA_IDS = new Set(['9xN38TLiDpyksZnLvM6i', 'WduL3gVEnHQ0VwTrPo3n']);
+
 export const EMPTY_LP_STATS: LpStats = {
   fillRate: null, fillN: 0, totalPlayers: 0, againRate: null, againN: 0,
   femaleRate: null, genderN: 0, avgAge: null, ageN: 0,
@@ -56,7 +63,13 @@ export async function computeLpStats(db: any): Promise<LpStats> {
 
   // 公式コンペの実績（LP「公式コンペ」の枠に出す）。当日来られなかった人は数えない。
   const compeTimes: Record<string, number> = {};
-  const compes = done.filter((r: any) => r.isOfficial && r.isCompetition);
+  const compes = rSnap.docs
+    .filter((d: any) => {
+      const r = d.data() || {};
+      return r.status === 'completed' && r.isCompetition && !String(r.hostId || '').startsWith('test_')
+        && (r.isOfficial || OFFICIAL_COMPE_EXTRA_IDS.has(d.id));
+    })
+    .map((d: any) => d.data());
   compes.forEach((r: any) => {
     const noShow = new Set<string>(r.noShowIds || []);
     new Set<string>(membersOf(r)).forEach((m) => {
