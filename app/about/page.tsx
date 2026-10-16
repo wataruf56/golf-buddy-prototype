@@ -92,10 +92,11 @@ export default async function AboutPage() {
     '@graph': [
       {
         '@type': 'WebApplication',
+        // 定義の本体はトップ（app/lp/page.tsx の ID_APP）。同じ @id・同じ url で揃える
         '@id': `${SITE}/#app`,
         name: 'ゴルトモ',
         alternateName: ['ゴル友', 'Goltomo'],
-        url: SITE,
+        url: `${SITE}/`,
         applicationCategory: 'LifestyleApplication',
         operatingSystem: 'LINE (iOS / Android / Web)',
         description: DESC,
@@ -118,7 +119,8 @@ export default async function AboutPage() {
       },
       {
         // 「いつの情報か」「誰が書いたか」。AIが出典を選ぶときに見る。
-        '@type': 'WebPage',
+        // AboutPage＝トップで定義した「ゴルトモ」（#app）の説明ページ。本拠地はトップ（2026-10-16）
+        '@type': 'AboutPage',
         '@id': `${PAGE_URL}#page`,
         url: PAGE_URL,
         name: 'ゴルトモとは',
@@ -128,12 +130,13 @@ export default async function AboutPage() {
         dateModified: MODIFIED,
         author: AUTHOR,
         publisher: PUBLISHER,
-        isPartOf: { '@type': 'WebSite', name: 'ゴルトモ', url: `${SITE}/` },
+        isPartOf: { '@id': `${SITE}/#website` },
+        about: { '@id': `${SITE}/#app` },
       },
       {
         '@type': 'BreadcrumbList',
         itemListElement: [
-          { '@type': 'ListItem', position: 1, name: 'ホーム', item: SITE },
+          { '@type': 'ListItem', position: 1, name: 'ゴルトモ', item: `${SITE}/` },
           { '@type': 'ListItem', position: 2, name: 'ゴルトモとは', item: PAGE_URL },
         ],
       },

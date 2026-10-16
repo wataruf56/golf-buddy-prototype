@@ -29,7 +29,7 @@ const SITE = 'https://goltomo.com';
 const DIAGNOSIS_URL = '/golmoti.html';
 
 export const metadata: Metadata = {
-  title: 'ゴルトモ｜ゴルフ友達を探す・作るなら。20〜30代のゴルフ友達マッチング',
+  title: 'ゴルトモ公式｜ゴルフ友達を探す・作るなら。20〜30代のゴルフ友達マッチング',
   description:
     '一緒に回るゴルフ友達が見つかる。誘える人がいなくても、一人で参加して気の合う「ゴル友」を作れます。ゴルフ初心者もOK、スコア帯は「ラウンド未経験」から選べます。車がなくても送迎（ピックアップ）の調整がアプリの中で完結。20〜30代限定・ラウンド後の相互レビューで安心。LINEで完結、アプリのダウンロード不要。',
   keywords: [
@@ -93,6 +93,8 @@ html body{background:#F4E8CE}
   font-weight:900;font-size:12.5px;padding:7px 16px;border-radius:999px;border:2.5px solid var(--ink)}
 .sv h1{position:relative;z-index:1;font-size:33px;font-weight:900;line-height:1.3;margin:14px 0 0;letter-spacing:-.01em}
 .sv h1 .hl{background:linear-gradient(transparent 62%,var(--mustard) 62%)}
+/* 見出しの頭のブランド名（検索エンジンにトップ＝ゴルトモの本拠地と伝える。見た目は小さめ） */
+.sv h1 .hb{display:block;font-size:17px;color:var(--teal);letter-spacing:.04em;margin-bottom:4px}
 .sv .hero p{position:relative;z-index:1;font-size:13.5px;font-weight:700;margin:13px 0 0;color:#5c4c38}
 
 /* 前提バッジ（DL不要・LINE完結・年代） */
@@ -376,50 +378,73 @@ const INSTAGRAM_URL = 'https://www.instagram.com/goltomo.golf/';
 // 構造化データ。WebSite と Organization を分けて出す。
 // sameAs に公式SNSを並べると、検索エンジンが「ゴルトモ＝このインスタ」と
 // 結び付けられる（ブランド検索でインスタが出やすくなる）。
-const JSON_LD = [
-  {
-    '@context': 'https://schema.org',
-    '@type': 'WebSite',
-    name: 'ゴルトモ',
-    alternateName: ['GOLTOMO', 'ゴルトモ ゴルフ友達マッチング', 'ゴルフMBTI診断'],
-    url: `${SITE}/`,
-    inLanguage: 'ja',
-    description:
-      '一緒に回るゴルフ友達が見つかるLINEアプリ。20〜30代限定。ラウンド募集と相互レビューで、気の合う「ゴル友」とつながれる。',
-    publisher: { '@type': 'Organization', name: '合同会社シクミヤ', url: `${SITE}/` },
-  },
-  {
-    '@context': 'https://schema.org',
-    '@type': 'Organization',
-    name: 'ゴルトモ',
-    alternateName: 'GOLTOMO',
-    url: `${SITE}/`,
-    logo: `${SITE}/icons/icon-512.png`,
-    description: '20〜30代限定のゴルフ友達マッチング。ラウンド募集に一人でも参加できる。',
-    sameAs: [INSTAGRAM_URL],
-    parentOrganization: { '@type': 'Organization', name: '合同会社シクミヤ' },
-  },
-  // 「ラウンド募集」「ゴルフ友達探し」で何ができるサービスかを明示する。
-  {
-    '@context': 'https://schema.org',
-    '@type': 'WebApplication',
-    name: 'ゴルトモ',
-    url: `${SITE}/`,
-    applicationCategory: 'LifestyleApplication',
-    operatingSystem: 'Web (LINE)',
-    description:
-      'ゴルフのラウンド募集に一人で参加できるLINEアプリ。ゴルフ友達を探す・作る、ラウンド募集を立てる、送迎の調整まで完結。',
-    featureList: [
-      'ラウンド募集を探す・参加する',
-      'ラウンド募集を立てて仲間を集める',
-      'ゴルフ友達（ゴル友）を作る',
-      '送迎（ピックアップ）の調整',
-      'ラウンド後の相互レビュー',
-    ],
-    offers: { '@type': 'Offer', price: '0', priceCurrency: 'JPY' },
-    sameAs: [INSTAGRAM_URL],
-  },
-];
+// 構造化データ。「ゴルトモ」という存在（サイト・運営・アプリ）の定義は**このトップに置き**、
+// @id でつなぐ。/about（ゴルトモとは）は同じ @id を参照する「説明ページ（AboutPage）」。
+// 2026-10-16：定義が /about にしか無く、「ゴルトモ」で検索すると /about がトップより上に
+// 出ることがあったため、トップを本拠地として明示した。@id を変えるときは /about と揃えること。
+const ID_WEBSITE = `${SITE}/#website`;
+const ID_ORG = `${SITE}/#organization`;
+const ID_APP = `${SITE}/#app`;
+const JSON_LD = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': ID_WEBSITE,
+      name: 'ゴルトモ',
+      alternateName: ['GOLTOMO', 'ゴルトモ ゴルフ友達マッチング', 'ゴルフMBTI診断'],
+      url: `${SITE}/`,
+      inLanguage: 'ja',
+      description:
+        '一緒に回るゴルフ友達が見つかるLINEアプリ。20〜30代限定。ラウンド募集と相互レビューで、気の合う「ゴル友」とつながれる。',
+      publisher: { '@id': ID_ORG },
+    },
+    {
+      '@type': 'Organization',
+      '@id': ID_ORG,
+      name: 'ゴルトモ',
+      alternateName: 'GOLTOMO',
+      url: `${SITE}/`,
+      logo: `${SITE}/icons/icon-512.png`,
+      description: '20〜30代限定のゴルフ友達マッチング。ラウンド募集に一人でも参加できる。',
+      sameAs: [INSTAGRAM_URL],
+      parentOrganization: { '@type': 'Organization', name: '合同会社シクミヤ' },
+    },
+    // 「行ける日」「ラウンド募集」「ゴルフ友達探し」で何ができるサービスかを明示する。
+    {
+      '@type': 'WebApplication',
+      '@id': ID_APP,
+      name: 'ゴルトモ',
+      alternateName: ['ゴル友', 'Goltomo'],
+      url: `${SITE}/`,
+      applicationCategory: 'LifestyleApplication',
+      operatingSystem: 'Web (LINE)',
+      description:
+        'カレンダーで行ける日を押すだけで、同じ日に行ける20〜30代とゴルフに行けるLINEアプリ。ラウンド募集への一人参加、送迎の調整、ラウンド後の相互レビューまで完結。',
+      featureList: [
+        '行ける日を押すと、同じ日に行ける人とチャットが始まる',
+        'ラウンド募集を探す・参加する',
+        'ラウンド募集を立てて仲間を集める',
+        'ゴルフ友達（ゴル友）を作る',
+        '送迎（ピックアップ）の調整',
+        'ラウンド後の相互レビュー',
+      ],
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'JPY' },
+      publisher: { '@id': ID_ORG },
+      sameAs: [INSTAGRAM_URL],
+    },
+    {
+      '@type': 'WebPage',
+      '@id': `${SITE}/#webpage`,
+      url: `${SITE}/`,
+      name: 'ゴルトモ公式サイト',
+      inLanguage: 'ja',
+      isPartOf: { '@id': ID_WEBSITE },
+      about: { '@id': ID_APP },
+      mainEntity: { '@id': ID_APP },
+    },
+  ],
+};
 
 export default async function LandingPage() {
   const { openCount, activeNow, price, stats } = await getLpData();
@@ -472,7 +497,7 @@ export default async function LandingPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className="peek" src="/lp/bear-hook.webp" alt="" width={420} height={346} />
             <span className="lb">20〜30代限定・ゴルフ友達さがし</span>
-            <h1>行ける日を押すだけ。<br /><span className="hl">ゴルフ友達</span>が<br />見つかる。</h1>
+            <h1><span className="hb">ゴルトモなら、</span>行ける日を押すだけ。<br /><span className="hl">ゴルフ友達</span>が<br />見つかる。</h1>
             <p>
               日程もコースも決めなくてOK。<br />
               同じ日に行ける人が3人そろうと、チャットが始まります。

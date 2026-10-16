@@ -147,7 +147,7 @@ export default async function Page() {
       '@context': 'https://schema.org',
       '@type': 'BreadcrumbList',
       itemListElement: [
-        { '@type': 'ListItem', position: 1, name: 'ホーム', item: `${SITE}/` },
+        { '@type': 'ListItem', position: 1, name: 'ゴルトモ', item: `${SITE}/` },
         { '@type': 'ListItem', position: 2, name: 'ガイド', item: PAGE_URL },
       ],
     },
