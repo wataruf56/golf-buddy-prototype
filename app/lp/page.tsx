@@ -471,12 +471,26 @@ export default async function LandingPage() {
   // 公式コンペの実績。回数・人数が少ないうちは出さない
   const showCompe = stats.compeN >= 2 && stats.compePlayers >= 10;
   const faq = lpFaq(price);
+  // 画面のFAQと同じ問答を FAQPage としても出す（AIの回答・検索の引用元になりやすい）。
+  // 問答の文面は画面と完全に同じものを使う（食い違うと構造化データとして無効扱い）。
+  const jsonLd = {
+    ...JSON_LD,
+    '@graph': [
+      ...JSON_LD['@graph'],
+      {
+        '@type': 'FAQPage',
+        '@id': `${SITE}/#faq`,
+        isPartOf: { '@id': `${SITE}/#webpage` },
+        mainEntity: faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+      },
+    ],
+  };
   const statsAsOf = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '/');
   const APP = 'https://app.goltomo.com';
   return (
     <div className="sv">
       <style dangerouslySetInnerHTML={{ __html: CSS + SITE_NAV_CSS }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       {/* LP計測（到達→スクロール→クリック→LINE遷移）。ユニークは visitorId 基準。 */}
       <script dangerouslySetInnerHTML={{ __html: `window.__lpPage="top";` + LP_TRACK_SCRIPT }} />
       {/* 流入経路キャプチャ（?ref=instagram 等を初回のみ記憶） */}
