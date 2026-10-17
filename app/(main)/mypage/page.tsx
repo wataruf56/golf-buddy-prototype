@@ -2,6 +2,7 @@
 
 import { RoundChatNewBadge } from '@/components/RoundChatNewBadge';
 import Link from 'next/link';
+import { PastRoundsList } from '@/components/PastRoundsList';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
@@ -101,6 +102,18 @@ export default function MyPage() {
     <>
       <div className="px-5 pt-2 pb-4">
         <div className="text-2xl font-black tracking-tight">マイページ</div>
+      </div>
+
+      {/* 使い方（2026-10-17・下のタブから外してここへ。初めての人には GuideIntroPopup でも案内） */}
+      <div className="px-5 mb-3">
+        <Link href="/guide" className="flex items-center gap-3 bg-card rounded-card shadow-card px-4 py-3 border-2 border-green">
+          <span className="text-2xl">📖</span>
+          <div className="flex-1 min-w-0">
+            <div className="text-[14px] font-black">ゴルトモの使い方</div>
+            <div className="text-[11px] text-sub">探し方・募集・行ける日・ゴル友・タブごとの機能</div>
+          </div>
+          <span className="text-green font-black">›</span>
+        </Link>
       </div>
 
       <div className="px-5">
@@ -204,6 +217,16 @@ export default function MyPage() {
         </div>
 
 
+        {/* 🏁 過去のラウンド（2026-10-17・下のタブ「過去ラウンド」をここへ移した。押すとその日のグループチャット・📷でアルバム） */}
+        <div className="bg-card rounded-card shadow-card mb-4 p-4 border-2 border-green">
+          <div className="flex items-baseline gap-2 mb-0.5">
+            <span className="text-[17px] font-black">🏁 過去のラウンド</span>
+            <span className="text-[11px] text-muted font-bold">{pastRounds.length}件</span>
+          </div>
+          <div className="text-[11px] text-sub mb-2.5">押すと、その日のグループチャットが開きます。📷 はアルバムに写真があるラウンドです。</div>
+          <PastRoundsList />
+        </div>
+
         <details className="bg-card rounded-card shadow-card mb-4" open>
           <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
             <span className="text-[13px] font-bold">参加予定のラウンド</span>
@@ -228,30 +251,6 @@ export default function MyPage() {
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${r.status === 'open' ? 'bg-green-light text-green' : r.status === 'completed' ? 'bg-blue-light text-blue' : 'bg-bg text-sub'}`}>
                   {r.status === 'open' ? '募集中' : r.status === 'completed' ? '完了' : '終了'}
                 </span>
-              </Link>
-            );
-          })}
-          </div>
-        </details>
-
-
-        <details className="bg-card rounded-card shadow-card mb-4">
-          <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
-            <span className="text-[13px] font-bold">過去参加したラウンド</span>
-            <span className="text-[11px] text-muted">{pastRounds.length}件 ▾</span>
-          </summary>
-          <div className="px-4 pb-4">
-          {pastRounds.length === 0 ? (
-            <div className="text-xs text-muted py-3 text-center">完了したラウンドはまだありません</div>
-          ) : pastRounds.map((r) => {
-            const role = r.hostId === me.id ? '主催' : '参加';
-            return (
-              <Link href={`/round/${r.id}`} key={r.id} className="flex justify-between items-center p-2.5 bg-bg rounded-[10px] mb-1.5">
-                <div className="min-w-0 flex-1">
-                  <div className="text-[13px] font-bold truncate">{r.title}</div>
-                  <div className="text-[11px] text-muted">{formatDate(r.date) || r.dateRange} ・ {role}</div>
-                </div>
-                <span className="text-[11px] text-blue font-bold flex-shrink-0 ml-2">詳細 →</span>
               </Link>
             );
           })}

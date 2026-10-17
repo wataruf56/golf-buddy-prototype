@@ -13,6 +13,7 @@ import { PaymentAckGate } from '@/components/PaymentAckGate';
 import { HoldDueGate } from '@/components/HoldDueGate';
 import { RoundPromoPopup } from '@/components/RoundPromoPopup';
 import { AvailMonthlyPopup } from '@/components/AvailMonthlyPopup';
+import { GuideIntroPopup } from '@/components/GuideIntroPopup';
 import { usePopupSlot, POPUP_PRIORITY, popupEvent } from '@/lib/popupSlot';
 import { BlockerPopup } from '@/components/BlockerPopup';
 import { ToastHost } from '@/components/Toast';
@@ -177,6 +178,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <RoundPromoPopup blocked={pendingCount > 0 || banGated || loggedOut || ageGated} />
       {/* 毎月の「行ける日を入れませんか？」（月末2日前〜月末・翌月と翌々月が未入力の人）（2026-10-12） */}
       <AvailMonthlyPopup blocked={pendingCount > 0 || banGated || loggedOut || ageGated} />
+      {/* 初めて登録した人へ「使い方を見てみませんか？」（使い方は下のタブから外してマイページへ・2026-10-17） */}
+      <GuideIntroPopup blocked={pendingCount > 0 || banGated || loggedOut || ageGated} />
       {/* 友だち追加の案内（LineFollowPrompt）はホームの関所（FriendGate）に置き換えた（2026-10-04） */}
       <ToastHost />
       <ConfirmHost />

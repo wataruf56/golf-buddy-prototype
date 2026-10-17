@@ -27,6 +27,7 @@ export const POPUP_PRIORITY = {
   friendGate: 75,    // LINE の友だち追加
   chase: 60,         // 追いDMの確認
   official: 55,      // 運営枠の声かけ
+  guideIntro: 52,    // 初めて登録した人へ「使い方を見てみませんか？」（2026-10-17・使い方は下のタブから外してマイページへ）
   availPrompt: 50,   // ラウンド後の「行ける日を入れてみませんか？」
   availMonthly: 48,  // 毎月（月末2日前〜）の「行ける日を入れませんか？」
   availIntro: 45,    // 行ける日の使い方

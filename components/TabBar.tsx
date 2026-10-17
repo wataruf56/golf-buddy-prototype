@@ -12,8 +12,8 @@ import { useAvailBadge } from '@/lib/availBadge';
 // 「募集」はホームのタイルから、「マイ」はホームのプロフィールカードから到達する。
 // 「行ける日」は左から2番目（2026-10-14 本人指定。それまではホームの大きなカードだった）。20〜30代にだけ出す（lib/availability と同じ）。
 //   ほかの人が新しく押した日があると①②のバッジ（lib/availBadge）。タブを開くと消える。
-// 8つ並ぶと1つが 45〜49px しかないので、「タイムライン」「過去ラウンド」はどの幅でも2行に折る（1行の名前も同じ高さにそろえる）。
-const TWO_LINE: Record<string, [string, string]> = { timeline: ['タイム', 'ライン'], past: ['過去', 'ラウンド'] };
+// 2行に折る名前（8タブのときは「タイムライン」「過去ラウンド」を折っていた。2026-10-17 から6タブなので1行で入る）。
+const TWO_LINE: Record<string, [string, string]> = {};
 
 type Tab = { id: string; label: string; href: string; emoji: string; external?: boolean };
 
@@ -22,11 +22,10 @@ const tabs: Tab[] = [
   { id: 'avail', label: '行ける日', href: '/availability', emoji: '📅' },
   { id: 'search', label: 'さがす', href: '/search', emoji: '🔍' },
   { id: 'timeline', label: 'タイムライン', href: '/timeline', emoji: '📰' },
-  // 2026-10-11：過去に参加したラウンド（押すとその日のグループチャット・📷でアルバム）
-  { id: 'past', label: '過去ラウンド', href: '/rounds/past', emoji: '🏁' },
+  // 2026-10-17：「過去ラウンド」と「使い方」は下のタブから外してマイページへ（本人指定）。
+  //   過去ラウンド＝マイページの「🏁 過去のラウンド」（/rounds/past も残す）／使い方＝マイページの「📖 使い方」＋初回だけポップアップ（GuideIntroPopup）
   { id: 'swing', label: 'スイング', href: '/swing', emoji: '🏌️' },
   { id: 'buddies', label: 'ゴル友', href: '/buddies', emoji: '👥' },
-  { id: 'guide', label: '使い方', href: '/guide', emoji: '📖' },
 ];
 
 export function TabBar({ onBlock }: { onBlock?: (href: string) => boolean }) {

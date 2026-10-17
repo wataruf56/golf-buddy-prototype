@@ -11,7 +11,8 @@ import { ADMIN_MANAGER_ID } from '@/lib/adminManagerId';
 // 使い方・ヘルプ（2026-10-11 作り直し → 2026-10-13 トップを2つに分けた）。
 //   トップ（/guide）            … ①メインの機能 ②タブごとに機能を見る の2枚の大きな入口＋新機能・よくある質問・わからないことがあったら
 //   メインの機能（?view=main）   … 行ける日 → 参加/募集 → チャット → 当日 → レビュー → ゴル友 の流れ
-//   タブごと（?view=tabs&tab=…） … 下のタブ（ホーム／行ける日／さがす／タイムライン／過去ラウンド／スイング／ゴル友／使い方）を1つずつ（2026-10-14 行ける日を追加）
+//   タブごと（?view=tabs&tab=…） … 下のタブ（ホーム／行ける日／さがす／タイムライン／スイング／ゴル友）＋マイページを1つずつ
+//   （2026-10-14 行ける日を追加・2026-10-17 過去ラウンドと使い方を下のタブから外してマイページへ）
 // クエリで切り替えるので、どこからでも直リンクできる（例：/guide?view=tabs&tab=buddies）。
 // 文章は最小限にして、**実際の画面**を横にめくって見せる（Tour）。タップで拡大（Lightbox）。
 // 画面は /guide-shots/v2/{name}.webp。テスト用アカウントで撮ったもの（実在の会員は写っていない）。
@@ -21,7 +22,7 @@ const IMG = (n: string) => `/guide-shots/v2/${n}.webp`;
 
 type TourItem = { src: string; title: string; text?: string };
 type View = 'top' | 'main' | 'tabs';
-type TabKey = 'home' | 'avail' | 'search' | 'timeline' | 'past' | 'swing' | 'buddies' | 'guide';
+type TabKey = 'home' | 'avail' | 'search' | 'timeline' | 'past' | 'swing' | 'buddies';
 
 // 下のタブバー（components/TabBar.tsx）と同じ並び・名前・絵文字。
 // lines … 8つ並べる小さい切り替えで2行に折る名前（「タイムライン」「過去ラウンド」が隣とくっつくため）
@@ -30,10 +31,10 @@ const TABS: Array<{ key: TabKey; label: string; lines?: [string, string]; emoji:
   { key: 'avail', label: '行ける日', emoji: '📅', href: '/availability', lead: 'カレンダーで行ける日を押す。同じ日に3人でチャット' },
   { key: 'search', label: 'さがす', emoji: '🔍', href: '/search', lead: '募集をキーワードと条件でしぼりこむ' },
   { key: 'timeline', label: 'タイムライン', lines: ['タイム', 'ライン'], emoji: '📰', href: '/timeline', lead: '同じ年代のみんなの動きが流れる' },
-  { key: 'past', label: '過去ラウンド', lines: ['過去', 'ラウンド'], emoji: '🏁', href: '/rounds/past', lead: '参加したラウンドのチャットとアルバム' },
+  // 2026-10-17：「過去ラウンド」「使い方」は下のタブから外してマイページへ。ここでは「マイページ」として説明する
+  { key: 'past', label: 'マイページ', lines: ['マイ', 'ページ'], emoji: '👤', href: '/mypage', lead: 'ホーム右上のアイコンから。過去のラウンド（チャット・アルバム）と使い方' },
   { key: 'swing', label: 'スイング', emoji: '🏌️', href: '/swing', lead: '動画を送るとAIがスイングを解析' },
   { key: 'buddies', label: 'ゴル友', emoji: '👥', href: '/buddies', lead: '友達の一覧・メッセージ・管理者にDM' },
-  { key: 'guide', label: '使い方', emoji: '📖', href: '/guide', lead: 'いま見ているこのページ' },
 ];
 const TAB_KEYS = TABS.map((t) => t.key) as string[];
 
@@ -188,7 +189,7 @@ function TopView({ open, adminDmHref }: { open: OpenFn; adminDmHref: string }) {
           { img: 'buddies', t: '友達になると', d: '🤝が付いて、声をかけられる', to: () => open('main', { anchor: 'friends' }) },
           { img: 'room_dm', t: '行ける日', d: '人数がそろうと運営が声かけ', to: () => open('main', { anchor: 'avail' }) },
           { img: 'review_car', t: 'レビュー', d: '同じ車の人も・必ず選ぶ形に', to: () => open('main', { anchor: 'review' }) },
-          { img: 'past', t: '過去ラウンド', d: 'チャットとアルバムがすぐ開く', to: () => open('tabs', { tab: 'past' }) },
+          { img: 'past', t: '過去ラウンド', d: 'マイページからチャットとアルバム', to: () => open('tabs', { tab: 'past' }) },
           { img: 'pay_notice', t: '事前入金', d: '金額と期日がひと目でわかる', to: () => open('main', { anchor: 'pay' }) },
         ] as const).map((c) => (
           <button key={c.img} type="button" onClick={c.to}
@@ -364,7 +365,7 @@ function TabsView({ tab, open, onZoom, adminDmHref }: { tab: TabKey; open: OpenF
       <div className="sticky top-0 z-20 bg-bg/95 backdrop-blur border-b-2 border-hair">
         <BackBar title="📱 タブごとの機能" onBack={() => open('top')} />
         {/* 下のタブバーと同じ並び。押すとそのタブの説明に切り替わる */}
-        <div className="grid grid-cols-8 gap-0.5 px-2 pb-2">
+        <div className="grid grid-cols-7 gap-0.5 px-2 pb-2">
           {TABS.map((t) => {
             const active = t.key === tab;
             return (
@@ -382,7 +383,7 @@ function TabsView({ tab, open, onZoom, adminDmHref }: { tab: TabKey; open: OpenF
         <div className="bg-card rounded-card shadow-card border-[2.5px] border-border p-4 mb-6 flex items-center gap-3">
           <span className="w-12 h-12 rounded-2xl bg-green-light border-2 border-border grid place-items-center text-[26px] flex-none">{cur.emoji}</span>
           <div className="min-w-0">
-            <div className="text-[11px] font-black text-sub">下のタブ</div>
+            <div className="text-[11px] font-black text-sub">{cur.key === 'past' ? 'ホーム右上のアイコン' : '下のタブ'}</div>
             <h1 className="text-[19px] font-black leading-tight">「{cur.label}」</h1>
             <div className="text-[11.5px] text-sub mt-0.5 leading-snug">{cur.lead}</div>
           </div>
@@ -395,9 +396,7 @@ function TabsView({ tab, open, onZoom, adminDmHref }: { tab: TabKey; open: OpenF
         {tab === 'past' && <PastTab onZoom={onZoom} />}
         {tab === 'swing' && <SwingTab onZoom={onZoom} />}
         {tab === 'buddies' && <BuddiesTab onZoom={onZoom} adminDmHref={adminDmHref} />}
-        {tab === 'guide' && <GuideTab open={open} />}
-
-        {tab !== 'guide' && <Cta href={cur.href} color="green">{cur.emoji} 「{cur.label}」タブを開く</Cta>}
+        <Cta href={cur.href} color="green">{cur.emoji} 「{cur.label}」{cur.key === 'past' ? '' : 'タブ'}を開く</Cta>
 
         {/* 前後のタブへ */}
         <div className="grid grid-cols-2 gap-2 mb-8">
@@ -513,13 +512,14 @@ function TimelineTab({ onZoom }: { onZoom: (s: string) => void }) {
 function PastTab({ onZoom }: { onZoom: (s: string) => void }) {
   return (
     <>
-      <Head emoji="🏁" title="過去ラウンド" sub="参加して完了したラウンドが、新しい順に残ります" />
+      <Head emoji="🏁" title="過去のラウンド" sub="マイページの「🏁 過去のラウンド」に、参加して完了したラウンドが新しい順に残ります" />
       <Tour onZoom={onZoom} items={[
         { src: IMG('past'), title: '参加したラウンドの一覧', text: '📷＝写真があるラウンド' },
         { src: IMG('past_chat'), title: '押すとその日のチャット', text: 'あとからお礼や次の相談も' },
         { src: IMG('album'), title: '📷でアルバム', text: 'みんながあげた写真を見られる' },
       ]} />
       <Tip>同じ組の人への「行きたい」は、「ゴル友」タブの「過去参加したラウンド」から後でも付け直せます。</Tip>
+      <Tip>この「使い方」のページは、マイページの「📖 ゴルトモの使い方」からいつでも開けます。</Tip>
     </>
   );
 }
@@ -568,18 +568,6 @@ function BuddiesTab({ onZoom, adminDmHref }: { onZoom: (s: string) => void; admi
       ]} />
 
       <FriendsSection onZoom={onZoom} />
-    </>
-  );
-}
-
-function GuideTab({ open }: { open: OpenFn }) {
-  return (
-    <>
-      <Head emoji="📖" title="使い方ページでできること" />
-      <div className="flex flex-col gap-2 mb-8">
-        <NextBox label="⭐ メインの機能" sub="行ける日 → 参加・募集 → チャット → レビュー → ゴル友" onClick={() => open('main')} />
-        <NextBox label="❓ よくある質問" sub="費用・初心者・車がない・通知が来ない など" onClick={() => open('top', { anchor: 'faq' })} />
-      </div>
     </>
   );
 }
