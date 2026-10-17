@@ -76,6 +76,14 @@ export async function GET(req: NextRequest) {
     results.availMonthly = { error: (e as Error).message };
   }
 
+  // 「💘 異性として気になる」をもらった人へ、月1回くらい「気になっている人がいるようです」（毎日20時台に1回見る・2026-10-17・lib/crushNotice）
+  try {
+    const { sendCrushNotices } = await import('@/lib/crushNotice');
+    results.crushNotice = await sendCrushNotices();
+  } catch (e) {
+    results.crushNotice = { error: (e as Error).message };
+  }
+
   // 行ける日の部屋：集まったのに誰も話していない部屋に、運営から声かけ（2026-10-11）
   try {
     const { nudgeQuietRooms } = await import('@/lib/availRooms');

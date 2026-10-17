@@ -12,12 +12,14 @@ import type { User } from './types';
 //   join   … 「◯◯さんが「…」に参加しました」（参加が確定した人だけ。_timelineEvents・lib/timelineEvents）（2026-10-12）
 //            いまも参加している人だけ出す（取りやめ・除外されたら消える）。行ける日の部屋・運営の代理募集（そろうまで顔ぶれを伏せる枠）は出さない
 // 新しく記録を書くのではなく、users / _availability / rounds から毎回組み立てる（重複がそもそも起きない）。
+//   crush … 「💘 だれかが、だれかのことを異性として気になっているようです」（2026-10-17・lib/crushNotice が
+//            「気になっている人がいるようです」のお知らせを送ったときに1行。だれ→だれかは伏せる＝名前もリンクも出さない）
 // 誰にも通知はしない。見えるのは同じ年代（コホート）の動きだけ。テスト垢・赤バン・退会者は出さない。
 // 「行ける日」の行も、男性・女性どちらが見ても名前を出す（2026-10-14 本人判断・lib/availability と同じ。以前は男性には「女性メンバー」等で伏せていた）。
 
 export type TimelineItem = {
   id: string;
-  kind: 'signup' | 'avail' | 'round' | 'join';
+  kind: 'signup' | 'avail' | 'round' | 'join' | 'crush';
   at: number;
   name: string;
   text: string;
@@ -119,6 +121,14 @@ export async function buildTimeline(viewer: User, limit = 80): Promise<TimelineI
     const sub = [r.date ? dateLabel(r.date) : (r.dateRange || ''), r.area || '', r.courseName || ''].filter(Boolean).join(' ');
     const title = String(r.title || r.courseName || (r.eventType === 'drink' ? '飲み会' : 'ラウンド')).slice(0, 30);
     items.push({ id: `join_${j.roundId}_${j.userId}`, kind: 'join', at: j.at, name: nameOf(u), text: `さんが「${title}」に参加しました`, sub, link: `/round/${j.roundId}` });
+  }
+  // 💘（だれ→だれかは伏せる。名前・リンク・人数は出さない）
+  for (const d of joinSnap.docs) {
+    const x = d.data() || {};
+    if (x.kind !== 'crush' || !x.at) continue;
+    if (x.cohort && x.cohort !== cohort) continue;
+    if (x.test && !viewerIsTest) continue;
+    items.push({ id: `crush_${d.id.slice(-8)}_${x.at}`, kind: 'crush', at: x.at, name: '', text: '💘 だれかが、だれかのことを異性として気になっているようです' });
   }
   items.sort((a, b) => b.at - a.at);
   return items.slice(0, limit);
