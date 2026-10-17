@@ -137,6 +137,14 @@ export function stripPaymentForViewer(round: Round, viewerId: string | null): Ro
   return { ...round, paymentInfo: { ...rest, accountHidden: true } } as Round;
 }
 
+// 参加申請中（保留中も含む）の人は、主催者・共同管理者だけが全員分を見られる。申請した本人には自分の分だけ（2026-10-17 本人指定）。
+// 以前は全員に届いていて、募集カードの「📥 申請 N」がだれにでも見えていた。
+export function stripPendingForViewer(round: Round, viewerId: string | null): Round {
+  const pending = round.pendingApplicantIds;
+  if (!pending?.length || isRoundHost(round, viewerId)) return round;
+  return { ...round, pendingApplicantIds: viewerId && pending.includes(viewerId) ? [viewerId] : [] };
+}
+
 // イベントの出欠・回答は、主催者・共同管理者だけが全員分を見られる。ほかの人には本人の分だけ（2026-10-14）
 export function stripEventAnswersForViewer(round: Round, viewerId: string | null): Round {
   const ans = (round as any).eventAnswers;
@@ -147,6 +155,7 @@ export function stripEventAnswersForViewer(round: Round, viewerId: string | null
 
 export function stripRoundForViewer(round: Round, viewerId: string | null): Round {
   round = stripEventAnswersForViewer(round, viewerId);
+  round = stripPendingForViewer(round, viewerId);
   return _strip(stripCancellationsForViewer(stripHoldsForViewer(stripPaymentForViewer(stripRejectedForViewer(round, viewerId), viewerId), viewerId), viewerId), viewerId);
 }
 function _strip(round: Round, viewerId: string | null): Round {

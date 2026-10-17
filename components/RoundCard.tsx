@@ -17,6 +17,9 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
   const users = useStore((s) => s.users);
   const me = useStore(getMe);
   const hasUnread = unreadRoundIds.has(round.id);
+  // 「📥 申請 N」は主催者・共同管理者だけに出す（申請中・保留中は主催者だけが見るもの・2026-10-17 本人指定）
+  const amHost = !!me?.id && (round.hostId === me.id || (round.coHostIds || []).includes(me.id));
+  const pendingN = amHost ? (round.pendingApplicantIds || []).length : 0;
   const isDrink = round.eventType === 'drink';
   // 非公開の招待・イベント（eventKind あり）（2026-10-14）。従来の飲み会（eventKind なし）は今までどおり
   const isPrivate = isPrivateRound(round);
@@ -69,7 +72,7 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
         </span>
       )}
       <div className={isFull ? 'grayscale opacity-40' : mineFull ? 'opacity-75' : ''}>
-      {(round.isOfficial || isComp || isDrink || isPrivate || (round.pendingApplicantIds || []).length > 0 || hasUnread) && (
+      {(round.isOfficial || isComp || isDrink || isPrivate || pendingN > 0 || hasUnread) && (
         <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
           {round.isOfficial && (
             <span className="inline-flex items-center gap-1 px-2 py-[2px] rounded-full text-[10px] font-black bg-green text-white">✓ ゴルトモ公式</span>
@@ -85,8 +88,8 @@ export function RoundCard({ round }: { round: Round; host?: User }) {
           {isComp && !isDrink && (
             <span className="inline-flex items-center gap-1 px-2 py-[2px] rounded-full text-[10px] font-bold bg-orange text-white">🏆 コンペ</span>
           )}
-          {(round.pendingApplicantIds || []).length > 0 && (
-            <span className="inline-flex items-center gap-1 px-2 py-[2px] rounded-full text-[10px] font-bold bg-orange-light text-orange border border-orange">📥 申請 {(round.pendingApplicantIds || []).length}</span>
+          {pendingN > 0 && (
+            <span className="inline-flex items-center gap-1 px-2 py-[2px] rounded-full text-[10px] font-bold bg-orange-light text-orange border border-orange">📥 申請 {pendingN}</span>
           )}
           {hasUnread && <RoundChatNewBadge roundId={round.id} variant="pill" />}
         </div>
