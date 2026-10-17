@@ -9,6 +9,7 @@ import { track } from '@/lib/telemetry';
 import type { User, ReviewVerdict } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { popupEvent } from '@/lib/popupSlot';
+import { resizeImage } from '@/lib/resizeImage';
 
 // ラウンド後のレビュー。同じ組の人には4択（また回りたい／異性として気になる／
 // ごめんなさい／どっちでもいい）。コンペで別の組だった人には任意の「回ってみたい」
@@ -33,6 +34,8 @@ export function ReviewOverlay() {
   const [match, setMatch] = useState<Record<string, MatchInfo>>({});
   const [busy, setBusy] = useState(false);
   const [reqSent, setReqSent] = useState<Record<string, boolean>>({});
+  // 今日の写真（任意・1募集に1枚＋ひとこと）。送信と一緒にタイムラインへ（2026-10-17・/api/timeline/posts）
+  const [photos, setPhotos] = useState<Record<string, { image: string; text: string }>>({});
 
   const roundIds = Array.from(new Set(pending.map((p) => p.roundId)));
   const roundKey = roundIds.slice().sort().join(',');
@@ -192,8 +195,18 @@ export function ReviewOverlay() {
         if (w.already) continue;   // すでにマッチ／友達の人は触らない
         await setLike(w.rid, w.uid, 'again', !!wanna[`${w.rid}::${w.uid}`]);
       }
+      // 今日の写真（選んだ募集だけ）。失敗してもレビューは送れている
+      let posted = 0;
+      for (const [rid, ph] of Object.entries(photos)) {
+        if (!ph?.image) continue;
+        try {
+          const res = await fetch('/api/timeline/posts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ roundId: rid, image: ph.image, text: ph.text }) });
+          if (res.ok) { posted++; track('timeline_post', { roundId: rid, withText: !!ph.text.trim() }); }
+          else { const j = await res.json().catch(() => ({})); toast('写真を投稿できませんでした' + (j?.message ? `：${j.message}` : ''), 'error'); }
+        } catch { toast('写真を投稿できませんでした', 'error'); }
+      }
       await store.refreshNotifications().catch(() => {});
-      toast('レビューを送信しました');
+      toast(posted ? 'レビューを送信し、写真をタイムラインに投稿しました📸' : 'レビューを送信しました');
     } catch (e) {
       toast('送信失敗: ' + (e as Error).message, 'error');
     } finally {
@@ -364,6 +377,14 @@ export function ReviewOverlay() {
           )}
         </div>
 
+        {/* 今日の写真（任意）：募集ごとに1枚＋ひとこと。送信と一緒にタイムラインに流れる（2026-10-17） */}
+        <div className="px-4 pb-2 flex-shrink-0 max-h-[38vh] overflow-y-auto">
+          {roundIds.map((rid) => (
+            <TodayPhoto key={rid} roundLabel={roundIds.length > 1 ? (rounds.find((r) => r.id === rid)?.title || '') : ''}
+              value={photos[rid]} onChange={(v) => setPhotos((cur) => { const n = { ...cur }; if (v) n[rid] = v; else delete n[rid]; return n; })} />
+          ))}
+        </div>
+
         {/* 送信（固定） */}
         <div className="px-4 py-3 border-t border-border flex-shrink-0">
           <button
@@ -375,6 +396,48 @@ export function ReviewOverlay() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// 今日の写真（任意）。写真を選ぶとプレビューとひとこと欄が出る。送信ボタンでレビューと一緒にタイムラインへ
+function TodayPhoto({ roundLabel, value, onChange }: { roundLabel: string; value?: { image: string; text: string }; onChange: (v: { image: string; text: string } | null) => void }) {
+  const [loading, setLoading] = useState(false);
+  async function pick(file?: File | null) {
+    if (!file) return;
+    setLoading(true);
+    try {
+      let img = await resizeImage(file, 1280, 0.8);
+      if (img.length > 900_000) img = await resizeImage(file, 960, 0.7);
+      if (img.length > 900_000) img = await resizeImage(file, 720, 0.6);
+      onChange({ image: img, text: value?.text || '' });
+    } catch { toast('写真を読み込めませんでした', 'error'); }
+    finally { setLoading(false); }
+  }
+  return (
+    <div className="mt-2 bg-[#FFF8EC] border-[1.5px] border-border rounded-xl p-3">
+      <div className="text-[13px] font-black">📸 今日の写真を投稿する <span className="text-[11px] text-muted font-bold">（任意{roundLabel ? `・${roundLabel}` : ''}）</span></div>
+      <div className="text-[10.5px] text-sub mt-0.5 leading-relaxed">1枚選ぶと、送信と一緒にタイムラインに「◯◯さんが投稿しました」と流れます（同じ年代のメンバーに見えて、いいねが付けられます）。</div>
+      {value?.image ? (
+        <div className="mt-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={value.image} alt="今日の写真" className="w-full max-h-48 object-cover rounded-lg" />
+          <input value={value.text} onChange={(e) => onChange({ image: value.image, text: e.target.value.slice(0, 100) })}
+            placeholder="ひとこと（任意）例：最高の天気でした！"
+            className="mt-2 w-full px-3 py-2 border-[1.5px] border-border rounded-lg text-[13px] bg-white outline-none" />
+          <div className="flex gap-2 mt-1.5">
+            <label className="flex-1 text-center py-1.5 rounded-lg border border-border text-[11.5px] font-bold text-sub bg-white cursor-pointer">
+              写真を選び直す<input type="file" accept="image/*" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
+            </label>
+            <button type="button" onClick={() => onChange(null)} className="flex-1 py-1.5 rounded-lg border border-border text-[11.5px] font-bold text-sub bg-white">投稿しない</button>
+          </div>
+        </div>
+      ) : (
+        <label className="mt-2 block w-full text-center py-2.5 rounded-lg border-[1.5px] border-dashed border-orange text-[13px] font-black text-orange bg-white cursor-pointer">
+          {loading ? '読み込み中…' : '＋ 写真を1枚えらぶ'}
+          <input type="file" accept="image/*" className="hidden" disabled={loading} onChange={(e) => pick(e.target.files?.[0])} />
+        </label>
+      )}
     </div>
   );
 }

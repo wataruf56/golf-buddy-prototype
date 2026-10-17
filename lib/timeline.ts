@@ -14,17 +14,21 @@ import type { User } from './types';
 // 新しく記録を書くのではなく、users / _availability / rounds から毎回組み立てる（重複がそもそも起きない）。
 //   crush … 「💘 だれかが、だれかのことを異性として気になっているようです」（2026-10-17・lib/crushNotice が
 //            「気になっている人がいるようです」のお知らせを送ったときに1行。だれ→だれかは伏せる＝名前もリンクも出さない）
+//   post  … 「◯◯さんが投稿しました／M/D（曜）のラウンドの投稿です」＋写真・ひとこと・いいね／リアクション（2026-10-17・
+//            ラウンド後の相互レビューの画面で投稿・timelinePosts）。画像は /api/timeline/posts/[id]/image から読む
 // 誰にも通知はしない。見えるのは同じ年代（コホート）の動きだけ。テスト垢・赤バン・退会者は出さない。
 // 「行ける日」の行も、男性・女性どちらが見ても名前を出す（2026-10-14 本人判断・lib/availability と同じ。以前は男性には「女性メンバー」等で伏せていた）。
 
 export type TimelineItem = {
   id: string;
-  kind: 'signup' | 'avail' | 'round' | 'join' | 'crush';
+  kind: 'signup' | 'avail' | 'round' | 'join' | 'crush' | 'post';
   at: number;
   name: string;
   text: string;
   sub?: string;
   link?: string;
+  // kind='post'（今日の写真・2026-10-17・lib/timelinePosts）。画像は URL だけ。リアクションは数と自分の分だけ
+  post?: { id: string; image: string; caption?: string; counts: Record<string, number>; mine: string[]; total: number; isMine: boolean; avatar?: string; avatarUrl?: string; userId: string };
 };
 
 const WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
@@ -51,6 +55,10 @@ export async function buildTimeline(viewer: User, limit = 80): Promise<TimelineI
     import('./testAccounts').then((m) => m.getTestAccountConfig()).catch(() => null),
     adb.collection('_timelineEvents').where('at', '>=', since).limit(1000).get().catch(() => ({ docs: [] })),
   ]);
+  // 今日の写真（画像の本体は読まない＝select で項目をしぼる）
+  const postSnap = await adb.collection('timelinePosts').where('createdAt', '>=', since)
+    .select('userId', 'roundId', 'roundDate', 'roundLabel', 'text', 'createdAt', 'cohort', 'test', 'reactions')
+    .limit(300).get().catch(() => ({ docs: [] }));
   const testIds = new Set<string>((testCfg?.accounts || []).map((a: any) => a.id));
   const viewerIsTest = viewer.id.startsWith('test_') || testIds.has(viewer.id);
   const hidden = (id: string) => !id || banned.has(id) || (!viewerIsTest && (id.startsWith('test_') || testIds.has(id)));
@@ -63,6 +71,7 @@ export async function buildTimeline(viewer: User, limit = 80): Promise<TimelineI
   for (const d of roundsSnap.docs) { const h = d.data()?.hostId; if (h && !userMap.has(h)) need.add(h); }
   const joins = joinSnap.docs.map((d: any) => d.data() || {}).filter((x: any) => x.kind === 'join' && x.roundId && x.userId);
   for (const j of joins) if (!userMap.has(j.userId)) need.add(j.userId);
+  for (const d of postSnap.docs) { const u = d.data()?.userId; if (u && !userMap.has(u)) need.add(u); }
   const ids = Array.from(need);
   for (let i = 0; i < ids.length; i += 100) {
     const refs = ids.slice(i, i + 100).map((id) => adb.collection('users').doc(id));
@@ -121,6 +130,24 @@ export async function buildTimeline(viewer: User, limit = 80): Promise<TimelineI
     const sub = [r.date ? dateLabel(r.date) : (r.dateRange || ''), r.area || '', r.courseName || ''].filter(Boolean).join(' ');
     const title = String(r.title || r.courseName || (r.eventType === 'drink' ? '飲み会' : 'ラウンド')).slice(0, 30);
     items.push({ id: `join_${j.roundId}_${j.userId}`, kind: 'join', at: j.at, name: nameOf(u), text: `さんが「${title}」に参加しました`, sub, link: `/round/${j.roundId}` });
+  }
+  // 今日の写真（同じ年代だけ・テスト垢の投稿はテスト垢にだけ）
+  {
+    const { reactionView } = await import('./timelinePosts');
+    for (const d of postSnap.docs) {
+      const x = d.data() || {};
+      const u = userMap.get(x.userId);
+      if (!x.createdAt || !u || u.banned || hidden(x.userId)) continue;
+      if (x.cohort && x.cohort !== cohort) continue;
+      if (x.test && !viewerIsTest) continue;
+      const rv = reactionView(x.reactions, viewer.id);
+      const when = x.roundDate ? `${dateLabel(x.roundDate)}のラウンドの投稿です` : 'ラウンドの投稿です';
+      items.push({
+        id: `post_${d.id}`, kind: 'post', at: x.createdAt, name: nameOf(u), text: 'さんが投稿しました',
+        sub: x.roundLabel ? `${when}（${String(x.roundLabel).slice(0, 20)}）` : when,
+        post: { id: d.id, image: `/api/timeline/posts/${encodeURIComponent(d.id)}/image?v=${x.createdAt}`, caption: x.text || '', ...rv, isMine: x.userId === viewer.id, avatar: u.avatar || '', avatarUrl: u.avatarUrl || '', userId: x.userId },
+      });
+    }
   }
   // 💘（だれ→だれかは伏せる。名前・リンク・人数は出さない）
   for (const d of joinSnap.docs) {
