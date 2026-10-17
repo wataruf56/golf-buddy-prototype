@@ -13,8 +13,10 @@ import { getCohort } from './ageGate';
 const JST = 9 * 3600 * 1000;
 const INTERVAL = 30 * 24 * 3600 * 1000;
 const STATE = '_crushNotices';
+const CRUSH_IN_APP = '💘 あなたを異性として気になっている人がいるようです。だれかは秘密です。ラウンドのあとのレビューで、あなたも気になった人に「💘 異性として気になる」を選ぶと、お互いだったときだけマッチします。';
+const CRUSH_LINE = '💘【ゴルトモ】あなたを異性として気になっている人がいるようです。\nだれかは秘密です。ラウンドのあとのレビューで、あなたも気になった人に「💘 異性として気になる」を選ぶと、お互いだったときだけマッチします。';
 
-export async function sendCrushNotices(now = Date.now(), opts: { force?: boolean; onlyUserIds?: string[] } = {}): Promise<Record<string, unknown>> {
+export async function sendCrushNotices(now = Date.now(), opts: { force?: boolean; onlyUserIds?: string[]; noTimeline?: boolean } = {}): Promise<Record<string, unknown>> {
   const adb = getAdminDb() as any;
   if (!adb) return { skipped: 'no_db' };
   const jst = new Date(now + JST);
@@ -53,8 +55,8 @@ export async function sendCrushNotices(now = Date.now(), opts: { force?: boolean
   const { isNotifyEnabled } = await import('./notifyPrefs');
   const { pushTo, liffUrl } = await import('./linePush');
   const link = '/home';
-  const inApp = '💘 あなたを異性として気になっている人がいるようです。だれかは秘密です。ラウンドのあとのレビューで、あなたも気になった人に「💘 異性として気になる」を選ぶと、お互いだったときだけマッチします。';
-  const line = '💘【ゴルトモ】あなたを異性として気になっている人がいるようです。\nだれかは秘密です。ラウンドのあとのレビューで、あなたも気になった人に「💘 異性として気になる」を選ぶと、お互いだったときだけマッチします。';
+  const inApp = CRUSH_IN_APP;
+  const line = CRUSH_LINE;
 
   let sent = 0;
   const skipped: Record<string, number> = {};
@@ -73,8 +75,8 @@ export async function sendCrushNotices(now = Date.now(), opts: { force?: boolean
       await ref.set({ lastAt: now, lastLikeAt: newest[uid], count: Number(st.count || 0) + 1 }, { merge: true });
       await addNotification(uid, 'match', inApp, link);
       if (isNotifyEnabled(u, 'match')) await pushTo(uid, line, liffUrl(link), 'crush_notice');
-      // タイムライン（だれ→だれかは伏せる。同じ人は月に1行まで）
-      await adb.collection('_timelineEvents').doc(`crush_${uid}_${day.slice(0, 7)}`).set({
+      // タイムライン（だれ→だれかは伏せる。同じ人は月に1行まで）。過去の💘を載せ直したとき（backfill）は重ねない
+      if (!opts.noTimeline) await adb.collection('_timelineEvents').doc(`crush_${uid}_${day.slice(0, 7)}`).set({
         kind: 'crush', at: now, cohort: getCohort(u.age) || 'a', test: isTest(uid), uid,
       }, { merge: true });
       sent++;
@@ -84,4 +86,45 @@ export async function sendCrushNotices(now = Date.now(), opts: { force?: boolean
     }
   }
   return { ok: true, candidates: targets.length, sent, skipped };
+}
+
+/**
+ * 過去の 💘 をタイムラインに載せる（2026-10-17 本人指定・一度きりの載せ直し）。💘 を付けた時刻で1件ずつ。
+ * タイムラインに見えるのは直近30日なので、それより古いものは書かない。テスト垢がからむ 💘 は書かない。
+ */
+export async function backfillCrushTimeline(now = Date.now()): Promise<Record<string, unknown>> {
+  const adb = getAdminDb() as any;
+  if (!adb) return { skipped: 'no_db' };
+  const { getTestAccountConfig } = await import('./testAccounts');
+  const tcfg = await getTestAccountConfig().catch(() => null);
+  const tset = new Set<string>((tcfg?.accounts || []).map((a: any) => a.id));
+  const isTest = (id: string) => !!id && (id.startsWith('test_') || tset.has(id));
+  const since = now - 30 * 24 * 3600 * 1000;
+  const snap = await adb.collection('_matchLikes').where('kind', '==', 'romantic').limit(5000).get();
+  let written = 0;
+  for (const d of snap.docs) {
+    const x = d.data() || {};
+    const at = Number(x.ts || x.at || 0);
+    if (!x.from || !x.to || !at || at < since || isTest(x.from) || isTest(x.to)) continue;
+    const u = (await adb.collection('users').doc(x.to).get()).data() || {};
+    await adb.collection('_timelineEvents').doc(`crushlike_${d.id}`).set({ kind: 'crush', at, cohort: getCohort(u.age) || 'a', test: false, uid: x.to }, { merge: true });
+    written++;
+  }
+  return { ok: true, written };
+}
+
+/** その人に、お知らせの文面だけを試しに送る（記録・タイムラインには残さない・確認用）。 */
+export async function sendCrushTest(uid: string): Promise<Record<string, unknown>> {
+  const adb = getAdminDb() as any;
+  if (!adb || !uid) return { skipped: 'no_db' };
+  const us = await adb.collection('users').doc(uid).get();
+  if (!us.exists) return { error: 'no_user' };
+  const u = { id: uid, ...(us.data() || {}) } as any;
+  const { addNotification } = await import('./notifications');
+  const { isNotifyEnabled } = await import('./notifyPrefs');
+  const { pushTo, liffUrl } = await import('./linePush');
+  await addNotification(uid, 'match', CRUSH_IN_APP, '/home');
+  const line = isNotifyEnabled(u, 'match');
+  if (line) await pushTo(uid, CRUSH_LINE, liffUrl('/home'), 'crush_notice_test');
+  return { ok: true, inApp: true, line };
 }
