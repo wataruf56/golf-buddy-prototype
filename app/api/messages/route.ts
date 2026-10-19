@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { webPushText } from '@/lib/webPush';
 import { ADMIN_MANAGER_ID } from '@/lib/adminManagerId';
-import { isMatchingAllowedByAge } from '@/lib/ageGate';
+import { isMatchingAllowedByAge, isMatchingAllowedUser } from '@/lib/ageGate';
 
 export async function GET(req: NextRequest) {
   const meId = await getMeId();
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   if (!chatId || !otherUserId || (!msgText.trim() && !img)) return NextResponse.json({ error: 'invalid' }, { status: 400 });
   // Block enforcement: either side blocking the other prevents new messages.
   const [me, other] = await Promise.all([db.getUser(meId), db.getUser(otherUserId)]);
-  if (!isMatchingAllowedByAge(me?.age)) {
+  if (!isMatchingAllowedUser(me)) {
     return NextResponse.json({ error: 'age_restricted', message: '20〜30代の方のみご利用いただけます' }, { status: 403 });
   }
   const meBlocksOther = (me?.blockedUserIds || []).includes(otherUserId);

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
-import { isMatchingAllowedByAge } from '@/lib/ageGate';
+import { isMatchingAllowedByAge, isMatchingAllowedUser } from '@/lib/ageGate';
 import { filterForViewer, findQuestionThread, isPrivateThread } from '@/lib/roundQuestion';
 
 const noStore = {
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const ban = await blockedIfBanned(meId); if (ban) return ban;
   const rstChat = await blockedByRestriction(meId, 'noChat', 'チャットの利用が制限されています。'); if (rstChat) return rstChat;
   const me = await db.getUser(meId);
-  if (!isMatchingAllowedByAge(me?.age)) {
+  if (!isMatchingAllowedUser(me)) {
     return NextResponse.json({ error: 'age_restricted', message: '20〜30代の方のみご利用いただけます' }, { status: 403, headers: noStore });
   }
   const round = await db.getRound(params.id);

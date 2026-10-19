@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
         id: u.id || d.id,
         displayName: u.displayName || '',
         age: u.age || null,
+        cohortOverride: u.cohortOverride || null,   // 'a'＝40歳以上でも20〜30代を特例で（2026-10-20）
         gender: u.gender || null,
         car: u.car || null,
         area: u.area || null,

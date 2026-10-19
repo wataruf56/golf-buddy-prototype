@@ -3,7 +3,7 @@ import { db } from './db';
 import { pushTo, liffUrl } from './linePush';
 import { webPushText } from './webPush';
 import { isNotifyEnabled } from './notifyPrefs';
-import { isMatchingAllowedByAge, getCohort } from './ageGate';
+import { isMatchingAllowedByAge, getCohort, isMatchingAllowedUser, userCohort } from './ageGate';
 import { checkRoundEligibility, canGenderJoin } from './roundEligibility';
 import { isRoundHost } from './roundHost';
 import { formatDate } from './utils';
@@ -120,8 +120,8 @@ export function inviteeBlock(user: User | null | undefined, ctx: InviteContext):
   // テスト垢はテストの募集にだけ。テストの募集には実ユーザーを入れない（通知も隔離で落ちるため）。
   if (ctx.isTestId(id) !== ctx.isTestRound) return { kind: 'hide', reason: ctx.isTestRound ? '実ユーザー（テストの募集）' : 'テストアカウント' };
   if ((round.invitedIds || []).includes(id)) return { kind: 'invited', reason: '招待済み' };
-  if (!isMatchingAllowedByAge(user.age)) return { kind: 'ng', reason: '年齢が未入力か対象外' };
-  if (round.hostCohort && getCohort(user.age) !== round.hostCohort) return { kind: 'ng', reason: '年代が違う' };
+  if (!isMatchingAllowedUser(user)) return { kind: 'ng', reason: '年齢が未入力か対象外' };
+  if (round.hostCohort && userCohort(user) !== round.hostCohort) return { kind: 'ng', reason: '年代が違う' };
   if ((ctx.host?.blockedUserIds || []).includes(id)) return { kind: 'ng', reason: '主催者がブロック中' };
   const rst = ctx.restrictions[id];
   if (rst?.noApplyAll || (rst?.applyBlockHostIds || []).includes(round.hostId)) return { kind: 'ng', reason: '参加申込を制限中' };

@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   const roundLabel = round.visibility === 'invite' ? '' : String(round.title || '').slice(0, 30);
   await adb.collection(POSTS).doc(id).set({
     userId: meId, roundId, roundDate: round.date || '', roundLabel, text, image,
-    createdAt: Date.now(), cohort: cohortOf(me?.age), test,
+    createdAt: Date.now(), cohort: cohortOf(me as any), test,
   }, { merge: true });   // 投稿し直しても、付いたリアクションは残す
   try { await db.addRoundPhoto(roundId, meId, image); } catch { /* アルバムに入らなくても投稿はできている */ }
   return NextResponse.json({ ok: true, id }, { headers: noStore });

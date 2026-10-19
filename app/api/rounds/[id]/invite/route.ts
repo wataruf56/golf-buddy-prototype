@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { isRoundHost } from '@/lib/roundHost';
 import { getMeId } from '@/lib/session';
+import { userCohort } from '@/lib/ageGate';
 
 // POST /api/rounds/[id]/invite  body: { userId }
 // The host invites a past ゴル友 (mutual review) OR someone who marked the round
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!invitee0) return NextResponse.json({ error: 'user_not_found' }, { status: 404 });
   if (existing.hostCohort) {
     const { getCohort } = await import('@/lib/ageGate');
-    if (getCohort(invitee0.age) !== existing.hostCohort) {
+    if (userCohort(invitee0) !== existing.hostCohort) {
       return NextResponse.json(
         { error: 'cohort_mismatch', message: 'この募集とは別の年代のユーザーは招待できません' },
         { status: 403 },

@@ -1,6 +1,6 @@
 import 'server-only';
 import { getAdminDb } from './firebase';
-import { getCohort } from './ageGate';
+import { userCohort, userViewCohort } from './ageGate';
 import { REACTION_KEYS } from './chatReactions';
 
 // タイムラインの「今日の写真」（2026-10-17）。ラウンド後の相互レビューの画面で、写真1枚＋ひとこと（任意）を投稿する。
@@ -33,9 +33,8 @@ export function reactionView(reactions: Record<string, string[]> | undefined, vi
 }
 
 /** この人がこの投稿を見られるか（同じ年代・テスト垢の投稿はテスト垢だけ） */
-export async function canSeePost(post: TimelinePost, viewer: { id: string; age?: number }): Promise<boolean> {
-  const { viewCohort } = await import('./ageGate');
-  if (viewCohort(viewer.age) !== post.cohort) return false;
+export async function canSeePost(post: TimelinePost, viewer: { id: string; age?: number; cohortOverride?: string }): Promise<boolean> {
+  if (userViewCohort(viewer) !== post.cohort) return false;
   if (post.test) {
     const { isTestAccount } = await import('./testAccounts');
     if (!(viewer.id.startsWith('test_') || (await isTestAccount(viewer.id)))) return false;
@@ -50,4 +49,4 @@ export async function getPost(id: string): Promise<TimelinePost | null> {
   return s.exists ? (s.data() as TimelinePost) : null;
 }
 
-export function cohortOf(age?: number) { return getCohort(age) || 'a'; }
+export function cohortOf(u?: { age?: number | null; cohortOverride?: string | null } | null) { return userCohort(u) || 'a'; }

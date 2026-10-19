@@ -59,6 +59,16 @@ export async function PATCH(req: NextRequest) {
   }
 
   const before = await db.getUser(meId);
+  // 年齢は一度登録したら本人は変えられない（2026-10-20 本人指定）。変えるのは管理画面から（POST /api/admin/user-age）。
+  // 同じ値をそのまま送ってくるのは通す（プロフィール編集の保存で毎回送られるため）。
+  if ('age' in patch) {
+    const cur = Number(before?.age) || 0;
+    const next = Number(patch.age) || 0;
+    if (cur > 0 && next !== cur) {
+      return NextResponse.json({ error: 'age_locked', message: '年齢は一度登録すると変えられません。変更が必要なときは「ゴル友」タブの「管理者にDM」からご連絡ください' }, { status: 400 });
+    }
+    if (cur > 0) delete patch.age;
+  }
   // プロフィール登録の時刻（年齢が初めて入ったとき）（2026-10-12）。営業系ポップアップを24時間あとに出すため（lib/popupEligibility）。
   // すでに登録済みだった古い会員には入れない（いま入れると、24時間ぶん出なくなってしまう＝createdAt で代用する）。
   {

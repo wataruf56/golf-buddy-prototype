@@ -1,6 +1,6 @@
 import 'server-only';
 import { getAdminDb } from './firebase';
-import { getCohort } from './ageGate';
+import { getCohort, userCohort } from './ageGate';
 
 // 「💘 異性として気になる」をもらった人へのお知らせ（2026-10-17 本人判断）。
 //   ・まだマッチしていない（相手から一方的に 💘 を付けられている）人に、月1回くらい
@@ -77,7 +77,7 @@ export async function sendCrushNotices(now = Date.now(), opts: { force?: boolean
       if (isNotifyEnabled(u, 'match')) await pushTo(uid, line, liffUrl(link), 'crush_notice');
       // タイムライン（だれ→だれかは伏せる。同じ人は月に1行まで）。過去の💘を載せ直したとき（backfill）は重ねない
       if (!opts.noTimeline) await adb.collection('_timelineEvents').doc(`crush_${uid}_${day.slice(0, 7)}`).set({
-        kind: 'crush', at: now, cohort: getCohort(u.age) || 'a', test: isTest(uid), uid,
+        kind: 'crush', at: now, cohort: userCohort(u) || 'a', test: isTest(uid), uid,
       }, { merge: true });
       sent++;
     } catch (e) {
@@ -107,7 +107,7 @@ export async function backfillCrushTimeline(now = Date.now()): Promise<Record<st
     const at = Number(x.ts || x.at || 0);
     if (!x.from || !x.to || !at || at < since || isTest(x.from) || isTest(x.to)) continue;
     const u = (await adb.collection('users').doc(x.to).get()).data() || {};
-    await adb.collection('_timelineEvents').doc(`crushlike_${d.id}`).set({ kind: 'crush', at, cohort: getCohort(u.age) || 'a', test: false, uid: x.to }, { merge: true });
+    await adb.collection('_timelineEvents').doc(`crushlike_${d.id}`).set({ kind: 'crush', at, cohort: userCohort(u) || 'a', test: false, uid: x.to }, { merge: true });
     written++;
   }
   return { ok: true, written };

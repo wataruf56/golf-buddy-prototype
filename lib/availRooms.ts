@@ -2,7 +2,7 @@ import 'server-only';
 import { db } from './db';
 import { getAdminDb } from './firebase';
 import { ADMIN_MANAGER_ID, SYSTEM_SENDER_ID } from './adminManagerId';
-import { getCohort } from './ageGate';
+import { getCohort, userCohort } from './ageGate';
 import { AVAIL_ROOM_MIN, availRoomTitle, dateLabel, needsStation } from './availabilityShared';
 import type { Round, User } from './types';
 
@@ -49,7 +49,7 @@ async function eligibleFor(date: string, test: boolean, isTest: (id: string) => 
   ]);
   return users.filter((u) => u && !banned.has(u.id) && !(u as any).banned
     && isTest(u.id) === test
-    && getCohort(u.age) === 'a'
+    && userCohort(u) === 'a'
     && (u.gender === 'male' || u.gender === 'female')
     && !needsStation(u));
 }

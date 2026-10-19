@@ -77,6 +77,15 @@ export async function GET() {
     const have = new Set(rounds.map((r) => r.id));
     for (const r of official) if (r && !have.has(r.id)) { rounds.push(r); have.add(r.id); }
   } catch { /* best-effort */ }
+  // 年代ごとに分ける（2026-10-20 本人指定）：20〜30代の募集は 20〜30代（＋運営が特例にした40歳以上の人・年齢未入力の新しい人）にだけ。
+  // 40〜50代の人には 40〜50代の募集だけ。対象外の年齢の人には自分が関わる募集だけ。自分が主催・参加・申請・招待中の募集はいつも出す。
+  {
+    const { userViewCohort } = await import('@/lib/ageGate');
+    const myView = userViewCohort(me as any);
+    const mine = (r: any) => r.hostId === meId || (r.applicantIds || []).includes(meId) || (r.pendingApplicantIds || []).includes(meId)
+      || (r.coHostIds || []).includes(meId) || (r.invitedIds || []).includes(meId);
+    rounds = rounds.filter((r: any) => mine(r) || (!!myView && (r.hostCohort || 'a') === myView));
+  }
   // isOfficial is now an explicit stored flag (admin-toggled per round), so we
   // pass it through as-is — no read-time derivation.
   const pendingReviews = pendingReviewsRes.status === 'fulfilled' ? pendingReviewsRes.value : [];

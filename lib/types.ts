@@ -12,6 +12,8 @@ export type CarStatus = 'have' | 'none';
 export type PickupStatus = 'can' | 'cannot' | 'want' | 'no_need';
 
 export type User = {
+  // 'a' ＝40歳以上でも、運営の特例で20〜30代のコミュニティを見られる・参加できる（2026-10-20・lib/ageGate.userCohort・管理画面から）
+  cohortOverride?: 'a' | null;
   id: string;
   displayName: string;
   // 最終ログイン/利用時刻(ms)。アプリを開くたびに bootstrap で更新（5分throttle）。

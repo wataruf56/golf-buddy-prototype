@@ -1,6 +1,6 @@
 import 'server-only';
 import { getAdminDb } from './firebase';
-import { viewCohort } from './ageGate';
+import { viewCohort, userViewCohort } from './ageGate';
 import type { Round, User } from './types';
 import { hostCounts } from './hostCount';
 import { isMarketingPopupEligible } from './popupEligibility';
@@ -75,7 +75,7 @@ async function hasAvailability(userId: string): Promise<boolean> {
 
 /** いまこの人に出すポップアップ（無ければ null） */
 export async function activeAvailPromptFor(me: User): Promise<{ roundId: string; title: string; date: string } | null> {
-  if (viewCohort(me.age) !== 'a') return null;
+  if (userViewCohort(me) !== 'a') return null;
   const now = Date.now();
   // プロフィール登録から24時間たっていない人には出さない（見た印も付けない）（lib/popupEligibility）
   if (!isMarketingPopupEligible(me, now)) return null;
@@ -120,7 +120,7 @@ export async function sendDueAvailPromptLines(): Promise<{ sent: number; prompts
     const users = (await db.listUsers(participantsOf(round))).filter(Boolean) as User[];
     const targets: string[] = [];
     for (const u of users) {
-      if (viewCohort(u.age) !== 'a' || (u as any).banned) continue;
+      if (userViewCohort(u) !== 'a' || (u as any).banned) continue;
       if (((u as any).availPromptSeen || {})[p.roundId]) continue;
       if (await hasAvailability(u.id)) continue;
       targets.push(u.id);
@@ -150,7 +150,7 @@ export async function availPromptProgress(roundId: string): Promise<Record<strin
   const pendingReviewers = await db.listPendingReviewersForRound(roundId);
   let noAvail = 0; let seen = 0; let cohortA = 0;
   for (const u of users) {
-    if (viewCohort(u.age) !== 'a') continue;
+    if (userViewCohort(u) !== 'a') continue;
     cohortA += 1;
     if (((u as any).availPromptSeen || {})[roundId]) seen += 1;
     if (!(await hasAvailability(u.id))) noAvail += 1;

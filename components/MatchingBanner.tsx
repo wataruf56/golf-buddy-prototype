@@ -1,13 +1,13 @@
 'use client';
 
 import { getMe, useStore } from '@/lib/store';
-import { getCohort, cohortLabel } from '@/lib/ageGate';
+import { getCohort, cohortLabel, userCohort } from '@/lib/ageGate';
 
 // Eye-catching banner for matching pages.
 // Adapts the label to the user's cohort (20〜30代 vs 40〜50代).
 export function MatchingBanner() {
   const me = useStore(getMe);
-  const c = getCohort(me?.age);
+  const c = userCohort(me);
   const label = c ? cohortLabel(c) : '20〜30代限定コミュニティ';
   // Cohort B uses a slightly different gradient so members can tell them apart at a glance.
   const grad = c === 'b'

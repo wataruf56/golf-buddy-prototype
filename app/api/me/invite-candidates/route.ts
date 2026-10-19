@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
-import { getCohort } from '@/lib/ageGate';
+import { getCohort, userCohort } from '@/lib/ageGate';
 
 // GET /api/me/invite-candidates … 非公開の招待で招待できる人（2026-10-14）。
 // ゴル友（友達リスト：QR・友達申請・相互マッチ）＋ 同じ組で回ったことがある人。同じ年代だけ。
@@ -20,10 +20,10 @@ export async function GET() {
   let banned = new Set<string>();
   try { const { getBannedIdSet } = await import('@/lib/banAccess'); banned = await getBannedIdSet(); } catch { /* noop */ }
   const users = ids.length ? await db.listUsers(ids) : [];
-  const myCohort = getCohort(me?.age);
+  const myCohort = userCohort(me);
   const blocked = new Set(me?.blockedUserIds || []);
   const out = users
-    .filter((u) => u && !(u as any).isSystem && !banned.has(u.id) && !blocked.has(u.id) && getCohort(u.age) === myCohort)
+    .filter((u) => u && !(u as any).isSystem && !banned.has(u.id) && !blocked.has(u.id) && userCohort(u) === myCohort)
     .map((u) => ({
       id: u.id, displayName: u.displayName || 'メンバー', avatar: u.avatar || '⛳', avatarUrl: (u as any).avatarUrl || '',
       age: u.age || 0, gender: u.gender || '', car: (u as any).car || '', lastActiveAt: (u as any).lastActiveAt || 0,

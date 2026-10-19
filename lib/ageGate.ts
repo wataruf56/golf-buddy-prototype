@@ -44,3 +44,19 @@ export function ageGateReason(age: number | undefined | null): 'unset' | 'too_yo
   if (age < COHORT_RANGES.a.min) return 'too_young';
   return 'too_old';
 }
+
+// ───── 人ごとの年代（2026-10-20）─────
+// 運営が管理画面で「20〜30代のコミュニティを特例で見られる」にした人（users.cohortOverride='a'）は、年齢が40歳以上でも20〜30代として扱う。
+// 年齢だけで判断する getCohort / viewCohort / isMatchingAllowedByAge の代わりに、人（ユーザー）を渡すときはこちらを使う。
+type AgeUser = { age?: number | null; cohortOverride?: string | null } | null | undefined;
+export function userCohort(u: AgeUser): Cohort | null {
+  if ((u as any)?.cohortOverride === 'a') return 'a';
+  return getCohort(u?.age);
+}
+export function userViewCohort(u: AgeUser): Cohort | null {
+  if ((u as any)?.cohortOverride === 'a') return 'a';
+  return viewCohort(u?.age);
+}
+export function isMatchingAllowedUser(u: AgeUser): boolean {
+  return userCohort(u) !== null;
+}

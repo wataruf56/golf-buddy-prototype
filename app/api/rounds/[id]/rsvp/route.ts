@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { isRoundHost } from '@/lib/roundHost';
-import { getCohort, isMatchingAllowedByAge } from '@/lib/ageGate';
+import { getCohort, isMatchingAllowedByAge, isMatchingAllowedUser, userCohort } from '@/lib/ageGate';
 import type { EventAnswer, EventRsvp } from '@/lib/types';
 
 // POST /api/rounds/[id]/rsvp { status: 'yes'|'maybe'|'no', dates?: {候補ID: 'ok'|'maybe'|'no'}, answers?: {質問ID: string[]|string} }
@@ -36,8 +36,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const me = await db.getUser(meId);
   const wasIn = asHost || (round.applicantIds || []).includes(meId);
   if (status === 'yes' && !wasIn) {
-    if (!isMatchingAllowedByAge(me?.age)) return NextResponse.json({ error: 'age_restricted', message: '20〜30代の方のみご利用いただけます' }, { status: 403, headers: noStore });
-    if (!round.hostCohort || getCohort(me?.age) !== round.hostCohort) return NextResponse.json({ error: 'cohort_mismatch', message: '別の年齢帯のイベントには参加できません' }, { status: 403, headers: noStore });
+    if (!isMatchingAllowedUser(me)) return NextResponse.json({ error: 'age_restricted', message: '20〜30代の方のみご利用いただけます' }, { status: 403, headers: noStore });
+    if (!round.hostCohort || userCohort(me) !== round.hostCohort) return NextResponse.json({ error: 'cohort_mismatch', message: '別の年齢帯のイベントには参加できません' }, { status: 403, headers: noStore });
     const host = await db.getUser(round.hostId);
     if ((host?.blockedUserIds || []).includes(meId)) return NextResponse.json({ error: 'blocked_by_host' }, { status: 403, headers: noStore });
     if (round.eventDeadline && todayJst() > round.eventDeadline) return NextResponse.json({ error: 'deadline', message: '申込の締切を過ぎています' }, { status: 409, headers: noStore });

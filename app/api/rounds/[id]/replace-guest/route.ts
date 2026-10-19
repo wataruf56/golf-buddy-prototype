@@ -5,6 +5,7 @@ import { getMeId } from '@/lib/session';
 import { pushTo, liffUrl } from '@/lib/linePush';
 import { webPushText } from '@/lib/webPush';
 import { isNotifyEnabled } from '@/lib/notifyPrefs';
+import { userCohort } from '@/lib/ageGate';
 
 // POST /api/rounds/[id]/replace-guest  body: { userId, guestId?, gender? }  ★主催者限定★
 // ゲスト枠を「当日アプリ登録した本人（登録ユーザー）」に置き換える。
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   // ラウンドは年代(コホート)で分かれているので、別年代の人には置き換えられない（招待と同じ制約）。
   if (existing.hostCohort) {
     const { getCohort } = await import('@/lib/ageGate');
-    if (getCohort(invitee.age) !== existing.hostCohort) {
+    if (userCohort(invitee) !== existing.hostCohort) {
       return NextResponse.json({ error: 'cohort_mismatch', message: 'この募集とは別の年代のユーザーには置き換えできません' }, { status: 403 });
     }
   }

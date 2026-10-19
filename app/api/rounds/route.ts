@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
-import { isMatchingAllowedByAge, getCohort } from '@/lib/ageGate';
+import { isMatchingAllowedByAge, getCohort, isMatchingAllowedUser, userCohort } from '@/lib/ageGate';
 import { sanitizeCancelPolicy } from '@/lib/cancelPolicy';
 import { isAdminUserId } from '@/lib/adminAccess';
 import { levelConditionLabel } from '@/lib/roundEligibility';
@@ -18,7 +18,13 @@ export async function GET() {
   const { stripRoundForViewer } = await import('@/lib/roundView');
   // 非公開の招待は、主催者・参加者・招待された人にだけ（2026-10-14・lib/roundAccess）
   const { canViewRound } = await import('@/lib/roundAccess');
-  const rounds = raw.filter((r) => canViewRound(r, meId)).map((r) => stripRoundForViewer(r, meId));
+  // 年代ごとに分ける（2026-10-20・bootstrap と同じ）：自分の年代の募集と、自分が関わる募集だけ
+  const { userViewCohort } = await import('@/lib/ageGate');
+  const me = meId ? await db.getUser(meId) : null;
+  const myView = userViewCohort(me as any);
+  const mine = (r: any) => !!meId && (r.hostId === meId || (r.applicantIds || []).includes(meId) || (r.pendingApplicantIds || []).includes(meId)
+    || (r.coHostIds || []).includes(meId) || (r.invitedIds || []).includes(meId));
+  const rounds = raw.filter((r) => canViewRound(r, meId) && (mine(r) || (!!myView && ((r as any).hostCohort || 'a') === myView))).map((r) => stripRoundForViewer(r, meId));
   return NextResponse.json({ rounds });
 }
 
@@ -35,11 +41,11 @@ export async function POST(req: NextRequest) {
     }
   } catch { /* 判定不能時は許可 */ }
   const me = await db.getUser(meId);
-  if (!isMatchingAllowedByAge(me?.age)) {
+  if (!isMatchingAllowedUser(me)) {
     return NextResponse.json({ error: 'age_restricted', message: '20〜30代の方のみご利用いただけます' }, { status: 403 });
   }
   const body = await req.json();
-  const cohort = getCohort(me?.age) || undefined;
+  const cohort = userCohort(me) || undefined;
   const beginnerOnly = !!body.beginnerOnly;
 
   // 性別ごとの募集内訳。指定があればそれを正とし、maxSpots（＝主催者1＋募集枠）を再計算する。
@@ -247,7 +253,7 @@ async function sendInitialInvites(round: Round, meId: string, raw: any): Promise
     if (allowed && !allowed.has(id)) continue;
     if ((round.applicantIds || []).includes(id)) continue;   // 共同管理者などすでに参加している人
     const u = await db.getUser(id);
-    if (!u || getCohort(u.age) !== round.hostCohort) continue;
+    if (!u || userCohort(u) !== round.hostCohort) continue;
     try {
       const r = await sendRoundInvite({ round: cur, inviteeId: id, by: 'host' });
       cur = r.round;

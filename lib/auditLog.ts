@@ -43,6 +43,7 @@ export const AUDIT_ACTION = {
   userBan: 'user.ban',
   userUnban: 'user.unban',
   userRestrict: 'user.restrict',
+  userAge: 'user.age',             // 年齢の変更・20〜30代の特例（2026-10-20・/api/admin/user-age）
   swingAllow: 'user.swing_allow',
   supportSend: 'user.support_send',
   supportEdit: 'user.support_edit',

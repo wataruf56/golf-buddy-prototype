@@ -1,6 +1,6 @@
 import 'server-only';
 import { getAdminDb } from './firebase';
-import { viewCohort } from './ageGate';
+import { viewCohort, userViewCohort } from './ageGate';
 import type { User } from './types';
 import { isMarketingPopupEligible } from './popupEligibility';
 
@@ -49,7 +49,7 @@ async function hasDatesIn(userId: string, months: string[]): Promise<boolean> {
 export async function monthlyPromptFor(me: User): Promise<{ key: string; months: string[]; title: string; body: string } | null> {
   const w = monthlyWindow();
   if (!w) return null;
-  if (viewCohort(me.age) !== 'a' || (me as any).banned) return null;
+  if (userViewCohort(me) !== 'a' || (me as any).banned) return null;
   // プロフィール登録から24時間たっていない人には出さない（見た印も付けない）（lib/popupEligibility）
   if (!isMarketingPopupEligible(me)) return null;
   if (((me as any).availMonthlySeen || {})[w.key]) return null;
@@ -85,7 +85,7 @@ export async function sendMonthlyAvailLine(): Promise<{ sent: number; skipped?: 
   let sent = 0;
   for (const d of usersSnap.docs) {
     const u = { id: d.id, ...(d.data() || {}) } as any;
-    if (u.banned || u.isSystem || viewCohort(u.age) !== 'a') continue;
+    if (u.banned || u.isSystem || userViewCohort(u) !== 'a') continue;
     // プロフィール未登録・登録から24時間たっていない人には送らない（lib/popupEligibility）
     if (!isMarketingPopupEligible(u)) continue;
     const dates: string[] = (await getAvailability(u.id).catch(() => null))?.dates || [];

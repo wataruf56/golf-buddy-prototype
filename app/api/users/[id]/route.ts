@@ -36,6 +36,24 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     const { isBanned } = await import('@/lib/banAccess');
     if (await isBanned(params.id)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   } catch { /* 判定不能時は通常表示 */ }
+  // 年代ごとに分ける（2026-10-20）：ほかの年代の会員のプロフィールは、友達（QR・申請・マッチ）か運営のときだけ見られる。
+  {
+    const viewerId0 = await getMeId();
+    if (viewerId0 && viewerId0 !== params.id) {
+      const { isAdminUserId } = await import('@/lib/adminAccess');
+      if (!isAdminUserId(viewerId0)) {
+        const { userViewCohort, userCohort } = await import('@/lib/ageGate');
+        const viewer = await db.getUser(viewerId0);
+        const vc = userViewCohort(viewer as any);
+        const tc = userCohort(user as any) || 'a';
+        if (vc !== tc) {
+          const { friendSetOf } = await import('@/lib/friendSet');
+          const friends = await friendSetOf(viewerId0).catch(() => new Set<string>());
+          if (!friends.has(params.id)) return NextResponse.json({ error: 'cohort', message: 'ほかの年代のコミュニティの会員です' }, { status: 403 });
+        }
+      }
+    }
+  }
   // レビューは「お互いがレビューし合った（相互）分だけ」を評価に反映する。
   // received（相手→本人）の各レビューについて、本人→相手（同じroundId）のレビューが
   // 存在するものだけを残す。片側だけのレビューは★評価・件数に反映しない。

@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useUnreadCounts } from '@/lib/useUnread';
 import { useStore } from '@/lib/store';
-import { viewCohort } from '@/lib/ageGate';
+import { userViewCohort } from '@/lib/ageGate';
 import { useAvailBadge } from '@/lib/availBadge';
 
 // モック準拠のタブ（2026-10-08 タイムライン、2026-10-11 過去ラウンド、2026-10-14 行ける日を追加）（絵文字アイコン・クリーム地・インク枠・アクティブはティール）。
@@ -32,8 +32,8 @@ export function TabBar({ onBlock }: { onBlock?: (href: string) => boolean }) {
   const pathname = usePathname();
   const { buddiesUnread } = useUnreadCounts();
   const availNew = useAvailBadge();
-  const meAge = useStore((s) => s.users.find((u) => u.id === s.meId)?.age);
-  const showAvail = viewCohort(meAge) === 'a';
+  const meU = useStore((s) => s.users.find((u) => u.id === s.meId));
+  const showAvail = userViewCohort(meU as any) === 'a';   // 運営が特例にした40歳以上の人も（2026-10-20）
   const tabBadges: Record<string, number> = { buddies: buddiesUnread, avail: availNew };
   // 行ける日は1日1件で数えるので2桁になりやすい。99+ まで出す（ほかは従来どおり 9+）
   const badgeCap: Record<string, number> = { avail: 99 };

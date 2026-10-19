@@ -1,6 +1,6 @@
 import 'server-only';
 import { getAdminDb } from './firebase';
-import { getCohort, viewCohort } from './ageGate';
+import { getCohort, viewCohort, userCohort, userViewCohort } from './ageGate';
 import type { User } from './types';
 
 // タイムライン（2026-10-08）：みんなの動きを LINE のシステムメッセージ風に1行ずつ。
@@ -43,7 +43,7 @@ function dateLabel(d?: string): string {
 export async function buildTimeline(viewer: User, limit = 80): Promise<TimelineItem[]> {
   const adb = getAdminDb() as any;
   if (!adb) return [];
-  const cohort = viewCohort(viewer.age);   // 年齢未入力の新規会員も20〜30代として見られる
+  const cohort = userViewCohort(viewer);   // 年齢未入力の新規会員も20〜30代として見られる
   if (!cohort) return [];
   const since = Date.now() - WINDOW_MS;
 
@@ -78,14 +78,14 @@ export async function buildTimeline(viewer: User, limit = 80): Promise<TimelineI
     const snaps = refs.length ? await adb.getAll(...refs) : [];
     for (const s of snaps) if (s.exists) userMap.set(s.id, { id: s.id, ...s.data() });
   }
-  const sameCohort = (u: any) => !!u && getCohort(u.age) === cohort;
+  const sameCohort = (u: any) => !!u && userCohort(u) === cohort;
   const nameOf = (u: any) => String(u?.displayName || 'メンバー').slice(0, 20);
 
   const items: TimelineItem[] = [];
   for (const d of usersSnap.docs) {
     const u = userMap.get(d.id);
     const at = Number(u?.createdAt) || 0;
-    if (hidden(d.id) || viewCohort(u?.age) !== cohort || u?.banned || u?.isSystem || !at) continue;
+    if (hidden(d.id) || userViewCohort(u) !== cohort || u?.banned || u?.isSystem || !at) continue;
     items.push({ id: `signup_${d.id}`, kind: 'signup', at, name: nameOf(u), text: 'さんがゴルトモに登録しました' });
   }
   for (const d of availSnap.docs) {
@@ -101,7 +101,7 @@ export async function buildTimeline(viewer: User, limit = 80): Promise<TimelineI
     if ((r as any).visibility === 'invite') continue;        // 非公開の招待は出さない（2026-10-14）
     const host = userMap.get(r.hostId);
     if (hidden(r.hostId)) continue;
-    const rc = r.hostCohort || getCohort(host?.age);
+    const rc = r.hostCohort || userCohort(host);
     if (rc !== cohort) continue;
     const name = r.isOfficial ? 'ゴルトモ運営' : nameOf(host);
     const drink = r.eventType === 'drink';
@@ -125,7 +125,7 @@ export async function buildTimeline(viewer: User, limit = 80): Promise<TimelineI
     if (r.availDate || r.hostId === ADMIN_MANAGER_ID) continue;              // 行ける日の部屋・運営の代理募集は出さない
     if ((r as any).visibility === 'invite') continue;                        // 非公開の招待は参加も出さない（2026-10-14）
     if (!(r.applicantIds || []).includes(j.userId)) continue;                // 取りやめた・外された
-    const rc = r.hostCohort || getCohort(userMap.get(r.hostId)?.age);
+    const rc = r.hostCohort || userCohort(userMap.get(r.hostId));
     if (rc && rc !== cohort) continue;                                       // 同じ年代の募集だけ
     const sub = [r.date ? dateLabel(r.date) : (r.dateRange || ''), r.area || '', r.courseName || ''].filter(Boolean).join(' ');
     const title = String(r.title || r.courseName || (r.eventType === 'drink' ? '飲み会' : 'ラウンド')).slice(0, 30);

@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { isRoundHost } from '@/lib/roundHost';
 import { guestInvitePath, verifyGuestInviteToken } from '@/lib/guestInvite';
+import { userCohort } from '@/lib/ageGate';
 
 // ゲスト招待リンク（2026-10-08）。lib/guestInvite 参照。
 //   PUT  { guestId }          … 主催者：そのゲスト専用の招待リンク（liff.line.me）を返す
@@ -73,7 +74,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!me.age || !me.gender) return NextResponse.json({ error: 'profile_required', message: '年齢と性別を入れてください' }, { status: 400, headers: noStore });
   if (existing.hostCohort) {
     const { getCohort } = await import('@/lib/ageGate');
-    if (getCohort(me.age) !== existing.hostCohort) {
+    if (userCohort(me) !== existing.hostCohort) {
       return NextResponse.json({ error: 'cohort_mismatch', message: 'この募集とは別の年代のため参加できません。主催者に確認してください' }, { status: 403, headers: noStore });
     }
   }

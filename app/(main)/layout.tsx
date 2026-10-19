@@ -23,7 +23,7 @@ import { LoginButtons } from '@/components/LoginButtons';
 import { MatchingBanner } from '@/components/MatchingBanner';
 import { UpdateBanner } from '@/components/UpdateBanner';
 import { getMe, store, useStore } from '@/lib/store';
-import { isMatchingAllowedByAge } from '@/lib/ageGate';
+import { isMatchingAllowedByAge, isMatchingAllowedUser } from '@/lib/ageGate';
 
 // Routes that don't require matching access (always available, regardless of age)
 // /round is included so a friend who opens a shared round URL can read the
@@ -58,7 +58,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   // ポップアップは同時に1つだけ（lib/popupSlot）。レビューは主催者の完了・組み分けの次
   const reviewActive = usePopupSlot('review', POPUP_PRIORITY.review, pendingCount > 0 && (overlayOpen || blockerOpen));
 
-  const matchingAllowed = isMatchingAllowedByAge(me?.age);
+  const matchingAllowed = isMatchingAllowedUser(me);
   // 年齢未入力（新規会員）は見るだけならOK。対象外の年齢と、募集を立てる画面（プロフィール必須）だけ止める（2026-10-08）
   const ageUnset = !me?.age || me.age <= 0;
   const needsProfileHere = pathname === '/create' || pathname.startsWith('/create/');

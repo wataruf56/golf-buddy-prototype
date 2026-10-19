@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { getMeId } from '@/lib/session';
 import { pushTo, liffUrl } from '@/lib/linePush';
 import { webPushText } from '@/lib/webPush';
-import { isMatchingAllowedByAge, getCohort } from '@/lib/ageGate';
+import { isMatchingAllowedByAge, getCohort, isMatchingAllowedUser, userCohort } from '@/lib/ageGate';
 import type { PickupStatus } from '@/lib/types';
 
 // POST /api/rounds/[id]/accept-invite  body: { pickup? }
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const ban = await blockedIfBanned(meId); if (ban) return ban;
 
   const me = await db.getUser(meId);
-  if (!isMatchingAllowedByAge(me?.age)) {
+  if (!isMatchingAllowedUser(me)) {
     return NextResponse.json({ error: 'age_restricted', message: '20〜30代の方のみご利用いただけます' }, { status: 403, headers: noStore });
   }
 
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   // 年齢帯（コホート）は尊重する。
-  const myCohort = getCohort(me?.age);
+  const myCohort = userCohort(me);
   if (existing.hostCohort && (!myCohort || existing.hostCohort !== myCohort)) {
     return NextResponse.json({ error: 'cohort_mismatch', message: '別の年齢帯のラウンドには参加できません' }, { status: 403, headers: noStore });
   }

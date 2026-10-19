@@ -1,6 +1,6 @@
 import 'server-only';
 import { getAdminDb } from './firebase';
-import { getCohort, type Cohort, viewCohort } from './ageGate';
+import { getCohort, type Cohort, viewCohort, userCohort, userViewCohort } from './ageGate';
 import type { User } from './types';
 import { clampCarNum, type AvailPerson } from './availabilityShared';
 export type { AvailPerson } from './availabilityShared';
@@ -110,7 +110,7 @@ export async function listAvailabilityFor(viewer: User): Promise<{
   /** 自分の車の設定（乗れる人数・バッグ数）。未設定なら undefined */
   mineCar: { seats?: number; bags?: number };
 }> {
-  const cohort = viewCohort(viewer.age);   // 年齢未入力でも20〜30代として見られる（2026-10-08）
+  const cohort = userViewCohort(viewer);   // 年齢未入力でも20〜30代として見られる（2026-10-08）
   const empty = { cohort, byDate: {} as Record<string, AvailPerson[]>, mine: [] as string[], mineCar: {} };
   if (cohort !== 'a') return empty;   // 20〜30代だけ。それ以外には機能自体を出さない
   const adb = getAdminDb() as any;
@@ -147,7 +147,7 @@ export async function listAvailabilityFor(viewer: User): Promise<{
     }
     if (banned.has(uid) || u.banned) return;
     if (hideTest && isTestId(uid)) return;
-    if (getCohort(u.age) !== 'a') return;                         // 同じ年代だけ
+    if (userCohort(u) !== 'a') return;                         // 同じ年代だけ
     if (u.gender !== 'male' && u.gender !== 'female') return;      // 性別未設定は並べられない（青/ピンクで出すため）
     const dates: string[] = normalizeDates(x.dates).filter((dt) => dt >= lo);
     if (!dates.length) return;
@@ -197,7 +197,7 @@ export async function listAvailabilityForAdmin(opts?: { includeTest?: boolean })
     const u = userOf[uid];
     if (!u || u.banned) return;
     if (!opts?.includeTest && isTestId(uid)) return;
-    if (getCohort(u.age) !== 'a') return;
+    if (userCohort(u) !== 'a') return;
     const dates = normalizeDates(x.dates).filter((dt) => dt >= lo);
     if (!dates.length) return;
     people.add(uid);
@@ -225,7 +225,7 @@ export async function listAvailabilityForAdmin(opts?: { includeTest?: boolean })
 const newAvailCache = new Map<string, { at: number; v: { count: number; ats: number[] } }>();
 export async function countNewAvailFor(viewer: User): Promise<{ count: number; ats: number[] }> {
   const none = { count: 0, ats: [] as number[] };
-  if (viewCohort(viewer.age) !== 'a') return none;   // 20〜30代だけの機能
+  if (userViewCohort(viewer) !== 'a') return none;   // 20〜30代だけの機能
   const adb = getAdminDb() as any;
   if (!adb) return none;
   const now = Date.now();
@@ -264,7 +264,7 @@ export async function countNewAvailFor(viewer: User): Promise<{ count: number; a
     const u = userOf[uid];
     if (!u || u.banned || banned.has(uid)) continue;
     if (!viewerIsTest && isTestId(uid)) continue;
-    if (getCohort(u.age) !== 'a') continue;
+    if (userCohort(u) !== 'a') continue;
     if (u.gender !== 'male' && u.gender !== 'female') continue;
     const added = x.addedAt && typeof x.addedAt === 'object' ? x.addedAt : {};
     for (const dt of normalizeDates(x.dates)) {

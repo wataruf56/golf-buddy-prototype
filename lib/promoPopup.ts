@@ -1,6 +1,6 @@
 import 'server-only';
 import { getAdminDb } from './firebase';
-import { viewCohort, getCohort } from './ageGate';
+import { viewCohort, getCohort, userCohort, userViewCohort } from './ageGate';
 import type { User } from './types';
 import { hostSeat } from './hostCount';
 import { isMarketingPopupEligible } from './popupEligibility';
@@ -57,8 +57,8 @@ export async function activePromoFor(me: User): Promise<Record<string, unknown> 
     if (isTest(r.hostId) && !isTest(me.id)) continue;
     const involved = [r.hostId, ...(r.coHostIds || []), ...(r.applicantIds || []), ...(r.pendingApplicantIds || []), ...(r.invitedIds || [])];
     if (involved.includes(me.id)) continue;
-    const myCohort = viewCohort(me.age);
-    const roundCohort = r.hostCohort || getCohort((await db.getUser(r.hostId))?.age || 0);
+    const myCohort = userViewCohort(me);
+    const roundCohort = r.hostCohort || userCohort(await db.getUser(r.hostId));
     if (roundCohort && myCohort !== roundCohort) continue;
     const host = await db.getUser(r.hostId);
     // 公式募集は主催者を数えない（2026-10-12）

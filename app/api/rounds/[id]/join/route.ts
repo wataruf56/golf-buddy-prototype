@@ -4,7 +4,7 @@ import { getMeId } from '@/lib/session';
 import { pushTo, liffUrl } from '@/lib/linePush';
 import { webPushText } from '@/lib/webPush';
 import { isNotifyEnabled } from '@/lib/notifyPrefs';
-import { isMatchingAllowedByAge, getCohort } from '@/lib/ageGate';
+import { isMatchingAllowedByAge, getCohort, isMatchingAllowedUser, userCohort } from '@/lib/ageGate';
 import { checkRoundEligibility, canGenderJoin, genderFullMessage } from '@/lib/roundEligibility';
 import type { PickupStatus } from '@/lib/types';
 
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const { blockedIfBanned } = await import('@/lib/banGuard');
   const ban = await blockedIfBanned(meId); if (ban) return ban;
   const me = await db.getUser(meId);
-  if (!isMatchingAllowedByAge(me?.age)) {
+  if (!isMatchingAllowedUser(me)) {
     return NextResponse.json({ error: 'age_restricted', message: '20〜30代の方のみご利用いただけます' }, { status: 403 });
   }
   const existing = await db.getRound(params.id);
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   } catch { /* 判定不能時は許可 */ }
 
   // Cohort isolation: applicant must be in the same age cohort as the host's round.
-  const myCohort = getCohort(me?.age);
+  const myCohort = userCohort(me);
   if (!existing.hostCohort || !myCohort || existing.hostCohort !== myCohort) {
     return NextResponse.json({ error: 'cohort_mismatch', message: '別の年齢帯のラウンドには参加できません' }, { status: 403 });
   }

@@ -28,6 +28,19 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     if (!canViewRound(stored, viewerId, isAdminUserId(viewerId))) {
       return NextResponse.json({ error: 'private', message: PRIVATE_ROUND_MESSAGE }, { status: 403, headers: noStore });
     }
+    // 年代ごとに分ける（2026-10-20）：ほかの年代の募集は、関わっている人（主催・参加・申請・招待）と運営だけ。
+    // ログインしていない人（共有リンク）は今までどおり見られる（年齢が分からないので20〜30代として扱う）。
+    if (viewerId && !isAdminUserId(viewerId)) {
+      const { userViewCohort } = await import('@/lib/ageGate');
+      const viewer = await db.getUser(viewerId);
+      const s: any = stored;
+      const involved = s.hostId === viewerId || (s.applicantIds || []).includes(viewerId) || (s.pendingApplicantIds || []).includes(viewerId)
+        || (s.coHostIds || []).includes(viewerId) || (s.invitedIds || []).includes(viewerId) || Object.keys(s.invitedAt || {}).includes(viewerId);
+      const myView = userViewCohort(viewer as any);
+      if (!involved && (!myView || (s.hostCohort || 'a') !== myView)) {
+        return NextResponse.json({ error: 'cohort', message: myView === 'b' ? 'この募集は20〜30代のコミュニティの募集です' : 'この募集は、ほかの年代のコミュニティの募集です' }, { status: 403, headers: noStore });
+      }
+    }
   }
   const { stripRoundForViewer } = await import('@/lib/roundView');
   const round = stripRoundForViewer(stored, viewerId);

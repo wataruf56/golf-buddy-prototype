@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMeId } from '@/lib/session';
 import { getAdminDb } from '@/lib/firebase';
-import { getCohort, COHORT_RANGES } from '@/lib/ageGate';
+import { getCohort, userCohort, COHORT_RANGES } from '@/lib/ageGate';
 import { db as appDb } from '@/lib/db';
 import { isRoundHost } from '@/lib/roundHost';
 
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const meDoc = await db.collection('users').doc(meId).get();
-    const myCohort = getCohort(meDoc.exists ? meDoc.data().age : 0);
+    const myCohort = userCohort(meDoc.exists ? meDoc.data() : null);   // 特例（cohortOverride）も見る（2026-10-20）
     if (!myCohort) return NextResponse.json({ items: [], note: '年齢が未設定のため検索できません' }, { headers: noStore });
     const range = COHORT_RANGES[myCohort];
     const lo = Number.isFinite(minAge) ? Math.max(range.min, minAge) : range.min;

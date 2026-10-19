@@ -4,6 +4,7 @@ import { getMeId } from '@/lib/session';
 import { getAvailability, listAvailabilityFor, saveAvailability, normalizeDates, WINDOW_DAYS, todayJst, windowEndJst } from '@/lib/availability';
 import { clampCarNum, needsStation, profileMissingFor } from '@/lib/availabilityShared';
 import { onAvailabilityAdded, onAvailabilityRemoved, roomsFor } from '@/lib/availRooms';
+import { userViewCohort } from '@/lib/ageGate';
 
 // 「行ける日」。
 //   GET  … 日付ごとの行ける人（同じ年代だけ）＋自分の選択。20〜30代でなければ enabled:false だけ返す。
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
   const me = await db.getUser(meId);
   if (!me) return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStore });
   const { viewCohort } = await import('@/lib/ageGate');
-  if (viewCohort(me.age) !== 'a') {
+  if (userViewCohort(me) !== 'a') {
     return NextResponse.json({ ok: false, message: 'この機能は20〜30代の会員向けです' }, { status: 403, headers: noStore });
   }
   // 2026-10-08：プロフィール（年齢・性別・最寄り駅）が足りなくても「行ける」は保存する（入力で離脱させない）。

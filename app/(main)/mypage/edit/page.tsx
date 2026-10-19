@@ -366,15 +366,20 @@ export default function ProfileEditPage() {
         </Field>
 
         <Field label="年齢" required>
+          {/* 年齢は一度登録したら変えられない（2026-10-20）。変更は運営が管理画面から */}
           <input
             type="text"
             inputMode="numeric"
             pattern="[0-9]*"
             placeholder="例: 32"
             value={age}
+            disabled={!!me.age}
             onChange={(e) => setAge(e.target.value.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '').slice(0, 3))}
-            className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none"
+            className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none disabled:opacity-60"
           />
+          <div className="text-[10.5px] text-muted mt-1 leading-relaxed">
+            {me.age ? '年齢は一度登録すると変えられません。変更が必要なときは「ゴル友」タブの「管理者にDM」からご連絡ください。' : '年齢は一度登録すると、あとから変えられません。正しく入れてください。'}
+          </div>
         </Field>
 
         <Field label="性別" required>
