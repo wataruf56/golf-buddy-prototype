@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase';
 import { listSwingAllowed } from '@/lib/swingAccess';
+import { liveAge } from '@/lib/ageGate';
 
 const noStore = { 'Cache-Control': 'no-store, must-revalidate' };
 
@@ -26,7 +27,8 @@ export async function GET(req: NextRequest) {
       return {
         id: u.id || d.id,
         displayName: u.displayName || '',
-        age: u.age || null,
+        age: liveAge(u) || null,                    // 誕生日がある人は今日の年齢（2026-10-20）
+        birthday: u.birthday || null,
         cohortOverride: u.cohortOverride || null,   // 'a'＝40歳以上でも20〜30代を特例で（2026-10-20）
         gender: u.gender || null,
         car: u.car || null,

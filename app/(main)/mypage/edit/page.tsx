@@ -11,6 +11,7 @@ import { allAreas, allPrefectures } from '@/lib/mockData';
 import { GOLMOTI_TYPES, getGolmotiType, golmotiImg } from '@/lib/golmoti';
 import type { Gender, CarStatus, ScoreEntry } from '@/lib/types';
 import { DRINK_OPTIONS, SMOKE_OPTIONS, JOB_OPTIONS } from '@/lib/lifestyle';
+import { BirthdayPicker } from '@/components/BirthdayPicker';
 
 const frequencies = [
   '月1回未満', '月1回', '月2回', '月3回', '月4回以上', '週1回以上', 'ほぼ毎日',
@@ -63,7 +64,7 @@ export default function ProfileEditPage() {
   const [displayName, setDisplayName] = useState('');
   const [realNameLast, setRealNameLast] = useState('');
   const [realNameFirst, setRealNameFirst] = useState('');
-  const [age, setAge] = useState<string>('');
+  const [birthday, setBirthday] = useState<string>('');   // 'YYYY-MM-DD'（2026-10-20：年齢ではなく誕生日を入れる）
   const [gender, setGender] = useState<Gender | ''>('');
   const [car, setCar] = useState<CarStatus | ''>('');
   const [bio, setBio] = useState('');
@@ -101,7 +102,7 @@ export default function ProfileEditPage() {
     setDisplayName(me.displayName || '');
     setRealNameLast(me.realNameLast || '');
     setRealNameFirst(me.realNameFirst || '');
-    setAge(me.age ? String(me.age) : '');
+    setBirthday((me as any).birthday || '');
     setGender(me.gender || '');
     setCar(me.car || '');
     setBio(me.bio || '');
@@ -189,7 +190,7 @@ export default function ProfileEditPage() {
     }
     const missing: string[] = [];
     if (!displayName.trim()) missing.push('表示名');
-    if (!age || parseInt(age, 10) <= 0) missing.push('年齢');
+    if (!(me as any).birthday && !birthday) missing.push('誕生日');
     if (!gender) missing.push('性別');
     if (!car) missing.push('車');
     if (!area) missing.push('エリア');
@@ -201,11 +202,10 @@ export default function ProfileEditPage() {
       return;
     }
     track('profile_save_click', {
-      displayName, age, area, scoreRange, frequency, avatar,
+      displayName, birthday: !!birthday, area, scoreRange, frequency, avatar,
       hasAvatarUrl: !!avatarUrl, avatarUrlLength: avatarUrl?.length || 0,
     });
     try {
-      const ageNum = age ? parseInt(age, 10) : 0;
       const cleanedScores = recentScores
         .filter((s) => s.score > 0 && s.date)
         .sort((a, b) => (a.date < b.date ? 1 : -1))
@@ -214,7 +214,8 @@ export default function ProfileEditPage() {
         displayName,
         realNameLast: realNameLast.trim(),
         realNameFirst: realNameFirst.trim(),
-        age: ageNum,
+        // 誕生日は初めての1回だけ送る（年齢はサーバーが誕生日から出す・一度登録したら変えられない）
+        ...(!(me as any).birthday && birthday ? { birthday } : {}),
         gender: (gender || undefined) as Gender | undefined,
         car: (car || undefined) as CarStatus | undefined,
         bio,
@@ -365,20 +366,13 @@ export default function ProfileEditPage() {
           </ul>
         </Field>
 
-        <Field label="年齢" required>
-          {/* 年齢は一度登録したら変えられない（2026-10-20）。変更は運営が管理画面から */}
-          <input
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            placeholder="例: 32"
-            value={age}
-            disabled={!!me.age}
-            onChange={(e) => setAge(e.target.value.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '').slice(0, 3))}
-            className="w-full p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none disabled:opacity-60"
-          />
+        <Field label="誕生日" required>
+          {/* 年齢ではなく誕生日を入れる（2026-10-20）。年齢は誕生日から自動で数える。一度登録したら変えられない（変更は運営が管理画面から） */}
+          <BirthdayPicker value={birthday} onChange={setBirthday} disabled={!!(me as any).birthday} />
           <div className="text-[10.5px] text-muted mt-1 leading-relaxed">
-            {me.age ? '年齢は一度登録すると変えられません。変更が必要なときは「ゴル友」タブの「管理者にDM」からご連絡ください。' : '年齢は一度登録すると、あとから変えられません。正しく入れてください。'}
+            {(me as any).birthday
+              ? '誕生日は一度登録すると変えられません。変更が必要なときは「ゴル友」タブの「管理者にDM」からご連絡ください。'
+              : '誕生日から年齢を自動で出します（ほかの会員には年齢だけが見え、誕生日は見えません）。一度登録すると、あとから変えられません。'}
           </div>
         </Field>
 

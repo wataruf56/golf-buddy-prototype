@@ -59,9 +59,32 @@ export async function PATCH(req: NextRequest) {
   }
 
   const before = await db.getUser(meId);
-  // 年齢は一度登録したら本人は変えられない（2026-10-20 本人指定）。変えるのは管理画面から（POST /api/admin/user-age）。
-  // 同じ値をそのまま送ってくるのは通す（プロフィール編集の保存で毎回送られるため）。
-  if ('age' in patch) {
+  // 誕生日（2026-10-20 本人指定）。入力は年齢ではなく誕生日。年齢は誕生日から出す（lib/ageGate.liveAge）。
+  //   ・一度登録したら本人は変えられない（同じ値はそのまま通す）。変更は管理画面から（POST /api/admin/user-age）。
+  //   ・前から年齢で登録している人が誕生日を入れるとき、40歳以上で登録していた人が40歳未満になる誕生日は受け付けない（年代をまたぐので運営へ）。
+  if ('birthday' in body) {
+    const { isValidBirthday, ageFromBirthday } = await import('@/lib/ageGate');
+    const b = String(body.birthday || '');
+    const cur = String((before as any)?.birthday || '');
+    if (cur) {
+      if (b && b !== cur) return NextResponse.json({ error: 'birthday_locked', message: '誕生日は一度登録すると変えられません。変更が必要なときは「ゴル友」タブの「管理者にDM」からご連絡ください' }, { status: 400 });
+    } else if (b) {
+      if (!isValidBirthday(b)) return NextResponse.json({ error: 'bad_birthday', message: '誕生日を正しく入れてください' }, { status: 400 });
+      const nextAge = ageFromBirthday(b);
+      const oldAge = Number(before?.age) || 0;
+      if (oldAge >= 40 && nextAge < 40) {
+        return NextResponse.json({ error: 'birthday_mismatch', message: `登録されている年齢（${oldAge}歳）と誕生日が合いません。お手数ですが「ゴル友」タブの「管理者にDM」からご連絡ください` }, { status: 400 });
+      }
+      patch.birthday = b;
+      patch.age = nextAge;
+    }
+  }
+  if ((before as any)?.birthday || patch.birthday) {
+    // 誕生日がある人の年齢は誕生日から決まる（送られてきた年齢は使わない）
+    if (!patch.birthday) delete patch.age;
+  } else if ('age' in patch) {
+    // 誕生日がまだ無い人（前からの会員・古い画面）：年齢は一度登録したら本人は変えられない（2026-10-20）。
+    // 同じ値をそのまま送ってくるのは通す（プロフィール編集の保存で毎回送られるため）。
     const cur = Number(before?.age) || 0;
     const next = Number(patch.age) || 0;
     if (cur > 0 && next !== cur) {

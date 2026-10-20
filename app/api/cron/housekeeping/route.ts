@@ -84,6 +84,16 @@ export async function GET(req: NextRequest) {
     results.crushNotice = { error: (e as Error).message };
   }
 
+  // 誕生日から年齢を保存し直す（日本時間0時台だけ・2026-10-20・lib/birthdayAge）。年代の判定はもともと誕生日からその場で数えている
+  try {
+    if (new Date(Date.now() + 9 * 3600 * 1000).getUTCHours() === 0) {
+      const { syncAgesFromBirthday } = await import('@/lib/birthdayAge');
+      results.birthdayAge = await syncAgesFromBirthday();
+    }
+  } catch (e) {
+    results.birthdayAge = { error: (e as Error).message };
+  }
+
   // 行ける日の部屋：集まったのに誰も話していない部屋に、運営から声かけ（2026-10-11）
   try {
     const { nudgeQuietRooms } = await import('@/lib/availRooms');

@@ -11,6 +11,7 @@ type Row = {
   displayName: string;
   age: number | null;
   cohortOverride?: string | null;
+  birthday?: string | null;
   gender: string | null;
   car: string | null;
   area: string | null;
@@ -282,7 +283,7 @@ function Inner() {
             </button>
 
             {/* 年齢・コミュニティ（2026-10-20）。本人は一度登録した年齢を変えられないので、変えるのはここから */}
-            <AgeEditor u={u} token={token} onSaved={(age, co) => setUsers((prev) => (prev || []).map((x) => (x.id === u.id ? { ...x, age, cohortOverride: co } : x)))} />
+            <AgeEditor u={u} token={token} onSaved={(age, co, bd) => setUsers((prev) => (prev || []).map((x) => (x.id === u.id ? { ...x, age, cohortOverride: co, birthday: bd } : x)))} />
 
             {/* 部分制限（通報対応で機能を一部だけ止める） */}
             <details className="mt-2 bg-bg rounded-lg border-[1.5px] border-border">
@@ -338,8 +339,9 @@ function Inner() {
 }
 
 // 年齢の変更と「40歳以上でも20〜30代のコミュニティを見られる（特例）」（2026-10-20・/api/admin/user-age）
-function AgeEditor({ u, token, onSaved }: { u: Row; token: string; onSaved: (age: number | null, co: string | null) => void }) {
+function AgeEditor({ u, token, onSaved }: { u: Row; token: string; onSaved: (age: number | null, co: string | null, birthday: string | null) => void }) {
   const [age, setAge] = useState(u.age ? String(u.age) : '');
+  const [bd, setBd] = useState(u.birthday || '');
   const [busy, setBusy] = useState(false);
   async function save(body: Record<string, unknown>) {
     if (busy) return;
@@ -348,7 +350,8 @@ function AgeEditor({ u, token, onSaved }: { u: Row; token: string; onSaved: (age
       const r = await fetch(`/api/admin/user-age?token=${encodeURIComponent(token)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: u.id, ...body }), cache: 'no-store' });
       const j = await r.json();
       if (!r.ok) throw new Error(j?.message || j?.error || String(r.status));
-      onSaved(j.age || null, j.cohortOverride || null);
+      onSaved(j.age || null, j.cohortOverride || null, j.birthday || null);
+      if (j.age) setAge(String(j.age));
     } catch (e) { alertDialog(`失敗: ${(e as Error).message}`); }
     finally { setBusy(false); }
   }
@@ -360,14 +363,24 @@ function AgeEditor({ u, token, onSaved }: { u: Row; token: string; onSaved: (age
         {u.cohortOverride === 'a' && <span className="text-[9px] font-black text-white bg-green rounded-full px-2 py-[1px]">20〜30代の特例</span>}
       </summary>
       <div className="px-3 pb-3 pt-1 flex flex-col gap-2">
+        {/* 誕生日（2026-10-20）：入っている人の年齢は誕生日から決まる */}
         <div className="flex items-center gap-2">
+          <input type="date" value={bd} onChange={(e) => setBd(e.target.value)}
+            className="px-2 py-1.5 border-[1.5px] border-border rounded-lg text-sm bg-white" aria-label="誕生日" />
+          <button type="button" disabled={busy || !bd || bd === (u.birthday || '')} onClick={() => save({ birthday: bd })}
+            className="ml-auto px-3 py-1.5 rounded-lg bg-green text-white text-[11px] font-black disabled:opacity-40">誕生日を変える</button>
+        </div>
+        <div className="text-[10px] text-muted leading-relaxed">
+          {u.birthday ? `誕生日 ${u.birthday}（いま${u.age || '?'}歳）。年齢は誕生日から自動で決まります。` : 'まだ誕生日が入っていません（前からの会員はマイページを開いたときに入力をお願いしています）。'}
+        </div>
+        {!u.birthday && <div className="flex items-center gap-2">
           <input value={age} onChange={(e) => setAge(e.target.value.replace(/[^0-9]/g, '').replace(/^0+(?=[0-9])/, '').slice(0, 2))} inputMode="numeric"
             className="w-20 px-2 py-1.5 border-[1.5px] border-border rounded-lg text-sm bg-white text-center" placeholder="年齢" />
           <span className="text-[12px]">歳</span>
           <button type="button" disabled={busy || age === String(u.age || '')} onClick={() => save({ age: Number(age || 0) })}
             className="ml-auto px-3 py-1.5 rounded-lg bg-green text-white text-[11px] font-black disabled:opacity-40">年齢を変える</button>
-        </div>
-        <div className="text-[10px] text-muted leading-relaxed">本人は一度登録した年齢を変えられません（変更はここから）。</div>
+        </div>}
+        <div className="text-[10px] text-muted leading-relaxed">本人は一度登録した誕生日・年齢を変えられません（変更はここから）。</div>
         <label className="flex items-start gap-2 text-[12px] font-bold">
           <input type="checkbox" className="w-4 h-4 mt-0.5 accent-green" checked={u.cohortOverride === 'a'} disabled={busy}
             onChange={(e) => save({ cohortOverride: e.target.checked ? 'a' : null })} />

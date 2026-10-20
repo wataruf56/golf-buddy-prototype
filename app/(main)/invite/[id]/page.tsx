@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { getMe, store, useStore } from '@/lib/store';
 import { toast } from '@/components/Toast';
-import { NumberInput } from '@/components/NumberInput';
+import { BirthdayPicker } from '@/components/BirthdayPicker';
 import { formatDate } from '@/lib/utils';
 
 // ゲスト招待リンクの着地ページ（2026-10-08）。
@@ -40,7 +40,7 @@ export default function GuestInvitePage() {
   const [info, setInfo] = useState<Info | null>(null);
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState('');
-  const [age, setAge] = useState<number | null>(null);
+  const [birthday, setBirthday] = useState('');   // 年齢ではなく誕生日（2026-10-20）
   const [gender, setGender] = useState<'' | 'male' | 'female'>('');
   const [lastName, setLastName] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -55,7 +55,7 @@ export default function GuestInvitePage() {
   useEffect(() => {
     if (!me || me.id === 'me') return;
     setName((v) => v || me.displayName || '');
-    setAge((v) => v ?? (me.age ? me.age : null));
+    setBirthday((v) => v || (me as any).birthday || '');
     setGender((v) => v || ((me.gender === 'male' || me.gender === 'female') ? me.gender : ''));
     setLastName((v) => v || (me as any).realNameLast || '');
     setFirstName((v) => v || (me as any).realNameFirst || '');
@@ -69,9 +69,10 @@ export default function GuestInvitePage() {
     try {
       if (needProfile) {
         if (!name.trim()) { toast('表示名を入れてください', 'error'); return; }
-        if (!age || age < 18 || age > 99) { toast('年齢を入れてください', 'error'); return; }
+        if (!me?.age && !birthday) { toast('誕生日を入れてください', 'error'); return; }
         if (!gender) { toast('性別を選んでください', 'error'); return; }
-        const body: Record<string, unknown> = { displayName: name.trim().slice(0, 20), age, gender };
+        const body: Record<string, unknown> = { displayName: name.trim().slice(0, 20), gender };
+        if (!me?.age && birthday) body.birthday = birthday;
         if (lastName.trim()) body.realNameLast = lastName.trim().slice(0, 20);
         if (firstName.trim()) body.realNameFirst = firstName.trim().slice(0, 20);
         const pr = await fetch('/api/me', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(body) });
@@ -137,8 +138,10 @@ export default function GuestInvitePage() {
           <div className="text-[13px] font-black mb-2">プロフィール（1分）</div>
           <label className="block text-[11px] font-bold text-sub mb-1">表示名（ニックネーム）</label>
           <input value={name} onChange={(e) => setName(e.target.value)} maxLength={20} className="w-full p-3 border-[1.5px] border-border rounded-xl text-sm bg-bg mb-3" placeholder="例: まなか" />
-          <label className="block text-[11px] font-bold text-sub mb-1">年齢</label>
-          <NumberInput value={age} onChange={setAge} min={18} max={99} placeholder="例: 26" className="w-full p-3 border-[1.5px] border-border rounded-xl text-sm bg-bg mb-3" ariaLabel="年齢" />
+          {!me?.age && <>
+            <label className="block text-[11px] font-bold text-sub mb-1">誕生日 <span className="text-muted font-medium">（ほかの会員には年齢だけが見えます）</span></label>
+            <div className="mb-3"><BirthdayPicker value={birthday} onChange={setBirthday} /></div>
+          </>}
           <label className="block text-[11px] font-bold text-sub mb-1">性別</label>
           <div className="flex gap-2 mb-3">
             {([['male', '👨 男性'], ['female', '👩 女性']] as const).map(([v, l]) => (

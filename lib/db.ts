@@ -7,6 +7,7 @@ import { reviewPeerIdsForCompetition, isNoShow } from './groups';
 import { scrubMemberFromRound, applyScrubInPlace, type MemberScrub } from './roundMembership';
 import { hostCounts, currentCountOf, countFloor, countedMemberIds } from './hostCount';
 import { hostJoinBlock, hostLeaveBlock } from './hostJoin';
+import { withLiveAge } from './ageGate';
 
 /** 招待の既読を打つべきか：招待中で、参加していなくて、今回の招待（invitedAt）のあとにまだ打っていない。 */
 function needsInviteSeen(r: Partial<Round>, userId: string): boolean {
@@ -567,7 +568,8 @@ class FirestoreDB implements DB {
 
   async getUser(id: string) {
     const snap = await this.fs.collection('users').doc(id).get();
-    return this.snapToObj<User>(snap);
+    const u = this.snapToObj<User>(snap);
+    return u ? withLiveAge(u) : u;   // 誕生日がある人は今日の年齢（2026-10-20）
   }
   async upsertUser(u: Partial<User> & { id: string }) {
     const ref = this.fs.collection('users').doc(u.id);
@@ -614,7 +616,7 @@ class FirestoreDB implements DB {
     const results = await Promise.all(chunks.map(async (chunk) => {
       try {
         const snap = await this.fs.collection('users').where('__name__', 'in', chunk).get();
-        return snap.docs.map((d: any) => ({ id: d.id, ...d.data() } as User));
+        return snap.docs.map((d: any) => withLiveAge({ id: d.id, ...d.data() } as User));
       } catch { return [] as User[]; }
     }));
     return results.flat();

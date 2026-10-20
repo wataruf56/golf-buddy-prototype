@@ -19,7 +19,10 @@ export type User = {
   // 最終ログイン/利用時刻(ms)。アプリを開くたびに bootstrap で更新（5分throttle）。
   // ゴル友一覧のログイン順ソート・ホームの「直近1時間のログイン人数」に使う。
   lastActiveAt?: number;
+  // 年齢。誕生日（birthday）がある人は、誕生日から今日の年齢を出したもの（2026-10-20・lib/ageGate.liveAge・毎日の見回りでも保存し直す）。
   age: number;
+  // 誕生日 'YYYY-MM-DD'（2026-10-20）。本人と運営だけ（lib/sanitizeUser で外す）。本人は一度登録すると変えられない（変更は管理画面）。
+  birthday?: string | null;
   gender?: Gender;
   car?: CarStatus;
   bio?: string;
