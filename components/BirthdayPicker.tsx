@@ -28,22 +28,22 @@ export function BirthdayPicker({ value, onChange, disabled }: { value: string; o
     } else onChange('');
   };
   const age = p ? ageFromBirthday(value) : 0;
-  const cls = 'flex-1 min-w-0 p-3 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none disabled:opacity-60';
+  const cls = 'min-w-0 py-3 pl-2 pr-1 border-[1.5px] border-border rounded-[10px] text-sm bg-bg outline-none disabled:opacity-60';
   return (
     <div className="flex items-center gap-1.5">
-      <select aria-label="生まれた年" className={cls} value={y} disabled={disabled} onChange={(e) => emit(e.target.value, m, d)}>
+      <select aria-label="生まれた年" className={cls + ' flex-[1.4]'} value={y} disabled={disabled} onChange={(e) => emit(e.target.value, m, d)}>
         <option value="">年</option>
         {years.map((yy) => <option key={yy} value={yy}>{yy}年</option>)}
       </select>
-      <select aria-label="生まれた月" className={cls} value={m} disabled={disabled} onChange={(e) => emit(y, e.target.value, d)}>
+      <select aria-label="生まれた月" className={cls + ' flex-1'} value={m} disabled={disabled} onChange={(e) => emit(y, e.target.value, d)}>
         <option value="">月</option>
         {Array.from({ length: 12 }, (_, i) => i + 1).map((mm) => <option key={mm} value={mm}>{mm}月</option>)}
       </select>
-      <select aria-label="生まれた日" className={cls} value={d} disabled={disabled} onChange={(e) => emit(y, m, e.target.value)}>
+      <select aria-label="生まれた日" className={cls + ' flex-1'} value={d} disabled={disabled} onChange={(e) => emit(y, m, e.target.value)}>
         <option value="">日</option>
         {Array.from({ length: days }, (_, i) => i + 1).map((dd) => <option key={dd} value={dd}>{dd}日</option>)}
       </select>
-      <span className="shrink-0 w-12 text-right text-[13px] font-black text-text">{age > 0 ? `${age}歳` : ''}</span>
+      <span className="shrink-0 min-w-[2.6em] text-right text-[13px] font-black text-text">{age > 0 ? `${age}歳` : ''}</span>
     </div>
   );
 }
