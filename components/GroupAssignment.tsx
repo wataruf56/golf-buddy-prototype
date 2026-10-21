@@ -385,16 +385,18 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
       ? (h.officialPast === 0 ? '🔰 公式コンペ初参加' : `公式コンペ${h.officialPast + 1}回目`)
       : (h.officialPast === 0 ? '🔰 公式コンペ未参加' : `公式コンペ${h.officialPast}回参加`);
     let fem: string | null = null;
+    let femNow: string | null = null;
     if (h.femalePast) {
       const fg = groups.find((g) => g.memberIds.includes(id));
       const bg = backOn && groupsBack.length ? groupsBack.find((g) => g.memberIds.includes(id)) : fg;
-      const now = fg ? `前半${femaleWith(id, fg) ? 1 : 0}・後半${femaleWith(id, bg) ? 1 : 0}` : '組がまだ';
-      fem = `👩 女性と同組　これまで 前半${h.femalePast.front}・後半${h.femalePast.back}回（${h.femalePast.comps}コンペ中）／今回 ${now}`;
+      fem = `👩 女性と同組｜これまで 前半${h.femalePast.front}・後半${h.femalePast.back}回（全${h.femalePast.comps}コンペ）`;
+      femNow = fg ? `今回 前半${femaleWith(id, fg) ? 1 : 0}・後半${femaleWith(id, bg) ? 1 : 0}回` : '今回 組がまだ';
     }
     return (
       <span className="basis-full flex flex-wrap gap-1 mt-0.5">
         <span className={`text-[9.5px] font-black px-1.5 py-[1px] rounded-full border ${h.officialPast === 0 ? 'bg-orange-light text-orange border-orange' : 'bg-bg text-sub border-border'}`}>{off}</span>
-        {fem && <span className="text-[9.5px] font-bold px-1.5 py-[1px] rounded-full bg-[#FDECF3] text-[#B4386B] border border-[#E9A3C1] break-words">{fem}</span>}
+        {fem && <span className="text-[9.5px] font-bold px-1.5 py-[1px] rounded-md bg-[#FDECF3] text-[#B4386B] border border-[#E9A3C1] break-words">{fem}</span>}
+        {femNow && <span className="text-[9.5px] font-black px-1.5 py-[1px] rounded-md bg-[#FDECF3] text-[#B4386B] border border-[#E9A3C1] whitespace-nowrap">{femNow}</span>}
       </span>
     );
   };
