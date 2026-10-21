@@ -1,5 +1,6 @@
 import 'server-only';
 import { hostCounts } from './hostCount';
+import { OFFICIAL_COMPE_EXTRA_IDS } from './officialCompe';
 
 // LPに載せる実績数値。手で書いた数字はすぐ古くなり事実と食い違うので、必ず実データから出す。
 // 母数(n)も一緒に返し、少なすぎるものは表示側で落とす。
@@ -15,12 +16,8 @@ export type LpStats = {
   compeN: number; compePlayers: number; compeRepeat: number;
 };
 
-// 運営が主催した公式コンペなのに isOfficial が付いていない過去の募集（本人確認 2026-10-15）。
-//   9xN38TLiDpyksZnLvM6i … 9/13「同世代でゆるっとゴルフ」
-//   WduL3gVEnHQ0VwTrPo3n … 9/26「ギネス記録のホールにチャレンジ」
-// データに isOfficial を付けると公式募集として扱いが変わる（主催者の数え方・一覧など）ため、
-// LPの実績の集計だけに加える。これで インスタの「4本・27人・2回以上8人」と同じ数え方になる。
-const OFFICIAL_COMPE_EXTRA_IDS = new Set(['9xN38TLiDpyksZnLvM6i', 'WduL3gVEnHQ0VwTrPo3n']);
+// 運営が主催した公式コンペなのに isOfficial が付いていない過去の募集（lib/officialCompe・2026-10-21 切り出し）も、
+// LPの実績の集計に加える。これで インスタの「4本・27人・2回以上8人」と同じ数え方になる。
 
 export const EMPTY_LP_STATS: LpStats = {
   fillRate: null, fillN: 0, totalPlayers: 0, againRate: null, againN: 0,

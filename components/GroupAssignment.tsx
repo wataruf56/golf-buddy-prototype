@@ -111,6 +111,9 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   const [realNames, setRealNames] = useState<Record<string, string>>({});
   const [exportOpen, setExportOpen] = useState(false);
   const [pairHistory, setPairHistory] = useState<Record<string, { sameGroup: number; sameEvent: number }>>({});
+  // 主催者だけ：男性が今までのコンペで女性と同じ組になった回数（前半・後半）／公式コンペに出た回数（2026-10-21・/api/rounds/[id]/member-history）
+  const [memberHist, setMemberHist] = useState<Record<string, { femalePast?: { front: number; back: number; comps: number }; officialPast: number }>>({});
+  const [thisOfficial, setThisOfficial] = useState(false);
   useEffect(() => {
     if (!isHost || !round.id) return;
     fetch(`/api/rounds/${round.id}/participant-names`, { cache: 'no-store', credentials: 'include' })
@@ -118,6 +121,8 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
     // 過去に同じ組／同じコンペだった回数（主催者だけ）（2026-10-08）
     fetch(`/api/rounds/${round.id}/pair-history`, { cache: 'no-store', credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null)).then((j) => { if (j?.pairs) setPairHistory(j.pairs); }).catch(() => {});
+    fetch(`/api/rounds/${round.id}/member-history`, { cache: 'no-store', credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null)).then((j) => { if (j?.members) { setMemberHist(j.members); setThisOfficial(!!j.thisOfficial); } }).catch(() => {});
   }, [isHost, round.id, round.applicantIds]);
   if (!isHost) {
     if (!groups.length) {
@@ -369,6 +374,30 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
     if (bfi === fi) return null;
     return <span className="text-[9px] font-black px-1.5 py-[1px] rounded-full bg-orange-light text-orange border border-orange flex-shrink-0">🔁 後半は{(bfi >= 0 ? bfi : bi) + 1}組へ</span>;
   };
+  // 主催者だけの参考（2026-10-21）：公式コンペ初参加か／（男性）女性と同じ組になった回数（これまで＝過去のコンペ・今回＝いまの組）
+  const isFemaleId = (id: string) => (isGuest(id) ? guestOf(id)?.gender === 'female' : userOf(id)?.gender === 'female');
+  const femaleWith = (id: string, g: RoundGroup | undefined) => !!g && g.memberIds.some((x) => x !== id && !noShow.includes(x) && isFemaleId(x));
+  const historyLine = (id: string) => {
+    if (isGuest(id)) return null;
+    const h = memberHist[id];
+    if (!h) return null;
+    const off = thisOfficial
+      ? (h.officialPast === 0 ? '🔰 公式コンペ初参加' : `公式コンペ${h.officialPast + 1}回目`)
+      : (h.officialPast === 0 ? '🔰 公式コンペ未参加' : `公式コンペ${h.officialPast}回参加`);
+    let fem: string | null = null;
+    if (h.femalePast) {
+      const fg = groups.find((g) => g.memberIds.includes(id));
+      const bg = backOn && groupsBack.length ? groupsBack.find((g) => g.memberIds.includes(id)) : fg;
+      const now = fg ? `前半${femaleWith(id, fg) ? 1 : 0}・後半${femaleWith(id, bg) ? 1 : 0}` : '組がまだ';
+      fem = `👩 女性と同組　これまで 前半${h.femalePast.front}・後半${h.femalePast.back}回（${h.femalePast.comps}コンペ中）／今回 ${now}`;
+    }
+    return (
+      <span className="basis-full flex flex-wrap gap-1 mt-0.5">
+        <span className={`text-[9.5px] font-black px-1.5 py-[1px] rounded-full border ${h.officialPast === 0 ? 'bg-orange-light text-orange border-orange' : 'bg-bg text-sub border-border'}`}>{off}</span>
+        {fem && <span className="text-[9.5px] font-bold px-1.5 py-[1px] rounded-full bg-[#FDECF3] text-[#B4386B] border border-[#E9A3C1] break-words">{fem}</span>}
+      </span>
+    );
+  };
   const renderMember = (id: string, inGroup?: boolean, inNoShow?: boolean, board: 'front' | 'back' = 'front', groupId?: string) => {
     const u = userOf(id);
     return (
@@ -392,6 +421,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
           {metaOf(id) && <span className="text-[10px] text-muted font-normal break-words">（{metaOf(id)}）</span>}
           {isGuest(id) && <span className="text-[9px] font-bold text-sub bg-bg border border-border rounded px-1 flex-shrink-0">ゲスト</span>}
           {(inGroup || board === 'back') && swapBadge(id, board, groupId)}
+          {board === 'front' && !inNoShow && historyLine(id)}
         </span>
         {(inGroup || inNoShow) && (
           <button
