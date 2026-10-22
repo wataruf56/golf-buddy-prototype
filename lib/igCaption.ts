@@ -51,6 +51,14 @@ export type CaptionInput = {
   note?: string;
 };
 
+// コースが未定のときは県名で埋めると「千葉県（千葉県）」になる。
+// 画像側の表記（インスタのツール build_x2_posts.py の「コースはこれから相談」）に揃える。
+function placeLine(r: CaptionInput['round']): string {
+  const course = r.courseName || r.venue;
+  if (course) return r.area ? `${course}（${r.area}）` : course;
+  return r.area ? `${r.area}（コースはこれから相談）` : 'コースはこれから相談';
+}
+
 // 本文は短くする方針（2026-08-07 に約550字→約300字へ）。
 // Instagram は約2行で折り畳まれるので、日付と残り枠を先頭に置いて
 // 「…続きを読む」を押す前に伝わるようにしている。
@@ -58,12 +66,11 @@ export type CaptionInput = {
 // カルーセル投稿「ゴルトモに参加してる人はこんな人です」に寄せた。
 export function buildCaption(input: CaptionInput): string {
   const r = input.round;
-  const place = r.courseName || r.venue || r.area || '未定';
+  const place = placeLine(r);
   const rest = Math.max(0, (r.maxSpots || 0) - (r.currentCount || 0));
   const date = fmtDate(r.date);
   const night = isNight(r.startTime) ? '🌙 ナイター ' : '';
   const start = r.startTime ? ` ${night}${r.startTime} START` : '';
-  const area = r.area ? `（${r.area}）` : '';
 
   // 1行目は Instagram の折り畳みより前に出る唯一の行で、検索にも使われる。
   // 以前は「10/17(土) 千葉県、あと4名です。」で「ゴルフ」も「ラウンド募集」も
@@ -78,7 +85,7 @@ export function buildCaption(input: CaptionInput): string {
     '20代・30代だけの、気楽なラウンドです。',
     '',
     `📅 ${date}${start}`,
-    `📍 ${place}${area}`.trimEnd(),
+    `📍 ${place}`,
     `👥 定員${r.maxSpots}名 / 残り${rest}名`,
     input.mix ? `　　いま男性${input.mix.male}名 ・ 女性${input.mix.female}名` : '',
     input.note ? `✨ ${input.note}` : '',
@@ -111,11 +118,10 @@ export function fullSignature(roundId: string): string {
 // 募集はせず、次の募集へ誘導する。
 export function buildFullCaption(input: CaptionInput): string {
   const r = input.round;
-  const place = r.courseName || r.venue || r.area || '未定';
+  const place = placeLine(r);
   const date = fmtDate(r.date);
   const night = isNight(r.startTime) ? '🌙 ナイター ' : '';
   const start = r.startTime ? ` ${night}${r.startTime} START` : '';
-  const area = r.area ? `（${r.area}）` : '';
 
   // 1行目は募集側（buildCaption）と同じ理由で「ゴルフ」の語を入れる。
   const lead = r.area
@@ -128,7 +134,7 @@ export function buildFullCaption(input: CaptionInput): string {
     'ありがとうございます。',
     '',
     `📅 ${date}${start}`,
-    `📍 ${place}${area}`.trimEnd(),
+    `📍 ${place}`,
     `👥 ${r.maxSpots}名 満員`,
     input.mix ? `　　男性${input.mix.male}名 ・ 女性${input.mix.female}名` : '',
     input.note ? `✨ ${input.note}` : '',
