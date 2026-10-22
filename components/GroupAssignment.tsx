@@ -114,6 +114,10 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   // 主催者だけ：男性が今までのコンペで女性と同じ組になった回数（前半・後半）／公式コンペに出た回数（2026-10-21・/api/rounds/[id]/member-history）
   const [memberHist, setMemberHist] = useState<Record<string, { femalePast?: { front: number; back: number; comps: number }; officialPast: number }>>({});
   const [thisOfficial, setThisOfficial] = useState(false);
+  // 上の「📝 メモ」ボタンで表示／非表示（2026-10-22・この端末に覚える）
+  const [showMemo, setShowMemo] = useState(true);
+  useEffect(() => { try { if (localStorage.getItem('gb_group_memo') === '0') setShowMemo(false); } catch { /* noop */ } }, []);
+  const toggleMemo = () => setShowMemo((v) => { try { localStorage.setItem('gb_group_memo', v ? '0' : '1'); } catch { /* noop */ } return !v; });
   useEffect(() => {
     if (!isHost || !round.id) return;
     fetch(`/api/rounds/${round.id}/participant-names`, { cache: 'no-store', credentials: 'include' })
@@ -377,26 +381,25 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
   // 主催者だけの参考（2026-10-21）：公式コンペ初参加か／（男性）女性と同じ組になった回数（これまで＝過去のコンペ・今回＝いまの組）
   const isFemaleId = (id: string) => (isGuest(id) ? guestOf(id)?.gender === 'female' : userOf(id)?.gender === 'female');
   const femaleWith = (id: string, g: RoundGroup | undefined) => !!g && g.memberIds.some((x) => x !== id && !noShow.includes(x) && isFemaleId(x));
+  // 小さなメモ書き（2026-10-22）：「🔰公式初 ・ ♀同組 過去 前1後0/2戦 ・ 今回 前1後1」。♀同組は男性だけ・主催者だけ（API が返すときだけ）
   const historyLine = (id: string) => {
-    if (isGuest(id)) return null;
+    if (isGuest(id) || !showMemo) return null;
     const h = memberHist[id];
     if (!h) return null;
     const off = thisOfficial
-      ? (h.officialPast === 0 ? '🔰 公式コンペ初参加' : `公式コンペ${h.officialPast + 1}回目`)
-      : (h.officialPast === 0 ? '🔰 公式コンペ未参加' : `公式コンペ${h.officialPast}回参加`);
+      ? (h.officialPast === 0 ? '🔰公式初' : `公式${h.officialPast + 1}回目`)
+      : (h.officialPast === 0 ? '公式未参加' : `公式${h.officialPast}回`);
     let fem: string | null = null;
-    let femNow: string | null = null;
     if (h.femalePast) {
       const fg = groups.find((g) => g.memberIds.includes(id));
       const bg = backOn && groupsBack.length ? groupsBack.find((g) => g.memberIds.includes(id)) : fg;
-      fem = `👩 女性と同組｜これまで 前半${h.femalePast.front}・後半${h.femalePast.back}回（全${h.femalePast.comps}コンペ）`;
-      femNow = fg ? `今回 前半${femaleWith(id, fg) ? 1 : 0}・後半${femaleWith(id, bg) ? 1 : 0}回` : '今回 組がまだ';
+      const now = fg ? `今回 前${femaleWith(id, fg) ? 1 : 0}後${femaleWith(id, bg) ? 1 : 0}` : '今回 未';
+      fem = `♀同組 過去 前${h.femalePast.front}後${h.femalePast.back}/${h.femalePast.comps}戦 ・ ${now}`;
     }
     return (
-      <span className="basis-full flex flex-wrap gap-1 mt-0.5">
-        <span className={`text-[9.5px] font-black px-1.5 py-[1px] rounded-full border ${h.officialPast === 0 ? 'bg-orange-light text-orange border-orange' : 'bg-bg text-sub border-border'}`}>{off}</span>
-        {fem && <span className="text-[9.5px] font-bold px-1.5 py-[1px] rounded-md bg-[#FDECF3] text-[#B4386B] border border-[#E9A3C1] break-words">{fem}</span>}
-        {femNow && <span className="text-[9.5px] font-black px-1.5 py-[1px] rounded-md bg-[#FDECF3] text-[#B4386B] border border-[#E9A3C1] whitespace-nowrap">{femNow}</span>}
+      <span className="basis-full text-[8.5px] leading-tight text-muted font-normal">
+        <span className={h.officialPast === 0 && thisOfficial ? 'text-orange font-bold' : ''}>{off}</span>
+        {fem && <span className="text-[#B4386B]"> ・ {fem}</span>}
       </span>
     );
   };
@@ -423,7 +426,7 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
           {metaOf(id) && <span className="text-[10px] text-muted font-normal break-words">（{metaOf(id)}）</span>}
           {isGuest(id) && <span className="text-[9px] font-bold text-sub bg-bg border border-border rounded px-1 flex-shrink-0">ゲスト</span>}
           {(inGroup || board === 'back') && swapBadge(id, board, groupId)}
-          {board === 'front' && !inNoShow && historyLine(id)}
+          {!inNoShow && historyLine(id)}
         </span>
         {(inGroup || inNoShow) && (
           <button
@@ -541,7 +544,12 @@ export function GroupAssignment({ round, users, isHost }: { round: Round; users:
           dirty={dirty}
         />
       )}
-      <div className="text-[13px] font-bold mb-0.5">⛳ 組分け・スタート時間（主催者）</div>
+      <div className="flex items-center justify-between gap-2 mb-0.5">
+        <div className="text-[13px] font-bold">⛳ 組分け・スタート時間（主催者）</div>
+        {/* 参考メモ（公式コンペ初参加・♀同組の回数）の表示／非表示（2026-10-22） */}
+        <button type="button" onClick={toggleMemo} aria-pressed={showMemo}
+          className={`flex-shrink-0 px-2 py-1 rounded-full text-[10px] font-bold border ${showMemo ? 'bg-green text-white border-green' : 'bg-bg text-sub border-border'}`}>📝 メモ {showMemo ? 'ON' : 'OFF'}</button>
+      </div>
       <div className="text-[10px] text-muted mb-2.5">各組の「＋ 追加」から未割り当ての人を選んで入れられます（ドラッグでも可）。メンバーの「×」または外へドラッグで未割り当てに戻せます。</div>
 
       {/* reservation / capacity */}

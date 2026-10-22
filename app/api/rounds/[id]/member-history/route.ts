@@ -7,7 +7,8 @@ import { registeredParticipantIds, isNoShow, groupsFront, groupsBack, isGuestId 
 import { isOfficialCompe } from '@/lib/officialCompe';
 import type { Round, RoundGroup, User } from '@/lib/types';
 
-// GET /api/rounds/[id]/member-history … 主催者・共同管理者だけ（2026-10-21 本人指定）
+// GET /api/rounds/[id]/member-history … 主催者・共同管理者だけ（2026-10-21 本人指定）。
+//   女性と同組の回数（femalePast）は**主催者本人（と運営）だけ**に返す（2026-10-22 本人指定・共同管理者には返さない）
 // 組み分けの参考に、この募集の参加者ひとりずつについて
 //   femalePast   … （男性だけ）今までのコンペ（前回まで）で、女性と同じ組になった回数。前半・後半それぞれ
 //                  （後半の組を入れ替えていないコンペは、後半も前半と同じ組として数える）
@@ -32,7 +33,9 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   if (!adb || !people.length) return NextResponse.json({ members }, { headers: noStore });
   const peopleSet = new Set(people);
   const peopleUsers = await db.listUsers(people);
-  const males = new Set(peopleUsers.filter((u) => u.gender === 'male').map((u) => u.id));
+  const { isAdminUserId } = await import('@/lib/adminAccess');
+  const femaleOk = meId === round.hostId || isAdminUserId(meId);
+  const males = new Set(femaleOk ? peopleUsers.filter((u) => u.gender === 'male').map((u) => u.id) : []);
 
   const snap = await adb.collection('rounds').where('isCompetition', '==', true).limit(3000).get();
   const today = String(round.date || '');
