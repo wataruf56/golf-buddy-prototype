@@ -85,15 +85,15 @@
   if (live && window.fetch) {
     fetch("https://app.goltomo.com/api/rounds/open", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (d) {
       var W = ["日", "月", "火", "水", "木", "金", "土"], now = Date.now();
-      var rs = (d.rounds || []).filter(function (r) { return (r.eventType || "golf") === "golf" && r.date && new Date(r.date).getTime() > now; }).slice(0, 4);
+      var rs = (d.rounds || []).filter(function (r) { return (r.eventType || "golf") === "golf" && r.date && new Date(r.date).getTime() > now && (!r.maxSpots || (r.currentCount || 0) < r.maxSpots); }).slice(0, 4);
       if (rs.length < 2) return;
       var esc = function (s) { return String(s || "").replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
       live.querySelector(".rounds").innerHTML = rs.map(function (r) {
         var x = new Date(r.date), md = (x.getMonth() + 1) + "/" + x.getDate() + "（" + W[x.getDay()] + "）";
-        var place = esc(r.area || "") + (r.courseName ? " ・ " + esc(r.courseName) : "");
-        var tag = r.beginnerOnly ? "初心者のみ" : (r.isOfficial ? "公式" : "");
-        return '<li><span class="dt">' + md + '</span><span class="pl">' + (place || esc(r.title)) + (tag ? "<small>" + tag + "</small>" : "") +
-          '</span><span class="nm">' + (r.currentCount || 0) + "/" + (r.maxSpots || "-") + "人</span></li>";
+        var tag = [esc(r.area || ""), r.beginnerOnly ? "初心者のみ" : (r.isOfficial ? "公式" : "")].filter(Boolean).join(" ・ ");
+        var left = r.maxSpots ? (r.maxSpots - (r.currentCount || 0)) : 0;
+        return '<li><span class="dt">' + md + '</span><span class="pl">' + esc(r.courseName || r.title) + (tag ? "<small>" + tag + "</small>" : "") +
+          '</span><span class="nm">' + (left > 0 ? "あと" + left + "人" : "") + "</span></li>";
       }).join("");
       var t = new Date();
       live.querySelector(".note").textContent = "実際の募集です（" + (t.getMonth() + 1) + "/" + t.getDate() + " " + t.getHours() + ":" + ("0" + t.getMinutes()).slice(-2) + " 時点）";
