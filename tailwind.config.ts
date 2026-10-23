@@ -48,8 +48,19 @@ const config: Config = {
       },
       animation: {
         slideUp: 'slideUp 0.3s ease',
+        // DM のメモの吹き出し（右上からポンと出る・閉じるときはしゅっと戻る）（2026-10-23・components/DmNoteButton）
+        notePop: 'notePop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both',
+        notePopOut: 'notePopOut 0.17s ease-in both',
       },
       keyframes: {
+        notePop: {
+          '0%': { transform: 'translateY(-6px) scale(0.6)', opacity: '0' },
+          '100%': { transform: 'translateY(0) scale(1)', opacity: '1' },
+        },
+        notePopOut: {
+          from: { transform: 'scale(1)', opacity: '1' },
+          to: { transform: 'translateY(-4px) scale(0.7)', opacity: '0' },
+        },
         slideUp: {
           from: { transform: 'translateY(20px)', opacity: '0' },
           to: { transform: 'translateY(0)', opacity: '1' },

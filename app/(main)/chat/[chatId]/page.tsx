@@ -11,6 +11,7 @@ import { revisitScoreText, hasRevisitStar } from '@/lib/utils';
 import { ChaseCheck } from '@/components/ChaseCheck';
 import { MatchFeelingBar } from '@/components/MatchFeelingBar';
 import { UnfriendButton } from '@/components/UnfriendButton';
+import { DmNoteButton } from '@/components/DmNoteButton';
 import { ADMIN_MANAGER_ID } from '@/lib/adminManagerId';
 import { resizeImage } from '@/lib/resizeImage';
 import { track } from '@/lib/telemetry';
@@ -203,7 +204,7 @@ export default function ChatPage() {
         <ChaseCheck chatId={params.chatId} meId={meId} otherId={other.id}
           otherName={other.displayName || 'この方'} messages={messages as any} />
       )}
-      <div className="flex items-center gap-3 px-5 py-3 border-b border-border bg-card flex-shrink-0 sticky top-0 z-10">
+      <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border bg-card flex-shrink-0 sticky top-0 z-20">
         <button onClick={() => router.back()} className="text-xl text-blue">←</button>
         <Link href={`/profile/${other.id}`} className="flex items-center gap-3 flex-1 min-w-0">
           <Avatar user={other} size={36} />
@@ -213,6 +214,8 @@ export default function ChatPage() {
           </div>
           <span className="text-muted text-sm">›</span>
         </Link>
+        {/* 自分だけのメモ（プロフィールと同じもの・押すと吹き出しで開く・2026-10-23・components/DmNoteButton） */}
+        <DmNoteButton userId={other.id} name={other.displayName || 'この方'} />
         {/* 友達解除（ゴル友／相互マッチの相手だけに出る・2026-10-14） */}
         {other.id !== ADMIN_MANAGER_ID && <UnfriendButton compact otherId={other.id} otherName={other.displayName || 'この方'} onDone={() => window.location.reload()} />}
       </div>
