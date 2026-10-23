@@ -6,7 +6,8 @@ import { db } from '@/lib/db';
 // link-in-bio（/links/rounds）で未ログインの人にも一覧を見せるための専用エンドポイント。
 // ※ 生の round（applicantIds / viewedBy / groupPrefs 等）は返さない。
 export const dynamic = 'force-dynamic';
-const noStore = { 'Cache-Control': 'no-store' };
+// goltomo.com のLP（/lp/story/*.html）が「いま募集中」を表示するため、そのオリジンにだけ読み取りを許す（2026-10-23）
+const noStore = { 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': 'https://goltomo.com', Vary: 'Origin' };
 const MAX = 100;
 
 export async function GET(_req: NextRequest) {
