@@ -92,8 +92,8 @@
         var x = new Date(r.date), md = (x.getMonth() + 1) + "/" + x.getDate() + "（" + W[x.getDay()] + "）";
         var tag = [esc(r.area || ""), r.beginnerOnly ? "初心者のみ" : (r.isOfficial ? "公式" : "")].filter(Boolean).join(" ・ ");
         var left = r.maxSpots ? (r.maxSpots - (r.currentCount || 0)) : 0;
-        return '<li><span class="dt">' + md + '</span><span class="pl">' + esc(r.courseName || r.title) + (tag ? "<small>" + tag + "</small>" : "") +
-          '</span><span class="nm">' + (left > 0 ? "あと" + left + "人" : "") + "</span></li>";
+        return '<li><span class="dt">' + md + '</span><span class="nm">' + (left > 0 ? "あと" + left + "人" : "") + '</span><span class="pl">' +
+          esc(r.courseName || r.title) + (tag ? "<small>" + tag + "</small>" : "") + "</span></li>";
       }).join("");
       var t = new Date();
       live.querySelector(".note").textContent = "実際の募集です（" + (t.getMonth() + 1) + "/" + t.getDate() + " " + t.getHours() + ":" + ("0" + t.getMinutes()).slice(-2) + " 時点）";
