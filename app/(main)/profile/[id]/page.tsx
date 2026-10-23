@@ -15,6 +15,7 @@ import { track as logEvent } from '@/lib/telemetry';
 import { ProfileDetails } from '@/components/ProfileDetails';
 import { MatchFeelingBar } from '@/components/MatchFeelingBar';
 import { UnfriendButton } from '@/components/UnfriendButton';
+import { ProfileNote } from '@/components/ProfileNote';
 import { chatIdFor, carLabel, instagramUrl, revisitStar, revisitScoreText, hasRevisitStar } from '@/lib/utils';
 
 export default function ProfilePage() {
@@ -259,6 +260,9 @@ export default function ProfilePage() {
             <div className="text-[10px] text-muted mt-2">※ あなたと{user.displayName}さんの、両方の友達リスト（QR・友達申請・お互いに「行きたい」）にいる人です。</div>
           </div>
         )}
+
+        {/* 自分だけのメモ（2026-10-23・相手には伝わらない・components/ProfileNote） */}
+        {!isMe && meId && meId !== 'me' && <ProfileNote userId={user.id} name={user.displayName || 'この方'} />}
 
         {/* 自己紹介 */}
         {user.bio && (

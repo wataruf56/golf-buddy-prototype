@@ -114,6 +114,11 @@ export async function POST(req: NextRequest) {
     summary.reports_deleted += await deleteQuery(adb, adb.collection('_reports').where('targetId', '==', userId));
     summary.reports_deleted += await deleteQuery(adb, adb.collection('_reports').where('reportedId', '==', userId));
   } catch {}
+  // 6.5) プロフィールの自分だけのメモ（書いた分・書かれた分）（2026-10-23）
+  try {
+    summary.profileNotes_deleted = (await deleteQuery(adb, adb.collection('profileNotes').where('ownerId', '==', userId)))
+      + (await deleteQuery(adb, adb.collection('profileNotes').where('targetId', '==', userId)));
+  } catch {}
   // 7) お知らせ（users/{id}/notifications）。
   try {
     summary.notifications_deleted += await deleteQuery(adb, adb.collection('users').doc(userId).collection('notifications'));
