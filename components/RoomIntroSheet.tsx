@@ -47,7 +47,6 @@ export function RoomIntroSheet({ roomId, dateLabel, onDone }: { roomId: string; 
     } catch (e) { toast('送れませんでした' + ((e as Error).message && !/^\d+$/.test((e as Error).message) ? `：${(e as Error).message}` : ''), 'error'); }
     finally { setBusy(false); }
   }
-  function later() { popupEvent('roomIntro', 'skip'); onDone(false); }
 
   const chip = (on: boolean) => 'px-3 py-1.5 rounded-full text-[12.5px] font-bold border-[1.5px] ' + (on ? 'bg-green text-white border-green' : 'bg-card text-text border-border');
   return (
@@ -90,7 +89,7 @@ export function RoomIntroSheet({ roomId, dateLabel, onDone }: { roomId: string; 
             className="mt-4 w-full py-3.5 bg-orange text-white rounded-2xl font-black text-[15px] border-[2.5px] border-border shadow-[3px_3px_0_#1E3A30] disabled:opacity-50">この内容であいさつする</button>
           {!complete && <div className="text-center text-[11.5px] font-bold text-orange mt-1.5">あと「{missing.join('」「')}」を選ぶと送れます</div>}
           <div className="text-center text-[10.5px] text-muted mt-1.5 leading-relaxed">あいさつしてから、この日のチャットで話せます</div>
-          <button type="button" disabled={busy} onClick={later} className="block w-full mt-1 py-1.5 text-[12px] text-sub font-bold">あとで（閉じる）</button>
+          {/* 「あとで（閉じる）」は外した（2026-10-29 本人指定）。あいさつしてからこの日のチャットに入る */}
         </div>
       </div>
     </Portal>
