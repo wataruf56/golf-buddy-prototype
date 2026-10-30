@@ -207,13 +207,14 @@ export async function buildHome(me: User): Promise<{ me: SnsUser; stories: Story
   feed.forEach((it, i) => { mixed.push(it); if (i % 3 === 1 && oi < open.length) mixed.push(open[oi++]); });
   while (oi < open.length && mixed.length < 6) mixed.push(open[oi++]);
 
-  // ストーリー：① 行ける日（フォロー中の人を先に） ② 最近ラウンドした人（7日以内）
+  // ストーリー：① 行ける日（フォロー中の人を先に） ② 最近ラウンドした人（14日以内）
   const stories: Story[] = [];
   const { listAvailabilityFor } = await import('./availability');
   const av = await listAvailabilityFor(me).catch(() => null);
   const byPerson = new Map<string, string[]>();
   const countByDate: Record<string, number> = {};
   for (const [date, list] of Object.entries(av?.byDate || {})) {
+    if (date < today) continue;   // 過ぎた日は出さない
     countByDate[date] = list.length;
     for (const p of list as any[]) if (p.id && p.id !== me.id) byPerson.set(p.id, [...(byPerson.get(p.id) || []), date]);
   }
@@ -221,7 +222,7 @@ export async function buildHome(me: User): Promise<{ me: SnsUser; stories: Story
   const availStories = Array.from(byPerson.entries()).filter(([id]) => okUser(id))
     .map(([id, dates]) => ({ kind: 'avail' as const, user: P(id), dates: dates.sort().slice(0, 6).map((d) => ({ date: d, label: dateLabel(d), count: countByDate[d] || 0 })) }))
     .sort((a, b) => Number(following.has(b.user.id)) - Number(following.has(a.user.id)) || a.dates[0].date.localeCompare(b.dates[0].date));
-  const weekAgo = new Date(Date.now() + 9 * 3600 * 1000 - 7 * DAY).toISOString().slice(0, 10);
+  const weekAgo = new Date(Date.now() + 9 * 3600 * 1000 - 14 * DAY).toISOString().slice(0, 10);
   const recentSeen = new Set<string>();
   const recentStories: Story[] = [];
   for (const r of plain.filter((x) => isDone(x, today) && !!x.date && x.date >= weekAgo && roundCohortOk(x)).sort((a, b) => String(b.date).localeCompare(String(a.date)))) {
