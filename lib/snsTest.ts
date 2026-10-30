@@ -35,8 +35,8 @@ const pub = (u: User): SnsUser => ({
 function jstToday(): string { return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); }
 function dateLabel(d?: string): string {
   if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return d || '';
-  const dt = new Date(`${d}T00:00:00+09:00`);
-  return `${dt.getMonth() + 1}/${dt.getDate()}（${'日月火水木金土'[dt.getDay()]}）`;
+  const dt = new Date(`${d}T00:00:00Z`);   // サーバーは UTC。日付だけなので UTC のまま読む（+09:00 で読むと1日ずれる）
+  return `${dt.getUTCMonth() + 1}/${dt.getUTCDate()}（${'日月火水木金土'[dt.getUTCDay()]}）`;
 }
 
 type Ctx = {
