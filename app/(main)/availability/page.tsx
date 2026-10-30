@@ -177,9 +177,16 @@ export default function AvailabilityPage() {
 
       {(data.profileMissing || []).length > 0 && (
         <div className="mt-3 bg-orange-light border-2 border-orange rounded-card p-4">
-          <div className="text-[14px] font-black text-orange">📝 {(data.profileMissing || []).join('・')}を入れると、同じ日の人に表示されます</div>
+          {/* 最寄り駅だけ足りない人は、一覧にも部屋にも入る（2026-10-31）。駅は乗り合いのお願いだけ */}
+          {(data.profileMissing || []).some((x) => x !== '最寄り駅') ? (
+            <div className="text-[14px] font-black text-orange">📝 {(data.profileMissing || []).join('・')}を入れると、同じ日の人に表示されます</div>
+          ) : (
+            <div className="text-[14px] font-black text-orange">📝 最寄り駅を入れてください</div>
+          )}
           <div className="text-[12px] font-bold text-text mt-1.5 leading-relaxed">
-            「行ける」はこのまま押せます（保存されます）。プロフィールがそろうと、同じ日に行ける人の一覧に並び、{AVAIL_ROOM_MIN}人集まったらその日のチャットに入れます。
+            {(data.profileMissing || []).some((x) => x !== '最寄り駅')
+              ? <>「行ける」はこのまま押せます（保存されます）。年齢・性別がそろうと、同じ日に行ける人の一覧に並び、{AVAIL_ROOM_MIN}人集まったらその日のチャットに入れます。</>
+              : <>同じ日に行ける人の一覧にはもう並んでいて、{AVAIL_ROOM_MIN}人集まればチャットにも入れます。</>}
             最寄り駅はほかの会員には表示されません（運営だけが乗り合い・集合駅を決めるのに使います）。
           </div>
           <Link href={RETURN_TO} className="block w-full mt-3 py-3 rounded-xl border-2 border-border bg-orange text-white text-center text-[14px] font-black">

@@ -3,7 +3,7 @@ import { db } from './db';
 import { getAdminDb } from './firebase';
 import { ADMIN_MANAGER_ID, SYSTEM_SENDER_ID } from './adminManagerId';
 import { getCohort, userCohort } from './ageGate';
-import { AVAIL_ROOM_MIN, availRoomTitle, dateLabel, needsStation } from './availabilityShared';
+import { AVAIL_ROOM_MIN, availRoomTitle, dateLabel } from './availabilityShared';
 import type { Round, User } from './types';
 
 // 「行ける日」の集まり（2026-09-27・本人判断の軽い版）。
@@ -20,7 +20,8 @@ import type { Round, User } from './types';
 // id は日付から決める（avail_2026-10-07）ので、同時に押されても部屋が2つできない。
 //
 // 【数えない人】
-// 行ける日の一覧と同じ基準：40代以上・年齢未設定・性別未設定・最寄り駅なし・停止中。
+// 行ける日の一覧と同じ基準：40代以上・年齢未設定・性別未設定・停止中。
+// 最寄り駅が無い人は数える（2026-10-31 本人指定：一覧に3人並んだら部屋ができる。11/13 が「3人なのに部屋が無い」になっていた）。
 // テスト垢と一般会員は別の部屋（availTest）。混ざると本番の会員がテストに巻き込まれる。
 
 const ROUNDS = 'rounds';
@@ -50,8 +51,7 @@ async function eligibleFor(date: string, test: boolean, isTest: (id: string) => 
   return users.filter((u) => u && !banned.has(u.id) && !(u as any).banned
     && isTest(u.id) === test
     && userCohort(u) === 'a'
-    && (u.gender === 'male' || u.gender === 'female')
-    && !needsStation(u));
+    && (u.gender === 'male' || u.gender === 'female'));
 }
 
 function memberLine(u: User | undefined): string {

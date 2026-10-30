@@ -64,6 +64,11 @@ export function profileMissingFor(u: { age?: number; gender?: string; nearestSta
   return out;
 }
 
+/** 部屋に入るのに足りないもの（年齢・性別）。最寄り駅は無くても入れる（2026-10-31）。空なら入れる。 */
+export function roomMissingFor(u: { age?: number; gender?: string; nearestStation?: string } | null | undefined): string[] {
+  return profileMissingFor(u).filter((x) => x !== '最寄り駅');
+}
+
 /** 同じ日に「行ける」を押した人がこの人数になったら、その日のチャット部屋ができる（2026-10-04 に 4→3）。 */
 export const AVAIL_ROOM_MIN = 3;
 

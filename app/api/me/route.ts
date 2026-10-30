@@ -107,8 +107,9 @@ export async function PATCH(req: NextRequest) {
   const me = await db.getUser(meId);
   // 2026-10-08：プロフィールが足りないまま「行ける日」を押していた人は、そろった時点で同じ日の部屋に入れる
   try {
-    const { profileMissingFor } = await import('@/lib/availabilityShared');
-    if (me && before && profileMissingFor(before).length > 0 && profileMissingFor(me).length === 0) {
+    // 部屋に入る条件は年齢・性別（最寄り駅は無くても入れる・2026-10-31）
+    const { roomMissingFor } = await import('@/lib/availabilityShared');
+    if (me && before && roomMissingFor(before).length > 0 && roomMissingFor(me).length === 0) {
       const { getAvailability, todayJst } = await import('@/lib/availability');
       const av = await getAvailability(meId);
       const lo = todayJst();
