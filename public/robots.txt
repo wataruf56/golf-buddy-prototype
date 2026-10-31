@@ -39,6 +39,11 @@ Disallow: /friends/confirm
 # トップページと同じタイトルのページが競合してしまう（/profile・/poll と同じ理由）。
 # 前方一致で巻き込む公開URLは無い（/admin/availability は上の /admin で既に対象）。
 Disallow: /availability
+# インスタ風ホームのテスト版（app.goltomo.com/sns・/sns/u/<id>、2026-10-31〜）。運営だけが
+# 直接開いて見るページで検索需要が無い。'use client' で metadata を持てず、匿名でも
+# ガワが200で返る＝塞がないと /availability と同じくサイト共通タイトルで指名検索と競合する。
+# 前方一致で巻き込む公開URLは無い（API の /api/sns は上の /api/ で既に対象）。
+Disallow: /sns
 # 末尾スラッシュ付き＝アプリ内の /rounds/past・/rounds/upcoming だけを対象にし、
 # インスタbio用の短縮URL goltomo.com/rounds は塞がない。
 Disallow: /rounds/
@@ -81,6 +86,7 @@ Disallow: /qr
 Disallow: /add-friend
 Disallow: /friends/confirm
 Disallow: /availability
+Disallow: /sns
 Disallow: /rounds/
 
 # サイトの要約と主要ページの一覧（LLM向け）
