@@ -217,22 +217,23 @@ export function ReviewOverlay() {
   return (
     <div className="absolute inset-0 bg-black/50 z-[100] flex flex-col backdrop-blur-sm">
       <div className="bg-card w-full max-w-[400px] mx-auto my-auto h-full sm:h-auto sm:max-h-[94%] rounded-card flex flex-col overflow-hidden shadow-lg">
-        {/* ヘッダー（固定） */}
-        <div className="px-5 pt-5 pb-3 border-b border-border flex-shrink-0">
+        {/* ヘッダー（固定）。2026-11-01 本人指定：固定はタイトルと送信ボタンだけ。説明と今日の写真は本文と一緒に流す */}
+        <div className="px-5 pt-4 pb-2.5 border-b border-border flex-shrink-0">
           <h3 className="text-lg font-black">ラウンドレビュー</h3>
           <div className="text-[12px] text-sub mt-0.5">{pending.some((p) => match[p.roundId]?.state?.[p.revieweeId]?.sameCar) ? `同じ組で回った人・同じ車だった人（${pending.length}人）について答えてください` : `同じ組で回った${pending.length}人について答えてください`}</div>
-          {/* 2026-10-10：いちばん大事な安心材料を大きく（本音で選んでもらうため） */}
-          <div className="mt-2.5 px-3 py-3 rounded-xl border-2 border-border bg-[#FFF8E1] text-center">
-            <div className="text-[17px] font-black text-text leading-snug">🔒 あなたが選んだものは<br />相手には伝わりません</div>
-            <div className="text-[11.5px] text-sub mt-1 leading-relaxed">お互いに選び合ったときだけ「マッチ」として2人に届きます。<br />片方だけなら、相手に知られることは一切ありません。<br />★（評価）に反映されるのは、お互いにレビューし終わってからです。</div>
-          </div>
-          <div className="mt-2 px-3 py-2 bg-green-light rounded-xl text-[11.5px] text-green leading-relaxed">
-            🎁 <b>マッチすると</b>、次回のゴルトモ<b>公式コンペ等で“同じ組”になるよう配慮</b>されます。
-          </div>
         </div>
 
         {/* 本文スクロール */}
         <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
+          {/* 2026-10-10：いちばん大事な安心材料を大きく（本音で選んでもらうため）。開いたときに最初に見える */}
+          <div className="px-3 py-3 rounded-xl border-2 border-border bg-[#FFF8E1] text-center flex-shrink-0">
+            <div className="text-[17px] font-black text-text leading-snug">🔒 あなたが選んだものは<br />相手には伝わりません</div>
+            <div className="text-[11.5px] text-sub mt-1 leading-relaxed">お互いに選び合ったときだけ「マッチ」として2人に届きます。<br />片方だけなら、相手に知られることは一切ありません。<br />★（評価）に反映されるのは、お互いにレビューし終わってからです。</div>
+          </div>
+          <div className="px-3 py-2 bg-green-light rounded-xl text-[11.5px] text-green leading-relaxed flex-shrink-0">
+            🎁 <b>マッチすると</b>、次回のゴルトモ<b>公式コンペ等で“同じ組”になるよう配慮</b>されます。
+          </div>
+
           {pending.map((p) => {
             const target = users.find((u) => u.id === p.revieweeId);
             if (!target) return null;
@@ -375,10 +376,8 @@ export function ReviewOverlay() {
               </div>
             </div>
           )}
-        </div>
 
-        {/* 今日の写真（任意）：募集ごとに1枚＋ひとこと。送信と一緒にタイムラインに流れる（2026-10-17） */}
-        <div className="px-4 pb-2 flex-shrink-0 max-h-[38vh] overflow-y-auto">
+          {/* 今日の写真（任意）：募集ごとに1枚＋ひとこと。送信と一緒にタイムラインに流れる（2026-10-17） */}
           {roundIds.map((rid) => (
             <TodayPhoto key={rid} roundLabel={roundIds.length > 1 ? (rounds.find((r) => r.id === rid)?.title || '') : ''}
               value={photos[rid]} onChange={(v) => setPhotos((cur) => { const n = { ...cur }; if (v) n[rid] = v; else delete n[rid]; return n; })} />
@@ -415,7 +414,7 @@ function TodayPhoto({ roundLabel, value, onChange }: { roundLabel: string; value
     finally { setLoading(false); }
   }
   return (
-    <div className="mt-2 bg-[#FFF8EC] border-[1.5px] border-border rounded-xl p-3">
+    <div className="bg-[#FFF8EC] border-[1.5px] border-border rounded-xl p-3 flex-shrink-0">
       <div className="text-[13px] font-black">📸 今日の写真を投稿する <span className="text-[11px] text-muted font-bold">（任意{roundLabel ? `・${roundLabel}` : ''}）</span></div>
       <div className="text-[10.5px] text-sub mt-0.5 leading-relaxed">1枚選ぶと、送信と一緒にタイムラインに「◯◯さんが投稿しました」と流れます（同じ年代のメンバーに見えて、いいねが付けられます）。</div>
       {value?.image ? (
