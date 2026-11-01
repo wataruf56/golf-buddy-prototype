@@ -151,7 +151,7 @@ const membersOf = (r: Round) => registeredParticipantIds(r).filter((id) => !isNo
 const roundTitle = (r: Round) => String(r.courseName || r.title || (r.eventType === 'drink' ? '飲み会' : 'ラウンド')).slice(0, 30);
 
 export type FeedItem =
-  | { kind: 'photo'; id: string; at: number; user: SnsUser; roundId: string; place: string; when: string; photos: string[]; caption: string; tagged: SnsUser[] }
+  | { kind: 'photo'; id: string; at: number; user: SnsUser; roundId: string; place: string; when: string; photos: string[]; caption: string; tagged: SnsUser[]; mentions?: SnsUser[] }
   | { kind: 'played'; id: string; at: number; roundId: string; place: string; when: string; members: SnsUser[]; drink: boolean }
   | { kind: 'open'; id: string; at: number; roundId: string; host: SnsUser; title: string; when: string; area: string; left: number; joined: SnsUser[]; drink: boolean };
 
@@ -192,9 +192,19 @@ export async function buildHome(me: User): Promise<{ me: SnsUser; stories: Story
     const tagged = r ? membersOf(r).filter((id) => id !== p.userId && okUser(id)).map(P) : [];
     feed.push({ kind: 'photo', id: `post_${p.id}`, at: p.at, user: P(p.userId), roundId: p.roundId, place: r ? roundTitle(r) : '', when: r ? dateLabel(r.date) : '', photos: [p.url], caption: p.text, tagged });
   }
+  // テスト版の写真投稿（lib/snsTestPosts・2026-11-01）
+  const testPosts = await import('./snsTestPosts').then((m) => m.listPosts()).catch(() => []);
+  await ctx.load(testPosts.flatMap((p) => [p.uid, ...p.mentions]));
+  for (const p of testPosts) {
+    if (p.uid !== me.id && !okUser(p.uid)) continue;
+    const r = roundById.get(p.roundId);
+    const tagged = r ? membersOf(r).filter((id) => id !== p.uid && okUser(id)).map(P) : [];
+    feed.push({ kind: 'photo', id: `test_${p.id}`, at: p.at, user: P(p.uid), roundId: r ? p.roundId : '', place: r ? roundTitle(r) : '', when: r ? dateLabel(r.date) : '', photos: p.photos, caption: p.caption, tagged, mentions: p.mentions.filter(okUser).map(P) });
+  }
+  const testPostRounds = new Set(testPosts.map((p) => p.roundId));
   // 写真の無い、終わったラウンド（直近60日）
   for (const r of plain) {
-    if (!isDone(r, today) || photos.has(r.id) || !roundCohortOk(r)) continue;
+    if (!isDone(r, today) || photos.has(r.id) || testPostRounds.has(r.id) || !roundCohortOk(r)) continue;
     const at = r.date ? new Date(`${r.date}T18:00:00+09:00`).getTime() : (r.createdAt || 0);
     if (at < Date.now() - 60 * DAY) continue;
     const members = membersOf(r).filter(okUser).map(P);
@@ -253,23 +263,42 @@ export async function buildHome(me: User): Promise<{ me: SnsUser; stories: Story
   return { me: pub(me), stories, feed: mixed.slice(0, 60), dmUnread };
 }
 
-export type ProfileTile = { roundId: string; photo?: string; place: string; when: string; drink: boolean; count: number };
+// 写真タブのマス。photos があるマスは押すと写真が大きく開く。無いマスは押すと（自分なら）そのラウンドの写真を投稿する画面へ（2026-11-01）。
+export type ProfileTile = { key: string; postId?: string; roundId: string; photos: string[]; place: string; when: string; drink: boolean; caption: string; mentions: SnsUser[]; at: number };
 export async function buildProfile(me: User, targetId: string) {
   const ctx = await context(me);
   await ctx.load([targetId]);
   const u = ctx.userOf.get(targetId);
   if (!u || (targetId !== me.id && ctx.hidden(targetId))) return null;
   const today = jstToday();
-  const [rounds, photos, posts, followers, following, myFollowing] = await Promise.all([
+  const [rounds, photos, posts, followers, following, myFollowing, testPosts] = await Promise.all([
     allRounds(), albumPhotos(), timelinePosts(ctx.cohort), followersOf(u), followingOf(u), followingOf(me),
+    import('./snsTestPosts').then((m) => m.listPosts(targetId)).catch(() => []),
   ]);
   const mine = rounds.filter(isPlainRound).filter((r) => membersOf(r).includes(targetId));
   const done = mine.filter((r) => isDone(r, today)).sort((a, b) => String(b.date).localeCompare(String(a.date)));
   const upcoming = mine.filter((r) => !isDone(r, today) && r.status !== 'completed' && !!r.date && r.date >= today).sort((a, b) => String(a.date).localeCompare(String(b.date)));
-  const postByRound = new Map(posts.filter((p) => p.userId === targetId).map((p) => [p.roundId, p.url]));
-  const tiles: ProfileTile[] = done.map((r) => ({
-    roundId: r.id, photo: postByRound.get(r.id) || (photos.get(r.id) || [])[0]?.url, place: roundTitle(r), when: dateLabel(r.date), drink: r.eventType === 'drink', count: (photos.get(r.id) || []).length,
-  }));
+  const postByRound = new Map(posts.filter((p) => p.userId === targetId).map((p) => [p.roundId, p]));
+  const allRoundById = new Map(rounds.map((r) => [r.id, r]));
+  const testPostRounds = new Set(testPosts.map((p) => p.roundId));
+  await ctx.load(testPosts.flatMap((p) => p.mentions));
+  const roundTiles: ProfileTile[] = done.map((r) => {
+    const post = postByRound.get(r.id);
+    return {
+      key: r.id, roundId: r.id, photos: [...(post ? [post.url] : []), ...(photos.get(r.id) || []).map((x) => x.url)].slice(0, 10),
+      place: roundTitle(r), when: dateLabel(r.date), drink: r.eventType === 'drink', caption: post?.text || '', mentions: [],
+      at: r.date ? new Date(`${r.date}T18:00:00+09:00`).getTime() : (r.createdAt || 0),
+    };
+  });
+  const postTiles: ProfileTile[] = testPosts.map((p) => {
+    const r = allRoundById.get(p.roundId);
+    return {
+      key: `post_${p.id}`, postId: p.id, roundId: r ? p.roundId : '', photos: p.photos, place: r ? roundTitle(r) : '', when: r ? dateLabel(r.date) : '', drink: r?.eventType === 'drink', caption: p.caption,
+      mentions: p.mentions.filter((id) => !ctx.hidden(id) && ctx.userOf.has(id)).map((id) => pub(ctx.userOf.get(id)!)), at: p.at,
+    };
+  });
+  // 新しい順に並べる。写真の無いラウンドのマスは、そのラウンドに投稿したら投稿のマスに置き換わる
+  const tiles = [...postTiles, ...roundTiles.filter((t) => t.photos.length > 0 || !testPostRounds.has(t.roundId))].sort((a, b) => b.at - a.at);
   // 一緒に回った人（回数順）
   const buddyCount = new Map<string, number>();
   for (const r of done) for (const id of membersOf(r)) if (id !== targetId) buddyCount.set(id, (buddyCount.get(id) || 0) + 1);
@@ -290,6 +319,22 @@ export async function buildProfile(me: User, targetId: string) {
     upcoming: upcoming.slice(0, 10).map((r) => ({ roundId: r.id, title: String(r.title || roundTitle(r)).slice(0, 40), when: `${dateLabel(r.date)}${r.startTime ? ` ${r.startTime}` : ''}`, area: r.area || '', host: r.hostId === targetId })),
     buddies: buddies.slice(0, 40),
   };
+}
+
+/** 投稿の画面で選べるもの：自分のラウンド（終わったもの・新しい順）と、メンションできる人（フォロー中・フォロワー・一緒に回った人） */
+export async function buildPostOptions(me: User): Promise<{ rounds: { id: string; place: string; when: string }[]; people: SnsUser[] }> {
+  const ctx = await context(me);
+  const today = jstToday();
+  const [all, following, followers] = await Promise.all([allRounds(), followingOf(me), followersOf(me)]);
+  const mine = all.filter(isPlainRound).filter((r) => membersOf(r).includes(me.id) && isDone(r, today))
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const ids = new Set<string>([...Array.from(following), ...Array.from(followers), ...mine.flatMap(membersOf)]);
+  ids.delete(me.id);
+  await ctx.load(Array.from(ids));
+  const people = Array.from(ids).filter((id) => !ctx.hidden(id) && ctx.userOf.has(id))
+    .sort((a, b) => Number(following.has(b)) - Number(following.has(a)) || String(ctx.userOf.get(a)?.displayName || '').localeCompare(String(ctx.userOf.get(b)?.displayName || ''), 'ja'))
+    .map((id) => pub(ctx.userOf.get(id)!));
+  return { rounds: mine.slice(0, 60).map((r) => ({ id: r.id, place: roundTitle(r), when: dateLabel(r.date) })), people };
 }
 
 // ---- フォロー・フォロワーの一覧（2026-11-01・インスタと同じ：共通／フォロワー／フォロー中） ----

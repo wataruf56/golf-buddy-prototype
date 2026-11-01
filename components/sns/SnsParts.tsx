@@ -31,6 +31,21 @@ export const snsUserHref = (id: string) => (isTestPerson(id) ? '' : `/sns/u/${id
 
 export const testOnly = (what = 'テスト版のため保存されません') => toast(what);
 
+/** 投稿の文章。メンションされた人の「@名前」をプロフィールへのリンクにする（名前に空白があっても切れない・長い名前を先に見る） */
+export function CaptionText({ text, mentions }: { text: string; mentions?: SnsUser[] }) {
+  const list = (mentions || []).filter((u) => u.name).sort((a, b) => b.name.length - a.name.length);
+  if (!list.length) return <>{text}</>;
+  const re = new RegExp(`(${list.map((u) => `@${u.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).join('|')})`, 'g');
+  return (
+    <>
+      {text.split(re).map((part, k) => {
+        const u = list.find((x) => `@${x.name}` === part);
+        return u ? <Link key={k} href={`/sns/u/${u.id}`} className="text-green font-bold">{part}</Link> : <span key={k}>{part}</span>;
+      })}
+    </>
+  );
+}
+
 /** 輪っか付きのアイコン。ring: 'orange'=行ける日 / 'green'=最近ラウンド / なし */
 export function RingAvatar({ user, size = 58, ring }: { user: SnsUser | undefined; size?: number; ring?: 'orange' | 'green' | null }) {
   const color = ring === 'orange' ? '#E8643C' : ring === 'green' ? '#2A8C82' : 'transparent';

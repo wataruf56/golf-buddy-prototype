@@ -4,12 +4,12 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Avatar } from '@/components/Avatar';
-import { RingAvatar, SnsTestBadge, StoryViewer, testOnly, type SnsUser, type Story } from '@/components/sns/SnsParts';
+import { CaptionText, RingAvatar, SnsTestBadge, StoryViewer, testOnly, type SnsUser, type Story } from '@/components/sns/SnsParts';
 
 // インスタ風ホームのテスト版（2026-10-31 本人指定）。運営だけが /sns を直接開いて見る（リンクはどこにも無い）。
 // 中身は今のゴルトモの会員・募集・写真（lib/snsTest・読むだけ）。いいね・リアクションは保存しない。
 type FeedItem =
-  | { kind: 'photo'; id: string; at: number; user: SnsUser; roundId: string; place: string; when: string; photos: string[]; caption: string; tagged: SnsUser[] }
+  | { kind: 'photo'; id: string; at: number; user: SnsUser; roundId: string; place: string; when: string; photos: string[]; caption: string; tagged: SnsUser[]; mentions?: SnsUser[] }
   | { kind: 'played'; id: string; at: number; roundId: string; place: string; when: string; members: SnsUser[]; drink: boolean }
   | { kind: 'open'; id: string; at: number; roundId: string; host: SnsUser; title: string; when: string; area: string; left: number; joined: SnsUser[]; drink: boolean };
 type Home = { me: SnsUser; stories: Story[]; feed: FeedItem[]; dmUnread: number };
@@ -48,7 +48,7 @@ function PhotoPost({ it }: { it: Extract<FeedItem, { kind: 'photo' }> }) {
       <div className="flex items-center gap-4 px-3 pt-2.5 text-[22px] leading-none">
         <button type="button" aria-label="いいね" onClick={() => { setLiked(!liked); if (!liked) testOnly(); }} className={liked ? 'text-orange' : ''}>{liked ? '♥' : '♡'}</button>
         <button type="button" aria-label="コメント" onClick={() => testOnly('コメントはテスト版では書けません')}>💬</button>
-        <Link href={`/round/${it.roundId}`} aria-label="ラウンドを開く" className="text-[20px]">⛳</Link>
+        {it.roundId && <Link href={`/round/${it.roundId}`} aria-label="ラウンドを開く" className="text-[20px]">⛳</Link>}
         {it.photos.length > 1 && (
           <span className="flex gap-1 mx-auto pr-12">
             {it.photos.map((_, k) => <span key={k} className={`w-1.5 h-1.5 rounded-full ${k === idx ? 'bg-green' : 'bg-border'}`} />)}
@@ -56,7 +56,7 @@ function PhotoPost({ it }: { it: Extract<FeedItem, { kind: 'photo' }> }) {
         )}
       </div>
       <div className="px-3 pt-1.5 pb-3 text-[12.5px] leading-relaxed">
-        {it.caption && <div><Link href={`/sns/u/${it.user.id}`} className="font-black mr-1">{it.user.name}</Link>{it.caption}</div>}
+        {it.caption && <div><Link href={`/sns/u/${it.user.id}`} className="font-black mr-1">{it.user.name}</Link><CaptionText text={it.caption} mentions={it.mentions} /></div>}
         {it.tagged.length > 0 && (
           <div className="text-green font-bold">
             {it.tagged.slice(0, 6).map((u) => <Link key={u.id} href={`/sns/u/${u.id}`} className="mr-1.5">@{u.name}</Link>)}
@@ -121,6 +121,7 @@ export default function SnsHomePage() {
       <div className="sticky top-0 z-20 bg-card border-b border-hair flex items-center px-4 h-12">
         <span className="text-[20px] font-black tracking-tight">ゴルトモ</span><SnsTestBadge />
         <span className="ml-auto flex items-center gap-4 text-[20px]">
+          <Link href="/sns/post" aria-label="写真を投稿（テスト版）">📷</Link>
           <Link href="/availability" aria-label="行ける日">📅</Link>
           <Link href="/sns/dm" aria-label="メッセージ（テスト版）" className="relative">✉️{data.dmUnread > 0 && <span className="absolute -top-1.5 -right-2 min-w-[17px] h-[17px] px-1 rounded-full bg-red text-white text-[10px] font-black flex items-center justify-center border-2 border-card">{data.dmUnread}</span>}</Link>
           <Link href="/sns/u/me" aria-label="自分のプロフィール"><Avatar user={data.me as any} size={26} /></Link>
@@ -157,7 +158,7 @@ export default function SnsHomePage() {
       {data.feed.map((it) => it.kind === 'photo' ? <PhotoPost key={it.id} it={it} /> : it.kind === 'played' ? <PlayedPost key={it.id} it={it} /> : <OpenPost key={it.id} it={it} />)}
 
       <div className="text-center text-[10.5px] text-muted px-6 pt-5 leading-relaxed">
-        テスト版：あなたにしか見えません。いいね・リアクション・フォロー・ひとこと・テスト版のDMは、ほかの会員には伝わりません。
+        テスト版：あなたにしか見えません。いいね・リアクション・フォロー・ひとこと・写真の投稿・メンション・テスト版のDMは、ほかの会員には伝わりません。
       </div>
       {open !== null && <StoryViewer stories={data.stories} start={open} onClose={() => { setOpen(null); load(); }} onChanged={load} />}
     </div>

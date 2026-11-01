@@ -9,19 +9,22 @@ import { toast } from '@/components/Toast';
 import { chatIdFor, revisitStar, revisitScoreText, hasRevisitStar } from '@/lib/utils';
 import { GolfBallRating } from '@/components/GolfBallRating';
 import { MannerBadge } from '@/components/MannerBadge';
+import { PostViewer, type PostTile } from '@/components/sns/PostViewer';
 
 // インスタ風プロフィールのテスト版（2026-10-31 本人指定・運営だけ・lib/snsTest）。
 // 数字は「ラウンド／フォロワー／フォロー」。DM は相互フォローのときだけ押せる。
 // フォロー／解除はテスト版だけの記録（snsTestFollows）に入る。既存の友達・DMの範囲は変わらない。
 // 2026-11-01：ほかの人のプロフィールに評価（★・「◯人中◯人が行きたい」・マナー）を今のプロフィールと同じ中身で出す（/api/users/[id]/track-record）。
 //             フォロワー・フォローの数を押すと一覧（共通／フォロワー／フォロー中・/sns/u/[id]/follows）。
+// 2026-11-01：写真のマスを押すと写真が大きく開く（components/sns/PostViewer）。写真の無いマスは、自分のプロフィールならそのラウンドの写真を投稿する画面へ。
+//             自分のプロフィールに「写真を投稿」（/sns/post・lib/snsTestPosts）。
 type Profile = {
   user: SnsUser & { bio: string; scoreRange: string; playStyle: string; golfHistory: string; golmotiName: string };
   isMe: boolean;
   stats: { rounds: number; followers: number; following: number };
   iFollow: boolean; followsMe: boolean; mutual: boolean;
   known: string[]; knownMore: number;
-  tiles: { roundId: string; photo?: string; place: string; when: string; drink: boolean; count: number }[];
+  tiles: PostTile[];
   upcoming: { roundId: string; title: string; when: string; area: string; host: boolean }[];
   buddies: { user: SnsUser; n: number }[];
 };
@@ -34,6 +37,7 @@ export default function SnsProfilePage({ params }: { params: { id: string } }) {
   const [tab, setTab] = useState<'grid' | 'plan' | 'buddy'>('grid');
   const [busy, setBusy] = useState(false);
   const [meId, setMeId] = useState('');
+  const [viewing, setViewing] = useState<string | null>(null);
   const [track, setTrack] = useState<{ roundedWith: number; againCount: number; neverCount: number; mannerPenalty: number } | null>(null);
   const load = () => fetch(`/api/sns/user/${encodeURIComponent(params.id)}`, { cache: 'no-store', credentials: 'include' })
     .then((r) => (r.ok ? r.json() : 'none')).then(setP).catch(() => setP('none'));
@@ -134,24 +138,31 @@ export default function SnsProfilePage({ params }: { params: { id: string } }) {
         ))}
       </div>
 
+      {tab === 'grid' && p.isMe && (
+        <div className="px-3 py-2.5">
+          <Link href="/sns/post" className="block py-2.5 rounded-xl bg-orange text-white text-center text-[13px] font-black">📷 写真を投稿する</Link>
+        </div>
+      )}
       {tab === 'grid' && (p.tiles.length ? (
         <div className="grid grid-cols-3 gap-[2px]">
-          {p.tiles.map((t, k) => (
-            <Link key={t.roundId} href={`/round/${t.roundId}`} className="relative aspect-square overflow-hidden" style={{ background: TILE_BG[k % TILE_BG.length] }}>
-              {t.photo ? (
-                <img src={t.photo} alt="" loading="lazy" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center text-center px-1.5">
-                  <div className="text-[22px]">{t.drink ? '🍻' : '⛳'}</div>
-                  <div className="text-[10.5px] font-black leading-tight mt-1 line-clamp-2">{t.place}</div>
-                  <div className="text-[9.5px] text-sub mt-0.5">{t.when}</div>
-                </div>
-              )}
-              {t.count > 1 && <span className="absolute right-1 top-1 text-white text-[11px] drop-shadow">❐</span>}
+          {p.tiles.map((t, k) => t.photos.length > 0 ? (
+            <button key={t.key} type="button" onClick={() => setViewing(t.key)} aria-label="写真を大きく見る" className="relative aspect-square overflow-hidden" style={{ background: TILE_BG[k % TILE_BG.length] }}>
+              <img src={t.photos[0]} alt="" loading="lazy" className="w-full h-full object-cover" />
+              {t.photos.length > 1 && <span className="absolute right-1 top-1 text-white text-[11px] drop-shadow">❐</span>}
+            </button>
+          ) : (
+            <Link key={t.key} href={p.isMe ? `/sns/post?round=${encodeURIComponent(t.roundId)}` : `/round/${t.roundId}`} className="relative aspect-square overflow-hidden" style={{ background: TILE_BG[k % TILE_BG.length] }}>
+              <div className="w-full h-full flex flex-col items-center justify-center text-center px-1.5">
+                <div className="text-[22px]">{t.drink ? '🍻' : '⛳'}</div>
+                <div className="text-[10.5px] font-black leading-tight mt-1 line-clamp-2">{t.place}</div>
+                <div className="text-[9.5px] text-sub mt-0.5">{t.when}</div>
+                {p.isMe && <div className="text-[9.5px] font-black text-orange mt-0.5">＋ 写真を追加</div>}
+              </div>
             </Link>
           ))}
         </div>
-      ) : <div className="text-center text-[12px] text-muted py-12">まだラウンドの記録がありません</div>)}
+      ) : <div className="text-center text-[12px] text-muted py-12">まだ写真がありません</div>)}
+      {viewing && <PostViewer user={u} tiles={p.tiles.filter((t) => t.photos.length > 0)} start={viewing} isMe={p.isMe} onClose={() => setViewing(null)} onDeleted={load} />}
 
       {tab === 'plan' && (p.upcoming.length ? (
         <div className="px-3 py-2 space-y-2">
@@ -178,7 +189,7 @@ export default function SnsProfilePage({ params }: { params: { id: string } }) {
       ) : <div className="text-center text-[12px] text-muted py-12">まだいません</div>)}
 
       <div className="text-center text-[10.5px] text-muted px-6 pt-5 leading-relaxed">
-        テスト版：あなたにしか見えません。フォローはテスト版の中だけの記録で、相手には伝わりません。
+        テスト版：あなたにしか見えません。フォローと写真の投稿・メンションはテスト版の中だけの記録で、ほかの会員には伝わりません。
       </div>
     </div>
   );
