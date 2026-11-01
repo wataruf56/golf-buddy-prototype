@@ -78,6 +78,9 @@ export function StoryViewer({ stories, start, onClose, onChanged }: { stories: S
   const [statsFor, setStatsFor] = useState<string | null>(null);
   const [reply, setReply] = useState('');
   const [muted, setMuted] = useState(true);   // 自動再生は音なしでしか始められない（iPhone）。右上のボタンで音を出す
+  const videoRef = useRef<HTMLVideoElement>(null);
+  // iPhone は押した瞬間に直接音を出して再生し直さないと、止まることがある
+  const toggleSound = () => { const v = videoRef.current; if (v) { v.muted = !muted; v.play().catch(() => {}); } setMuted(!muted); };
   const base = stories[i];
   const s: Story | undefined = base && base.kind === 'text' && local[base.id] ? { ...base, ...local[base.id] } : base;
   const textRef = useRef(false);
@@ -133,7 +136,7 @@ export function StoryViewer({ stories, start, onClose, onChanged }: { stories: S
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={s.photo} alt="" className="absolute inset-0 w-full h-full object-cover" />
-              {s.video && <video key={s.id} src={s.video} poster={s.photo} autoPlay loop muted={muted} playsInline className="absolute inset-0 w-full h-full object-cover" />}
+              {s.video && <video ref={videoRef} key={s.id} src={s.video} poster={s.photo} autoPlay loop muted={muted} playsInline className="absolute inset-0 w-full h-full object-cover" />}
               <div className="absolute inset-0" style={{ background: 'linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.05) 30%, rgba(0,0,0,0.05) 60%, rgba(0,0,0,0.55))' }} />
             </>
           )}
@@ -154,7 +157,7 @@ export function StoryViewer({ stories, start, onClose, onChanged }: { stories: S
               <span className="flex items-center gap-2 min-w-0"><Avatar user={s.user as any} size={32} /><span className="text-white text-[13px] font-black truncate">{s.user.name}</span></span>
             )}
             <span className="text-white/70 text-[11px] font-bold whitespace-nowrap">{s.kind === 'text' ? `ひとこと・${agoLabel(s.at)}${s.mine ? (s.scope === 'all' ? '・みんな' : '・フォロワー') : ''}` : s.kind === 'avail' ? '行ける日' : `${s.when} のラウンド`}</span>
-            {s.kind === 'text' && s.video && <button type="button" onClick={() => setMuted(!muted)} aria-label={muted ? '音を出す' : '音を消す'} className="ml-auto w-9 h-9 text-[18px] leading-none flex-shrink-0">{muted ? '🔇' : '🔊'}</button>}
+            {s.kind === 'text' && s.video && <button type="button" onClick={toggleSound} aria-label={muted ? '音を出す' : '音を消す'} className="ml-auto w-9 h-9 text-[18px] leading-none flex-shrink-0">{muted ? '🔇' : '🔊'}</button>}
             <button type="button" onClick={onClose} aria-label="閉じる" className={`${s.kind === 'text' && s.video ? '' : 'ml-auto '}w-9 h-9 text-white text-[22px] leading-none`}>×</button>
           </div>
 
