@@ -8,7 +8,7 @@ import { isPersona } from './snsTestTalk';
 //   ・snsTestPosts/{id} に { uid, caption, roundId, mentions[], n, at }、写真は1枚ずつ snsTestPostPhotos/{id}_{i} に { data, at }（一覧を軽くする）。
 //   ・本物のアルバム（rounds/{id}/photos）とタイムライン（timelinePosts）には書かない。
 //   ・メンションされた人にも、誰にも通知しない（お知らせにも出さない）。テスト版の中で名前がリンクになるだけ。
-//   ・タグ付けの許可（2026-11-01 本人指定）：メンションされた人が1件ずつ許可すると tagApproved に入り、その人のプロフィールの「タグ付け」タブに出る（来た人全員に見える）。
+//   ・タグ付けの許可（2026-11-01 本人指定）：メンションされた人が1件ずつ許可すると tagApproved に入り、その人のプロフィールの「写真」と「タグ付け」タブに出る（来た人全員に見える）。
 //     許可しなければ、投稿の中のタグは残るが、その人のプロフィールには出ない。
 //   ・動画：videos[i] に置き場所（lib/snsTestMedia）、snsTestPostPhotos/{id}_{i} にはその表紙を入れる。videos は photos と同じ並び（写真の位置は ''）。
 const POSTS = 'snsTestPosts';

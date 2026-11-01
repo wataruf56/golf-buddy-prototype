@@ -4,9 +4,12 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Avatar } from '@/components/Avatar';
+import { GolmotiBadge } from '@/components/GolmotiBadge';
+import { ProfileDetails } from '@/components/ProfileDetails';
 import { RingAvatar, SnsTestBadge, type SnsUser } from '@/components/sns/SnsParts';
 import { toast } from '@/components/Toast';
-import { chatIdFor, revisitStar, revisitScoreText, hasRevisitStar } from '@/lib/utils';
+import { chatIdFor, instagramUrl, revisitStar, revisitScoreText, hasRevisitStar } from '@/lib/utils';
+import type { User } from '@/lib/types';
 import { GolfBallRating } from '@/components/GolfBallRating';
 import { MannerBadge } from '@/components/MannerBadge';
 import { PostViewer, type PostTile } from '@/components/sns/PostViewer';
@@ -20,9 +23,11 @@ import { PostViewer, type PostTile } from '@/components/sns/PostViewer';
 //             自分のプロフィールに「写真を投稿」（/sns/post・lib/snsTestPosts）。
 // 2026-11-01（本人指定）：写真タブは本人が上げたものだけ。ラウンドは「過去参加したラウンド」タブにまとめる。
 //             「タグ付け」タブ：許可した投稿だけ、来た人全員に見える。本人にだけ未許可の投稿も見え、1件ずつ許可／取り消しできる（誰にも通知しない）。
+// 2026-11-02（本人指定）：許可したタグ付けは写真タブにも載る（🏷 の印）。「プロフィールをすべて見る」で、入力した項目を今のプロフィールと同じ欄（ProfileDetails）で見られる。
 type Profile = {
-  user: SnsUser & { bio: string; scoreRange: string; playStyle: string; golfHistory: string; golmotiName: string };
+  user: SnsUser & { bio: string; scoreRange: string; playStyle: string; golfHistory: string; golmotiName: string; frequency: string; availableDays: string; drinkStatus?: User['drinkStatus']; smokeStatus?: User['smokeStatus']; job: string; hobbies: string[]; instagram: string };
   isMe: boolean;
+  myHobbies: string[];
   stats: { rounds: number; followers: number; following: number };
   iFollow: boolean; followsMe: boolean; mutual: boolean;
   known: string[]; knownMore: number;
@@ -41,6 +46,7 @@ export default function SnsProfilePage({ params }: { params: { id: string } }) {
   const [meId, setMeId] = useState('');
   const [viewing, setViewing] = useState<string | null>(null);
   const [tagBusy, setTagBusy] = useState('');
+  const [showAll, setShowAll] = useState(false);
   const [track, setTrack] = useState<{ roundedWith: number; againCount: number; neverCount: number; mannerPenalty: number } | null>(null);
   const load = () => fetch(`/api/sns/user/${encodeURIComponent(params.id)}`, { cache: 'no-store', credentials: 'include' })
     .then((r) => (r.ok ? r.json() : 'none')).then(setP).catch(() => setP('none'));
@@ -75,7 +81,7 @@ export default function SnsProfilePage({ params }: { params: { id: string } }) {
       const r = await fetch(`/api/sns/post/${encodeURIComponent(t.postId!)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ action: 'tag', on }) });
       if (!r.ok) throw new Error();
       await load();
-      toast(on ? 'プロフィールに公開しました' : '公開をやめました');
+      toast(on ? '写真に載せました' : '写真から外しました');
     } catch { toast('うまくいきませんでした', 'error'); } finally { setTagBusy(''); }
   };
   const pending = p.tagged.filter((t) => !t.tagApproved);
@@ -86,6 +92,7 @@ export default function SnsProfilePage({ params }: { params: { id: string } }) {
     <button key={t.key} type="button" onClick={() => setViewing(t.key)} aria-label="写真を大きく見る" className="relative aspect-square overflow-hidden" style={{ background: TILE_BG[k % TILE_BG.length] }}>
       <img src={t.photos[0]} alt="" loading="lazy" className="w-full h-full object-cover" />
       {t.videos?.[0] ? <span className="absolute right-1 top-1 text-white text-[12px] drop-shadow">▶</span> : t.photos.length > 1 && <span className="absolute right-1 top-1 text-white text-[11px] drop-shadow">❐</span>}
+      {t.by && <span aria-label="タグ付けされた投稿" className="absolute left-1 bottom-1 text-[11px] drop-shadow">🏷</span>}
       {label && (
         <span className="absolute inset-x-0 bottom-0 px-1.5 pt-4 pb-1 text-left text-white leading-tight" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.65))' }}>
           <span className="block text-[10px] font-black truncate">{t.place}</span>
@@ -106,7 +113,7 @@ export default function SnsProfilePage({ params }: { params: { id: string } }) {
         <div className="text-[11px] text-sub line-clamp-2">{t.caption}</div>
       </div>
       {t.tagApproved
-        ? <button type="button" onClick={() => setTag(t, false)} disabled={!!tagBusy} className="px-3 py-1.5 rounded-lg bg-bg text-sub text-[11.5px] font-black flex-shrink-0 disabled:opacity-50">公開をやめる</button>
+        ? <button type="button" onClick={() => setTag(t, false)} disabled={!!tagBusy} className="px-3 py-1.5 rounded-lg bg-bg text-sub text-[11.5px] font-black flex-shrink-0 disabled:opacity-50">写真から外す</button>
         : <button type="button" onClick={() => setTag(t, true)} disabled={!!tagBusy} className="px-3 py-1.5 rounded-lg bg-orange text-white text-[11.5px] font-black flex-shrink-0 disabled:opacity-50">許可する</button>}
     </div>
   );
@@ -129,7 +136,7 @@ export default function SnsProfilePage({ params }: { params: { id: string } }) {
       </div>
 
       <div className="px-4 pt-3 text-[12.5px] leading-relaxed">
-        <div className="text-[14px] font-black">{u.name}{u.age ? <span className="ml-1.5 text-[11px] font-bold text-sub">{u.age}歳</span> : null}</div>
+        <div className="text-[14px] font-black">{u.name}{u.gender === 'male' ? ' 👨' : u.gender === 'female' ? ' 👩' : ''}{u.age ? <span className="ml-1.5 text-[11px] font-bold text-sub">{u.age}歳</span> : null}</div>
         <div className="flex flex-wrap gap-1.5 my-1.5">
           {u.golmotiName && <span className="px-2 py-0.5 rounded-full bg-green-light text-green text-[11px] font-bold">{u.golmotiName}</span>}
           {u.area && <span className="px-2 py-0.5 rounded-full bg-bg text-sub text-[11px] font-bold">{u.area}</span>}
@@ -152,6 +159,14 @@ export default function SnsProfilePage({ params }: { params: { id: string } }) {
           </div>
         )}
         {u.bio && <div className="whitespace-pre-wrap">{u.bio}</div>}
+        <button type="button" onClick={() => setShowAll(!showAll)} aria-expanded={showAll} className="block mt-1.5 text-[12px] font-black text-green">{showAll ? 'プロフィールを閉じる ▴' : 'プロフィールをすべて見る ▾'}</button>
+        {showAll && (
+          <>
+            {u.golmotiType && <div className="mt-2"><GolmotiBadge code={u.golmotiType} link /></div>}
+            <ProfileDetails user={u as Partial<User>} editHref={p.isMe ? '/mypage/edit' : undefined} myHobbies={p.isMe ? undefined : p.myHobbies} />
+            {instagramUrl(u.instagram) && <a href={instagramUrl(u.instagram)} target="_blank" rel="noopener noreferrer" className="block mt-2 py-2 rounded-lg bg-bg text-center text-[12.5px] font-black text-pink-600">📷 Instagram を開く</a>}
+          </>
+        )}
         {!p.isMe && p.known.length > 0 && (
           <Link href={`/sns/u/${encodeURIComponent(params.id)}/follows?tab=mutual`} className="block text-[11.5px] text-sub mt-1">{p.known.join('、')}{p.knownMore ? ` ほか${p.knownMore}人` : ''}がフォロー中 ›</Link>
         )}
@@ -200,12 +215,12 @@ export default function SnsProfilePage({ params }: { params: { id: string } }) {
       {tab === 'tagged' && (p.isMe ? (
         <div>
           <div className="mx-3 mt-3 px-3 py-2.5 rounded-xl bg-bg text-[11.5px] font-bold text-sub leading-relaxed">
-            あなたがタグ付けされた投稿です。許可したものだけ、プロフィールを見に来た人全員に公開されます。許可しなくても投稿の中のタグは残りますが、あなたのプロフィールには出ません。
+            あなたがタグ付けされた写真・動画の投稿です。許可すると、あなたの「写真」に載り、プロフィールを見に来た人全員に公開されます。許可しなくても投稿の中のタグは残りますが、あなたのプロフィールには出ません。
           </div>
           {p.tagged.length === 0 && <div className="text-center text-[12px] text-muted py-12">タグ付けされた投稿はありません</div>}
           {pending.length > 0 && <div className="px-3 pt-3.5 pb-1 text-[12px] font-black">まだ許可していない投稿（{pending.length}）</div>}
           {pending.map(tagRow)}
-          {approved.length > 0 && <div className="px-3 pt-3.5 pb-1 text-[12px] font-black">プロフィールに公開中（{approved.length}）</div>}
+          {approved.length > 0 && <div className="px-3 pt-3.5 pb-1 text-[12px] font-black">写真に掲載中（{approved.length}）</div>}
           {approved.map(tagRow)}
         </div>
       ) : p.tagged.length ? (

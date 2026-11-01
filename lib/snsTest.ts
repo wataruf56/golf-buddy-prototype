@@ -271,7 +271,8 @@ export async function buildHome(me: User): Promise<{ me: SnsUser; stories: Story
 }
 
 // プロフィールのマス。photos があるマスは押すと写真が大きく開く。無いマス（過去参加したラウンドだけ）は押すと（自分なら）そのラウンドの写真を投稿する画面へ（2026-11-01）。
-// タブ（2026-11-01 本人指定）：写真＝本人が上げたものだけ／タグ付け＝本人が許可した投稿（本人にだけ未許可も見える）／過去参加したラウンド＝参加したラウンド全部。
+// タブ（2026-11-01 本人指定）：写真＝本人が上げたもの／タグ付け＝本人が許可した投稿（本人にだけ未許可も見える）／過去参加したラウンド＝参加したラウンド全部。
+// 2026-11-02 本人指定：許可したタグ付けは写真タブにも載る。タグ付けの対象は写真・動画の投稿（snsTestPosts）だけ（ひとこと・ラウンド・アルバムは入らない）。
 export type ProfileTile = { key: string; likeKey: string; postId?: string; roundId: string; photos: string[]; videos?: string[]; place: string; when: string; drink: boolean; caption: string; mentions: SnsUser[]; at: number; by?: SnsUser; tagApproved?: boolean };
 export async function buildProfile(me: User, targetId: string) {
   const ctx = await context(me);
@@ -290,7 +291,7 @@ export async function buildProfile(me: User, targetId: string) {
   const postByRound = new Map(posts.filter((p) => p.userId === targetId).map((p) => [p.roundId, p]));
   const allRoundById = new Map(rounds.map((r) => [r.id, r]));
   // タグ付け：ほかの人が見られるのは、本人が許可した投稿だけ（未許可はサーバーから返さない）
-  const taggedPosts = taggedAll.filter((p) => targetId === me.id || p.tagApproved.includes(targetId));
+  const taggedPosts = taggedAll.filter((p) => p.photos.length > 0 && p.uid !== targetId && (targetId === me.id || p.tagApproved.includes(targetId)));
   await ctx.load([...testPosts, ...taggedPosts].flatMap((p) => [p.uid, ...p.mentions]));
   const postTile = (p: import('./snsTestPosts').TestPost): ProfileTile => {
     const r = allRoundById.get(p.roundId);
@@ -305,13 +306,13 @@ export async function buildProfile(me: User, targetId: string) {
     .map(({ p, by }) => ({ ...postTile(p), by: by!, tagApproved: p.tagApproved.includes(targetId) }));
   const roundAt = (r: Round) => (r.date ? new Date(`${r.date}T18:00:00+09:00`).getTime() : (r.createdAt || 0));
   const roundBase = (r: Round) => ({ roundId: r.id, place: roundTitle(r), when: dateLabel(r.date), drink: r.eventType === 'drink', mentions: [] as SnsUser[], at: roundAt(r) });
-  // 写真タブ：本人が上げたものだけ（テスト版の投稿＋今日の写真＋アルバムに本人が上げた写真）
+  // 写真タブ：本人が上げたもの（テスト版の投稿＋今日の写真＋アルバムに本人が上げた写真）＋本人が許可したタグ付け
   const ownRoundTiles: ProfileTile[] = done.flatMap((r) => {
     const post = postByRound.get(r.id);
     const own = [...(post ? [post.url] : []), ...(photos.get(r.id) || []).filter((x) => x.by === targetId).map((x) => x.url)].slice(0, 10);
     return own.length ? [{ ...roundBase(r), key: `own_${r.id}`, likeKey: `o_${targetId}_${r.id}`, photos: own, caption: post?.text || '' }] : [];
   });
-  const tiles = [...testPosts.map(postTile), ...ownRoundTiles].sort((a, b) => b.at - a.at);
+  const tiles = [...testPosts.map(postTile), ...ownRoundTiles, ...tagged.filter((t) => t.tagApproved)].sort((a, b) => b.at - a.at);
   // 過去参加したラウンド：参加したラウンド全部。写真はそのラウンドの全員分
   const pastRounds: ProfileTile[] = done.map((r) => {
     const post = postByRound.get(r.id);
@@ -334,8 +335,11 @@ export async function buildProfile(me: User, targetId: string) {
   const followsMe = targetId !== me.id && (await followingOf(u)).has(me.id);
   const { getGolmotiType } = await import('./golmoti');
   return {
-    user: { ...pub(u), bio: String(u.bio || '').slice(0, 300), scoreRange: u.scoreRange || '', playStyle: u.playStyle || '', golfHistory: u.golfHistory || '', golmotiName: getGolmotiType(u.golmotiType)?.name || '' },
+    user: { ...pub(u), bio: String(u.bio || '').slice(0, 300), scoreRange: u.scoreRange || '', playStyle: u.playStyle || '', golfHistory: u.golfHistory || '', golmotiName: getGolmotiType(u.golmotiType)?.name || '',
+      // 「プロフィールをすべて見る」の中身。いまのプロフィールでも見える項目だけ（漢字の名前・誕生日・最寄り駅は入れない）
+      frequency: u.frequency || '', availableDays: u.availableDays || '', drinkStatus: u.drinkStatus, smokeStatus: u.smokeStatus, job: u.job || '', hobbies: Array.isArray(u.hobbies) ? u.hobbies : [], instagram: u.instagram || '' },
     isMe: targetId === me.id,
+    myHobbies: targetId === me.id ? [] : (Array.isArray(me.hobbies) ? me.hobbies : []),
     stats: { rounds: done.length, followers: Array.from(followers).filter(okUser).length, following: Array.from(following).filter(okUser).length },
     iFollow, followsMe, mutual: iFollow && followsMe,
     known: known.slice(0, 2), knownMore: Math.max(0, known.length - 2),
