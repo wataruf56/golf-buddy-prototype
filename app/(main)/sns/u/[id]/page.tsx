@@ -178,8 +178,7 @@ export default function SnsProfilePage({ params }: { params: { id: string } }) {
       </div>
 
       <div className="flex border-b border-hair mt-4">
-        {([['grid', '写真'], ['tagged', 'タグ付け'], ['rounds', '過去参加した
-ラウンド'], ['plan', '予定'], ['buddy', '回った仲間']] as const).map(([k, l]) => (
+        {([['grid', '写真'], ['tagged', 'タグ付け'], ['rounds', '過去参加した\nラウンド'], ['plan', '予定'], ['buddy', '回った仲間']] as const).map(([k, l]) => (
           <button key={k} type="button" onClick={() => setTab(k)}
             className={`flex-1 min-w-0 px-0.5 py-2 text-[11px] leading-tight font-black whitespace-pre-line ${tab === k ? 'border-b-2 border-text text-text' : 'text-muted'}`}>
             {l}{k === 'tagged' && p.isMe && pending.length > 0 && <span className="ml-0.5 inline-block min-w-[15px] px-1 rounded-full bg-orange text-white text-[9.5px]">{pending.length}</span>}
