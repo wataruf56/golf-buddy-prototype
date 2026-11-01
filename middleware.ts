@@ -91,7 +91,11 @@ export default async function middleware(req: NextRequest) {
       || path.startsWith('/_next/')
       || /\.[a-z0-9]{2,5}$/i.test(path);
     const isLegacy = host.endsWith('.vercel.app');
-    if (!isMachinePath && !isLegacy) {
+    // 運営の「LINEなしで開くリンク」（/api/auth/app-link）を run.app で使ったときだけ、run.app のまま画面を出す（2026-11-01）。
+    // 入口（Firebase Hosting）が遅いとき、サーバーへ直接つないでテスト版を見るため。run.app に __session が付くのはこのリンクだけ。
+    // 検索エンジンには Cookie が無いので今まで通り寄せられ、noindex も付く。
+    const isDirectWithSession = host.endsWith('.run.app') && !!req.cookies.get('__session');
+    if (!isMachinePath && !isLegacy && !isDirectWithSession) {
       return noIndex(NextResponse.redirect(new URL(`https://goltomo.com${path}${url.search}`), 308));
     }
     // 寄せないものは、そのまま通したうえで索引には入れさせない。

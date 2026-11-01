@@ -46,7 +46,9 @@ export async function POST(req: NextRequest) {
   }
   console.log('[app-link] admin signed in without LINE', userId.slice(0, 8));
   const host = (req.headers.get('x-forwarded-host') || req.headers.get('host') || 'app.goltomo.com').toLowerCase();
-  const base = host.startsWith('localhost') || host.startsWith('127.0.0.1') ? `http://${host}` : 'https://app.goltomo.com';
+  // run.app（サーバー直通）で開いたときは run.app のまま（入口が遅いとき用・middleware の isDirectWithSession）
+  const base = host.startsWith('localhost') || host.startsWith('127.0.0.1') ? `http://${host}`
+    : host.endsWith('.run.app') ? `https://${host}` : 'https://app.goltomo.com';
   const res = NextResponse.redirect(new URL(to, base), 303);
   res.cookies.set(LIFF_COOKIE_NAME, makeSessionToken(userId, secret), {
     httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: LIFF_COOKIE_MAX_AGE,
