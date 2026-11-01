@@ -282,3 +282,26 @@ export async function buildProfile(me: User, targetId: string) {
     buddies: buddies.slice(0, 40),
   };
 }
+
+// ---- フォロー・フォロワーの一覧（2026-11-01・インスタと同じ：共通／フォロワー／フォロー中） ----
+// 共通＝この人をフォローしている人のうち、自分もフォローしている人。行ごとに「自分がフォローしているか」を付ける（ボタン用）。
+export async function buildFollows(me: User, targetId: string) {
+  const ctx = await context(me);
+  await ctx.load([targetId]);
+  const u = ctx.userOf.get(targetId);
+  if (!u || (targetId !== me.id && ctx.hidden(targetId))) return null;
+  const [followers, following, myFollowing, myFollowers] = await Promise.all([followersOf(u), followingOf(u), followingOf(me), followersOf(me)]);
+  await ctx.load([...Array.from(followers), ...Array.from(following)]);
+  const ok = (id: string) => id === me.id || (!ctx.hidden(id) && ctx.userOf.has(id));
+  const row = (id: string) => ({ user: pub(ctx.userOf.get(id)!), isMe: id === me.id, iFollow: myFollowing.has(id), followsMe: myFollowers.has(id) });
+  const order = (ids: string[]) => ids.filter(ok).sort((a, b) => Number(b === me.id) - Number(a === me.id) || Number(myFollowing.has(b)) - Number(myFollowing.has(a)) || String(ctx.userOf.get(a)?.displayName || '').localeCompare(String(ctx.userOf.get(b)?.displayName || ''), 'ja'));
+  const fr = order(Array.from(followers));
+  return {
+    user: { id: u.id, name: pub(u).name },
+    isMe: targetId === me.id,
+    mutual: targetId === me.id ? [] : fr.filter((id) => id !== me.id && myFollowing.has(id)).map(row),
+    followers: fr.map(row),
+    following: order(Array.from(following)).map(row),
+  };
+}
+

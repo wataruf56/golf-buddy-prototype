@@ -3,7 +3,7 @@ import { getMeId } from '@/lib/session';
 import { snsAllowed } from '@/lib/snsTest';
 import { createStory } from '@/lib/snsTestTalk';
 
-// POST /api/sns/story { text, bg, date, choices[], scope } … ひとことを載せる（テスト版・運営だけ・snsTestStories にだけ書く）
+// POST /api/sns/story { text, bg, date, choices[], scope, photo? } … ひとことを載せる（テスト版・運営だけ・snsTestStories にだけ書く）
 const noStore = { 'Cache-Control': 'no-store' };
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +16,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, id }, { headers: noStore });
   } catch (e) {
     const m = (e as Error).message;
-    return NextResponse.json({ error: m, message: m === 'empty' ? 'ひとことを入力してください' : 'うまくいきませんでした' }, { status: m === 'empty' ? 400 : 500, headers: noStore });
+    return NextResponse.json({ error: m, message: m === 'empty' ? 'ひとことか写真を入れてください' : m === 'one_choice' ? '選択肢は2つ以上にしてください' : 'うまくいきませんでした' }, { status: m === 'empty' || m === 'one_choice' ? 400 : 500, headers: noStore });
   }
 }

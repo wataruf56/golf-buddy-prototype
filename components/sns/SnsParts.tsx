@@ -11,6 +11,7 @@ export type SnsUser = { id: string; name: string; avatar: string; avatarUrl?: st
 export type TextStory = {
   kind: 'text'; id: string; user: SnsUser; text: string; bg: string; date: string; dateLabel: string; choices: string[];
   counts: number[]; myAnswer: number | null; mine: boolean; views: number; answers: number; at: number; scope: 'followers' | 'all'; persona: boolean;
+  photo: string;   // 背景の写真（無ければ ''）
 };
 export type Story =
   | { kind: 'avail'; user: SnsUser; dates: { date: string; label: string; count: number }[] }
@@ -102,8 +103,16 @@ export function StoryViewer({ stories, start, onClose, onChanged }: { stories: S
   return (
     <Portal>
       <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black">
-        <div className="relative w-full max-w-[480px] h-full flex flex-col" style={{ background: bg }}>
-          <div className="flex gap-1 px-3 pt-3">
+        <div className="relative w-full max-w-[480px] h-full flex flex-col" style={{ background: s.kind === 'text' && s.photo ? '#000' : bg }}>
+          {/* ひとことの写真は全面の背景（文字と選択肢はその上） */}
+          {s.kind === 'text' && s.photo && (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={s.photo} alt="" className="absolute inset-0 w-full h-full object-cover" />
+              <div className="absolute inset-0" style={{ background: 'linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.05) 30%, rgba(0,0,0,0.05) 60%, rgba(0,0,0,0.55))' }} />
+            </>
+          )}
+          <div className="relative flex gap-1 px-3 pt-3">
             {Array.from({ length: segs }).map((_, k) => (
               <div key={k} className="h-[3px] flex-1 rounded-full bg-white/30 overflow-hidden">
                 <div className="h-full bg-white" style={{ width: k < seg ? '100%' : k === seg ? `${Math.min(100, t / 50)}%` : '0%' }} />
@@ -129,8 +138,8 @@ export function StoryViewer({ stories, start, onClose, onChanged }: { stories: S
             <button type="button" aria-label="次へ" onClick={next} className="absolute right-0 top-0 bottom-0 w-2/3 z-[1]" />
             {s.kind === 'text' ? (
               <div className="h-full flex flex-col justify-center px-6 text-white">
-                {s.dateLabel && <span className="self-center relative z-[2] px-3.5 py-1 rounded-full text-[14px] font-black mb-3" style={{ background: 'rgba(255,255,255,0.22)' }}>📅 {s.dateLabel}</span>}
-                <div className="relative z-[2] text-center text-[22px] font-black leading-relaxed whitespace-pre-wrap break-words">{s.text}</div>
+                {s.dateLabel && <span className="self-center relative z-[2] px-3.5 py-1 rounded-full text-[14px] font-black mb-3" style={{ background: s.photo ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.22)' }}>📅 {s.dateLabel}</span>}
+                {s.text && <div className="relative z-[2] text-center text-[22px] font-black leading-relaxed whitespace-pre-wrap break-words" style={{ textShadow: s.photo ? '0 1px 6px rgba(0,0,0,0.6)' : undefined }}>{s.text}</div>}
                 {s.choices.length > 0 && (() => {
                   const total = s.counts.reduce((a, b) => a + b, 0);
                   const showRes = s.mine || s.myAnswer != null;

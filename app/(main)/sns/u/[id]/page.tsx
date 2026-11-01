@@ -6,11 +6,15 @@ import { useRouter } from 'next/navigation';
 import { Avatar } from '@/components/Avatar';
 import { RingAvatar, SnsTestBadge, type SnsUser } from '@/components/sns/SnsParts';
 import { toast } from '@/components/Toast';
-import { chatIdFor } from '@/lib/utils';
+import { chatIdFor, revisitStar, revisitScoreText, hasRevisitStar } from '@/lib/utils';
+import { GolfBallRating } from '@/components/GolfBallRating';
+import { MannerBadge } from '@/components/MannerBadge';
 
 // インスタ風プロフィールのテスト版（2026-10-31 本人指定・運営だけ・lib/snsTest）。
 // 数字は「ラウンド／フォロワー／フォロー」。DM は相互フォローのときだけ押せる。
 // フォロー／解除はテスト版だけの記録（snsTestFollows）に入る。既存の友達・DMの範囲は変わらない。
+// 2026-11-01：ほかの人のプロフィールに評価（★・「◯人中◯人が行きたい」・マナー）を今のプロフィールと同じ中身で出す（/api/users/[id]/track-record）。
+//             フォロワー・フォローの数を押すと一覧（共通／フォロワー／フォロー中・/sns/u/[id]/follows）。
 type Profile = {
   user: SnsUser & { bio: string; scoreRange: string; playStyle: string; golfHistory: string; golmotiName: string };
   isMe: boolean;
@@ -30,8 +34,15 @@ export default function SnsProfilePage({ params }: { params: { id: string } }) {
   const [tab, setTab] = useState<'grid' | 'plan' | 'buddy'>('grid');
   const [busy, setBusy] = useState(false);
   const [meId, setMeId] = useState('');
+  const [track, setTrack] = useState<{ roundedWith: number; againCount: number; neverCount: number; mannerPenalty: number } | null>(null);
   const load = () => fetch(`/api/sns/user/${encodeURIComponent(params.id)}`, { cache: 'no-store', credentials: 'include' })
     .then((r) => (r.ok ? r.json() : 'none')).then(setP).catch(() => setP('none'));
+  // 評価（自分のプロフィールでは出さない＝今のプロフィールと同じ）
+  useEffect(() => {
+    if (params.id === 'me') return;
+    fetch(`/api/users/${encodeURIComponent(params.id)}/track-record`, { cache: 'no-store', credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setTrack({ roundedWith: d.roundedWith || 0, againCount: d.againCount || 0, neverCount: d.neverCount || 0, mannerPenalty: d.mannerPenalty || 0 })).catch(() => {});
+  }, [params.id]);
   useEffect(() => { load(); fetch('/api/sns/user/me', { cache: 'no-store', credentials: 'include' }).then((r) => r.json()).then((j) => setMeId(j?.user?.id || '')).catch(() => {}); }, [params.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (p === 'none') return <div className="text-center text-[13px] text-muted py-20">ページが見つかりません</div>;
@@ -62,8 +73,8 @@ export default function SnsProfilePage({ params }: { params: { id: string } }) {
         <RingAvatar user={u} size={86} ring={p.stats.rounds ? 'green' : null} />
         <div className="flex-1 flex justify-around text-center">
           <div><div className="text-[17px] font-black">{p.stats.rounds}</div><div className="text-[11px] text-sub">ラウンド</div></div>
-          <div><div className="text-[17px] font-black">{p.stats.followers}</div><div className="text-[11px] text-sub">フォロワー</div></div>
-          <div><div className="text-[17px] font-black">{p.stats.following}</div><div className="text-[11px] text-sub">フォロー</div></div>
+          <Link href={`/sns/u/${encodeURIComponent(params.id)}/follows?tab=followers`}><div className="text-[17px] font-black">{p.stats.followers}</div><div className="text-[11px] text-sub">フォロワー</div></Link>
+          <Link href={`/sns/u/${encodeURIComponent(params.id)}/follows?tab=following`}><div className="text-[17px] font-black">{p.stats.following}</div><div className="text-[11px] text-sub">フォロー</div></Link>
         </div>
       </div>
 
@@ -76,9 +87,23 @@ export default function SnsProfilePage({ params }: { params: { id: string } }) {
           {u.car === 'have' && <span className="px-2 py-0.5 rounded-full bg-orange-light text-orange text-[11px] font-bold">車あり</span>}
           {u.golfHistory && <span className="px-2 py-0.5 rounded-full bg-bg text-sub text-[11px] font-bold">歴 {u.golfHistory}</span>}
         </div>
+        {/* 評価（ほかの人を見たときだけ・今のプロフィールと同じ中身） */}
+        {!p.isMe && (
+          <div className="my-2 rounded-xl border-[1.5px] border-green bg-green-light px-3 py-2">
+            <div className="text-[10.5px] font-black text-green">レビュー</div>
+            <div className="mt-0.5"><GolfBallRating value={revisitStar(track?.roundedWith, track?.againCount, track?.neverCount, track?.mannerPenalty)} label={revisitScoreText(track?.roundedWith, track?.againCount, track?.neverCount, track?.mannerPenalty)} count={track?.roundedWith || 0} rated={hasRevisitStar(track)} size={16} /></div>
+            {track && track.roundedWith > 0 && (
+              <>
+                <div className="text-[10.5px] text-sub font-bold leading-snug mt-1">「この人からまた次のラウンドに誘われたら、行きたいと思う？」</div>
+                <div className="text-[12.5px] font-black text-green">→ {track.roundedWith}人中 {track.againCount}人が「行きたい」と答えています</div>
+              </>
+            )}
+            <MannerBadge penalty={track?.mannerPenalty || 0} />
+          </div>
+        )}
         {u.bio && <div className="whitespace-pre-wrap">{u.bio}</div>}
         {!p.isMe && p.known.length > 0 && (
-          <div className="text-[11.5px] text-sub mt-1">{p.known.join('、')}{p.knownMore ? ` ほか${p.knownMore}人` : ''}がフォロー中</div>
+          <Link href={`/sns/u/${encodeURIComponent(params.id)}/follows?tab=mutual`} className="block text-[11.5px] text-sub mt-1">{p.known.join('、')}{p.knownMore ? ` ほか${p.knownMore}人` : ''}がフォロー中 ›</Link>
         )}
         {!p.isMe && p.followsMe && !p.iFollow && <div className="text-[11.5px] text-green font-bold mt-1">あなたをフォローしています</div>}
       </div>

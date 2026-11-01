@@ -148,7 +148,7 @@ export default function SnsHomePage() {
           <button key={`${s.kind}_${s.kind === 'text' ? s.id : s.user.id}`} type="button" onClick={() => setOpen(k)} className="flex flex-col items-center w-[66px] flex-shrink-0">
             <RingAvatar user={s.user} size={62} ring={s.kind === 'recent' ? 'green' : 'orange'} />
             <span className="text-[10.5px] font-bold mt-1 truncate w-full text-center">{s.user.name}</span>
-            <span className={`text-[9.5px] font-bold truncate w-full text-center ${s.kind === 'recent' ? 'text-green' : 'text-orange'}`}>{s.kind === 'text' ? (s.dateLabel ? `${s.dateLabel.replace(/（.）/, '')} ひとこと` : 'ひとこと') : s.kind === 'avail' ? `${s.dates[0]?.label.replace(/（.）/, '')} 行ける` : `${s.when.replace(/（.）/, '')} ラウンド`}</span>
+            <span className={`text-[9.5px] font-bold truncate w-full text-center ${s.kind === 'recent' ? 'text-green' : 'text-orange'}`}>{s.kind === 'text' ? `${s.photo ? '📷 ' : ''}${s.dateLabel ? `${s.dateLabel.replace(/（.）/, '')} ` : ''}ひとこと` : s.kind === 'avail' ? `${s.dates[0]?.label.replace(/（.）/, '')} 行ける` : `${s.when.replace(/（.）/, '')} ラウンド`}</span>
           </button>
         )))}
       </div>

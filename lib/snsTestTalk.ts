@@ -10,6 +10,7 @@ import type { SnsUser } from './snsTest';
 //   ・答えを押してくれた人には、フォローに関係なく投稿した人からDMを送れる（モックで決めたルール）。
 //   ・テスト用の人のひとことに答えると、その人からDMが届く（テスト版の中だけ）。DMを送ると、テスト用の人が返事をする。
 const STORIES = 'snsTestStories';
+const PHOTOS = 'snsTestStoryPhotos';   // ひとことの写真（データURL）。ひとことの本体と分けて、一覧を軽くする
 const THREADS = 'snsTestThreads';
 const DAY = 24 * 60 * 60 * 1000;
 export const STORY_BG = ['#2A8C82', '#E8643C', '#6B5BB5', '#1E2B27', '#C2477A'];
@@ -27,11 +28,12 @@ export const isPersona = (id: string) => !!personaOf(id);
 
 export type TextStoryDoc = {
   id: string; uid: string; text: string; bg: string; date: string; choices: string[]; scope: 'followers' | 'all';
-  at: number; expiresAt: number; answers: Record<string, { c: number; at: number }>; views: Record<string, number>;
+  at: number; expiresAt: number; answers: Record<string, { c: number; at: number }>; views: Record<string, number>; hasPhoto?: boolean;
 };
 export type TextStory = {
   kind: 'text'; id: string; user: SnsUser; text: string; bg: string; date: string; dateLabel: string; choices: string[];
   counts: number[]; myAnswer: number | null; mine: boolean; views: number; answers: number; at: number; scope: 'followers' | 'all'; persona: boolean;
+  photo: string;   // 背景の写真（/api/sns/story/<id>/photo）。無ければ ''
 };
 
 function jstDateLabel(d: string): string {
@@ -54,7 +56,7 @@ function toStory(d: TextStoryDoc, meId: string, userOf: (id: string) => SnsUser 
   return {
     kind: 'text', id: d.id, user, text: d.text, bg: d.bg, date: d.date, dateLabel: jstDateLabel(d.date), choices: d.choices,
     counts, myAnswer: d.answers?.[meId]?.c ?? null, mine, views: Object.keys(d.views || {}).length, answers: Object.keys(d.answers || {}).length,
-    at: d.at, scope: d.scope, persona: isPersona(d.uid),
+    at: d.at, scope: d.scope, persona: isPersona(d.uid), photo: d.hasPhoto ? `/api/sns/story/${d.id}/photo` : '',
   };
 }
 
@@ -95,17 +97,28 @@ export async function textStoriesFor(me: User, mePub: SnsUser): Promise<TextStor
   return [...mine, ...others].map((d) => toStory(d, me.id, userOf)).filter(Boolean) as TextStory[];
 }
 
+// 2026-11-01（本人指定）：基本は文字だけ。答え（選択肢）は「選択肢を追加」を押したときだけ。写真を載せると背景になり、文字と答えは写真の上に出る。
+// 写真だけ（文字なし）でも載せられる。写真は端末で縮めたJPEGのデータURL（900KBまで）。
 export async function createStory(meId: string, body: any): Promise<string> {
   const text = String(body?.text || '').trim().slice(0, 80);
-  if (!text) throw new Error('empty');
+  const photo = typeof body?.photo === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(body.photo) && body.photo.length <= 900_000 ? body.photo : '';
+  if (!text && !photo) throw new Error('empty');
   const choices = (Array.isArray(body?.choices) ? body.choices : []).map((c: unknown) => String(c || '').trim().slice(0, 16)).filter(Boolean).slice(0, 4);
   const bg = STORY_BG.includes(body?.bg) ? body.bg : STORY_BG[0];
   const date = /^\d{4}-\d{2}-\d{2}$/.test(String(body?.date || '')) ? String(body.date) : '';
   const now = Date.now();
+  if (choices.length === 1) throw new Error('one_choice');
   const ref = await adb().collection(STORIES).add({
-    uid: meId, text, bg, date, choices, scope: body?.scope === 'all' ? 'all' : 'followers', at: now, expiresAt: now + DAY, answers: {}, views: {},
+    uid: meId, text, bg, date, choices, scope: body?.scope === 'all' ? 'all' : 'followers', at: now, expiresAt: now + DAY, answers: {}, views: {}, hasPhoto: !!photo,
   });
+  if (photo) await adb().collection(PHOTOS).doc(ref.id).set({ data: photo, at: now });
   return ref.id;
+}
+
+/** ひとことの写真（データURL）。無ければ null */
+export async function storyPhoto(id: string): Promise<string | null> {
+  const sn = await adb().collection(PHOTOS).doc(id).get();
+  return sn.exists ? String(sn.data()?.data || '') || null : null;
 }
 
 async function getDoc(id: string): Promise<TextStoryDoc | null> {
@@ -146,6 +159,7 @@ export async function deleteStory(meId: string, id: string): Promise<void> {
   const d = await getDoc(id);
   if (!d || d.uid !== meId) throw new Error('not_found');
   await adb().collection(STORIES).doc(id).delete();
+  await adb().collection(PHOTOS).doc(id).delete().catch(() => {});
 }
 
 /** 見たことを残す（テスト用の人のひとことを自分が見たとき） */
