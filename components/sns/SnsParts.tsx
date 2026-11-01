@@ -10,7 +10,7 @@ import { toast } from '@/components/Toast';
 export type SnsUser = { id: string; name: string; avatar: string; avatarUrl?: string; avatarMode?: string; color: string; golmotiType?: string; gender?: string; age?: number; area?: string; car?: string };
 export type TextStory = {
   kind: 'text'; id: string; user: SnsUser; text: string; bg: string; date: string; dateLabel: string; choices: string[];
-  counts: number[]; myAnswer: number | null; mine: boolean; views: number; answers: number; at: number; scope: 'followers' | 'all'; persona: boolean;
+  counts: number[]; myAnswer: number | null; mine: boolean; views: number; answers: number; at: number; scope: 'followers' | 'mutual' | 'all'; persona: boolean;
   photo: string;   // 背景の写真（無ければ ''）。動画のときはその表紙
   video?: string;  // 背景の動画（署名URL）
 };
@@ -156,7 +156,7 @@ export function StoryViewer({ stories, start, onClose, onChanged }: { stories: S
             ) : (
               <span className="flex items-center gap-2 min-w-0"><Avatar user={s.user as any} size={32} /><span className="text-white text-[13px] font-black truncate">{s.user.name}</span></span>
             )}
-            <span className="text-white/70 text-[11px] font-bold whitespace-nowrap">{s.kind === 'text' ? `ひとこと・${agoLabel(s.at)}${s.mine ? (s.scope === 'all' ? '・みんな' : '・フォロワー') : ''}` : s.kind === 'avail' ? '行ける日' : `${s.when} のラウンド`}</span>
+            <span className="text-white/70 text-[11px] font-bold whitespace-nowrap">{s.kind === 'text' ? `ひとこと・${agoLabel(s.at)}${s.mine ? (s.scope === 'all' ? '・同じ地域' : s.scope === 'mutual' ? '・相互フォロー' : '・フォロワー') : ''}` : s.kind === 'avail' ? '行ける日' : `${s.when} のラウンド`}</span>
             {s.kind === 'text' && s.video && <button type="button" onClick={toggleSound} aria-label={muted ? '音を出す' : '音を消す'} className="ml-auto w-9 h-9 text-[18px] leading-none flex-shrink-0">{muted ? '🔇' : '🔊'}</button>}
             <button type="button" onClick={onClose} aria-label="閉じる" className={`${s.kind === 'text' && s.video ? '' : 'ml-auto '}w-9 h-9 text-white text-[22px] leading-none`}>×</button>
           </div>

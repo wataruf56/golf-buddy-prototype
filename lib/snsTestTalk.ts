@@ -9,6 +9,8 @@ import type { SnsUser } from './snsTest';
 //   ・書くのはテスト版専用の箱だけ：snsTestStories / snsTestThreads。既存の会員・DM・通知・LINEには一切触れない。
 //   ・答えを押してくれた人には、フォローに関係なく投稿した人からDMを送れる（モックで決めたルール）。
 //   ・テスト用の人のひとことに答えると、その人からDMが届く（テスト版の中だけ）。DMを送ると、テスト用の人が返事をする。
+//   ・見られる人（2026-11-02 本人指定）：'all'＝同じ地域（プロフィールのエリアが同じ＝都道府県単位）の20〜30代（基本）／'followers'＝フォロワーだけ／'mutual'＝相互フォローだけ。
+//     テスト版では自分とテスト用の人のひとことしか出さないので、この範囲での絞り込みはまだ入れていない（本番化のときに入れる）。
 const STORIES = 'snsTestStories';
 const PHOTOS = 'snsTestStoryPhotos';   // ひとことの写真（データURL）。ひとことの本体と分けて、一覧を軽くする
 const THREADS = 'snsTestThreads';
@@ -27,12 +29,12 @@ const personaOf = (id: string) => TEST_PERSONAS.find((p) => p.id === id);
 export const isPersona = (id: string) => !!personaOf(id);
 
 export type TextStoryDoc = {
-  id: string; uid: string; text: string; bg: string; date: string; choices: string[]; scope: 'followers' | 'all';
+  id: string; uid: string; text: string; bg: string; date: string; choices: string[]; scope: 'followers' | 'mutual' | 'all';
   at: number; expiresAt: number; answers: Record<string, { c: number; at: number }>; views: Record<string, number>; hasPhoto?: boolean; video?: string;
 };
 export type TextStory = {
   kind: 'text'; id: string; user: SnsUser; text: string; bg: string; date: string; dateLabel: string; choices: string[];
-  counts: number[]; myAnswer: number | null; mine: boolean; views: number; answers: number; at: number; scope: 'followers' | 'all'; persona: boolean;
+  counts: number[]; myAnswer: number | null; mine: boolean; views: number; answers: number; at: number; scope: 'followers' | 'mutual' | 'all'; persona: boolean;
   photo: string;   // 背景の写真（/api/sns/story/<id>/photo）。無ければ ''。動画のときはその表紙
   video?: string;  // 背景の動画（署名URL・lib/snsTestMedia）
 };
@@ -117,7 +119,7 @@ export async function createStory(meId: string, body: any): Promise<string> {
   const video = photo && body?.video ? String(body.video) : '';
   if (video) await import('./snsTestMedia').then((m) => m.assertMyVideo(meId, 's', video));
   const ref = await adb().collection(STORIES).add({
-    uid: meId, text, bg, date, choices, scope: body?.scope === 'all' ? 'all' : 'followers', at: now, expiresAt: now + DAY, answers: {}, views: {}, hasPhoto: !!photo, ...(video ? { video } : {}),
+    uid: meId, text, bg, date, choices, scope: body?.scope === 'all' || body?.scope === 'mutual' ? body.scope : 'followers', at: now, expiresAt: now + DAY, answers: {}, views: {}, hasPhoto: !!photo, ...(video ? { video } : {}),
   });
   if (photo) await adb().collection(PHOTOS).doc(ref.id).set({ data: photo, at: now });
   return ref.id;

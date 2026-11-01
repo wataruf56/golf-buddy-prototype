@@ -34,12 +34,16 @@ export default function SnsNewStoryPage() {
   const [showDate, setShowDate] = useState(false);
   const [poll, setPoll] = useState(false);
   const [choices, setChoices] = useState<string[]>(DEFAULT_CHOICES);
-  const [scope, setScope] = useState<'followers' | 'all'>('followers');
+  const [scope, setScope] = useState<'all' | 'followers' | 'mutual'>('all');   // 基本は同じ地域（2026-11-02 本人指定）
+  const [area, setArea] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   // テスト版を見られる人か（運営だけ）。見られない人には何も出さない
   useEffect(() => {
-    fetch('/api/sns/user/me', { cache: 'no-store', credentials: 'include' }).then((r) => setOk(r.ok)).catch(() => setOk(false));
+    fetch('/api/sns/user/me', { cache: 'no-store', credentials: 'include' }).then(async (r) => {
+      if (r.ok) setArea((await r.json())?.user?.area || '');
+      setOk(r.ok);
+    }).catch(() => setOk(false));
   }, []);
   if (ok === false) return <div className="text-center text-[13px] text-muted py-20">ページが見つかりません</div>;
   if (ok === null) return <div className="text-center text-[12px] text-muted py-20">読み込み中...</div>;
@@ -165,7 +169,7 @@ export default function SnsNewStoryPage() {
       <div className="px-4 pt-4">
         <div className="text-[13px] font-black mb-1.5">見られる人</div>
         <div className="flex gap-1.5 flex-wrap">
-          {([['followers', 'フォロワーだけ'], ['all', 'みんな（同じ地域の20〜30代）']] as const).map(([k, l]) => (
+          {([['all', `同じ地域${area ? `（${area}）` : ''}の20〜30代`], ['followers', 'フォロワーだけ'], ['mutual', '相互フォローだけ']] as const).map(([k, l]) => (
             <button key={k} type="button" onClick={() => setScope(k)}
               className={`px-3 py-1.5 rounded-full text-[12px] font-black border-[1.5px] ${scope === k ? 'bg-green-light text-green border-green' : 'bg-bg text-sub border-transparent'}`}>{l}</button>
           ))}
