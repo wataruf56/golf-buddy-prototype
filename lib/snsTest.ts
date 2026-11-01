@@ -27,7 +27,7 @@ export type SnsUser = {
   id: string; name: string; avatar: string; avatarUrl?: string; avatarMode?: string; color: string; golmotiType?: string;
   gender?: string; age?: number; area?: string; car?: string;
 };
-const pub = (u: User): SnsUser => ({
+export const pub = (u: User): SnsUser => ({
   id: u.id, name: String(u.displayName || 'メンバー').slice(0, 20), avatar: u.avatar || '', avatarUrl: u.avatarUrl || '',
   avatarMode: u.avatarMode || '', color: u.color || '', golmotiType: u.golmotiType || '', gender: u.gender, age: u.age, area: u.area || '', car: u.car,
 });
@@ -148,9 +148,10 @@ export type FeedItem =
 
 export type Story =
   | { kind: 'avail'; user: SnsUser; dates: { date: string; label: string; count: number }[] }
-  | { kind: 'recent'; user: SnsUser; roundId: string; place: string; when: string; photos: string[]; with: SnsUser[] };
+  | { kind: 'recent'; user: SnsUser; roundId: string; place: string; when: string; photos: string[]; with: SnsUser[] }
+  | import('./snsTestTalk').TextStory;   // ひとこと（2026-11-01・lib/snsTestTalk）
 
-export async function buildHome(me: User): Promise<{ me: SnsUser; stories: Story[]; feed: FeedItem[] }> {
+export async function buildHome(me: User): Promise<{ me: SnsUser; stories: Story[]; feed: FeedItem[]; dmUnread: number }> {
   const ctx = await context(me);
   const today = jstToday();
   const [rounds, photos, posts, following] = await Promise.all([allRounds(), albumPhotos(), timelinePosts(ctx.cohort), followingOf(me)]);
@@ -233,8 +234,14 @@ export async function buildHome(me: User): Promise<{ me: SnsUser; stories: Story
       recentStories.push({ kind: 'recent', user: P(id), roundId: r.id, place: roundTitle(r), when: dateLabel(r.date), photos: (photos.get(r.id) || []).map((p) => p.url).slice(0, 6), with: mem.filter((x) => x !== id).map(P) });
     }
   }
-  stories.push(...recentStories.slice(0, 15), ...availStories.slice(0, 30));
-  return { me: pub(me), stories, feed: mixed.slice(0, 60) };
+  // ひとこと（自分のもの → テスト用の人のもの）を先頭に（lib/snsTestTalk）
+  const talk = await import('./snsTestTalk');
+  const [texts, dmUnread] = await Promise.all([
+    talk.textStoriesFor(me, pub(me)).catch(() => [] as import('./snsTestTalk').TextStory[]),
+    talk.unreadThreads(me.id).catch(() => 0),
+  ]);
+  stories.push(...texts, ...recentStories.slice(0, 15), ...availStories.slice(0, 30));
+  return { me: pub(me), stories, feed: mixed.slice(0, 60), dmUnread };
 }
 
 export type ProfileTile = { roundId: string; photo?: string; place: string; when: string; drink: boolean; count: number };
