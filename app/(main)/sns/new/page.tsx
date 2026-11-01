@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation';
 import { SnsTestBadge } from '@/components/sns/SnsParts';
 import { toast } from '@/components/Toast';
 import { resizeImage } from '@/lib/resizeImage';
+import { MAX_VIDEO_MB, MAX_VIDEO_SEC, isVideoFile, readVideo, uploadVideo } from '@/lib/snsVideoClient';
 
 // ひとことを書く（テスト版・運営だけ・lib/snsTestTalk）。24時間で消える。
 // 2026-11-01 本人指定：基本は文字だけ。「🗳 選択肢を追加」を押したときだけ答えを置ける。
-//   「📷 写真」で写真を背景にでき、文字と選択肢は写真の上に出る。写真なしの文字だけ／文字なしの写真だけでも載せられる。
+//   「📷 写真・動画」で背景にでき、文字と選択肢はその上に出る。背景なしの文字だけ／文字なしの写真や動画だけでも載せられる（動画は60秒・200MBまで）。
 const BG = ['#2A8C82', '#E8643C', '#6B5BB5', '#1E2B27', '#C2477A'];
 const DEFAULT_CHOICES = ['行きたい', 'ピックアップしてくれるなら', '気になる'];
 
@@ -25,6 +26,10 @@ export default function SnsNewStoryPage() {
   const [text, setText] = useState('');
   const [bg, setBg] = useState(BG[0]);
   const [photo, setPhoto] = useState('');
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState('');
+  const [progress, setProgress] = useState('');
+  const uploaded = useRef('');   // 送り終えた動画の置き場所（やり直しのときは送らない）
   const [date, setDate] = useState('');
   const [showDate, setShowDate] = useState(false);
   const [poll, setPoll] = useState(false);
@@ -39,8 +44,20 @@ export default function SnsNewStoryPage() {
   if (ok === false) return <div className="text-center text-[13px] text-muted py-20">ページが見つかりません</div>;
   if (ok === null) return <div className="text-center text-[12px] text-muted py-20">読み込み中...</div>;
 
+  function clearVideo() {
+    if (videoPreview) URL.revokeObjectURL(videoPreview);
+    setVideoFile(null); setVideoPreview(''); uploaded.current = '';
+  }
   async function pickPhoto(file: File | undefined) {
     if (!file) return;
+    clearVideo();
+    if (isVideoFile(file)) {
+      if (file.size > MAX_VIDEO_MB * 1024 * 1024) { toast(`動画は${MAX_VIDEO_MB}MBまでです`, 'error'); return; }
+      const { poster, sec } = await readVideo(file);
+      if (sec > MAX_VIDEO_SEC + 0.5) { toast(`動画は${MAX_VIDEO_SEC}秒までです`, 'error'); return; }
+      setPhoto(poster); setVideoFile(file); setVideoPreview(URL.createObjectURL(file)); setErr('');
+      return;
+    }
     try {
       let img = await resizeImage(file, 1280, 0.8);
       if (img.length > 850_000) img = await resizeImage(file, 960, 0.7);
@@ -52,16 +69,18 @@ export default function SnsNewStoryPage() {
   async function post() {
     if (busy) return;
     const cs = poll ? choices.map((c) => c.trim()).filter(Boolean) : [];
-    if (!text.trim() && !photo) { setErr('ひとことを書くか、写真を選んでください'); return; }
+    if (!text.trim() && !photo) { setErr('ひとことを書くか、写真・動画を選んでください'); return; }
     if (poll && cs.length < 2) { setErr('選択肢は2つ以上入れてください（いらなければ「選択肢をやめる」）'); return; }
-    setBusy(true);
+    setBusy(true); setErr('');
     try {
-      const r = await fetch('/api/sns/story', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ text, bg, date, choices: cs, scope, photo }) });
+      if (videoFile && !uploaded.current) uploaded.current = await uploadVideo(videoFile, 's', (pct) => setProgress(`動画を送っています ${pct}%`));
+      setProgress('');
+      const r = await fetch('/api/sns/story', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ text, bg, date, choices: cs, scope, photo, video: uploaded.current }) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.message || 'うまくいきませんでした');
       toast('ひとことを載せました');
       router.replace('/sns');
-    } catch (e) { setErr((e as Error).message); setBusy(false); }
+    } catch (e) { setErr((e as Error).message); setProgress(''); setBusy(false); }
   }
 
   const shownChoices = choices.map((c) => c.trim()).filter(Boolean);
@@ -79,6 +98,7 @@ export default function SnsNewStoryPage() {
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={photo} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            {videoPreview && <video src={videoPreview} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />}
             <div className="absolute inset-0" style={{ background: 'linear-gradient(rgba(0,0,0,0.15), rgba(0,0,0,0.05) 40%, rgba(0,0,0,0.45))' }} />
           </>
         )}
@@ -98,13 +118,14 @@ export default function SnsNewStoryPage() {
           <div className="text-right text-[10.5px] text-white/80">{text.length}/80</div>
         </div>
       </div>
+      {progress && <div className="px-4 pt-2 text-[12px] font-black text-green">{progress}</div>}
       {err && <div className="px-4 pt-2 text-[12px] font-black text-red">{err}</div>}
 
       {/* 道具：写真・選択肢・日付 */}
-      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { pickPhoto(e.target.files?.[0]); e.target.value = ''; }} />
+      <input ref={fileRef} type="file" accept="image/*,video/*" className="hidden" onChange={(e) => { pickPhoto(e.target.files?.[0]); e.target.value = ''; }} />
       <div className="flex gap-2 px-3 pt-3 flex-wrap">
-        <button type="button" onClick={() => fileRef.current?.click()} className="px-3.5 py-2 rounded-full border-2 border-border text-[12.5px] font-black">📷 {photo ? '写真を変える' : '写真'}</button>
-        {photo && <button type="button" onClick={() => setPhoto('')} className="px-3.5 py-2 rounded-full bg-bg text-[12.5px] font-black text-sub">写真を外す</button>}
+        <button type="button" onClick={() => fileRef.current?.click()} className="px-3.5 py-2 rounded-full border-2 border-border text-[12.5px] font-black">📷 {photo ? (videoFile ? '動画を変える' : '写真を変える') : '写真・動画'}</button>
+        {photo && <button type="button" onClick={() => { setPhoto(''); clearVideo(); }} className="px-3.5 py-2 rounded-full bg-bg text-[12.5px] font-black text-sub">{videoFile ? '動画を外す' : '写真を外す'}</button>}
         <button type="button" onClick={() => { setPoll(!poll); setErr(''); }}
           className={`px-3.5 py-2 rounded-full border-2 text-[12.5px] font-black ${poll ? 'border-green bg-green-light text-green' : 'border-border'}`}>🗳 {poll ? '選択肢をやめる' : '選択肢を追加'}</button>
         <button type="button" onClick={() => { if (showDate) setDate(''); setShowDate(!showDate); }}
@@ -152,7 +173,7 @@ export default function SnsNewStoryPage() {
       </div>
 
       <div className="mx-4 mt-4 px-3 py-2.5 rounded-xl bg-[#FFF6D9] text-[#7A5B00] text-[11.5px] font-bold leading-relaxed">
-        24時間で消えます。見た人と、どの答えを押したかは、あなたにだけ見えます。答えを押してくれた人には、フォローしていなくてもDMを送れます。<br />
+        24時間で消えます。動画は{MAX_VIDEO_SEC}秒・{MAX_VIDEO_MB}MBまでです。見た人と、どの答えを押したかは、あなたにだけ見えます。答えを押してくれた人には、フォローしていなくてもDMを送れます。<br />
         テスト版：あなたにしか見えません。見た人・答えた人は、ひとことの「反応」から「テスト用の人」で試せます。
       </div>
     </div>

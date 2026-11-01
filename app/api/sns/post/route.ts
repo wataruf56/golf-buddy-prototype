@@ -5,12 +5,12 @@ import { snsAllowed, buildPostOptions } from '@/lib/snsTest';
 import { createPost } from '@/lib/snsTestPosts';
 
 // GET  /api/sns/post … 投稿に付けられる自分のラウンドと、メンションできる人（テスト版・運営だけ）
-// POST /api/sns/post { photos[], caption, roundId?, mentions[]? } … 写真を投稿（snsTestPosts にだけ書く・誰にも通知しない・lib/snsTestPosts）
+// POST /api/sns/post { photos[], videos[]?, caption, roundId?, mentions[]? } … 写真を投稿（snsTestPosts にだけ書く・誰にも通知しない・lib/snsTestPosts）
 const noStore = { 'Cache-Control': 'no-store' };
 export const dynamic = 'force-dynamic';
 const MESSAGES: Record<string, string> = {
   no_photo: '写真を選んでください', too_many: '写真は10枚までです', bad_photo: 'この写真は使えません',
-  too_large: '写真が大きすぎます', bad_round: 'このラウンドは選べません',
+  too_large: '写真が大きすぎます', bad_round: 'このラウンドは選べません', bad_video: '動画を確認できませんでした。もう一度お試しください',
 };
 
 async function meOf() {

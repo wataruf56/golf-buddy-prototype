@@ -4,12 +4,12 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Avatar } from '@/components/Avatar';
-import { CaptionText, RingAvatar, SnsTestBadge, StoryViewer, testOnly, type SnsUser, type Story } from '@/components/sns/SnsParts';
+import { CaptionText, PostMedia, RingAvatar, SnsTestBadge, StoryViewer, testOnly, type SnsUser, type Story } from '@/components/sns/SnsParts';
 
 // インスタ風ホームのテスト版（2026-10-31 本人指定）。運営だけが /sns を直接開いて見る（リンクはどこにも無い）。
 // 中身は今のゴルトモの会員・募集・写真（lib/snsTest・読むだけ）。いいね・リアクションは保存しない。
 type FeedItem =
-  | { kind: 'photo'; id: string; at: number; user: SnsUser; roundId: string; place: string; when: string; photos: string[]; caption: string; tagged: SnsUser[]; mentions?: SnsUser[] }
+  | { kind: 'photo'; id: string; at: number; user: SnsUser; roundId: string; place: string; when: string; photos: string[]; videos?: string[]; caption: string; tagged: SnsUser[]; mentions?: SnsUser[] }
   | { kind: 'played'; id: string; at: number; roundId: string; place: string; when: string; members: SnsUser[]; drink: boolean }
   | { kind: 'open'; id: string; at: number; roundId: string; host: SnsUser; title: string; when: string; area: string; left: number; joined: SnsUser[]; drink: boolean };
 type Home = { me: SnsUser; stories: Story[]; feed: FeedItem[]; dmUnread: number };
@@ -39,7 +39,7 @@ function PhotoPost({ it }: { it: Extract<FeedItem, { kind: 'photo' }> }) {
         <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar" style={{ scrollbarWidth: 'none' }}
           onScroll={(e) => { const el = e.currentTarget; setIdx(Math.round(el.scrollLeft / el.clientWidth)); }}>
           {it.photos.map((src, k) => (
-            <img key={k} src={src} alt="" loading="lazy" onDoubleClick={() => setLiked(true)} className="w-full flex-shrink-0 snap-center aspect-square object-cover" />
+            <PostMedia key={k} src={src} video={it.videos?.[k]} onDoubleClick={() => setLiked(true)} className={`w-full flex-shrink-0 snap-center aspect-square ${it.videos?.[k] ? 'object-contain' : 'object-cover'}`} />
           ))}
         </div>
         {it.photos.length > 1 && <span className="absolute right-2.5 top-2.5 px-2 py-0.5 rounded-full bg-black/55 text-white text-[11px] font-bold">{idx + 1}/{it.photos.length}</span>}
@@ -149,7 +149,7 @@ export default function SnsHomePage() {
           <button key={`${s.kind}_${s.kind === 'text' ? s.id : s.user.id}`} type="button" onClick={() => setOpen(k)} className="flex flex-col items-center w-[66px] flex-shrink-0">
             <RingAvatar user={s.user} size={62} ring={s.kind === 'recent' ? 'green' : 'orange'} />
             <span className="text-[10.5px] font-bold mt-1 truncate w-full text-center">{s.user.name}</span>
-            <span className={`text-[9.5px] font-bold truncate w-full text-center ${s.kind === 'recent' ? 'text-green' : 'text-orange'}`}>{s.kind === 'text' ? `${s.photo ? '📷 ' : ''}${s.dateLabel ? `${s.dateLabel.replace(/（.）/, '')} ` : ''}ひとこと` : s.kind === 'avail' ? `${s.dates[0]?.label.replace(/（.）/, '')} 行ける` : `${s.when.replace(/（.）/, '')} ラウンド`}</span>
+            <span className={`text-[9.5px] font-bold truncate w-full text-center ${s.kind === 'recent' ? 'text-green' : 'text-orange'}`}>{s.kind === 'text' ? `${s.video ? '🎬 ' : s.photo ? '📷 ' : ''}${s.dateLabel ? `${s.dateLabel.replace(/（.）/, '')} ` : ''}ひとこと` : s.kind === 'avail' ? `${s.dates[0]?.label.replace(/（.）/, '')} 行ける` : `${s.when.replace(/（.）/, '')} ラウンド`}</span>
           </button>
         )))}
       </div>

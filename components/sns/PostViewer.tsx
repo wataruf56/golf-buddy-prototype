@@ -4,13 +4,16 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Portal } from '@/components/Portal';
 import { toast } from '@/components/Toast';
-import { CaptionText, RingAvatar, agoLabel, type SnsUser } from '@/components/sns/SnsParts';
+import { CaptionText, PostMedia, RingAvatar, agoLabel, snsUserHref, type SnsUser } from '@/components/sns/SnsParts';
 
 // プロフィールの写真のマスを押したときに開く画面（テスト版・2026-11-01）。
 // 押した写真から始まり、下へスクロールすると次の投稿が続く（インスタと同じ）。写真は切り抜かず全体を見せる。
-export type PostTile = { key: string; postId?: string; roundId: string; photos: string[]; place: string; when: string; drink: boolean; caption: string; mentions: SnsUser[]; at: number };
+// by があるマス（タグ付けされた投稿）は、投稿したのがプロフィールの人ではなく by の人。消せるのは投稿した本人だけなので、消すボタンも出さない。
+export type PostTile = { key: string; postId?: string; roundId: string; photos: string[]; videos?: string[]; place: string; when: string; drink: boolean; caption: string; mentions: SnsUser[]; at: number; by?: SnsUser; tagApproved?: boolean };
 
-function PostCard({ t, user, isMe, onDeleted }: { t: PostTile; user: SnsUser; isMe: boolean; onDeleted: () => void }) {
+function PostCard({ t, user: owner, isMe, onDeleted }: { t: PostTile; user: SnsUser; isMe: boolean; onDeleted: () => void }) {
+  const user = t.by || owner;
+  const href = t.by ? snsUserHref(t.by.id) : '';
   const [idx, setIdx] = useState(0);
   const [asking, setAsking] = useState(false);
   async function remove() {
@@ -26,12 +29,12 @@ function PostCard({ t, user, isMe, onDeleted }: { t: PostTile; user: SnsUser; is
       <div className="flex items-center gap-2.5 px-3 py-2.5">
         <RingAvatar user={user} size={36} />
         <div className="min-w-0 flex-1 leading-tight">
-          <div className="text-[13px] font-black truncate">{user.name}</div>
+          {href ? <Link href={href} className="block text-[13px] font-black truncate">{user.name}</Link> : <div className="text-[13px] font-black truncate">{user.name}</div>}
           {t.place && (t.roundId
             ? <Link href={`/round/${t.roundId}`} className="block text-[11px] text-sub truncate">{t.place}{t.when ? `・${t.when}` : ''}</Link>
             : <div className="text-[11px] text-sub truncate">{t.place}</div>)}
         </div>
-        {isMe && t.postId && (asking
+        {isMe && t.postId && !t.by && (asking
           ? <button type="button" onClick={remove} className="px-2.5 py-1 rounded-lg bg-red text-white text-[11px] font-black flex-shrink-0">本当に消す</button>
           : <button type="button" onClick={() => setAsking(true)} className="px-2.5 py-1 rounded-lg bg-bg text-sub text-[11px] font-black flex-shrink-0">消す</button>)}
       </div>
@@ -39,8 +42,7 @@ function PostCard({ t, user, isMe, onDeleted }: { t: PostTile; user: SnsUser; is
         <div className="flex overflow-x-auto snap-x snap-mandatory" style={{ scrollbarWidth: 'none' }}
           onScroll={(e) => { const el = e.currentTarget; setIdx(Math.round(el.scrollLeft / el.clientWidth)); }}>
           {t.photos.map((src, k) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img key={k} src={src} alt="" loading="lazy" className="w-full flex-shrink-0 snap-center object-contain" style={{ maxHeight: '75vh', minHeight: 200 }} />
+            <PostMedia key={k} src={src} video={t.videos?.[k]} className="w-full flex-shrink-0 snap-center object-contain" style={{ maxHeight: '75vh', minHeight: 200 }} />
           ))}
         </div>
         {t.photos.length > 1 && <span className="absolute right-2.5 top-2.5 px-2 py-0.5 rounded-full bg-black/55 text-white text-[11px] font-bold">{idx + 1}/{t.photos.length}</span>}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { Avatar } from '@/components/Avatar';
 import { Portal } from '@/components/Portal';
@@ -11,7 +11,8 @@ export type SnsUser = { id: string; name: string; avatar: string; avatarUrl?: st
 export type TextStory = {
   kind: 'text'; id: string; user: SnsUser; text: string; bg: string; date: string; dateLabel: string; choices: string[];
   counts: number[]; myAnswer: number | null; mine: boolean; views: number; answers: number; at: number; scope: 'followers' | 'all'; persona: boolean;
-  photo: string;   // 背景の写真（無ければ ''）
+  photo: string;   // 背景の写真（無ければ ''）。動画のときはその表紙
+  video?: string;  // 背景の動画（署名URL）
 };
 export type Story =
   | { kind: 'avail'; user: SnsUser; dates: { date: string; label: string; count: number }[] }
@@ -46,6 +47,13 @@ export function CaptionText({ text, mentions }: { text: string; mentions?: SnsUs
   );
 }
 
+/** 投稿の1枚分。video があれば動画（src はその表紙）、無ければ写真 */
+export function PostMedia({ src, video, className, style, onDoubleClick }: { src: string; video?: string; className?: string; style?: CSSProperties; onDoubleClick?: () => void }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  if (!video) return <img src={src} alt="" loading="lazy" onDoubleClick={onDoubleClick} className={className} style={style} />;
+  return <video src={video} poster={src} controls playsInline preload="metadata" className={`${className || ''} bg-black`} style={style} />;
+}
+
 /** 輪っか付きのアイコン。ring: 'orange'=行ける日 / 'green'=最近ラウンド / なし */
 export function RingAvatar({ user, size = 58, ring }: { user: SnsUser | undefined; size?: number; ring?: 'orange' | 'green' | null }) {
   const color = ring === 'orange' ? '#E8643C' : ring === 'green' ? '#2A8C82' : 'transparent';
@@ -69,6 +77,7 @@ export function StoryViewer({ stories, start, onClose, onChanged }: { stories: S
   const [local, setLocal] = useState<Record<string, { counts: number[]; myAnswer: number }>>({});
   const [statsFor, setStatsFor] = useState<string | null>(null);
   const [reply, setReply] = useState('');
+  const [muted, setMuted] = useState(true);   // 自動再生は音なしでしか始められない（iPhone）。右上のボタンで音を出す
   const base = stories[i];
   const s: Story | undefined = base && base.kind === 'text' && local[base.id] ? { ...base, ...local[base.id] } : base;
   const textRef = useRef(false);
@@ -124,6 +133,7 @@ export function StoryViewer({ stories, start, onClose, onChanged }: { stories: S
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={s.photo} alt="" className="absolute inset-0 w-full h-full object-cover" />
+              {s.video && <video key={s.id} src={s.video} poster={s.photo} autoPlay loop muted={muted} playsInline className="absolute inset-0 w-full h-full object-cover" />}
               <div className="absolute inset-0" style={{ background: 'linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.05) 30%, rgba(0,0,0,0.05) 60%, rgba(0,0,0,0.55))' }} />
             </>
           )}
@@ -144,7 +154,8 @@ export function StoryViewer({ stories, start, onClose, onChanged }: { stories: S
               <span className="flex items-center gap-2 min-w-0"><Avatar user={s.user as any} size={32} /><span className="text-white text-[13px] font-black truncate">{s.user.name}</span></span>
             )}
             <span className="text-white/70 text-[11px] font-bold whitespace-nowrap">{s.kind === 'text' ? `ひとこと・${agoLabel(s.at)}${s.mine ? (s.scope === 'all' ? '・みんな' : '・フォロワー') : ''}` : s.kind === 'avail' ? '行ける日' : `${s.when} のラウンド`}</span>
-            <button type="button" onClick={onClose} aria-label="閉じる" className="ml-auto w-9 h-9 text-white text-[22px] leading-none">×</button>
+            {s.kind === 'text' && s.video && <button type="button" onClick={() => setMuted(!muted)} aria-label={muted ? '音を出す' : '音を消す'} className="ml-auto w-9 h-9 text-[18px] leading-none flex-shrink-0">{muted ? '🔇' : '🔊'}</button>}
+            <button type="button" onClick={onClose} aria-label="閉じる" className={`${s.kind === 'text' && s.video ? '' : 'ml-auto '}w-9 h-9 text-white text-[22px] leading-none`}>×</button>
           </div>
 
           <div className="flex-1 relative">

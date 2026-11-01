@@ -6,12 +6,15 @@ import { Avatar } from '@/components/Avatar';
 import { SnsTestBadge, type SnsUser } from '@/components/sns/SnsParts';
 import { toast } from '@/components/Toast';
 import { resizeImage } from '@/lib/resizeImage';
+import { MAX_VIDEO_MB, MAX_VIDEO_SEC, isVideoFile, readVideo, uploadVideo } from '@/lib/snsVideoClient';
 
 // 写真を投稿する（テスト版・運営だけ・lib/snsTestPosts・2026-11-01）。
 // プロフィールの写真タブとホームに並ぶ。本物のアルバム・タイムラインには入らず、通知も出ない。
 // ?round=… で開くと、そのラウンドを選んだ状態で始まる（プロフィールの写真の無いマスから来たとき）。
-// 写真は10枚まで。文章の中で「@」を打つか「＠ メンション」を押すと、人を選んで入れられる（テスト版なので相手に通知は届かない）。
+// 写真と動画は合わせて10個まで。文章の中で「@」を打つか「＠ メンション」を押すと、人を選んで入れられる（相手に通知は届かない）。
+// 動画は1本60秒・200MBまで。投稿のときに端末からバケットへ直接送る（lib/snsVideoClient）。
 const MAX = 10;
+type Item = { src: string; file?: File; object?: string };   // 動画は src が表紙、file が本体、object が送り終えた置き場所
 
 export default function SnsPostPage() {
   return <Suspense fallback={null}><Inner /></Suspense>;
@@ -25,7 +28,8 @@ function Inner() {
   const [rounds, setRounds] = useState<{ id: string; place: string; when: string }[] | null | 'none'>(null);
   const [people, setPeople] = useState<SnsUser[]>([]);
   const [cursor, setCursor] = useState(0);
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [photos, setPhotos] = useState<Item[]>([]);
+  const [progress, setProgress] = useState('');
   const [caption, setCaption] = useState('');
   const [roundId, setRoundId] = useState(search?.get('round') || '');
   const [loading, setLoading] = useState(false);
@@ -42,14 +46,21 @@ function Inner() {
     if (!files?.length) return;
     setLoading(true); setErr('');
     const room = MAX - photos.length;
-    if (files.length > room) toast(`写真は${MAX}枚までです`);
-    const added: string[] = [];
+    if (files.length > room) toast(`写真と動画は合わせて${MAX}個までです`);
+    const added: Item[] = [];
     for (const f of Array.from(files).slice(0, room)) {
+      if (isVideoFile(f)) {
+        if (f.size > MAX_VIDEO_MB * 1024 * 1024) { toast(`動画は${MAX_VIDEO_MB}MBまでです`, 'error'); continue; }
+        const { poster, sec } = await readVideo(f);
+        if (sec > MAX_VIDEO_SEC + 0.5) { toast(`動画は${MAX_VIDEO_SEC}秒までです`, 'error'); continue; }
+        added.push({ src: poster, file: f });
+        continue;
+      }
       try {
         let img = await resizeImage(f, 1280, 0.8);
         if (img.length > 850_000) img = await resizeImage(f, 960, 0.7);
         if (img.length > 850_000) img = await resizeImage(f, 720, 0.6);
-        added.push(img);
+        added.push({ src: img });
       } catch { toast('写真を読み込めませんでした', 'error'); }
     }
     setPhotos((cur) => [...cur, ...added]);
@@ -79,37 +90,45 @@ function Inner() {
 
   async function post() {
     if (busy) return;
-    if (!photos.length) { setErr('写真を選んでください'); return; }
-    setBusy(true);
+    if (!photos.length) { setErr('写真か動画を選んでください'); return; }
+    setBusy(true); setErr('');
     try {
-      const r = await fetch('/api/sns/post', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ photos, caption, roundId, mentions: people.filter((u) => caption.includes(`@${u.name}`)).map((u) => u.id) }) });
+      // 動画を先に送る（送り終えた分は覚えておき、やり直しのときは送らない）
+      const videoItems = photos.filter((x) => x.file);
+      for (const [k, item] of videoItems.entries()) {
+        if (item.object) continue;
+        item.object = await uploadVideo(item.file!, 'p', (pct) => setProgress(`動画を送っています ${videoItems.length > 1 ? `${k + 1}/${videoItems.length} ` : ''}${pct}%`));
+      }
+      setProgress('');
+      const r = await fetch('/api/sns/post', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ photos: photos.map((x) => x.src), videos: photos.map((x) => x.object || ''), caption, roundId, mentions: people.filter((u) => caption.includes(`@${u.name}`)).map((u) => u.id) }) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.message || 'うまくいきませんでした');
-      toast('写真を投稿しました');
+      toast('投稿しました');
       router.replace('/sns/u/me');
-    } catch (e) { setErr((e as Error).message); setBusy(false); }
+    } catch (e) { setErr((e as Error).message); setProgress(''); setBusy(false); }
   }
 
   return (
     <div className="pb-10 bg-card min-h-screen">
       <div className="sticky top-0 z-20 bg-card border-b border-hair flex items-center px-3 h-12">
         <button type="button" onClick={() => router.back()} aria-label="閉じる" className="w-8 h-8 text-[22px] leading-none">×</button>
-        <span className="text-[16px] font-black">写真を投稿</span><SnsTestBadge />
+        <span className="text-[16px] font-black">投稿</span><SnsTestBadge />
         <button type="button" onClick={post} disabled={busy || loading} className="ml-auto px-4 py-1.5 rounded-full bg-orange text-white text-[13px] font-black disabled:opacity-50">{busy ? '…' : '投稿'}</button>
       </div>
 
-      <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { pick(e.target.files); e.target.value = ''; }} />
+      <input ref={fileRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={(e) => { pick(e.target.files); e.target.value = ''; }} />
       {photos.length === 0 ? (
         <button type="button" onClick={() => fileRef.current?.click()} className="block mx-3 mt-3 w-[calc(100%-24px)] py-20 rounded-2xl border-2 border-dashed border-orange text-orange text-[15px] font-black">
-          {loading ? '読み込み中…' : `📷 写真をえらぶ（${MAX}枚まで）`}
+          {loading ? '読み込み中…' : `📷 写真・動画をえらぶ（${MAX}個まで）`}
         </button>
       ) : (
         <div className="flex gap-2 overflow-x-auto px-3 pt-3" style={{ scrollbarWidth: 'none' }}>
-          {photos.map((src, k) => (
+          {photos.map((item, k) => (
             <div key={k} className="relative flex-shrink-0 w-[70%] aspect-square rounded-2xl overflow-hidden bg-bg">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt="" className="w-full h-full object-cover" />
-              <button type="button" onClick={() => setPhotos(photos.filter((_, j) => j !== k))} aria-label="この写真を外す" className="absolute right-2 top-2 w-7 h-7 rounded-full bg-black/60 text-white text-[15px] leading-none">×</button>
+              <img src={item.src} alt="" className="w-full h-full object-cover" />
+              {item.file && <span className="absolute left-2 top-2 px-2 py-0.5 rounded-full bg-black/60 text-white text-[11px] font-black">▶ 動画</span>}
+              <button type="button" onClick={() => setPhotos(photos.filter((_, j) => j !== k))} aria-label="これを外す" className="absolute right-2 top-2 w-7 h-7 rounded-full bg-black/60 text-white text-[15px] leading-none">×</button>
             </div>
           ))}
           {photos.length < MAX && (
@@ -117,9 +136,11 @@ function Inner() {
           )}
         </div>
       )}
+      {progress && <div className="px-4 pt-2 text-[12px] font-black text-green">{progress}</div>}
       {err && <div className="px-4 pt-2 text-[12px] font-black text-red">{err}</div>}
+      <div className="px-4 pt-1.5 text-[10.5px] text-muted">動画は1本{MAX_VIDEO_SEC}秒・{MAX_VIDEO_MB}MBまで</div>
 
-      <div className="px-4 pt-4">
+      <div className="px-4 pt-3">
         <textarea ref={captionRef} value={caption} maxLength={500} rows={4} placeholder="文章を書く（なくてもOK）  @で人をメンション"
           onChange={(e) => { setCaption(e.target.value); setCursor(e.target.selectionStart); }}
           onSelect={(e) => setCursor(e.currentTarget.selectionStart)}
@@ -141,14 +162,15 @@ function Inner() {
         </div>
       </div>
       <div className="px-4 pt-3">
-        <div className="text-[13px] font-black mb-1.5">どのラウンドの写真？</div>
+        <div className="text-[13px] font-black mb-1.5">どのラウンドの投稿？</div>
         <select value={roundId} onChange={(e) => setRoundId(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border-2 border-border bg-card text-[16px]">
           <option value="">選ばない</option>
           {rounds.map((r) => <option key={r.id} value={r.id}>{r.when} {r.place}</option>)}
         </select>
       </div>
       <div className="mx-4 mt-4 px-3 py-2.5 rounded-xl bg-[#FFF6D9] text-[#7A5B00] text-[11.5px] font-bold leading-relaxed">
-        テスト版：あなたにしか見えません。今のタイムラインやアルバムには入らず、メンションした人にも誰にも通知されません。
+        テスト版：あなたにしか見えません。今のタイムラインやアルバムには入らず、メンションした人にも誰にも通知されません。<br />
+        メンションした人のプロフィールには、その人が許可したときだけ出ます。
       </div>
     </div>
   );

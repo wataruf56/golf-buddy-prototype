@@ -28,12 +28,13 @@ export const isPersona = (id: string) => !!personaOf(id);
 
 export type TextStoryDoc = {
   id: string; uid: string; text: string; bg: string; date: string; choices: string[]; scope: 'followers' | 'all';
-  at: number; expiresAt: number; answers: Record<string, { c: number; at: number }>; views: Record<string, number>; hasPhoto?: boolean;
+  at: number; expiresAt: number; answers: Record<string, { c: number; at: number }>; views: Record<string, number>; hasPhoto?: boolean; video?: string;
 };
 export type TextStory = {
   kind: 'text'; id: string; user: SnsUser; text: string; bg: string; date: string; dateLabel: string; choices: string[];
   counts: number[]; myAnswer: number | null; mine: boolean; views: number; answers: number; at: number; scope: 'followers' | 'all'; persona: boolean;
-  photo: string;   // 背景の写真（/api/sns/story/<id>/photo）。無ければ ''
+  photo: string;   // 背景の写真（/api/sns/story/<id>/photo）。無ければ ''。動画のときはその表紙
+  video?: string;  // 背景の動画（署名URL・lib/snsTestMedia）
 };
 
 function jstDateLabel(d: string): string {
@@ -48,7 +49,7 @@ function jstAfterDays(n: number, dow?: number): string {
 }
 const adb = () => getAdminDb() as any;
 
-function toStory(d: TextStoryDoc, meId: string, userOf: (id: string) => SnsUser | null): TextStory | null {
+function toStory(d: TextStoryDoc, meId: string, userOf: (id: string) => SnsUser | null, video = ''): TextStory | null {
   const user = userOf(d.uid);
   if (!user) return null;
   const counts = d.choices.map((_, k) => Object.values(d.answers || {}).filter((a) => a.c === k).length);
@@ -56,7 +57,7 @@ function toStory(d: TextStoryDoc, meId: string, userOf: (id: string) => SnsUser 
   return {
     kind: 'text', id: d.id, user, text: d.text, bg: d.bg, date: d.date, dateLabel: jstDateLabel(d.date), choices: d.choices,
     counts, myAnswer: d.answers?.[meId]?.c ?? null, mine, views: Object.keys(d.views || {}).length, answers: Object.keys(d.answers || {}).length,
-    at: d.at, scope: d.scope, persona: isPersona(d.uid), photo: d.hasPhoto ? `/api/sns/story/${d.id}/photo` : '',
+    at: d.at, scope: d.scope, persona: isPersona(d.uid), photo: d.hasPhoto ? `/api/sns/story/${d.id}/photo` : '', ...(video ? { video } : {}),
   };
 }
 
@@ -94,11 +95,15 @@ export async function textStoriesFor(me: User, mePub: SnsUser): Promise<TextStor
   const userOf = (id: string) => (id === me.id ? mePub : personaOf(id) || null);
   const mine = docs.filter((d) => d.uid === me.id).sort((a, b) => a.at - b.at);
   const others = docs.filter((d) => isPersona(d.uid)).sort((a, b) => b.at - a.at);
-  return [...mine, ...others].map((d) => toStory(d, me.id, userOf)).filter(Boolean) as TextStory[];
+  const list = [...mine, ...others];
+  const videos = list.some((d) => d.video)
+    ? await import('./snsTestMedia').then((m) => Promise.all(list.map((d) => (d.video ? m.videoPlayUrl(d.video).catch(() => '') : ''))))
+    : [];
+  return list.map((d, k) => toStory(d, me.id, userOf, videos[k] || '')).filter(Boolean) as TextStory[];
 }
 
 // 2026-11-01（本人指定）：基本は文字だけ。答え（選択肢）は「選択肢を追加」を押したときだけ。写真を載せると背景になり、文字と答えは写真の上に出る。
-// 写真だけ（文字なし）でも載せられる。写真は端末で縮めたJPEGのデータURL（900KBまで）。
+// 写真だけ（文字なし）でも載せられる。写真は端末で縮めたJPEGのデータURL（900KBまで）。動画も載せられる（lib/snsTestMedia）。
 export async function createStory(meId: string, body: any): Promise<string> {
   const text = String(body?.text || '').trim().slice(0, 80);
   const photo = typeof body?.photo === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(body.photo) && body.photo.length <= 900_000 ? body.photo : '';
@@ -108,8 +113,11 @@ export async function createStory(meId: string, body: any): Promise<string> {
   const date = /^\d{4}-\d{2}-\d{2}$/.test(String(body?.date || '')) ? String(body.date) : '';
   const now = Date.now();
   if (choices.length === 1) throw new Error('one_choice');
+  // 動画のときは photo が表紙
+  const video = photo && body?.video ? String(body.video) : '';
+  if (video) await import('./snsTestMedia').then((m) => m.assertMyVideo(meId, 's', video));
   const ref = await adb().collection(STORIES).add({
-    uid: meId, text, bg, date, choices, scope: body?.scope === 'all' ? 'all' : 'followers', at: now, expiresAt: now + DAY, answers: {}, views: {}, hasPhoto: !!photo,
+    uid: meId, text, bg, date, choices, scope: body?.scope === 'all' ? 'all' : 'followers', at: now, expiresAt: now + DAY, answers: {}, views: {}, hasPhoto: !!photo, ...(video ? { video } : {}),
   });
   if (photo) await adb().collection(PHOTOS).doc(ref.id).set({ data: photo, at: now });
   return ref.id;
@@ -160,6 +168,7 @@ export async function deleteStory(meId: string, id: string): Promise<void> {
   if (!d || d.uid !== meId) throw new Error('not_found');
   await adb().collection(STORIES).doc(id).delete();
   await adb().collection(PHOTOS).doc(id).delete().catch(() => {});
+  if (d.video) await import('./snsTestMedia').then((m) => m.deleteVideo(d.video!)).catch(() => {});
 }
 
 /** 見たことを残す（テスト用の人のひとことを自分が見たとき） */
