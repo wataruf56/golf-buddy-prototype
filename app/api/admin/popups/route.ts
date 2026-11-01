@@ -110,6 +110,10 @@ export async function GET(req: NextRequest) {
       noAction, noActionRate: shownUsers.size ? Math.round((noAction / shownUsers.size) * 100) : null,
       medianSec: median, actions, daily,
       lastAt: evs.length ? evs[evs.length - 1].ts : 0,
+      // 管理画面「🪟 ポップアップ」の一覧用：直近24時間に出た回数・最後に出た時刻・止められない理由・専用の設定画面（2026-11-01）
+      shows24h: shows.filter((e) => e.ts >= Date.now() - DAY).length,
+      lastShowAt: shows.length ? shows[shows.length - 1].ts : 0,
+      lock: def?.lock || '', settings: def?.settings || null,
     };
   });
 

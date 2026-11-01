@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from 'react';
 import type { Chat, Message, PendingReview, Review, Round, User, PickupStatus } from './types';
+import { setPopupOffIds } from './popupSlot';
 
 export type AppNotification = {
   id: string;
@@ -148,6 +149,7 @@ export const store = {
       restrictions?: UserRestriction;
       notifications?: AppNotification[];
       availNew?: { count: number; ats: number[] };
+      popupOff?: string[];
     };
     // Transient failures are common in the LINE in-app webview (cold starts,
     // a fetch aborted by navigation → "Load failed"). Retry a few times with
@@ -177,6 +179,8 @@ export const store = {
         : data.users;
       if (data.me && !data.users.some((u) => u.id === data.meId)) usersWithMe.push(data.me);
 
+      // 管理画面で止めているポップアップ（2026-11-01・lib/popupSwitch）。hydrated より先に渡す（止めたものが一瞬出ないように）
+      setPopupOffIds(data.popupOff || []);
       setState({
         hydrated: true,
         meId: data.meId,

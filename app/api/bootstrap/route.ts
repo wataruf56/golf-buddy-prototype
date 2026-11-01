@@ -194,8 +194,12 @@ export async function GET() {
     rounds = rounds.map((r) => stripRoundForViewer(r, meId));
   } catch { /* 失敗時はそのまま（万一でも致命的でない） */ }
 
+  // 管理画面で止めているポップアップ（lib/popupSwitch・2026-11-01）。端末の usePopupSlot が出さない
+  let popupOff: string[] = [];
+  try { popupOff = await (await import('@/lib/popupSwitch')).getPopupOffIds(); } catch { /* 読めなければ全部出す */ }
+
   return NextResponse.json({
     ok: true, meId, me, users: safeUsers, rounds, pendingReviews, chats, buddyIds, roundChatActivity, roundChatSeen: ((me as any)?.roundChatSeen || {}), banned, restrictions, isAdmin, notifications,
-    isTestAccount: isTestMe, featureFlags, availNew,
+    isTestAccount: isTestMe, featureFlags, availNew, popupOff,
   });
 }

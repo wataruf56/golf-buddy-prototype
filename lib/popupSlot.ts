@@ -56,7 +56,20 @@ function recompute() {
 function subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l); }; }
 const getCurrent = () => current;
 
-export function usePopupSlot(id: string, priority: number, want: boolean): boolean {
+// 管理画面「🪟 ポップアップ」で止めているもの（2026-11-01・lib/popupSwitch → /api/bootstrap → store がここへ渡す）。
+// 止めている id は手を挙げても出さない（chase:<chatId> のような個別IDは種類で見る）。
+let offIds: ReadonlySet<string> = new Set();
+const offListeners = new Set<() => void>();
+export function setPopupOffIds(ids: string[]) {
+  offIds = new Set(ids);
+  offListeners.forEach((l) => l());
+}
+function subscribeOff(l: () => void) { offListeners.add(l); return () => { offListeners.delete(l); }; }
+const getOff = () => offIds;
+
+export function usePopupSlot(id: string, priority: number, wantRaw: boolean): boolean {
+  const off = useSyncExternalStore(subscribeOff, getOff, getOff);
+  const want = wantRaw && !off.has(id.split(':')[0]);
   useEffect(() => {
     if (!want) return;
     reqs.set(id, { priority, at: ++seq });

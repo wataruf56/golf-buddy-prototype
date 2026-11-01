@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { APP_VERSION } from '@/lib/appUpdate';
+import { filterAdminMenu } from '@/lib/adminMenu';
 
 export default function AdminTop() {
   return (
@@ -21,6 +22,7 @@ function Inner() {
   // 「気になる系」通知を全員OFFにする移行（1回限り）。
   const [migrating, setMigrating] = useState(false);
   const [migrateMsg, setMigrateMsg] = useState('');
+  const [menuQ, setMenuQ] = useState('');
   async function migrateInterestOff() {
     if (migrating) return;
     if (!window.confirm('既存ユーザー全員の「気になる系」LINE通知（気になるが押された／締切間近）を一括OFFにします。1回だけ実行してください。よろしいですか？')) return;
@@ -80,53 +82,16 @@ function Inner() {
     );
   }
 
-  // 管理画面の入口は3つに寄せる（2026-09-28・本人要望）。
-  //   📊 レポート … 数字を見る
-  //   👥 運用     … 会員・募集・トラブルに手を動かす
-  //   ⚙️ 設定     … 通知の文面・仕組み・システム
-  // 項目が並びすぎて「どれを開けばいいか」が分からなくなっていたため。
-  // 各グループは、閉じていても中の項目名（押せる札）が見える。開くと説明つきの一覧。
+  // 管理画面の入口（2026-11-01 に6つへ整理し直し・本人要望・lib/adminMenu）。
+  //   📊 数字を見る / 🪟 ポップアップ・通知 / 👥 会員・やりとり / 🏆 募集・行ける日 / 🛡️ 信頼・トラブル / ⚙️ システム
+  // 以前は3つ（レポート・運用・設定）に23項目を詰めていて、ポップアップは計測ハブ・イチオシ・運営枠に散らばっていた。
+  // 同じ一覧が、各画面の右下「☰ メニュー」（components/admin/AdminMenu）からも開ける。
+  // 各グループは、閉じていても中の項目名（押せる札）が見える。開くと説明つきの一覧。「画面をさがす」で全グループから絞れる。
   const q = `?token=${token}`;
-  const groups: MenuGroup[] = [
-    {
-      key: 'report', emoji: '📊', name: 'レポート', lead: '数字を見る。使われ方・流入・LINEの通数・操作の記録',
-      items: [
-        { href: `/admin/insights${q}`, emoji: '📊', title: '計測ハブ', desc: '全体の数字 / ポップアップごとの反応（何を押したか・成果率） / イチオシの効果 / ほかの計測への入口' },
-        { href: `/admin/activity${q}`, emoji: '📈', title: '利用状況', desc: 'よく開かれる画面 / アクティブ会員 / 登録の推移・カレンダー / スイング' },
-        { href: `/admin/lp-funnel${q}`, emoji: '🧭', title: 'LP・診断の流入', desc: '入口別のファネル・離脱ポイント・LINE到達 / 診断の中身・需要プール' },
-        { href: `/admin/ab${q}`, emoji: '🆚', title: '広告A/Bテスト', desc: '画像違いの広告を比べる / Ads Managerの数字を入れる / LP来訪〜登録は自動' },
-        { href: `/admin/line-stats${q}`, emoji: '📨', title: 'LINE配信の通数', desc: '種別ごとの送信数・月別の推移（有料枠の把握）' },
-        { href: `/admin/timeline-stats${q}`, emoji: '📰', title: 'タイムラインの閲覧', desc: '日ごと・週ごと・月ごとの見られた回数・見た人数・見ていた時間 / 今日の写真の投稿数・リアクション数' },
-        { href: `/admin/audit${q}`, emoji: '📒', title: '操作ログ', desc: '誰が・誰に・何をしたか（自動の再会通知も含む）' },
-      ],
-    },
-    {
-      key: 'ops', emoji: '👥', name: '運用', lead: '会員・募集・行ける日・トラブルに手を動かす',
-      items: [
-        { href: `/admin/users${q}`, emoji: '👥', title: '会員一覧', desc: 'LINE登録ユーザーの一覧 / Swing許可リスト' },
-        { href: `/admin/rounds${q}`, emoji: '🏆', title: '募集の一覧', desc: '全募集の一覧・削除 / タイトル定型文の編集' },
-        { href: `/admin/availability${q}`, emoji: '📅', title: '行ける日', desc: '日付ごとに誰が行けるか（名前・車・最寄り駅つき）' },
-        { href: `/admin/official${q}`, emoji: '📣', title: '運営が立てる枠', desc: '代理募集を立てる / ホームの声かけ / レポート' },
-        { href: `/admin/promo${q}`, emoji: '🔥', title: '募集のイチオシ', desc: '選んだ募集をおすすめポップアップで1人1回すすめる（予約・停止・効果）' },
-        { href: `/admin/ratings${q}`, emoji: '⭐', title: '評価・通報・マナー', desc: '★の状況（全員）/ 通報 / ドタキャン・マナー / レビュー / 未レビューの催促 / 友達のつながり（QR・申請）' },
-        { href: `/admin/dm${q}`, emoji: '💬', title: 'DMログ・未読', desc: '誰↔誰の本文 / 未読ユーザー・未読通知の設定' },
-        { href: `/admin/support${q}`, emoji: '🛡️', title: '管理人としてDM', desc: '「管理人」名義でユーザーとやりとり（サポート窓口）' },
-        { href: `/admin/requests${q}`, emoji: '💡', title: '改修要望', desc: '会員から届いた「こんな機能がほしい」のスレッド。運営として返信・状態（受付→検討中→対応中→対応済み／見送り）・ピン留め' },
-        { href: `/admin/hobby-tags${q}`, emoji: '🎯', title: '趣味タグ', desc: 'ユーザーが足した趣味タグの確認・不適切なものの削除' },
-      ],
-    },
-    {
-      key: 'settings', emoji: '⚙️', name: '設定', lead: '通知の文面・タイミング・テスト垢・システム',
-      items: [
-        { href: `/admin/notification-templates${q}`, emoji: '✉️', title: '通知の文面', desc: 'アプリ内 / LINE / スマホ通知の文面をすべて編集' },
-        { href: `/admin/reminders${q}`, emoji: '⏰', title: '開催前リマインド', desc: '参加ラウンドの何日前に知らせるか（1ヶ月前 / 1週間前 / 前日など・夜8時に送信）' },
-        { href: `/admin/rematch${q}`, emoji: '🔁', title: '再会通知', desc: '再会通知のタイミング・今すぐ実行（テスト）・5段ファネル' },
-        { href: `/admin/test-accounts${q}`, emoji: '🧪', title: 'テスト垢・段階公開', desc: '検証用アカウントの登録 / 一般から隠す / 新機能を一部にだけ出す' },
-        { href: `/admin/swing${q}`, emoji: '🏌️', title: 'スイング解析の状態', desc: '解析の履歴・状態確認・止まった解析の復旧' },
-        { href: `/admin/system${q}`, emoji: '🔧', title: 'システム状態', desc: '環境変数 / GCS / LINE Bot の接続確認' },
-      ],
-    },
-  ];
+  const groups: MenuGroup[] = filterAdminMenu(menuQ).map((g) => ({
+    key: g.key, emoji: g.emoji, name: g.name, lead: g.lead,
+    items: g.items.map((it) => ({ href: `${it.path}${q}`, emoji: it.emoji, title: it.title, desc: it.desc, isNew: it.isNew })),
+  }));
 
   return (
     <div className="min-h-screen bg-bg p-4 max-w-md mx-auto">
@@ -142,10 +107,13 @@ function Inner() {
       {/* 事業サマリー：見るべき数字だけをここに集約（詳細は各レポートへ） */}
       <KpiSummary token={token} />
 
+      <input value={menuQ} onChange={(e) => setMenuQ(e.target.value)} placeholder="🔎 画面をさがす（例：ポップアップ、DM、通報）"
+        className="w-full px-3 py-2.5 rounded-xl border-2 border-border bg-card text-[13px] mb-3" />
+      {groups.length === 0 && <div className="text-[12px] text-muted text-center py-4">見つかりませんでした</div>}
       <div className="flex flex-col gap-3">
         {groups.map((g) => (
-          <MenuSection key={g.key} group={g}>
-            {g.key === 'settings' && (
+          <MenuSection key={g.key} group={g} forceOpen={!!menuQ.trim()}>
+            {g.key === 'system' && !menuQ.trim() && (
               /* 通知の一括OFF移行（1回限り）。設定の中の末尾に置く */
               <div className="bg-bg rounded-xl p-3 mt-2">
                 <div className="text-[12px] font-black mb-1">🔕 「気になる系」通知を全員OFF（1回限り）</div>
@@ -174,17 +142,18 @@ function Inner() {
   );
 }
 
-// ── メニュー（3つのグループ） ─────────────────────────────────
-type MenuItem = { href: string; emoji: string; title: string; desc: string };
+// ── メニュー（6つのグループ・lib/adminMenu） ─────────────────────────
+type MenuItem = { href: string; emoji: string; title: string; desc: string; isNew?: boolean };
 type MenuGroup = { key: string; emoji: string; name: string; lead: string; items: MenuItem[] };
 
 /**
  * 1グループぶん。閉じていても中の項目名が札で見え、札はそのまま押せる。
  * 「詳しく」で説明つきの一覧に開く。開いた状態はこの端末に覚える。
  */
-function MenuSection({ group, children }: { group: MenuGroup; children?: React.ReactNode }) {
+function MenuSection({ group, children, forceOpen }: { group: MenuGroup; children?: React.ReactNode; forceOpen?: boolean }) {
   const key = `gb_admin_menu_open_${group.key}`;
-  const [open, setOpen] = useState(false);
+  const [openSaved, setOpen] = useState(false);
+  const open = openSaved || !!forceOpen;
   useEffect(() => {
     try { setOpen(localStorage.getItem(key) === '1'); } catch { /* 覚えられなくても動く */ }
   }, [key]);
@@ -213,6 +182,7 @@ function MenuSection({ group, children }: { group: MenuGroup; children?: React.R
             <Link key={it.href} href={it.href}
               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-bg border border-border text-[12px] font-bold">
               <span>{it.emoji}</span><span>{it.title}</span>
+              {it.isNew && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-orange text-white">NEW</span>}
             </Link>
           ))}
         </div>
@@ -222,7 +192,7 @@ function MenuSection({ group, children }: { group: MenuGroup; children?: React.R
             <Link key={it.href} href={it.href} className="flex items-center gap-3 p-3 bg-bg rounded-xl">
               <span className="text-xl">{it.emoji}</span>
               <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-bold">{it.title}</div>
+                <div className="text-[13px] font-bold">{it.title}{it.isNew && <span className="ml-1.5 text-[9px] px-1.5 py-0.5 rounded-full bg-orange text-white align-middle">NEW</span>}</div>
                 <div className="text-[11px] text-sub mt-0.5 leading-snug">{it.desc}</div>
               </div>
               <span className="text-muted">›</span>
