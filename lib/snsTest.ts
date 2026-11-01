@@ -1,4 +1,5 @@
 import 'server-only';
+import crypto from 'crypto';
 import { db } from './db';
 import { getAdminDb } from './firebase';
 import { userCohort } from './ageGate';
@@ -27,8 +28,16 @@ export type SnsUser = {
   id: string; name: string; avatar: string; avatarUrl?: string; avatarMode?: string; color: string; golmotiType?: string;
   gender?: string; age?: number; area?: string; car?: string;
 };
+// プロフィール写真は data:URL（1人 30〜40KB）で保存されている。そのまま返すと /api/sns/home が 1.8MB になり、
+// 入口（Firebase Hosting）が遅いときに読み込みが終わらなかった（2026-11-01）。写真は /api/sns/avatar/[id] で別に読む。
+// ?v= は写真が変わったときだけ変わる（端末のキャッシュを使い回すため）。
+function avatarSrc(u: User): string {
+  const a = u.avatarUrl || '';
+  if (!a.startsWith('data:')) return a;
+  return `/api/sns/avatar/${encodeURIComponent(u.id)}?v=${crypto.createHash('sha1').update(a).digest('hex').slice(0, 10)}`;
+}
 export const pub = (u: User): SnsUser => ({
-  id: u.id, name: String(u.displayName || 'メンバー').slice(0, 20), avatar: u.avatar || '', avatarUrl: u.avatarUrl || '',
+  id: u.id, name: String(u.displayName || 'メンバー').slice(0, 20), avatar: u.avatar || '', avatarUrl: avatarSrc(u),
   avatarMode: u.avatarMode || '', color: u.color || '', golmotiType: u.golmotiType || '', gender: u.gender, age: u.age, area: u.area || '', car: u.car,
 });
 
