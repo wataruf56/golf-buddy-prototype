@@ -16,7 +16,7 @@ import { PostViewer, type PostTile } from '@/components/sns/PostViewer';
 // フォロー／解除はテスト版だけの記録（snsTestFollows）に入る。既存の友達・DMの範囲は変わらない。
 // 2026-11-01：ほかの人のプロフィールに評価（★・「◯人中◯人が行きたい」・マナー）を今のプロフィールと同じ中身で出す（/api/users/[id]/track-record）。
 //             フォロワー・フォローの数を押すと一覧（共通／フォロワー／フォロー中・/sns/u/[id]/follows）。
-// 2026-11-01：写真のマスを押すと写真が大きく開く（components/sns/PostViewer）。写真の無いマスは、自分のプロフィールならそのラウンドの写真を投稿する画面へ。
+// 2026-11-01：写真のマスを押すとその投稿だけが大きく開き、いいね・コメントができる（components/sns/PostViewer）。写真の無いマスは、自分のプロフィールならそのラウンドの写真を投稿する画面へ。
 //             自分のプロフィールに「写真を投稿」（/sns/post・lib/snsTestPosts）。
 // 2026-11-01（本人指定）：写真タブは本人が上げたものだけ。ラウンドは「過去参加したラウンド」タブにまとめる。
 //             「タグ付け」タブ：許可した投稿だけ、来た人全員に見える。本人にだけ未許可の投稿も見え、1件ずつ許可／取り消しできる（誰にも通知しない）。
@@ -80,7 +80,7 @@ export default function SnsProfilePage({ params }: { params: { id: string } }) {
   };
   const pending = p.tagged.filter((t) => !t.tagApproved);
   const approved = p.tagged.filter((t) => t.tagApproved);
-  const viewerTiles = (tab === 'tagged' ? p.tagged : tab === 'rounds' ? p.pastRounds : p.tiles).filter((t) => t.photos.length > 0);
+  const viewingTile = viewing ? (tab === 'tagged' ? p.tagged : tab === 'rounds' ? p.pastRounds : p.tiles).find((t) => t.key === viewing) : null;
   // 写真のマス（押すと大きく開く）。動画は表紙に ▶
   const photoTile = (t: PostTile, k: number, label?: boolean) => (
     <button key={t.key} type="button" onClick={() => setViewing(t.key)} aria-label="写真を大きく見る" className="relative aspect-square overflow-hidden" style={{ background: TILE_BG[k % TILE_BG.length] }}>
@@ -226,7 +226,7 @@ export default function SnsProfilePage({ params }: { params: { id: string } }) {
           ))}
         </div>
       ) : <div className="text-center text-[12px] text-muted py-12">過去に参加したラウンドはまだありません</div>)}
-      {viewing && <PostViewer user={u} tiles={viewerTiles} start={viewing} isMe={p.isMe} onClose={() => setViewing(null)} onDeleted={load} />}
+      {viewingTile && <PostViewer user={u} tile={viewingTile} isMe={p.isMe} onClose={() => setViewing(null)} onDeleted={load} />}
 
       {tab === 'plan' && (p.upcoming.length ? (
         <div className="px-3 py-2 space-y-2">

@@ -48,9 +48,9 @@ export function CaptionText({ text, mentions }: { text: string; mentions?: SnsUs
 }
 
 /** 投稿の1枚分。video があれば動画（src はその表紙）、無ければ写真 */
-export function PostMedia({ src, video, className, style, onDoubleClick }: { src: string; video?: string; className?: string; style?: CSSProperties; onDoubleClick?: () => void }) {
+export function PostMedia({ src, video, className, style, onClick, onDoubleClick }: { src: string; video?: string; className?: string; style?: CSSProperties; onClick?: () => void; onDoubleClick?: () => void }) {
   // eslint-disable-next-line @next/next/no-img-element
-  if (!video) return <img src={src} alt="" loading="lazy" onDoubleClick={onDoubleClick} className={className} style={style} />;
+  if (!video) return <img src={src} alt="" loading="lazy" onClick={onClick} onDoubleClick={onDoubleClick} className={className} style={style} />;
   return <video src={video} poster={src} controls playsInline preload="metadata" className={`${className || ''} bg-black`} style={style} />;
 }
 

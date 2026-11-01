@@ -1,15 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Avatar } from '@/components/Avatar';
-import { CaptionText, PostMedia, RingAvatar, SnsTestBadge, StoryViewer, testOnly, type SnsUser, type Story } from '@/components/sns/SnsParts';
+import { PostViewer, sendReaction } from '@/components/sns/PostViewer';
+import { CaptionText, PostMedia, RingAvatar, SnsTestBadge, StoryViewer, type SnsUser, type Story } from '@/components/sns/SnsParts';
 
 // インスタ風ホームのテスト版（2026-10-31 本人指定）。運営だけが /sns を直接開いて見る（リンクはどこにも無い）。
 // 中身は今のゴルトモの会員・募集・写真（lib/snsTest・読むだけ）。いいね・リアクションは保存しない。
 type FeedItem =
-  | { kind: 'photo'; id: string; at: number; user: SnsUser; roundId: string; place: string; when: string; photos: string[]; videos?: string[]; caption: string; tagged: SnsUser[]; mentions?: SnsUser[] }
+  | { kind: 'photo'; id: string; at: number; user: SnsUser; roundId: string; place: string; when: string; photos: string[]; videos?: string[]; caption: string; tagged: SnsUser[]; mentions?: SnsUser[]; likeKey: string; likes?: number; liked?: boolean; comments?: number }
   | { kind: 'played'; id: string; at: number; roundId: string; place: string; when: string; members: SnsUser[]; drink: boolean }
   | { kind: 'open'; id: string; at: number; roundId: string; host: SnsUser; title: string; when: string; area: string; left: number; joined: SnsUser[]; drink: boolean };
 type Home = { me: SnsUser; stories: Story[]; feed: FeedItem[]; dmUnread: number };
@@ -25,7 +26,22 @@ function ago(at: number): string {
 
 function PhotoPost({ it }: { it: Extract<FeedItem, { kind: 'photo' }> }) {
   const [idx, setIdx] = useState(0);
-  const [liked, setLiked] = useState(false);
+  const [liked, setLiked] = useState(!!it.liked);
+  const [likes, setLikes] = useState(it.likes || 0);
+  const [comments, setComments] = useState(it.comments || 0);
+  const [viewing, setViewing] = useState(false);
+  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 写真を押すとこの投稿だけが開く（PostViewer）。2回続けて押したときは開かずにいいね
+  const tapPhoto = () => {
+    if (tapTimer.current) clearTimeout(tapTimer.current);
+    tapTimer.current = setTimeout(() => setViewing(true), 260);
+  };
+  const like = async (on: boolean) => {
+    const before = { liked, likes };
+    setLiked(on); setLikes(likes + (on === liked ? 0 : on ? 1 : -1));
+    try { const r = await sendReaction(it.likeKey, { action: 'like', on }); setLiked(r.liked); setLikes(r.likes); }
+    catch { setLiked(before.liked); setLikes(before.likes); }
+  };
   return (
     <div className="bg-card border-b border-hair">
       <div className="flex items-center gap-2.5 px-3 py-2.5">
@@ -39,15 +55,15 @@ function PhotoPost({ it }: { it: Extract<FeedItem, { kind: 'photo' }> }) {
         <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar" style={{ scrollbarWidth: 'none' }}
           onScroll={(e) => { const el = e.currentTarget; setIdx(Math.round(el.scrollLeft / el.clientWidth)); }}>
           {it.photos.map((src, k) => (
-            <PostMedia key={k} src={src} video={it.videos?.[k]} onDoubleClick={() => setLiked(true)} className={`w-full flex-shrink-0 snap-center aspect-square ${it.videos?.[k] ? 'object-contain' : 'object-cover'}`} />
+            <PostMedia key={k} src={src} video={it.videos?.[k]} onClick={tapPhoto} onDoubleClick={() => { if (tapTimer.current) clearTimeout(tapTimer.current); like(true); }} className={`w-full flex-shrink-0 snap-center aspect-square ${it.videos?.[k] ? 'object-contain' : 'object-cover'}`} />
           ))}
         </div>
         {it.photos.length > 1 && <span className="absolute right-2.5 top-2.5 px-2 py-0.5 rounded-full bg-black/55 text-white text-[11px] font-bold">{idx + 1}/{it.photos.length}</span>}
         {it.tagged.length > 0 && <span className="absolute left-2.5 bottom-2.5 px-2 py-0.5 rounded-full bg-black/55 text-white text-[11px] font-bold">👥 一緒に回った {it.tagged.length}人</span>}
       </div>
       <div className="flex items-center gap-4 px-3 pt-2.5 text-[22px] leading-none">
-        <button type="button" aria-label="いいね" onClick={() => { setLiked(!liked); if (!liked) testOnly(); }} className={liked ? 'text-orange' : ''}>{liked ? '♥' : '♡'}</button>
-        <button type="button" aria-label="コメント" onClick={() => testOnly('コメントはテスト版では書けません')}>💬</button>
+        <button type="button" aria-label="いいね" onClick={() => like(!liked)} className="flex items-center gap-1"><span className={liked ? 'text-orange' : ''}>{liked ? '♥' : '♡'}</span>{likes > 0 && <span className="text-[12px] font-black">{likes}</span>}</button>
+        <button type="button" aria-label="コメント" onClick={() => setViewing(true)} className="flex items-center gap-1"><span>💬</span>{comments > 0 && <span className="text-[12px] font-black">{comments}</span>}</button>
         {it.roundId && <Link href={`/round/${it.roundId}`} aria-label="ラウンドを開く" className="text-[20px]">⛳</Link>}
         {it.photos.length > 1 && (
           <span className="flex gap-1 mx-auto pr-12">
@@ -65,6 +81,10 @@ function PhotoPost({ it }: { it: Extract<FeedItem, { kind: 'photo' }> }) {
         )}
         <div className="text-[10.5px] text-muted mt-0.5">{ago(it.at)}</div>
       </div>
+      {viewing && (
+        <PostViewer isMe={false} onClose={() => setViewing(false)} onReaction={(r) => { setLiked(r.liked); setLikes(r.likes); setComments(r.comments.length); }}
+          tile={{ key: it.id, likeKey: it.likeKey, roundId: it.roundId, photos: it.photos, videos: it.videos, place: it.place, when: it.when, drink: false, caption: it.caption, mentions: it.mentions || [], at: it.at, by: it.user, postId: it.id.startsWith('test_') ? it.id.slice(5) : undefined }} />
+      )}
     </div>
   );
 }

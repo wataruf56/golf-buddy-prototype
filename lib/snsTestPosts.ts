@@ -121,5 +121,6 @@ export async function deletePost(meId: string, id: string): Promise<boolean> {
   if (objects.length) await import('./snsTestMedia').then((m) => Promise.all(objects.map(m.deleteVideo))).catch(() => {});
   await Promise.all(Array.from({ length: MAX_PHOTOS }, (_, i) => adb().collection(PHOTOS).doc(`${id}_${i}`).delete().catch(() => {})));
   await ref.delete();
+  await import('./snsTestReactions').then((m) => m.deleteReactions(`t_${id}`)).catch(() => {});
   return true;
 }
