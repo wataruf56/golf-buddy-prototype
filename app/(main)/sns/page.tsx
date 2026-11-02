@@ -4,11 +4,15 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Avatar } from '@/components/Avatar';
+import { NotifBell } from '@/components/sns/NotifBell';
+import { SNS_TABS_KEY } from '@/components/sns/SnsTabBar';
+import { useAvailBadge } from '@/lib/availBadge';
 import { PostViewer, sendReaction } from '@/components/sns/PostViewer';
 import { CaptionText, PostMedia, RingAvatar, SnsTestBadge, StoryViewer, type SnsUser, type Story } from '@/components/sns/SnsParts';
 
 // インスタ風ホームのテスト版（2026-10-31 本人指定）。運営だけが /sns を直接開いて見る（リンクはどこにも無い）。
 // 中身は今のゴルトモの会員・募集・写真（lib/snsTest・読むだけ）。いいね・リアクションは保存しない。
+// 2026-11-02（本人指定）：右上は 🔔（components/sns/NotifBell）。DM とマイページは下のタブへ（components/sns/SnsTabBar）。
 type FeedItem =
   | { kind: 'photo'; id: string; at: number; user: SnsUser; roundId: string; place: string; when: string; photos: string[]; videos?: string[]; caption: string; tagged: SnsUser[]; mentions?: SnsUser[]; likeKey: string; likes?: number; liked?: boolean; comments?: number; tagApproved?: boolean }
   | { kind: 'played'; id: string; at: number; roundId: string; place: string; when: string; members: SnsUser[]; drink: boolean }
@@ -133,6 +137,7 @@ export default function SnsHomePage() {
   const [data, setData] = useState<Home | null | 'none'>(null);
   const [open, setOpen] = useState<number | null>(null);
   const router = useRouter();
+  const availNew = useAvailBadge();
   const load = () => fetch('/api/sns/home', { cache: 'no-store', credentials: 'include' })
     .then((r) => (r.ok ? r.json() : 'none')).then(setData).catch(() => setData('none'));
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -142,12 +147,13 @@ export default function SnsHomePage() {
   return (
     <div className="pb-8 bg-card min-h-screen">
       <div className="sticky top-0 z-20 bg-card border-b border-hair flex items-center px-4 h-12">
-        <span className="text-[20px] font-black tracking-tight">ゴルトモ</span><SnsTestBadge />
+        <span className="text-[20px] font-black tracking-tight whitespace-nowrap">ゴルトモ</span><SnsTestBadge />
         <span className="ml-auto flex items-center gap-4 text-[20px]">
+          {/* 募集を立てる入口は、これまで今のホームにしか無かった */}
+          <Link href="/create" className="px-2 py-1 rounded-full bg-orange text-white text-[11px] font-black whitespace-nowrap">＋ 募集</Link>
           <Link href="/sns/post" aria-label="写真を投稿（テスト版）">📷</Link>
-          <Link href="/availability" aria-label="行ける日">📅</Link>
-          <Link href="/sns/dm" aria-label="メッセージ（テスト版）" className="relative">✉️{data.dmUnread > 0 && <span className="absolute -top-1.5 -right-2 min-w-[17px] h-[17px] px-1 rounded-full bg-red text-white text-[10px] font-black flex items-center justify-center border-2 border-card">{data.dmUnread}</span>}</Link>
-          <Link href="/sns/u/me" aria-label="自分のプロフィール"><Avatar user={data.me as any} size={26} /></Link>
+          <Link href="/availability" aria-label="行ける日" className="relative">📅{availNew > 0 && <span className="absolute -top-1.5 -right-2 min-w-[17px] h-[17px] px-1 rounded-full bg-red text-white text-[10px] font-black flex items-center justify-center border-2 border-card">{availNew > 99 ? '99+' : availNew}</span>}</Link>
+          <NotifBell />
         </span>
       </div>
 
@@ -182,6 +188,7 @@ export default function SnsHomePage() {
 
       <div className="text-center text-[10.5px] text-muted px-6 pt-5 leading-relaxed">
         テスト版：あなたにしか見えません。いいね・リアクション・フォロー・ひとこと・写真の投稿・メンション・テスト版のDMは、ほかの会員には伝わりません。
+        <Link href="/home" onClick={() => { try { sessionStorage.removeItem(SNS_TABS_KEY); } catch { /* noop */ } }} className="block mt-2 font-black text-sub underline">テスト版を終えて、今のタブに戻す</Link>
       </div>
       {open !== null && <StoryViewer stories={data.stories} start={open} onClose={() => { setOpen(null); load(); }} onChanged={load} />}
     </div>

@@ -13,6 +13,7 @@ import type { User } from '@/lib/types';
 import { GolfBallRating } from '@/components/GolfBallRating';
 import { MannerBadge } from '@/components/MannerBadge';
 import { PostViewer, type PostTile } from '@/components/sns/PostViewer';
+import { useUnreadCounts } from '@/lib/useUnread';
 
 // インスタ風プロフィールのテスト版（2026-10-31 本人指定・運営だけ・lib/snsTest）。
 // 数字は「ラウンド／フォロワー／フォロー」。DM は相互フォローのときだけ押せる。
@@ -25,6 +26,7 @@ import { PostViewer, type PostTile } from '@/components/sns/PostViewer';
 //             「タグ付け」タブ：許可した投稿だけ、来た人全員に見える。本人にだけ未許可の投稿も見え、1件ずつ許可／取り消しできる（誰にも通知しない）。
 // 2026-11-02（本人指定）：写真を開いた右上の「…」から編集・削除・非表示（components/sns/PostViewer）。非表示にしたものは写真タブの「非表示にした投稿」にだけ出て、本人にしか見えない。
 // 2026-11-02（本人指定）：許可したタグ付けは写真タブにも載る（🏷 の印）。「プロフィールをすべて見る」で、入力した項目を今のプロフィールと同じ欄（ProfileDetails）で見られる。
+// 2026-11-02（本人指定）：自分のプロフィールは下のタブ「マイページ」。ゴル友はここのボタンから、今のマイページ（設定・過去のラウンドなど）は右上の ☰ から。
 type Profile = {
   user: SnsUser & { bio: string; scoreRange: string; playStyle: string; golfHistory: string; golmotiName: string; frequency: string; availableDays: string; drinkStatus?: User['drinkStatus']; smokeStatus?: User['smokeStatus']; job: string; hobbies: string[]; instagram: string };
   isMe: boolean;
@@ -41,6 +43,7 @@ const TILE_BG = ['#DCEFEA', '#FCE6DD', '#E8EEF8', '#FFF1D6', '#EDE9F8', '#E4F2DC
 
 export default function SnsProfilePage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const { buddiesUnread } = useUnreadCounts();
   const [p, setP] = useState<Profile | null | 'none'>(null);
   const [tab, setTab] = useState<'grid' | 'tagged' | 'rounds' | 'plan' | 'buddy'>('grid');
   const [busy, setBusy] = useState(false);
@@ -123,9 +126,11 @@ export default function SnsProfilePage({ params }: { params: { id: string } }) {
   return (
     <div className="pb-8 bg-card min-h-screen">
       <div className="sticky top-0 z-20 bg-card border-b border-hair flex items-center px-3 h-12">
-        <button type="button" onClick={() => router.back()} aria-label="戻る" className="w-8 h-8 text-[20px]">‹</button>
-        <span className="text-[16px] font-black truncate">{u.name}</span><SnsTestBadge />
-        <Link href="/sns" className="ml-auto text-[12px] font-bold text-sub">ホーム</Link>
+        {params.id !== 'me' && <button type="button" onClick={() => router.back()} aria-label="戻る" className="w-8 h-8 text-[20px]">‹</button>}
+        <span className={`text-[16px] font-black truncate ${params.id === 'me' ? 'pl-1' : ''}`}>{u.name}</span><SnsTestBadge />
+        {params.id === 'me'
+          ? <Link href="/mypage" aria-label="今のマイページ（設定・過去のラウンドなど）" className="ml-auto w-8 h-8 flex items-center justify-center text-[20px]">☰</Link>
+          : <Link href="/sns" className="ml-auto text-[12px] font-bold text-sub">ホーム</Link>}
       </div>
 
       <div className="flex items-center gap-4 px-4 pt-4">
@@ -177,7 +182,12 @@ export default function SnsProfilePage({ params }: { params: { id: string } }) {
 
       <div className="flex gap-1.5 px-4 pt-3">
         {p.isMe ? (
-          <Link href="/mypage/edit" className="flex-1 py-2 rounded-lg bg-bg text-center text-[12.5px] font-black">プロフィールを編集</Link>
+          <>
+            <Link href="/mypage/edit" className="flex-1 py-2 rounded-lg bg-bg text-center text-[12.5px] font-black">プロフィールを編集</Link>
+            <Link href="/buddies" className="relative flex-1 py-2 rounded-lg bg-bg text-center text-[12.5px] font-black">👥 ゴル友
+              {buddiesUnread > 0 && <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-red text-white text-[10px] font-black flex items-center justify-center">{buddiesUnread > 9 ? '9+' : buddiesUnread}</span>}
+            </Link>
+          </>
         ) : (
           <>
             <button type="button" onClick={follow} disabled={busy}

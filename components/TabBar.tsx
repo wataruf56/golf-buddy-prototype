@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -7,6 +8,7 @@ import { useUnreadCounts } from '@/lib/useUnread';
 import { useStore } from '@/lib/store';
 import { userViewCohort } from '@/lib/ageGate';
 import { useAvailBadge } from '@/lib/availBadge';
+import { SnsTabBar, SNS_TABS_KEY } from '@/components/sns/SnsTabBar';
 
 // モック準拠のタブ（2026-10-08 タイムライン、2026-10-11 過去ラウンド、2026-10-14 行ける日を追加）（絵文字アイコン・クリーム地・インク枠・アクティブはティール）。
 // 「募集」はホームのタイルから、「マイ」はホームのプロフィールカードから到達する。
@@ -37,6 +39,21 @@ export function TabBar({ onBlock }: { onBlock?: (href: string) => boolean }) {
   const tabBadges: Record<string, number> = { buddies: buddiesUnread, avail: availNew };
   // 行ける日は1日1件で数えるので2桁になりやすい。99+ まで出す（ほかは従来どおり 9+）
   const badgeCap: Record<string, number> = { avail: 99 };
+  // テスト版（/sns・運営だけ）：インスタ風の下タブ。/sns を開いたら、さがす等へ移っても同じタブのまま（2026-11-02 本人指定）。
+  //   この端末のこの起動の間だけ覚える。/sns の一番下の「今のタブに戻す」で終わる。運営以外はこれまでのタブのまま。
+  const isAdmin = useStore((s) => s.isAdmin);
+  const hydrated = useStore((s) => s.hydrated);
+  const onSns = pathname === '/sns' || !!pathname?.startsWith('/sns/');
+  const [snsKept, setSnsKept] = useState(false);
+  useEffect(() => {
+    if (!isAdmin) { setSnsKept(false); return; }
+    try {
+      if (onSns) sessionStorage.setItem(SNS_TABS_KEY, '1');
+      setSnsKept(sessionStorage.getItem(SNS_TABS_KEY) === '1');
+    } catch { setSnsKept(onSns); }
+  }, [pathname, isAdmin, onSns]);
+  if (isAdmin && (onSns || snsKept)) return <SnsTabBar onBlock={onBlock} />;
+  if (onSns && !hydrated) return <div className="tab-bar h-[82px] bg-card border-t-2 border-border flex-shrink-0" />;   // 読み込みの間、今のタブを一瞬見せない
 
   return (
     <div className="tab-bar h-[82px] bg-card border-t-2 border-border flex items-start pt-2 flex-shrink-0">

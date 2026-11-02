@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Avatar } from '@/components/Avatar';
 import { SnsTestBadge, agoLabel, type SnsUser } from '@/components/sns/SnsParts';
 
@@ -10,7 +9,6 @@ import { SnsTestBadge, agoLabel, type SnsUser } from '@/components/sns/SnsParts'
 type Row = { other: SnsUser; last: { f: string; t: string; at: number }; unread: boolean; origin: string };
 
 export default function SnsDmListPage() {
-  const router = useRouter();
   const [rows, setRows] = useState<Row[] | null | 'none'>(null);
   useEffect(() => {
     fetch('/api/sns/dm', { cache: 'no-store', credentials: 'include' }).then((r) => (r.ok ? r.json() : 'none'))
@@ -19,8 +17,7 @@ export default function SnsDmListPage() {
   if (rows === 'none') return <div className="text-center text-[13px] text-muted py-20">ページが見つかりません</div>;
   return (
     <div className="pb-8 bg-card min-h-screen">
-      <div className="sticky top-0 z-20 bg-card border-b border-hair flex items-center px-3 h-12">
-        <button type="button" onClick={() => router.back()} aria-label="戻る" className="w-8 h-8 text-[20px]">‹</button>
+      <div className="sticky top-0 z-20 bg-card border-b border-hair flex items-center px-4 h-12">
         <span className="text-[16px] font-black">メッセージ</span><SnsTestBadge />
       </div>
       {!rows ? <div className="text-center text-[12px] text-muted py-16">読み込み中...</div>
