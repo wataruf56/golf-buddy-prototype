@@ -151,7 +151,7 @@ const membersOf = (r: Round) => registeredParticipantIds(r).filter((id) => !isNo
 const roundTitle = (r: Round) => String(r.courseName || r.title || (r.eventType === 'drink' ? '飲み会' : 'ラウンド')).slice(0, 30);
 
 export type FeedItem =
-  | { kind: 'photo'; id: string; at: number; user: SnsUser; roundId: string; place: string; when: string; photos: string[]; videos?: string[]; caption: string; tagged: SnsUser[]; mentions?: SnsUser[]; likeKey: string; likes?: number; liked?: boolean; comments?: number }
+  | { kind: 'photo'; id: string; at: number; user: SnsUser; roundId: string; place: string; when: string; photos: string[]; videos?: string[]; caption: string; tagged: SnsUser[]; mentions?: SnsUser[]; likeKey: string; likes?: number; liked?: boolean; comments?: number; tagApproved?: boolean }
   | { kind: 'played'; id: string; at: number; roundId: string; place: string; when: string; members: SnsUser[]; drink: boolean }
   | { kind: 'open'; id: string; at: number; roundId: string; host: SnsUser; title: string; when: string; area: string; left: number; joined: SnsUser[]; drink: boolean };
 
@@ -176,10 +176,13 @@ export async function buildHome(me: User): Promise<{ me: SnsUser; stories: Story
 
   const feed: FeedItem[] = [];
   const roundById = new Map(plain.map((r) => [r.id, r]));
+  // 自分が非表示にした写真は出さない（本物のアルバム・今日の写真は書き換えない）
+  const hiddenOwn = await import('./snsTestPosts').then((m) => m.hiddenTileKeys(me.id)).catch(() => new Set<string>());
   // 写真（アルバム）…募集ごとに1投稿（カルーセル）。投稿者は最初に上げた人
-  for (const [rid, arr] of Array.from(photos)) {
+  for (const [rid, all] of Array.from(photos)) {
     const r = roundById.get(rid);
     if (!r || !roundCohortOk(r)) continue;
+    const arr = hiddenOwn.has(`own_${rid}`) ? all.filter((p) => p.by !== me.id) : all;
     const by = arr.find((p) => okUser(p.by))?.by;
     if (!by) continue;
     const tagged = membersOf(r).filter((id) => id !== by && okUser(id)).map(P);
@@ -187,19 +190,19 @@ export async function buildHome(me: User): Promise<{ me: SnsUser; stories: Story
   }
   // タイムラインの「今日の写真」
   for (const p of posts) {
-    if (!okUser(p.userId)) continue;
+    if (!okUser(p.userId) || (p.userId === me.id && hiddenOwn.has(`own_${p.roundId}`))) continue;
     const r = roundById.get(p.roundId);
     const tagged = r ? membersOf(r).filter((id) => id !== p.userId && okUser(id)).map(P) : [];
     feed.push({ kind: 'photo', id: `post_${p.id}`, at: p.at, user: P(p.userId), roundId: p.roundId, place: r ? roundTitle(r) : '', when: r ? dateLabel(r.date) : '', photos: [p.url], caption: p.text, tagged, likeKey: `o_${p.userId}_${p.roundId || p.id}` });
   }
   // テスト版の写真投稿（lib/snsTestPosts・2026-11-01）
-  const testPosts = await import('./snsTestPosts').then((m) => m.listPosts()).catch(() => []);
+  const testPosts = await import('./snsTestPosts').then((m) => m.listPosts()).then((l) => l.filter((p) => !p.archived)).catch(() => []);
   await ctx.load(testPosts.flatMap((p) => [p.uid, ...p.mentions]));
   for (const p of testPosts) {
     if (p.uid !== me.id && !okUser(p.uid)) continue;
     const r = roundById.get(p.roundId);
     const tagged = r ? membersOf(r).filter((id) => id !== p.uid && okUser(id)).map(P) : [];
-    feed.push({ kind: 'photo', id: `test_${p.id}`, at: p.at, user: P(p.uid), roundId: r ? p.roundId : '', place: r ? roundTitle(r) : '', when: r ? dateLabel(r.date) : '', photos: p.photos, videos: p.videos, caption: p.caption, tagged, mentions: p.mentions.filter(okUser).map(P), likeKey: `t_${p.id}` });
+    feed.push({ kind: 'photo', id: `test_${p.id}`, at: p.at, user: P(p.uid), roundId: r ? p.roundId : '', place: r ? roundTitle(r) : '', when: r ? dateLabel(r.date) : '', photos: p.photos, videos: p.videos, caption: p.caption, tagged, mentions: p.mentions.filter(okUser).map(P), likeKey: `t_${p.id}`, tagApproved: p.tagApproved.includes(me.id) });
   }
   const testPostRounds = new Set(testPosts.map((p) => p.roundId));
   // 写真の無い、終わったラウンド（直近60日）
@@ -273,26 +276,29 @@ export async function buildHome(me: User): Promise<{ me: SnsUser; stories: Story
 // プロフィールのマス。photos があるマスは押すと写真が大きく開く。無いマス（過去参加したラウンドだけ）は押すと（自分なら）そのラウンドの写真を投稿する画面へ（2026-11-01）。
 // タブ（2026-11-01 本人指定）：写真＝本人が上げたもの／タグ付け＝本人が許可した投稿（本人にだけ未許可も見える）／過去参加したラウンド＝参加したラウンド全部。
 // 2026-11-02 本人指定：許可したタグ付けは写真タブにも載る。タグ付けの対象は写真・動画の投稿（snsTestPosts）だけ（ひとこと・ラウンド・アルバムは入らない）。
-export type ProfileTile = { key: string; likeKey: string; postId?: string; roundId: string; photos: string[]; videos?: string[]; place: string; when: string; drink: boolean; caption: string; mentions: SnsUser[]; at: number; by?: SnsUser; tagApproved?: boolean };
+export type ProfileTile = { key: string; likeKey: string; postId?: string; roundId: string; photos: string[]; videos?: string[]; place: string; when: string; drink: boolean; caption: string; mentions: SnsUser[]; at: number; by?: SnsUser; tagApproved?: boolean; archived?: boolean };
 export async function buildProfile(me: User, targetId: string) {
   const ctx = await context(me);
   await ctx.load([targetId]);
   const u = ctx.userOf.get(targetId);
   if (!u || (targetId !== me.id && ctx.hidden(targetId))) return null;
   const today = jstToday();
-  const [rounds, photos, posts, followers, following, myFollowing, testPosts, taggedAll] = await Promise.all([
+  const [rounds, photos, posts, followers, following, myFollowing, ownPosts, taggedAll, hiddenOwn] = await Promise.all([
     allRounds(), albumPhotos(), timelinePosts(ctx.cohort), followersOf(u), followingOf(u), followingOf(me),
     import('./snsTestPosts').then((m) => m.listPosts(targetId)).catch(() => []),
     import('./snsTestPosts').then((m) => (targetId === me.id ? m.listTaggedWithSamples(me.id, pub(me).name) : m.listTagged(targetId))).catch(() => []),
+    import('./snsTestPosts').then((m) => m.hiddenTileKeys(targetId)).catch(() => new Set<string>()),
   ]);
+  // 非表示にした投稿は、本人の「非表示にした投稿」にだけ出す
+  const testPosts = ownPosts.filter((p) => !p.archived);
   const mine = rounds.filter(isPlainRound).filter((r) => membersOf(r).includes(targetId));
   const done = mine.filter((r) => isDone(r, today)).sort((a, b) => String(b.date).localeCompare(String(a.date)));
   const upcoming = mine.filter((r) => !isDone(r, today) && r.status !== 'completed' && !!r.date && r.date >= today).sort((a, b) => String(a.date).localeCompare(String(b.date)));
   const postByRound = new Map(posts.filter((p) => p.userId === targetId).map((p) => [p.roundId, p]));
   const allRoundById = new Map(rounds.map((r) => [r.id, r]));
   // タグ付け：ほかの人が見られるのは、本人が許可した投稿だけ（未許可はサーバーから返さない）
-  const taggedPosts = taggedAll.filter((p) => p.photos.length > 0 && p.uid !== targetId && (targetId === me.id || p.tagApproved.includes(targetId)));
-  await ctx.load([...testPosts, ...taggedPosts].flatMap((p) => [p.uid, ...p.mentions]));
+  const taggedPosts = taggedAll.filter((p) => !p.archived && p.photos.length > 0 && p.uid !== targetId && (targetId === me.id || p.tagApproved.includes(targetId)));
+  await ctx.load([...ownPosts, ...taggedPosts].flatMap((p) => [p.uid, ...p.mentions]));
   const postTile = (p: import('./snsTestPosts').TestPost): ProfileTile => {
     const r = allRoundById.get(p.roundId);
     return {
@@ -307,16 +313,20 @@ export async function buildProfile(me: User, targetId: string) {
   const roundAt = (r: Round) => (r.date ? new Date(`${r.date}T18:00:00+09:00`).getTime() : (r.createdAt || 0));
   const roundBase = (r: Round) => ({ roundId: r.id, place: roundTitle(r), when: dateLabel(r.date), drink: r.eventType === 'drink', mentions: [] as SnsUser[], at: roundAt(r) });
   // 写真タブ：本人が上げたもの（テスト版の投稿＋今日の写真＋アルバムに本人が上げた写真）＋本人が許可したタグ付け
-  const ownRoundTiles: ProfileTile[] = done.flatMap((r) => {
+  const allOwnRoundTiles: ProfileTile[] = done.flatMap((r) => {
     const post = postByRound.get(r.id);
     const own = [...(post ? [post.url] : []), ...(photos.get(r.id) || []).filter((x) => x.by === targetId).map((x) => x.url)].slice(0, 10);
     return own.length ? [{ ...roundBase(r), key: `own_${r.id}`, likeKey: `o_${targetId}_${r.id}`, photos: own, caption: post?.text || '' }] : [];
   });
+  const ownRoundTiles = allOwnRoundTiles.filter((t) => !hiddenOwn.has(t.key));
+  const archived: ProfileTile[] = targetId !== me.id ? [] : [...ownPosts.filter((p) => p.archived).map(postTile), ...allOwnRoundTiles.filter((t) => hiddenOwn.has(t.key))]
+    .map((t) => ({ ...t, archived: true })).sort((a, b) => b.at - a.at);
   const tiles = [...testPosts.map(postTile), ...ownRoundTiles, ...tagged.filter((t) => t.tagApproved)].sort((a, b) => b.at - a.at);
   // 過去参加したラウンド：参加したラウンド全部。写真はそのラウンドの全員分
   const pastRounds: ProfileTile[] = done.map((r) => {
-    const post = postByRound.get(r.id);
-    const base = [...(post ? [post.url] : []), ...(photos.get(r.id) || []).map((x) => x.url)];
+    const off = hiddenOwn.has(`own_${r.id}`);
+    const post = off ? undefined : postByRound.get(r.id);
+    const base = [...(post ? [post.url] : []), ...(photos.get(r.id) || []).filter((x) => !off || x.by !== targetId).map((x) => x.url)];
     const mineHere = testPosts.filter((p) => p.roundId === r.id);
     return {
       ...roundBase(r), key: r.id, likeKey: `r_${r.id}`, caption: post?.text || '',
@@ -343,7 +353,7 @@ export async function buildProfile(me: User, targetId: string) {
     stats: { rounds: done.length, followers: Array.from(followers).filter(okUser).length, following: Array.from(following).filter(okUser).length },
     iFollow, followsMe, mutual: iFollow && followsMe,
     known: known.slice(0, 2), knownMore: Math.max(0, known.length - 2),
-    tiles, tagged, pastRounds,
+    tiles, tagged, pastRounds, archived,
     upcoming: upcoming.slice(0, 10).map((r) => ({ roundId: r.id, title: String(r.title || roundTitle(r)).slice(0, 40), when: `${dateLabel(r.date)}${r.startTime ? ` ${r.startTime}` : ''}`, area: r.area || '', host: r.hostId === targetId })),
     buddies: buddies.slice(0, 40),
   };

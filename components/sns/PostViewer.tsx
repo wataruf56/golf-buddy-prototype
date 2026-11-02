@@ -9,8 +9,9 @@ import { CaptionText, PostMedia, RingAvatar, agoLabel, snsUserHref, type SnsUser
 
 // 写真を押したときに開く画面（テスト版・2026-11-01）。押した投稿だけを出す（本人指定）。写真は切り抜かず全体を見せる。
 // いいね・コメントができる（lib/snsTestReactions・テスト版の中だけの記録で、誰にも通知しない）。
-// by があるマス（タグ付けされた投稿・ホームの投稿）は、投稿したのがプロフィールの人ではなく by の人。消せるのは投稿した本人だけなので、消すボタンも出さない。
-export type PostTile = { key: string; likeKey: string; postId?: string; roundId: string; photos: string[]; videos?: string[]; place: string; when: string; drink: boolean; caption: string; mentions: SnsUser[]; at: number; by?: SnsUser; tagApproved?: boolean };
+// by があるマス（タグ付けされた投稿・ホームの投稿）は、投稿したのがプロフィールの人ではなく by の人。
+// 右上の「…」（2026-11-02 本人指定）：自分の投稿は編集・非表示・削除。自分がタグ付けされた投稿は非表示・タグを外す。本物のアルバムの写真は非表示だけ。ほかの人の投稿には出さない。
+export type PostTile = { key: string; likeKey: string; postId?: string; roundId: string; photos: string[]; videos?: string[]; place: string; when: string; drink: boolean; caption: string; mentions: SnsUser[]; at: number; by?: SnsUser; tagApproved?: boolean; archived?: boolean };
 export type Reactions = { likes: number; liked: boolean; comments: { id: string; user: SnsUser; text: string; at: number; mine: boolean }[] };
 
 export async function sendReaction(likeKey: string, body: Record<string, unknown>): Promise<Reactions> {
@@ -24,6 +25,7 @@ export function PostViewer({ user: owner, tile: t, isMe, onClose, onDeleted, onR
   const user = (t.by || owner)!;
   const href = t.by ? snsUserHref(t.by.id) : '';
   const [idx, setIdx] = useState(0);
+  const [menu, setMenu] = useState(false);
   const [asking, setAsking] = useState(false);
   const [askingComment, setAskingComment] = useState('');
   const [r, setR] = useState<Reactions | null>(null);
@@ -63,15 +65,22 @@ export function PostViewer({ user: owner, tile: t, isMe, onClose, onDeleted, onR
     catch { toast('うまくいきませんでした', 'error'); }
     setAskingComment('');
   }
-  async function remove() {
+  // 「…」の中身。終わったら一覧を読み直して、この画面を閉じる
+  async function act(path: string, body: Record<string, unknown>, done: string) {
+    setMenu(false);
     try {
-      const x = await fetch(`/api/sns/post/${encodeURIComponent(t.postId!)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ action: 'delete' }) });
+      const x = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(body) });
       if (!x.ok) throw new Error();
-      toast('投稿を消しました');
+      toast(done);
       onDeleted?.();
       window.history.back();
     } catch { toast('うまくいきませんでした', 'error'); }
   }
+  const postPath = `/api/sns/post/${encodeURIComponent(t.postId || '')}`;
+  const ownPost = isMe && !t.by && !!t.postId;
+  const taggedMine = isMe && !!t.by && !!t.postId;
+  const ownAlbum = isMe && !t.by && !t.postId && t.key.startsWith('own_');
+  const menuItem = 'block w-full px-4 py-3 text-left text-[13px] font-black border-b border-hair last:border-0';
 
   return (
     <Portal>
@@ -80,7 +89,28 @@ export function PostViewer({ user: owner, tile: t, isMe, onClose, onDeleted, onR
           <div className="flex items-center px-3 h-12 border-b border-hair flex-shrink-0">
             <button type="button" onClick={() => window.history.back()} aria-label="閉じる" className="w-8 h-8 text-[20px]">‹</button>
             <span className="text-[15px] font-black">投稿</span>
+            {(ownPost || taggedMine || ownAlbum) && (
+              <button type="button" onClick={() => { setMenu(!menu); setAsking(false); }} aria-label="メニュー" aria-expanded={menu} className="ml-auto w-10 h-8 text-[20px] font-black leading-none">…</button>
+            )}
           </div>
+          {menu && (
+            <>
+              <button type="button" aria-label="メニューを閉じる" onClick={() => setMenu(false)} className="fixed inset-0 z-10 cursor-default" />
+              <div className="absolute z-20 mt-12 mr-2 self-start w-[220px] rounded-xl bg-card border border-border shadow-lg overflow-hidden" style={{ right: 'max(0px, calc((100vw - 480px) / 2))' }}>
+                {ownPost && <Link href={`/sns/post?edit=${encodeURIComponent(t.postId!)}`} className={menuItem}>編集</Link>}
+                {ownPost && <button type="button" onClick={() => act(postPath, { action: 'archive', on: !t.archived }, t.archived ? '表示に戻しました' : '非表示にしました')} className={menuItem}>{t.archived ? '表示に戻す' : '非表示'}</button>}
+                {ownPost && (asking
+                  ? <button type="button" onClick={() => act(postPath, { action: 'delete' }, '投稿を削除しました')} className={`${menuItem} text-red`}>本当に削除する</button>
+                  : <button type="button" onClick={() => setAsking(true)} className={`${menuItem} text-red`}>削除</button>)}
+                {taggedMine && <button type="button" onClick={() => act(postPath, { action: 'tag', on: !t.tagApproved }, t.tagApproved ? '非表示にしました' : '写真に載せました')} className={menuItem}>{t.tagApproved ? '非表示（写真から外す）' : '写真に載せる'}</button>}
+                {taggedMine && (asking
+                  ? <button type="button" onClick={() => act(postPath, { action: 'untag' }, 'タグを外しました')} className={`${menuItem} text-red`}>本当にタグを外す</button>
+                  : <button type="button" onClick={() => setAsking(true)} className={`${menuItem} text-red`}>タグを外す</button>)}
+                {ownAlbum && <button type="button" onClick={() => act('/api/sns/hidden', { key: t.key, on: !t.archived }, t.archived ? '表示に戻しました' : '非表示にしました')} className={menuItem}>{t.archived ? '表示に戻す' : '非表示'}</button>}
+                {ownAlbum && <div className="px-4 py-2.5 text-[10.5px] font-bold text-muted leading-snug">今のアルバムの写真なので、テスト版では編集と削除はできません。</div>}
+              </div>
+            </>
+          )}
           <div className="flex-1 overflow-y-auto">
             <div className="flex items-center gap-2.5 px-3 py-2.5">
               <RingAvatar user={user} size={36} />
@@ -90,9 +120,6 @@ export function PostViewer({ user: owner, tile: t, isMe, onClose, onDeleted, onR
                   ? <Link href={`/round/${t.roundId}`} className="block text-[11px] text-sub truncate">{t.place}{t.when ? `・${t.when}` : ''}</Link>
                   : <div className="text-[11px] text-sub truncate">{t.place}</div>)}
               </div>
-              {isMe && t.postId && !t.by && (asking
-                ? <button type="button" onClick={remove} className="px-2.5 py-1 rounded-lg bg-red text-white text-[11px] font-black flex-shrink-0">本当に消す</button>
-                : <button type="button" onClick={() => setAsking(true)} className="px-2.5 py-1 rounded-lg bg-bg text-sub text-[11px] font-black flex-shrink-0">消す</button>)}
             </div>
             <div className="relative bg-black">
               <div className="flex overflow-x-auto snap-x snap-mandatory" style={{ scrollbarWidth: 'none' }}

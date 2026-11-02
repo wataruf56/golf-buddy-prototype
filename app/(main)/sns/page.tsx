@@ -10,7 +10,7 @@ import { CaptionText, PostMedia, RingAvatar, SnsTestBadge, StoryViewer, type Sns
 // インスタ風ホームのテスト版（2026-10-31 本人指定）。運営だけが /sns を直接開いて見る（リンクはどこにも無い）。
 // 中身は今のゴルトモの会員・募集・写真（lib/snsTest・読むだけ）。いいね・リアクションは保存しない。
 type FeedItem =
-  | { kind: 'photo'; id: string; at: number; user: SnsUser; roundId: string; place: string; when: string; photos: string[]; videos?: string[]; caption: string; tagged: SnsUser[]; mentions?: SnsUser[]; likeKey: string; likes?: number; liked?: boolean; comments?: number }
+  | { kind: 'photo'; id: string; at: number; user: SnsUser; roundId: string; place: string; when: string; photos: string[]; videos?: string[]; caption: string; tagged: SnsUser[]; mentions?: SnsUser[]; likeKey: string; likes?: number; liked?: boolean; comments?: number; tagApproved?: boolean }
   | { kind: 'played'; id: string; at: number; roundId: string; place: string; when: string; members: SnsUser[]; drink: boolean }
   | { kind: 'open'; id: string; at: number; roundId: string; host: SnsUser; title: string; when: string; area: string; left: number; joined: SnsUser[]; drink: boolean };
 type Home = { me: SnsUser; stories: Story[]; feed: FeedItem[]; dmUnread: number };
@@ -24,12 +24,15 @@ function ago(at: number): string {
   return d < 30 ? `${d}日前` : `${Math.floor(d / 30)}か月前`;
 }
 
-function PhotoPost({ it }: { it: Extract<FeedItem, { kind: 'photo' }> }) {
+function PhotoPost({ it, meId, onChanged }: { it: Extract<FeedItem, { kind: 'photo' }>; meId: string; onChanged: () => void }) {
   const [idx, setIdx] = useState(0);
   const [liked, setLiked] = useState(!!it.liked);
   const [likes, setLikes] = useState(it.likes || 0);
   const [comments, setComments] = useState(it.comments || 0);
   const [viewing, setViewing] = useState(false);
+  const isTest = it.id.startsWith('test_');
+  const mine = isTest && it.user.id === meId;   // 「…」を出す：自分の投稿と、自分がタグ付けされた投稿（テスト版の投稿だけ）
+  const taggedMe = isTest && !!it.mentions?.some((u) => u.id === meId);
   const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 写真を押すとこの投稿だけが開く（PostViewer）。2回続けて押したときは開かずにいいね
   const tapPhoto = () => {
@@ -82,8 +85,8 @@ function PhotoPost({ it }: { it: Extract<FeedItem, { kind: 'photo' }> }) {
         <div className="text-[10.5px] text-muted mt-0.5">{ago(it.at)}</div>
       </div>
       {viewing && (
-        <PostViewer isMe={false} onClose={() => setViewing(false)} onReaction={(r) => { setLiked(r.liked); setLikes(r.likes); setComments(r.comments.length); }}
-          tile={{ key: it.id, likeKey: it.likeKey, roundId: it.roundId, photos: it.photos, videos: it.videos, place: it.place, when: it.when, drink: false, caption: it.caption, mentions: it.mentions || [], at: it.at, by: it.user, postId: it.id.startsWith('test_') ? it.id.slice(5) : undefined }} />
+        <PostViewer user={it.user} isMe={mine || taggedMe} onClose={() => setViewing(false)} onDeleted={onChanged} onReaction={(r) => { setLiked(r.liked); setLikes(r.likes); setComments(r.comments.length); }}
+          tile={{ key: it.id, likeKey: it.likeKey, roundId: it.roundId, photos: it.photos, videos: it.videos, place: it.place, when: it.when, drink: false, caption: it.caption, mentions: it.mentions || [], at: it.at, by: mine ? undefined : it.user, tagApproved: it.tagApproved, postId: isTest ? it.id.slice(5) : undefined }} />
       )}
     </div>
   );
@@ -175,7 +178,7 @@ export default function SnsHomePage() {
       </div>
 
       {data.feed.length === 0 && <div className="text-center text-[12px] text-muted py-14">まだ投稿がありません</div>}
-      {data.feed.map((it) => it.kind === 'photo' ? <PhotoPost key={it.id} it={it} /> : it.kind === 'played' ? <PlayedPost key={it.id} it={it} /> : <OpenPost key={it.id} it={it} />)}
+      {data.feed.map((it) => it.kind === 'photo' ? <PhotoPost key={it.id} it={it} meId={data.me.id} onChanged={load} /> : it.kind === 'played' ? <PlayedPost key={it.id} it={it} /> : <OpenPost key={it.id} it={it} />)}
 
       <div className="text-center text-[10.5px] text-muted px-6 pt-5 leading-relaxed">
         テスト版：あなたにしか見えません。いいね・リアクション・フォロー・ひとこと・写真の投稿・メンション・テスト版のDMは、ほかの会員には伝わりません。

@@ -23,6 +23,7 @@ import { PostViewer, type PostTile } from '@/components/sns/PostViewer';
 //             自分のプロフィールに「写真を投稿」（/sns/post・lib/snsTestPosts）。
 // 2026-11-01（本人指定）：写真タブは本人が上げたものだけ。ラウンドは「過去参加したラウンド」タブにまとめる。
 //             「タグ付け」タブ：許可した投稿だけ、来た人全員に見える。本人にだけ未許可の投稿も見え、1件ずつ許可／取り消しできる（誰にも通知しない）。
+// 2026-11-02（本人指定）：写真を開いた右上の「…」から編集・削除・非表示（components/sns/PostViewer）。非表示にしたものは写真タブの「非表示にした投稿」にだけ出て、本人にしか見えない。
 // 2026-11-02（本人指定）：許可したタグ付けは写真タブにも載る（🏷 の印）。「プロフィールをすべて見る」で、入力した項目を今のプロフィールと同じ欄（ProfileDetails）で見られる。
 type Profile = {
   user: SnsUser & { bio: string; scoreRange: string; playStyle: string; golfHistory: string; golmotiName: string; frequency: string; availableDays: string; drinkStatus?: User['drinkStatus']; smokeStatus?: User['smokeStatus']; job: string; hobbies: string[]; instagram: string };
@@ -31,7 +32,7 @@ type Profile = {
   stats: { rounds: number; followers: number; following: number };
   iFollow: boolean; followsMe: boolean; mutual: boolean;
   known: string[]; knownMore: number;
-  tiles: PostTile[]; tagged: PostTile[]; pastRounds: PostTile[];
+  tiles: PostTile[]; tagged: PostTile[]; pastRounds: PostTile[]; archived: PostTile[];
   upcoming: { roundId: string; title: string; when: string; area: string; host: boolean }[];
   buddies: { user: SnsUser; n: number }[];
 };
@@ -47,6 +48,7 @@ export default function SnsProfilePage({ params }: { params: { id: string } }) {
   const [viewing, setViewing] = useState<string | null>(null);
   const [tagBusy, setTagBusy] = useState('');
   const [showAll, setShowAll] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [track, setTrack] = useState<{ roundedWith: number; againCount: number; neverCount: number; mannerPenalty: number } | null>(null);
   const load = () => fetch(`/api/sns/user/${encodeURIComponent(params.id)}`, { cache: 'no-store', credentials: 'include' })
     .then((r) => (r.ok ? r.json() : 'none')).then(setP).catch(() => setP('none'));
@@ -86,7 +88,7 @@ export default function SnsProfilePage({ params }: { params: { id: string } }) {
   };
   const pending = p.tagged.filter((t) => !t.tagApproved);
   const approved = p.tagged.filter((t) => t.tagApproved);
-  const viewingTile = viewing ? (tab === 'tagged' ? p.tagged : tab === 'rounds' ? p.pastRounds : p.tiles).find((t) => t.key === viewing) : null;
+  const viewingTile = viewing ? (tab === 'tagged' ? p.tagged : tab === 'rounds' ? p.pastRounds : [...p.tiles, ...p.archived]).find((t) => t.key === viewing) : null;
   // 写真のマス（押すと大きく開く）。動画は表紙に ▶
   const photoTile = (t: PostTile, k: number, label?: boolean) => (
     <button key={t.key} type="button" onClick={() => setViewing(t.key)} aria-label="写真を大きく見る" className="relative aspect-square overflow-hidden" style={{ background: TILE_BG[k % TILE_BG.length] }}>
@@ -211,6 +213,12 @@ export default function SnsProfilePage({ params }: { params: { id: string } }) {
           {p.tiles.map((t, k) => photoTile(t, k))}
         </div>
       ) : <div className="text-center text-[12px] text-muted py-12">まだ写真がありません</div>)}
+      {tab === 'grid' && p.archived.length > 0 && (
+        <div className="pt-3">
+          <button type="button" onClick={() => setShowArchived(!showArchived)} aria-expanded={showArchived} className="block w-full px-3 py-2.5 text-left text-[12.5px] font-black text-sub">非表示にした投稿（{p.archived.length}）{showArchived ? ' ▴' : ' ▾'}</button>
+          {showArchived && <div className="grid grid-cols-3 gap-[2px]">{p.archived.map((t, k) => photoTile(t, k))}</div>}
+        </div>
+      )}
 
       {tab === 'tagged' && (p.isMe ? (
         <div>

@@ -13,8 +13,9 @@ import { MAX_VIDEO_MB, MAX_VIDEO_SEC, isVideoFile, readVideo, uploadVideo } from
 // ?round=… で開くと、そのラウンドを選んだ状態で始まる（プロフィールの写真の無いマスから来たとき）。
 // 写真と動画は合わせて10個まで。文章の中で「@」を打つか「＠ メンション」を押すと、人を選んで入れられる（相手に通知は届かない）。
 // 動画は1本60秒・200MBまで。投稿のときに端末からバケットへ直接送る（lib/snsVideoClient）。
+// ?edit=投稿ID で開くと編集（2026-11-02 本人指定）。文章・タグ・ラウンドを直せる。写真と動画は変えない。
 const MAX = 10;
-type Item = { src: string; file?: File; object?: string };   // 動画は src が表紙、file が本体、object が送り終えた置き場所
+type Item = { src: string; file?: File; object?: string; video?: boolean };   // 動画は src が表紙、file が本体、object が送り終えた置き場所
 
 export default function SnsPostPage() {
   return <Suspense fallback={null}><Inner /></Suspense>;
@@ -25,6 +26,7 @@ function Inner() {
   const search = useSearchParams();
   const fileRef = useRef<HTMLInputElement>(null);
   const captionRef = useRef<HTMLTextAreaElement>(null);
+  const editId = search?.get('edit') || '';
   const [rounds, setRounds] = useState<{ id: string; place: string; when: string }[] | null | 'none'>(null);
   const [people, setPeople] = useState<SnsUser[]>([]);
   const [cursor, setCursor] = useState(0);
@@ -36,9 +38,19 @@ function Inner() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   useEffect(() => {
-    fetch('/api/sns/post', { cache: 'no-store', credentials: 'include' }).then((r) => (r.ok ? r.json() : 'none'))
-      .then((j) => { setRounds(j === 'none' ? 'none' : j.rounds); if (j !== 'none') setPeople(j.people || []); }).catch(() => setRounds('none'));
-  }, []);
+    const opts = fetch('/api/sns/post', { cache: 'no-store', credentials: 'include' }).then((r) => (r.ok ? r.json() : 'none'));
+    const own = editId ? fetch(`/api/sns/post/${encodeURIComponent(editId)}`, { cache: 'no-store', credentials: 'include' }).then((r) => (r.ok ? r.json() : 'none')) : Promise.resolve(null);
+    Promise.all([opts, own]).then(([j, e]) => {
+      if (j === 'none' || e === 'none') { setRounds('none'); return; }
+      setRounds(j.rounds);
+      const list: SnsUser[] = j.people || [];
+      setPeople([...list, ...(e?.mentions || []).filter((u: SnsUser) => !list.some((x) => x.id === u.id))]);
+      if (e) {
+        setPhotos(e.photos.map((src: string, k: number) => ({ src, video: !!e.videos?.[k] })));
+        setCaption(e.caption); setCursor(e.caption.length); setRoundId(e.roundId);
+      }
+    }).catch(() => setRounds('none'));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (rounds === 'none') return <div className="text-center text-[13px] text-muted py-20">ページが見つかりません</div>;
   if (rounds === null) return <div className="text-center text-[12px] text-muted py-20">読み込み中...</div>;
 
@@ -88,6 +100,17 @@ function Inner() {
     moveCursor(Math.min(head.length, 500));
   }
 
+  async function saveEdit() {
+    if (busy) return;
+    setBusy(true); setErr('');
+    try {
+      const r = await fetch(`/api/sns/post/${encodeURIComponent(editId)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ action: 'edit', caption, roundId, mentions: people.filter((u) => caption.includes(`@${u.name}`)).map((u) => u.id) }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.message || 'うまくいきませんでした');
+      toast('保存しました');
+      router.replace('/sns/u/me');
+    } catch (e) { setErr((e as Error).message); setBusy(false); }
+  }
   async function post() {
     if (busy) return;
     if (!photos.length) { setErr('写真か動画を選んでください'); return; }
@@ -112,8 +135,8 @@ function Inner() {
     <div className="pb-10 bg-card min-h-screen">
       <div className="sticky top-0 z-20 bg-card border-b border-hair flex items-center px-3 h-12">
         <button type="button" onClick={() => router.back()} aria-label="閉じる" className="w-8 h-8 text-[22px] leading-none">×</button>
-        <span className="text-[16px] font-black">投稿</span><SnsTestBadge />
-        <button type="button" onClick={post} disabled={busy || loading} className="ml-auto px-4 py-1.5 rounded-full bg-orange text-white text-[13px] font-black disabled:opacity-50">{busy ? '…' : '投稿'}</button>
+        <span className="text-[16px] font-black">{editId ? '投稿を編集' : '投稿'}</span><SnsTestBadge />
+        <button type="button" onClick={editId ? saveEdit : post} disabled={busy || loading} className="ml-auto px-4 py-1.5 rounded-full bg-orange text-white text-[13px] font-black disabled:opacity-50">{busy ? '…' : editId ? '保存' : '投稿'}</button>
       </div>
 
       <input ref={fileRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={(e) => { pick(e.target.files); e.target.value = ''; }} />
@@ -127,18 +150,18 @@ function Inner() {
             <div key={k} className="relative flex-shrink-0 w-[70%] aspect-square rounded-2xl overflow-hidden bg-bg">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={item.src} alt="" className="w-full h-full object-cover" />
-              {item.file && <span className="absolute left-2 top-2 px-2 py-0.5 rounded-full bg-black/60 text-white text-[11px] font-black">▶ 動画</span>}
-              <button type="button" onClick={() => setPhotos(photos.filter((_, j) => j !== k))} aria-label="これを外す" className="absolute right-2 top-2 w-7 h-7 rounded-full bg-black/60 text-white text-[15px] leading-none">×</button>
+              {(item.file || item.video) && <span className="absolute left-2 top-2 px-2 py-0.5 rounded-full bg-black/60 text-white text-[11px] font-black">▶ 動画</span>}
+              {!editId && <button type="button" onClick={() => setPhotos(photos.filter((_, j) => j !== k))} aria-label="これを外す" className="absolute right-2 top-2 w-7 h-7 rounded-full bg-black/60 text-white text-[15px] leading-none">×</button>}
             </div>
           ))}
-          {photos.length < MAX && (
+          {!editId && photos.length < MAX && (
             <button type="button" onClick={() => fileRef.current?.click()} className="flex-shrink-0 w-[35%] rounded-2xl border-2 border-dashed border-border text-sub text-[12.5px] font-black">{loading ? '…' : '＋ 追加'}</button>
           )}
         </div>
       )}
       {progress && <div className="px-4 pt-2 text-[12px] font-black text-green">{progress}</div>}
       {err && <div className="px-4 pt-2 text-[12px] font-black text-red">{err}</div>}
-      <div className="px-4 pt-1.5 text-[10.5px] text-muted">動画は1本{MAX_VIDEO_SEC}秒・{MAX_VIDEO_MB}MBまで</div>
+      <div className="px-4 pt-1.5 text-[10.5px] text-muted">{editId ? '写真と動画は変えられません（文章・タグ・ラウンドを直せます）' : `動画は1本${MAX_VIDEO_SEC}秒・${MAX_VIDEO_MB}MBまで`}</div>
 
       <div className="px-4 pt-3">
         <textarea ref={captionRef} value={caption} maxLength={500} rows={4} placeholder="文章を書く（なくてもOK）  @で人をメンション"

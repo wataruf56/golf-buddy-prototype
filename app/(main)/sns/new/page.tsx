@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { SnsTestBadge } from '@/components/sns/SnsParts';
 import { toast } from '@/components/Toast';
 import { resizeImage } from '@/lib/resizeImage';
+import { regionOf } from '@/lib/snsRegions';
 import { MAX_VIDEO_MB, MAX_VIDEO_SEC, isVideoFile, readVideo, uploadVideo } from '@/lib/snsVideoClient';
 
 // ひとことを書く（テスト版・運営だけ・lib/snsTestTalk）。24時間で消える。
@@ -35,13 +36,17 @@ export default function SnsNewStoryPage() {
   const [poll, setPoll] = useState(false);
   const [choices, setChoices] = useState<string[]>(DEFAULT_CHOICES);
   const [scope, setScope] = useState<'all' | 'followers' | 'mutual'>('all');   // 基本は同じ地域（2026-11-02 本人指定）
-  const [area, setArea] = useState('');
+  const [region, setRegion] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   // テスト版を見られる人か（運営だけ）。見られない人には何も出さない
   useEffect(() => {
     fetch('/api/sns/user/me', { cache: 'no-store', credentials: 'include' }).then(async (r) => {
-      if (r.ok) setArea((await r.json())?.user?.area || '');
+      if (r.ok) {
+        const reg = regionOf((await r.json())?.user?.area);
+        setRegion(reg);
+        if (!reg) setScope('followers');   // エリアが「その他」や未設定の人は、同じ地域を選べない
+      }
       setOk(r.ok);
     }).catch(() => setOk(false));
   }, []);
@@ -169,9 +174,9 @@ export default function SnsNewStoryPage() {
       <div className="px-4 pt-4">
         <div className="text-[13px] font-black mb-1.5">見られる人</div>
         <div className="flex gap-1.5 flex-wrap">
-          {([['all', `同じ地域${area ? `（${area}）` : ''}の20〜30代`], ['followers', 'フォロワーだけ'], ['mutual', '相互フォローだけ']] as const).map(([k, l]) => (
-            <button key={k} type="button" onClick={() => setScope(k)}
-              className={`px-3 py-1.5 rounded-full text-[12px] font-black border-[1.5px] ${scope === k ? 'bg-green-light text-green border-green' : 'bg-bg text-sub border-transparent'}`}>{l}</button>
+          {([['all', region ? `同じ地域（${region}）の20〜30代` : '同じ地域（プロフィールのエリアを選ぶと使えます）'], ['followers', 'フォロワーだけ'], ['mutual', '相互フォローだけ']] as const).map(([k, l]) => (
+            <button key={k} type="button" onClick={() => setScope(k)} disabled={k === 'all' && !region}
+              className={`disabled:opacity-50 px-3 py-1.5 rounded-full text-[12px] font-black border-[1.5px] ${scope === k ? 'bg-green-light text-green border-green' : 'bg-bg text-sub border-transparent'}`}>{l}</button>
           ))}
         </div>
       </div>
