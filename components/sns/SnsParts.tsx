@@ -64,8 +64,8 @@ export function RingAvatar({ user, size = 58, ring }: { user: SnsUser | undefine
   );
 }
 
-export function SnsTestBadge() {
-  return <span className="ml-1.5 px-2 py-0.5 rounded-full bg-[#FFF6D9] border border-[#E9CF7A] text-[10px] font-black text-[#7A5B00] align-middle">テスト版・あなただけ</span>;
+export function SnsTestBadge({ short }: { short?: boolean }) {
+  return <span className="ml-1.5 px-2 py-0.5 rounded-full bg-[#FFF6D9] border border-[#E9CF7A] text-[10px] font-black text-[#7A5B00] align-middle whitespace-nowrap">{short ? 'テスト版' : 'テスト版・あなただけ'}</span>;
 }
 
 /** ストーリーを全画面で見る。左右タップで前後、5秒で次へ。写真がある「最近のラウンド」は写真ごとに進む */

@@ -147,7 +147,7 @@ export default function SnsHomePage() {
   return (
     <div className="pb-8 bg-card min-h-screen">
       <div className="sticky top-0 z-20 bg-card border-b border-hair flex items-center px-4 h-12">
-        <span className="text-[20px] font-black tracking-tight whitespace-nowrap">ゴルトモ</span><SnsTestBadge />
+        <span className="text-[20px] font-black tracking-tight whitespace-nowrap">ゴルトモ</span><SnsTestBadge short />
         <span className="ml-auto flex items-center gap-4 text-[20px]">
           {/* 募集を立てる入口は、これまで今のホームにしか無かった */}
           <Link href="/create" className="px-2 py-1 rounded-full bg-orange text-white text-[11px] font-black whitespace-nowrap">＋ 募集</Link>
