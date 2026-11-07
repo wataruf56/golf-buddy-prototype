@@ -9,10 +9,11 @@ import { RoomIntroSheet } from '@/components/RoomIntroSheet';
 import { AvailLegend, AvailPersonChip } from '@/components/AvailPersonChip';
 import { AvailabilityIntro } from '@/components/AvailabilityIntro';
 import { markAvailSeen } from '@/lib/availBadge';
-import { AVAIL_ROOM_MIN, dateLabel, isoOf, monthsBetween, WEEKDAYS, type AvailPerson } from '@/lib/availabilityShared';
+import { AVAIL_ROOM_MIN, dateLabel, WEEKDAYS, type AvailPerson } from '@/lib/availabilityShared';
 
 // 「行ける日」カレンダー（モック3版・2026-09-27）。
-//   ・1か月ずつ。‹ › で月を切り替える（今日から約3か月先まで）
+//   ・2026-11-07〜 今日を左上にして5週間（35日）ずつ。月をまたいでもそのまま続けて並べる（本人指定）。
+//     ‹ › で次の5週間へ（今日から約3か月先まで）。各月の1日には「12月」のように月を添える
 //   ・日付を押すと、その日に行ける人がカレンダーのすぐ下に出る
 //   ・「この日に行ける」を押すとその場で保存。押し直すと外れる
 //   ・車を出せる人は、乗れる人数（運転手込み）とバッグの数を 2〜8 で選ぶ
@@ -34,6 +35,15 @@ type Resp = {
   rooms?: Record<string, { id: string; count: number; introDone?: boolean }>;
 };
 const NUMS = [2, 3, 4, 5, 6, 7, 8];
+/** 1画面に並べる日数。今日から30日＋最後の行を埋めて5週ぶん */
+const PAGE_DAYS = 35;
+function addDays(iso: string, n: number): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
+function daysBetween(a: string, b: string): number {
+  return Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000);
+}
 const RETURN_TO = '/mypage/edit?returnTo=' + encodeURIComponent('/availability');
 
 export default function AvailabilityPage() {
@@ -41,7 +51,7 @@ export default function AvailabilityPage() {
   const me = useStore(getMe);
   const [data, setData] = useState<Resp | null>(null);
   const [failed, setFailed] = useState(false);
-  const [monthIdx, setMonthIdx] = useState(0);
+  const [pageIdx, setPageIdx] = useState(0);
   const [focusIso, setFocusIso] = useState('');
   const [busy, setBusy] = useState(false);
   // 部屋に入ったときの「ひとこと」（2026-10-12）
@@ -61,10 +71,11 @@ export default function AvailabilityPage() {
   const enabled = !!data?.enabled;
   useEffect(() => { if (enabled) markAvailSeen(); }, [enabled]);
 
-  const months = useMemo(() => (data?.enabled ? monthsBetween(data.window.from, data.window.to) : []), [data]);
-  const month = months[monthIdx];
   const today = data?.window.from || '';
   const limit = data?.window.to || '';
+  const pageCount = data?.enabled && today && limit ? Math.max(1, Math.ceil((daysBetween(today, limit) + 1) / PAGE_DAYS)) : 0;
+  const pageStart = today ? addDays(today, pageIdx * PAGE_DAYS) : '';
+  const pageDays = useMemo(() => (pageStart ? Array.from({ length: PAGE_DAYS }, (_, i) => addDays(pageStart, i)) : []), [pageStart]);
   const mine = useMemo(() => new Set(data?.mine || []), [data]);
 
   // 自分の札。まだ1日も出していないと一覧に居ないので、プロフィールから作る
@@ -134,13 +145,11 @@ export default function AvailabilityPage() {
     setData({ ...data, [key]: v });
     save({ [key]: v }, data);
   }
-  function goMonth(delta: number) {
-    const idx = Math.min(months.length - 1, Math.max(0, monthIdx + delta));
-    setMonthIdx(idx);
-    const m = months[idx];
-    // 新しい月の、選べる最初の日を見せる
-    const first = isoOf(m.y, m.m0, 1);
-    setFocusIso(first < today ? today : first);
+  function goPage(delta: number) {
+    const idx = Math.min(pageCount - 1, Math.max(0, pageIdx + delta));
+    setPageIdx(idx);
+    // 新しい5週間の最初の日を見せる
+    setFocusIso(addDays(today, idx * PAGE_DAYS));
   }
 
   if (failed) {
@@ -230,24 +239,28 @@ export default function AvailabilityPage() {
           </>
         )}
 
-        {/* 1か月ずつのカレンダー */}
+        {/* 今日を左上にした5週間のカレンダー（月をまたいで続けて並べる・2026-11-07） */}
         <div className="mt-3">
           <div className="grid grid-cols-[36px_1fr_36px] items-center mb-2">
-            <button type="button" aria-label="前の月" disabled={monthIdx <= 0} onClick={() => goMonth(-1)}
+            <button type="button" aria-label="前の5週間" disabled={pageIdx <= 0} onClick={() => goPage(-1)}
               className="w-9 h-9 rounded-lg border-2 border-border bg-white font-black text-base disabled:opacity-30">‹</button>
-            <div className="text-center text-[15px] font-black">{month ? `${month.y}年${month.m0 + 1}月` : ''}</div>
-            <button type="button" aria-label="次の月" disabled={monthIdx >= months.length - 1} onClick={() => goMonth(1)}
+            <div className="text-center text-[15px] font-black">
+              {pageStart ? `${dateLabel(pageStart).md}〜${dateLabel(addDays(pageStart, PAGE_DAYS - 1) > limit ? limit : addDays(pageStart, PAGE_DAYS - 1)).md}` : ''}
+            </div>
+            <button type="button" aria-label="次の5週間" disabled={pageIdx >= pageCount - 1} onClick={() => goPage(1)}
               className="w-9 h-9 rounded-lg border-2 border-border bg-white font-black text-base disabled:opacity-30">›</button>
           </div>
-          {month && (
+          {pageStart && (
             <div className="grid grid-cols-7 gap-1">
-              {WEEKDAYS.map((w, i) => (
-                <div key={w} className={`text-center text-[10px] font-black pb-0.5 ${i === 0 ? 'text-orange' : i === 6 ? 'text-blue' : 'text-sub'}`}>{w}</div>
+              {/* 曜日の並びは今日の曜日から始める */}
+              {Array.from({ length: 7 }, (_, i) => (dateLabel(pageStart).dow + i) % 7).map((dow) => (
+                <div key={dow} className={`text-center text-[10px] font-black pb-0.5 ${dow === 0 ? 'text-orange' : dow === 6 ? 'text-blue' : 'text-sub'}`}>{WEEKDAYS[dow]}</div>
               ))}
-              {Array.from({ length: new Date(month.y, month.m0, 1).getDay() }).map((_, i) => <span key={`pad${i}`} />)}
-              {Array.from({ length: new Date(month.y, month.m0 + 1, 0).getDate() }).map((_, i) => {
-                const d = i + 1;
-                const iso = isoOf(month.y, month.m0, d);
+              {pageDays.map((iso, i) => {
+                const d = Number(iso.slice(8, 10));
+                const m = Number(iso.slice(5, 7));
+                // 左上の日と各月の1日には月を添える（ここから12月、とわかるように）
+                const showMonth = i === 0 || d === 1;
                 const past = iso < today;
                 const beyond = iso > limit;
                 const on = mine.has(iso);
@@ -260,7 +273,10 @@ export default function AvailabilityPage() {
                 ].join(' ');
                 return (
                   <button key={iso} type="button" disabled={past || beyond} aria-pressed={on} onClick={() => setFocusIso(iso)} className={cls}
-                    aria-label={`${month.m0 + 1}月${d}日${on ? '・行ける' : ''}${others.length ? `・${others.length}人` : ''}`}>
+                    aria-label={`${m}月${d}日${on ? '・行ける' : ''}${others.length ? `・${others.length}人` : ''}`}>
+                    {showMonth && (
+                      <span className={`absolute top-[2px] left-[4px] text-[8.5px] leading-none font-sans font-black ${on ? 'text-white' : past || beyond ? 'text-muted' : 'text-orange'}`}>{m}月</span>
+                    )}
                     <span>{d}</span>
                     <span className="flex gap-[2px] pb-1 h-2 items-center">
                       {dots.map((p, j) => (

@@ -22,6 +22,7 @@ import { ConfirmHost } from '@/components/ConfirmDialog';
 import { AgeGateScreen } from '@/components/AgeGateScreen';
 import { LoginButtons } from '@/components/LoginButtons';
 import { MatchingBanner } from '@/components/MatchingBanner';
+import { AvailRoomsBar } from '@/components/AvailRoomsBar';
 import { UpdateBanner } from '@/components/UpdateBanner';
 import { getMe, store, useStore } from '@/lib/store';
 import { isMatchingAllowedByAge, isMatchingAllowedUser } from '@/lib/ageGate';
@@ -41,6 +42,8 @@ const LOGIN_REQUIRED_PREFIXES = ['/home', '/search', '/create', '/buddies', '/my
 function requiresLogin(pathname: string): boolean {
   return LOGIN_REQUIRED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
 }
+
+const AVAIL_BAR_PATHS = ['/home', '/availability', '/search', '/timeline', '/mypage'];
 
 function needsMatchingAccess(pathname: string): boolean {
   if (!pathname) return false;
@@ -158,6 +161,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 コミュニティ帯を出すとその高さぶん下にはみ出して入力欄がタブバーと重なるため、
                 チャット画面ではバナーを出さない（年齢ゲート自体は従来どおり有効）。 */}
             {needsMatchingAccess(pathname) && !pathname.startsWith('/chat') && <MatchingBanner />}
+            {/* 行ける日で3人以上そろったチャットの入口（2026-11-07 本人指定）。下のタブの画面の一番上に。
+                ゴル友（/buddies）は中で高さいっぱいにスクロールする作りなので、帯を足すと二重スクロールになる。出さない */}
+            {AVAIL_BAR_PATHS.includes(pathname) && <AvailRoomsBar />}
             {children}
           </>
         )}
